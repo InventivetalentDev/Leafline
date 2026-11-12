@@ -259,6 +259,17 @@ Log gameplay events under one category (`LogLeafline`) so pickups, deposits, blo
 - Tree mesh: up to about 1–2 million triangles with bark relief, built once per day. A build under two seconds is acceptable behind the day-start screen. Generate on a worker thread if it hitches.
 - Leaves: 20–40 thousand quads, masked. Watch overdraw.
 - Target 60 fps at 1080p on a mid-range GPU.
+- Measured 2026-11-12 (`Tools/perf_packaged.sh`, packaged Development build, 1920x1080 windowed, the owner's NVIDIA GPU with ray tracing tier 1.1). Every run sat at the display's 60 Hz, so the GPU time is the real headroom:
+
+  | Run | fps (avg / 1% low) | Game thread | GPU |
+  |---|---|---|---|
+  | Trunk, D3D12 SM6, ray tracing | 60 / 53 | 1.6 ms | 4.2 ms |
+  | Canopy (twigs and leaves), ray tracing | 60 / 52 | 1.7 ms | 4.0 ms |
+  | Trunk, `-noraytracing` | 60 / 53 | 1.6 ms | 4.2 ms |
+  | Canopy, `-noraytracing` | 60 / 55 | 1.5 ms | 4.2 ms |
+  | Trunk, `-dx11` (SM5) | 60 / 54 | 1.4 ms | not comparable |
+
+  Without hardware ray tracing the game starts and runs the same ("Ray tracing is disabled. Reason: not supported"); the GPU cost does not change, so nothing depends on it. DX11 also starts and runs. Whether the picture changes without ray tracing (Lumen falls back to software tracing, and the procedural tree has no mesh distance field) has not been compared yet. A mid-range GPU is perhaps three to five times slower than this one, so 4.2 ms leaves room for 60 fps there, unchecked.
 
 ## Risks, in order
 
