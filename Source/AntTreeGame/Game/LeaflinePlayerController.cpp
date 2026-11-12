@@ -1,4 +1,5 @@
 #include "Game/LeaflinePlayerController.h"
+#include "Misc/App.h"
 #include "AntTreeGame.h"
 #include "Ant/AntPawn.h"
 #include "Ant/AntCamera.h"
@@ -141,12 +142,15 @@ void ALeaflinePlayerController::PlayerTick(float DeltaTime)
 	UEnhancedPlayerInput* Input = Cast<UEnhancedPlayerInput>(PlayerInput);
 	if (!Input || !MoveAction || !AntCamera) return;
 
-	FVector2D Move = Input->GetActionValue(MoveAction).Get<FVector2D>();
+	// Without focus (alt-tab, clicking another window) the input system stops getting stick updates and the last
+	// analog value would stay applied: the camera kept spinning. Ignore device input until focus returns.
+	const bool bHasFocus = FApp::HasFocus();
+	FVector2D Move = bHasFocus ? Input->GetActionValue(MoveAction).Get<FVector2D>() : FVector2D::ZeroVector;
 	Move.Y = FMath::Clamp(Move.Y + LeafDebug::AutoMove, -1.0, 1.0);
 	Move.X = FMath::Clamp(Move.X + LeafDebug::AutoStrafe, -1.0, 1.0);
 
-	const FVector2D Mouse = Input->GetActionValue(LookMouseAction).Get<FVector2D>();
-	FVector2D Stick = Input->GetActionValue(LookStickAction).Get<FVector2D>();
+	const FVector2D Mouse = bHasFocus ? Input->GetActionValue(LookMouseAction).Get<FVector2D>() : FVector2D::ZeroVector;
+	FVector2D Stick = bHasFocus ? Input->GetActionValue(LookStickAction).Get<FVector2D>() : FVector2D::ZeroVector;
 	// The owner's preference (2026-11-12): the right stick looks inverted (push up to look down); the mouse does not.
 	// bInvertPitch below still flips both.
 	Stick.Y = -Stick.Y;

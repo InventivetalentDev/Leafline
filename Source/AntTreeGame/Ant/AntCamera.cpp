@@ -180,7 +180,9 @@ void AAntCamera::Tick(float DeltaTime)
 	Pitch = FMath::Clamp(Pitch + (float)PitchDelta, Tuning.PitchMin, Tuning.PitchMax);
 
 	// 3. Spring-follow the look-at point, and keep it out of the tree when it cuts a corner.
-	const FVector Goal = AntPos + AntUp * Tuning.TargetHeight;
+	// Look at a point above the ant along the camera's own lazy up, not the ant's: circling a twig turns the ant's up
+	// all the way round several times a second, and a look-at point riding on it made the camera jump.
+	const FVector Goal = AntPos + CamUp * Tuning.TargetHeight;
 	double Omega = Tuning.FollowFrequency;
 	if (GlideRemaining > 0.f)
 	{

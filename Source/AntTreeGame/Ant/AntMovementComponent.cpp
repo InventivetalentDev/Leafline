@@ -217,6 +217,7 @@ void UAntMovementComponent::TickWalking(float Dt)
 	// direction; when it points across the branch the last direction is kept (SpareInt holds the sign).
 	FVector Axis = FVector::ZeroVector;
 	float ThinBlend = 0.f;
+	float RadiusHere = 1.0e6f;
 	float DistToEnd = 1.0e6f;
 	if (Tree.IsValid())
 	{
@@ -238,10 +239,15 @@ void UAntMovementComponent::TickWalking(float Dt)
 			const int32 Lo = FMath::Max(Nearest - 1, 0), Hi = FMath::Min(Nearest + 1, B.Samples.Num() - 1);
 			Axis = (B.Samples[Hi] - B.Samples[Lo]).GetSafeNormal();
 			ThinBlend = 1.f - FMath::SmoothStep(15.f, 70.f, B.SampleRadius[Nearest]);
+			RadiusHere = B.SampleRadius[Nearest];
 			DistToEnd = B.Length() - B.SampleDist[Nearest];
 		}
 	}
-	if (ThinBlend <= 0.f) SpareInt = 0;
+	if (ThinBlend <= 0.f)
+	{
+		SpareInt = 0;
+		AroundSign = 0;
+	}
 
 	for (int32 s = 0; s < Steps; ++s)
 	{
@@ -301,14 +307,35 @@ void UAntMovementComponent::TickWalking(float Dt)
 				const double TipSlow = SpareInt > 0 ? FMath::Clamp(DistToEnd / 50.0, 0.15, 1.0) : 1.0;
 				const double Fade = SpareFloat > 0.f ? 1.0 : TipFade;
 				// Sideways input that is clearly meant (more than about 27 degrees off the branch) walks the ant round the
-				// branch, so it can reach twigs on the far side; small sideways parts are dropped, so walking along a thin
-				// branch never spirals. Not on the rounded tip, where "round the branch" has no meaning.
+				// branch; small sideways parts are dropped, so walking along a thin branch never spirals. The sense of
+				// rotation and the share of sideways input are taken when the stick settles on a direction and kept while it
+				// holds it, so the ant goes all the way round, behind the branch too: there the screen-relative wish would
+				// fade out at the silhouette and then point the other way. Not on the rounded tip.
+				const FVector Around = FVector::CrossProduct(N, A).GetSafeNormal();
 				const double AlongPart = FVector::DotProduct(Wish, A);
-				const FVector AroundV = Wish - A * AlongPart;
+				const double AroundPart = FVector::DotProduct(Wish, Around);
 				const double WishLen = Wish.Size();
-				const double Keep = (TipFade >= 1.0 && WishLen > 1e-3) ? FMath::SmoothStep(0.45, 0.8, AroundV.Size() / WishLen) : 0.0;
+				const FVector2D StickDir = MoveInput.GetSafeNormal();
+				if (TipFade < 1.0 || StickDir.IsNearlyZero() || FVector2D::DotProduct(StickDir, AroundStick) < 0.7)
+				{
+					AroundSign = 0;
+				}
+				if (AroundSign == 0 && TipFade >= 1.0 && WishLen > 1e-3)
+				{
+					const double Frac = FMath::Abs(AroundPart) / WishLen;
+					if (Frac > 0.45)
+					{
+						AroundSign = AroundPart >= 0.0 ? 1 : -1;
+						AroundStick = StickDir;
+						AroundKeep = (float)FMath::SmoothStep(0.45, 0.8, Frac);
+					}
+				}
+				const double Keep = AroundSign != 0 ? AroundKeep : 0.0;
+				// Round a thin twig at most about one lap a second: at full walking speed a 6 cm twig spun the ant (and the
+				// view) round five times a second.
+				const double AroundRate = FMath::Clamp(RadiusHere / 30.0, 0.2, 1.0);
 				const double AlongMag = InputMag * (1.0 - Keep) + FMath::Abs(AlongPart) * Keep;
-				Wish = FMath::Lerp(Wish, A * (SpareInt * AlongMag * Fade * TipSlow) + AroundV * Keep, (double)ThinBlend);
+				Wish = FMath::Lerp(Wish, A * (SpareInt * AlongMag * Fade * TipSlow) + Around * (AroundSign * InputMag * Keep * AroundRate), (double)ThinBlend);
 			}
 		}
 

@@ -179,4 +179,10 @@ private:
 	float HomeTrunkRadius = 1500.f;
 	int32 SpareInt2 = 0;
 	FVector SpareVector = FVector::ZeroVector;
+
+	// Circling a thin branch: the sense of rotation is locked while the stick holds its direction, so the ant keeps going
+	// round past the silhouette and behind the branch (where "screen right" would otherwise fade out and then reverse).
+	FVector2D AroundStick = FVector2D::ZeroVector;
+	int32 AroundSign = 0;
+	float AroundKeep = 0.f;
 };
