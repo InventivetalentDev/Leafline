@@ -273,9 +273,9 @@ Log gameplay events under one category (`LogLeafline`) so pickups, deposits, blo
   | Canopy, `-noraytracing` | 60 / 55 | 1.5 ms | 4.2 ms |
   | Trunk, `-dx11` (SM5) | 60 / 54 | 1.4 ms | not comparable |
 
-  After look pass 1 (8645 leaves instead of 5691, 12600 grove crown leaves, stronger fog scattering), same runs: trunk 4.2 ms, canopy 4.6 ms GPU with ray tracing; 4.4 and 4.4 ms without. Still 60 fps, 1% lows 50 to 53.
+  After look pass 1 (8645 leaves instead of 5691, 12600 grove crown leaves, stronger fog scattering), same runs: trunk 4.2 ms, canopy 4.6 ms GPU with ray tracing; 4.4 and 4.4 ms without. Still 60 fps, 1% lows 50 to 53. With the leaf material masked for its cutaway: trunk 4.6, canopy 5.0 ms with ray tracing; 4.3 and 4.9 ms without.
 
-  Without hardware ray tracing the game starts and runs the same ("Ray tracing is disabled. Reason: not supported"); the GPU cost does not change, so nothing depends on it. DX11 also starts and runs. Reference shots (`Tools/ref_shots.sh`) with and without ray tracing look nearly the same, so the look does not depend on it. Whether the picture changes without ray tracing (Lumen falls back to software tracing, and the procedural tree has no mesh distance field) has not been compared yet. A mid-range GPU is perhaps three to five times slower than this one, so 4.2 ms leaves room for 60 fps there, unchecked.
+  Without hardware ray tracing the game starts and runs the same ("Ray tracing is disabled. Reason: not supported"); the GPU cost does not change, so nothing depends on it. DX11 also starts and runs. Reference shots (`Tools/ref_shots.sh`, last taken after look pass 1 and the material changes) with and without ray tracing look nearly the same, so the look does not depend on it. Whether the picture changes without ray tracing (Lumen falls back to software tracing, and the procedural tree has no mesh distance field) has not been compared yet. A mid-range GPU is perhaps three to five times slower than this one, so 4.2 ms leaves room for 60 fps there, unchecked.
 
 ## Risks, in order
 
