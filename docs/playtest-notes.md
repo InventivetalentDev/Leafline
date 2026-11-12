@@ -45,8 +45,8 @@
   - Done: while gripping the ant presses flat to the bark (lower, wider, flatter) and trembles with the wind. Not in a package yet.
 - [ ] when plugging in a ps5 controller, sounds seems to cut off (getting routed to the controller speaker maybe?)
   - Probably yes: the DualSense is also an audio device, Windows often makes a newly plugged one the default, and the engine follows default-device changes. It now stays on the device it started with (`au.DisableDeviceSwap=1`). I could not test this without the pad; please check in the next package (plug the pad in while the game runs).
-- [ ] scent lines should maybe fade after a while? or at least be more faint for older ones so it doesn't get confusing
-  - First step: earlier workers' lines are thinner (each older line a step thinner, down to about half width). Making them truly fainter needs one change in the trail material (read the vertex alpha the lines now carry); that needs the editor, next time it is open. Not in a package yet.
+- [x] scent lines should maybe fade after a while? or at least be more faint for older ones so it doesn't get confusing
+  - Done: each earlier worker's line is a step thinner and fainter (down to about half width and a third of the opacity); the newest line reads first. `M_Trail` now multiplies its opacity by the vertex alpha the lines carry. Not in a package yet.
 - [x] wind could maybe wiggle the leaf you're carrying a bit more to make wind more obvious
   - Done: the carried piece shakes with the wind the ant feels on its spot (gust strength times exposure): barely in shelter, hard on an exposed face in a gust. Not in a package yet.
 - [x] can probably move the leaves start down to the lower branches
