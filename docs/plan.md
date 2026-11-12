@@ -39,7 +39,7 @@ Rules for parallel work:
 - [x] `Scripts/build_editor.bat` and `Scripts/package_win64.bat` (see `CLAUDE.md`). First successful build.
 - [x] Empty level `/Game/Leafline/Maps/L_Main` with sky, sun, fog; set as default map. `LeaflineGameMode` set as default.
 - [x] Editor opens, MCP server answers, a screenshot can be captured.
-- [ ] First commit (done). Create the **private** GitHub repo `Leafline` and push. The owner has approved a private repo; making it public needs a fresh yes on Sunday.
+- [x] First commit (done). Private GitHub repo created and pushed on 2026-11-12: https://github.com/InventivetalentDev/Leafline (SSH remote `origin`). Making it public needs a fresh yes on Sunday.
 
 **Done when:** the editor opens the empty level from a clean clone and build, and the MCP tools respond.
 
