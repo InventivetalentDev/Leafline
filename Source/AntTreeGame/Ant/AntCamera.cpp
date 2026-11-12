@@ -253,8 +253,37 @@ void AAntCamera::Tick(float DeltaTime)
 		CurrentBoom = FMath::Min(CurrentBoom, (float)FMath::Max(MaxBoom, (double)Tuning.MinBoomLength));
 	}
 
-	const FVector CamPos = Focus - View * CurrentBoom;
-	SetActorLocationAndRotation(CamPos, FRotationMatrix::MakeFromXZ(View, CamUp).ToQuat());
+	FVector CamPos = Focus - View * CurrentBoom;
+	FVector LookDir = View;
+	// Not inside the trunk: looking up the trunk put the camera in the wood, and the cutaway then showed the ant
+	// floating. Where the camera would be inside (or right at) thick wood, it slides out onto the bark instead.
+	if (Tuning.ThickWoodRadius > 0.f && Field && Field->IsValid() && Tree.IsValid())
+	{
+		int32 B = INDEX_NONE;
+		if (Field->Distance(CamPos, &B) < Tuning.WoodClearance && Tree->GetSkeleton().Branches.IsValidIndex(B))
+		{
+			const FTreeBranch& Br = Tree->GetSkeleton().Branches[B];
+			double Best = TNumericLimits<double>::Max();
+			float R = 0.f;
+			for (int32 i = 0; i < Br.Samples.Num(); ++i)
+			{
+				const double D2 = FVector::DistSquared(CamPos, Br.Samples[i]);
+				if (D2 < Best)
+				{
+					Best = D2;
+					R = Br.SampleRadius[i];
+				}
+			}
+			FVector P = CamPos, N;
+			if (R >= Tuning.ThickWoodRadius && Field->Project(P, N, Tuning.WoodClearance))
+			{
+				CamPos = P;
+				const FVector ToFocus = Focus - CamPos;
+				if (ToFocus.SizeSquared() > 1.0) LookDir = ToFocus.GetSafeNormal();
+			}
+		}
+	}
+	SetActorLocationAndRotation(CamPos, FRotationMatrix::MakeFromXZ(LookDir, CamUp).ToQuat());
 	PublishView(CamPos, Focus, true);
 	Camera->SetFieldOfView(Tuning.FieldOfView);
 	FPostProcessSettings& PP = Camera->PostProcessSettings;

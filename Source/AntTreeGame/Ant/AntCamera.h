@@ -43,6 +43,11 @@ struct FAntCameraTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float CutawayRadius = 55.f;
 	/** The camera never goes lower than this above the ground (cm). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float GroundClearance = 15.f;
+	/** The camera never sits inside wood this thick (radius, cm: the trunk, roots, big limbs); it slides out to
+	 *  WoodClearance above the bark, still looking at the ant. Thinner wood it passes through. 0 turns this off. Wood
+	 *  between the camera and the ant is dithered away either way. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float ThickWoodRadius = 120.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float WoodClearance = 12.f;
 	/** Probe radius for keeping the camera out of the tree (cm). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float ProbeRadius = 12.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float BoomShrinkRate = 5.f;
