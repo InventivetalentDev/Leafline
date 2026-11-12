@@ -31,7 +31,8 @@
 - [x] leaf animation seems to play without actually moving the leaf, only the shadow moves?
   - Real cause: every leaf was built twice (a front and a back face with opposite normals, on a two-sided material). The two copies z-fought, and the sway, which moves vertices along their normals, pushed them apart in opposite directions: two leaves cutting through each other, and doubled shadows. Leaves are one face now (half the leaf geometry). Sway is a little larger than before (about 2 cm calm, 20 cm at the tip in a full gust). In the package of 12 Nov 18:28.
 - [ ] glow around the ant looks weird
-- [ ] nanite warning text visible in packaged build
+- [x] nanite warning text visible in packaged build
+  - Fixed: that was the virtual shadow map warning "[VSM] Non-Nanite Marking Job Queue overflow", which shows whenever the canopy fills the view. It only costs a little speed; the on-screen text is now off (`r.Shadow.Virtual.AllowScreenOverflowMessages=0` in `DefaultEngine.ini`).
 
 ## To revisit: thin-branch controls (2026-11-12)
 

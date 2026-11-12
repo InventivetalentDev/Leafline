@@ -61,3 +61,11 @@ Leafline is made by one person directing AI agents. Claude (Anthropic) does plan
 - The camera no longer jumps in when wood comes between it and the ant. It passes through, and the bark along the line to the ant dithers away.
 - A Codex review of the screens, audio and pause code found five more issues (sounds playing through pause, an end card that could be lost, a stuck state at twig tips, among others). All fixed.
 - Two lessons for the tools, now in `CLAUDE.md`: Live Coding scrambled the debug console commands after new ones were added, and deleting material nodes from a script crashed the editor.
+
+## 2026-11-12 (Thu evening): routes, menus and a first look pass
+
+- A worker sent home now walks the nearby scent line nearest the nest and cuts out loops, instead of retracing every step. In a test, a wandering ant went home along 61 m instead of 105 m.
+- Menus take the mouse: hover and click in the nest, Resume and Quit buttons on the pause screen.
+- First look pass against concept image 01: a warmer sun that changes through the shifts, haze over the ground far below, stronger light shafts, half again as many leaves, and leafy crowns on the distant grove. A script takes fixed reference screenshots with and without ray tracing; they look nearly the same.
+- A yellow engine warning about shadow maps showed on screen in the packaged build whenever the canopy filled the view. It is hidden now.
+

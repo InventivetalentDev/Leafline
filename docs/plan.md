@@ -104,9 +104,10 @@ Order by visible impact per hour:
 - [x] Bark material (plates, fissures, moss). Rebuilt as `M_TreeBark`: seamless world-scale noise on a cylinder per branch, with the camera cutaway. Bark relief in field and mesh not done (cut list item 3).
 - [x] Leaf material: shape, veins, backlight, bite edges, wind sway.
 - [ ] Lighting pass against concept image 01: sun angle per shift, volumetric shafts, fog, mild depth of field, exposure.
+  - Pass 1 (Thu evening): `FLookTuning` on the day director, tunable live with `Leaf.Tune look`. Sun warmth per shift (4600/5600/3800 K), haze based at the ground, stronger shafts, sun glow in the fog. Leaves 1.5 times as dense; the distant grove has leaf crowns. Reference shots with `Tools/ref_shots.sh`. Still open: ground colour (M_Ground, needs the editor), leaves dithering near the camera, exposure.
 - [x] Final ant mesh with shader gait; carried fragment mesh (placeholder disc).
 - [x] Trail shader (soft-edged translucent cyan; no flow yet).
-- [x] Ground material. Distant trunks not done.
+- [x] Ground material. Distant trunks with leaf crowns (scenery only).
 - [x] Audio: runtime WAV loader (no import tool), all sounds hooked up. Mix not yet checked by ear.
 - [x] Onboarding prompts for the first day; recap screen titled as the day's cut.
 - [ ] Screens moved to Slate if time allows.
