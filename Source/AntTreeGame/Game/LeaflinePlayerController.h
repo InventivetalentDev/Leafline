@@ -46,7 +46,7 @@ public:
 
 	/** Degrees of camera turn per mouse count. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
-	float MouseSensitivity = 0.12f;
+	float MouseSensitivity = 0.25f;
 
 	/** Degrees per second at full right-stick deflection. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
@@ -76,6 +76,7 @@ private:
 	uint32 ButtonsHeld = 0;
 	uint32 ButtonsPressed = 0;
 	bool bPossessedBefore = false;
+	TWeakObjectPtr<class ADayDirector> Director;
 	float SpareFloat = 0.f;
 	int32 SpareInt = 0;
 };

@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Colony/ColonyTypes.h"
 #include "AntMovementComponent.generated.h"
 
 class ATreeActor;
@@ -77,6 +78,20 @@ public:
 	void TeleportTo(const FVector& Location, const FVector& Facing);
 	bool PlaceOnBranch(int32 Branch, float T);
 
+	/**
+	 * Follow a recorded path: Riding goes outward (Direction +1) at RideSpeed and ends on any movement input;
+	 * Returning replays it backwards (Direction -1) at the laden walking speed. The points are copied.
+	 */
+	void StartFollow(const TArray<FTrailPoint>& Points, int32 StartIndex, int32 Direction, EAntState FollowState);
+	void StopFollow();
+	/** True once after a follow reached the end of its path. */
+	bool ConsumeFollowFinished()
+	{
+		const bool bFinished = bFollowFinished;
+		bFollowFinished = false;
+		return bFinished;
+	}
+
 	EAntState GetState() const { return State; }
 	void SetState(EAntState NewState);
 
@@ -95,6 +110,7 @@ private:
 	const FTreeField* GetField();
 	void TickWalking(float Dt);
 	void TickRooted(float Dt);
+	void TickFollow(float Dt);
 	FVector ComputeWish(const FVector& N) const;
 	void UpdateOrientation(float Dt);
 	void UpdateStamina(float Dt, bool bWantsMove);
@@ -134,4 +150,13 @@ private:
 	TSet<int32> VisitedLevels;
 	int32 SpareInt = 0;
 	float SpareFloat = 0.f;
+
+	// Path following (Riding, Returning).
+	TArray<FTrailPoint> FollowPoints;
+	int32 FollowIndex = 0;
+	double FollowFrac = 0.0;
+	int32 FollowDir = 1;
+	bool bFollowFinished = false;
+	int32 SpareInt2 = 0;
+	FVector SpareVector = FVector::ZeroVector;
 };

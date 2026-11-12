@@ -186,19 +186,36 @@ void AAntCamera::Tick(float DeltaTime)
 	// 4. Boom, shortened smoothly when the tree is in the way.
 	const double PitchRad = FMath::DegreesToRadians(Pitch);
 	const FVector View = (RefForward * FMath::Cos(PitchRad) + CamUp * FMath::Sin(PitchRad)).GetSafeNormal();
+	// Branches passing between camera and ant must not make the camera jump. The tree's faces are one-sided, so a
+	// camera briefly behind or even inside a branch simply sees through it. Thin occluders are ignored; a thick one
+	// (trunk, big limb) pulls the boom in smoothly after it has blocked the view for a moment.
 	double Want = Tuning.BoomLength;
-	double HardMax = Tuning.BoomLength;
+	float& OccludedTime = SpareFloat;
+	bool bThickOcclusion = false;
 	if (Field && Field->IsValid())
 	{
 		double HitT;
 		if (Field->March(Focus, Focus - View * Tuning.BoomLength, Tuning.ProbeRadius, HitT))
 		{
-			HardMax = HitT * Tuning.BoomLength;
-			Want = FMath::Max(HardMax - 10.0, (double)Tuning.MinBoomLength);
+			const double HitDist = HitT * Tuning.BoomLength;
+			// Thickness of the obstruction along the ray: step through it until outside again.
+			double Exit = HitDist;
+			for (int32 i = 0; i < 24 && Exit < Tuning.BoomLength; ++i)
+			{
+				const double D = Field->Distance(Focus - View * Exit);
+				if (D > Tuning.ProbeRadius) break;
+				Exit += FMath::Max(-D, 0.0) + 4.0;
+			}
+			if (Exit - HitDist > 60.0 || Exit >= Tuning.BoomLength)
+			{
+				bThickOcclusion = true;
+				if (OccludedTime > 0.25f) Want = FMath::Max(HitDist - 10.0, (double)Tuning.MinBoomLength);
+				else Want = CurrentBoom;
+			}
 		}
 	}
+	OccludedTime = bThickOcclusion ? OccludedTime + (float)Dt : 0.f;
 	CurrentBoom = FMath::FInterpTo(CurrentBoom, (float)Want, (float)Dt, Want < CurrentBoom ? Tuning.BoomShrinkRate : Tuning.BoomGrowRate);
-	CurrentBoom = FMath::Min(CurrentBoom, (float)FMath::Max(HardMax, 1.0));
 
 	const FVector CamPos = Focus - View * CurrentBoom;
 	SetActorLocationAndRotation(CamPos, FRotationMatrix::MakeFromXZ(View, CamUp).ToQuat());

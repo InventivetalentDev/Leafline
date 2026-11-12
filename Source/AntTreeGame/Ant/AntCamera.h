@@ -35,7 +35,7 @@ struct FAntCameraTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float DefaultPitch = -20.f;
 	/** Probe radius for keeping the camera out of the tree (cm). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float ProbeRadius = 12.f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float BoomShrinkRate = 25.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float BoomShrinkRate = 5.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float BoomGrowRate = 2.5f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float FieldOfView = 75.f;
 	/** Rate at which the yaw drifts behind the ant while it moves (1/s). 0 = free orbit only. */

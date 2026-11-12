@@ -31,6 +31,15 @@ namespace
 		const FVector Ref = FMath::Abs(N.Z) < 0.9 ? FVector::UpVector : FVector::ForwardVector;
 		return ProjectOnPlane(Ref, N).GetSafeNormal();
 	}
+
+	/** Window start points for net-displacement telemetry (file-local so Live Coding never adds members). */
+	struct FTelemetryScratch
+	{
+		FVector WindowStart = FVector::ZeroVector;
+		FVector StallStart = FVector::ZeroVector;
+		bool bInit = false;
+	};
+	TMap<const UAntMovementComponent*, FTelemetryScratch> GTelemetry;
 }
 
 UAntMovementComponent::UAntMovementComponent()
@@ -120,8 +129,11 @@ void UAntMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType, 
 	switch (State)
 	{
 	case EAntState::Walking:
-	case EAntState::Riding:
 		TickWalking(Dt);
+		break;
+	case EAntState::Riding:
+	case EAntState::Returning:
+		TickFollow(Dt);
 		break;
 	default:
 		TickRooted(Dt);
@@ -146,11 +158,24 @@ void UAntMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType, 
 FVector UAntMovementComponent::ComputeWish(const FVector& N) const
 {
 	// Screen-forward on the surface: away from the camera plus screen-up, both projected onto the tangent plane.
-	FVector Fwd = ProjectOnPlane(CamForward, N) + ProjectOnPlane(CamUp, N);
-	if (Fwd.SizeSquared() < 1e-4) Fwd = ProjectOnPlane(Forward, N);
-	Fwd = Fwd.GetSafeNormal();
-	const FVector Right = FVector::CrossProduct(N, Fwd);
-	return (Fwd * MoveInput.Y + Right * MoveInput.X).GetClampedToMaxSize(1.0);
+	// Where that projection vanishes (one spot on every thin branch), normalising it would flip its direction from
+	// step to step and the ant would vibrate in place. Fade the forward input out there instead.
+	const FVector RawFwd = ProjectOnPlane(CamForward, N) + ProjectOnPlane(CamUp, N);
+	const double FwdLen = RawFwd.Size();
+	FVector Fwd, Right;
+	if (FwdLen > 0.1)
+	{
+		Fwd = RawFwd / FwdLen;
+		Right = FVector::CrossProduct(N, Fwd);
+	}
+	else
+	{
+		Right = ProjectOnPlane(FVector::CrossProduct(CamUp, CamForward), N).GetSafeNormal();
+		if (Right.IsNearlyZero()) Right = FVector::CrossProduct(N, ProjectOnPlane(Forward, N).GetSafeNormal());
+		Fwd = FVector::CrossProduct(Right, N);
+	}
+	const double FwdGain = FMath::Clamp(FwdLen / 0.35, 0.0, 1.0);
+	return (Fwd * (MoveInput.Y * FwdGain) + Right * MoveInput.X).GetClampedToMaxSize(1.0);
 }
 
 void UAntMovementComponent::TickWalking(float Dt)
@@ -168,9 +193,55 @@ void UAntMovementComponent::TickWalking(float Dt)
 	FVector N = SurfaceNormal;
 	double MaxErr = 0.0;
 
+	// Thin branches: walk along the axis like a tightrope instead of spiralling round it. The input picks the
+	// direction; when it points across the branch the last direction is kept (SpareInt holds the sign).
+	FVector Axis = FVector::ZeroVector;
+	float ThinBlend = 0.f;
+	if (Tree.IsValid())
+	{
+		const TArray<FTreeBranch>& Branches = Tree->GetSkeleton().Branches;
+		if (Branches.IsValidIndex(CurrentBranch))
+		{
+			const FTreeBranch& B = Branches[CurrentBranch];
+			int32 Nearest = 0;
+			double Best = TNumericLimits<double>::Max();
+			for (int32 i = 0; i < B.Samples.Num(); ++i)
+			{
+				const double D2 = FVector::DistSquared(Pos, B.Samples[i]);
+				if (D2 < Best)
+				{
+					Best = D2;
+					Nearest = i;
+				}
+			}
+			const int32 Lo = FMath::Max(Nearest - 1, 0), Hi = FMath::Min(Nearest + 1, B.Samples.Num() - 1);
+			Axis = (B.Samples[Hi] - B.Samples[Lo]).GetSafeNormal();
+			ThinBlend = 1.f - FMath::SmoothStep(12.f, 45.f, B.SampleRadius[Nearest]);
+		}
+	}
+	if (ThinBlend <= 0.f) SpareInt = 0;
+
 	for (int32 s = 0; s < Steps; ++s)
 	{
 		FVector Wish = ComputeWish(N);
+		if (ThinBlend > 0.f && bWantsMove)
+		{
+			const FVector A = ProjectOnPlane(Axis, N).GetSafeNormal();
+			if (!A.IsNearlyZero())
+			{
+				const double InputMag = FMath::Min(MoveInput.Size(), 1.0);
+				const double Along = FVector::DotProduct(Wish, A);
+				if (FMath::Abs(Along) > 0.25 * InputMag)
+				{
+					SpareInt = Along >= 0.0 ? 1 : -1;
+				}
+				else if (SpareInt == 0)
+				{
+					SpareInt = FVector::DotProduct(Forward, A) >= 0.0 ? 1 : -1;
+				}
+				Wish = FMath::Lerp(Wish, A * (SpareInt * InputMag), (double)ThinBlend);
+			}
+		}
 
 		// Soft boundary on the ground: turn the ant back toward the trunk.
 		if (Tree.IsValid() && Pos.Z < 600.0)
@@ -208,6 +279,84 @@ void UAntMovementComponent::TickWalking(float Dt)
 	F->Distance(Pos, &CurrentBranch);
 	UpdateOrientation(Dt);
 	UpdateTelemetry(Dt, FVector::Dist(Start, Pos), bWantsMove);
+}
+
+void UAntMovementComponent::StartFollow(const TArray<FTrailPoint>& Points, int32 StartIndex, int32 Direction, EAntState FollowState)
+{
+	if (Points.Num() < 2) return;
+	FollowPoints = Points;
+	FollowIndex = FMath::Clamp(StartIndex, 0, Points.Num() - 1);
+	FollowFrac = 0.0;
+	FollowDir = Direction >= 0 ? 1 : -1;
+	bFollowFinished = false;
+	SetState(FollowState);
+}
+
+void UAntMovementComponent::StopFollow()
+{
+	if (State == EAntState::Riding || State == EAntState::Returning) SetState(EAntState::Walking);
+	FollowPoints.Reset();
+}
+
+void UAntMovementComponent::TickFollow(float Dt)
+{
+	const FTreeField* F = GetField();
+	// Riding ends on any movement input; the input then drives the walk this frame.
+	if (State == EAntState::Riding && MoveInput.SizeSquared() > 0.04)
+	{
+		StopFollow();
+		TickWalking(Dt);
+		return;
+	}
+	UpdateStamina(Dt, false);
+
+	const float CarryFactor = FMath::Clamp(1.f - Tuning.SpeedLossPerMass * CarriedMass, Tuning.MinCarrySpeedFactor, 1.f);
+	const float Speed = State == EAntState::Riding ? Tuning.RideSpeed : Tuning.WalkSpeed * CarryFactor;
+	double Remaining = Speed * Dt;
+	while (Remaining > 0.0 && !bFollowFinished)
+	{
+		const int32 Next = FollowIndex + FollowDir;
+		if (!FollowPoints.IsValidIndex(Next))
+		{
+			bFollowFinished = true;
+			break;
+		}
+		const double SegLen = FMath::Max(FVector::Dist(FollowPoints[FollowIndex].Pos, FollowPoints[Next].Pos), 0.01);
+		const double Left = SegLen * (1.0 - FollowFrac);
+		if (Remaining < Left)
+		{
+			FollowFrac += Remaining / SegLen;
+			Remaining = 0.0;
+		}
+		else
+		{
+			Remaining -= Left;
+			FollowIndex = Next;
+			FollowFrac = 0.0;
+		}
+	}
+	const int32 Next = FollowIndex + FollowDir;
+	const FVector Target = FollowPoints.IsValidIndex(Next)
+		? FMath::Lerp(FollowPoints[FollowIndex].Pos, FollowPoints[Next].Pos, FollowFrac)
+		: FollowPoints[FollowIndex].Pos;
+
+	// Ease onto the path (riding starts up to RideReach away), then track it.
+	const FVector Start = Pos;
+	Pos = MoveTowards(Pos, Target, Speed * 2.0 * Dt + 1.0);
+	FVector N;
+	double Err = 0.0;
+	if (!F->Project(Pos, N, Tuning.RideHeight, &Err)) ++ProjFailCount;
+	SurfaceNormal = N;
+	LastProjError = Err;
+	Velocity = Dt > 0.f ? ProjectOnPlane((Pos - Start) / Dt, N) : FVector::ZeroVector;
+	F->Distance(Pos, &CurrentBranch);
+	UpdateOrientation(Dt);
+
+	if (bFollowFinished && State == EAntState::Riding)
+	{
+		StopFollow();
+		bFollowFinished = false;
+	}
 }
 
 void UAntMovementComponent::TickRooted(float Dt)
@@ -272,27 +421,37 @@ void UAntMovementComponent::UpdateTelemetry(float Dt, double Moved, bool bHadInp
 		VisitedLevels.Add(S.Branches.IsValidIndex(CurrentBranch) ? S.Branches[CurrentBranch].Level : -2);
 	}
 
+	// Stalls are judged on net displacement, so circling or vibrating in place counts as a stall.
+	FTelemetryScratch& Scratch = GTelemetry.FindOrAdd(this);
+	if (!Scratch.bInit)
+	{
+		Scratch.WindowStart = Scratch.StallStart = Pos;
+		Scratch.bInit = true;
+	}
 	if (bHadInput)
 	{
 		StallTimer += Dt;
 		StallMoved += Moved;
 		if (StallTimer >= 1.f)
 		{
+			const double Net = FVector::Dist(Scratch.StallStart, Pos);
 			const double ExpectedMin = Tuning.WalkSpeed * Tuning.MinCarrySpeedFactor * 0.25 * StallTimer;
-			if (StallMoved < ExpectedMin)
+			if (Net < ExpectedMin)
 			{
 				++StallCount;
-				UE_LOG(LogLeafline, Warning, TEXT("%s: stall, moved %.1f cm in %.1f s at %s (branch %d, normal %s)"),
-					*GetOwner()->GetName(), StallMoved, StallTimer, *Pos.ToString(), CurrentBranch, *SurfaceNormal.ToString());
+				UE_LOG(LogLeafline, Warning, TEXT("%s: stall, net %.1f cm (path %.1f cm) in %.1f s at %s (branch %d, normal %s)"),
+					*GetOwner()->GetName(), Net, StallMoved, StallTimer, *Pos.ToString(), CurrentBranch, *SurfaceNormal.ToString());
 			}
 			StallTimer = 0.f;
 			StallMoved = 0.0;
+			Scratch.StallStart = Pos;
 		}
 	}
 	else
 	{
 		StallTimer = 0.f;
 		StallMoved = 0.0;
+		Scratch.StallStart = Pos;
 	}
 
 	LogTimer += Dt;
@@ -304,9 +463,10 @@ void UAntMovementComponent::UpdateTelemetry(float Dt, double Moved, bool bHadInp
 			Levels.Sort();
 			FString LevelStr;
 			for (int32 L : Levels) LevelStr += FString::Printf(TEXT("%s%d"), LevelStr.IsEmpty() ? TEXT("") : TEXT(","), L);
-			UE_LOG(LogLeafline, Log, TEXT("AutoMove: moved %.0f cm in %.1f s, max projection error %.3f cm, stalls %d, projection failures %d, branch %d, z %.0f, levels visited [%s]"),
-				MovedWindow, LogTimer, MaxProjErrWindow, StallCount, ProjFailCount, CurrentBranch, Pos.Z, *LevelStr);
+			UE_LOG(LogLeafline, Log, TEXT("AutoMove: path %.0f cm, net %.0f cm in %.1f s, max projection error %.3f cm, stalls %d, projection failures %d, branch %d, z %.0f, levels visited [%s]"),
+				MovedWindow, FVector::Dist(Scratch.WindowStart, Pos), LogTimer, MaxProjErrWindow, StallCount, ProjFailCount, CurrentBranch, Pos.Z, *LevelStr);
 		}
+		Scratch.WindowStart = Pos;
 		LogTimer = 0.f;
 		MovedWindow = 0.0;
 		MaxProjErrWindow = 0.0;

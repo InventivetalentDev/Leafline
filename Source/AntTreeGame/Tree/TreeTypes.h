@@ -82,6 +82,12 @@ struct FTreeParams
 
 	// Leaves
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Leaves") float LowestLeafyHeight = 4000.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Leaves") float LeafSpacingTwig = 70.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Leaves") float LeafSpacingBough = 160.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Leaves") float LeafLengthMin = 170.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Leaves") float LeafLengthMax = 230.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Leaves") float LeafWidthRatio = 0.46f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Leaves") float LeafStalk = 18.f;
 
 	// Growth
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Growth") float AvoidMargin = 40.f;

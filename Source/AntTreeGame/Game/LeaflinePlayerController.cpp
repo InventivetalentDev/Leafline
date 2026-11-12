@@ -4,6 +4,7 @@
 #include "Ant/AntCamera.h"
 #include "Ant/AntMovementComponent.h"
 #include "Debug/LeafDebug.h"
+#include "World/DayDirector.h"
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedPlayerInput.h"
 #include "InputAction.h"
@@ -161,16 +162,21 @@ void ALeaflinePlayerController::PlayerTick(float DeltaTime)
 			M->SetMoveInput(Move, AntCamera->GetViewForward(), AntCamera->GetViewUp());
 			M->SetSprintInput((Held & LeafButtons::Sprint) != 0);
 		}
+		Ant->SetActionInput((Held & LeafButtons::Cut) != 0, (Held & LeafButtons::Follow) != 0);
 	}
 	if (ButtonsPressed) HandleButtons(ButtonsPressed);
 }
 
 void ALeaflinePlayerController::HandleButtons(uint32 Pressed)
 {
-	// Gameplay actions (cut, send home, follow, cycle, pause) arrive in M2; log them so input can be verified now.
-	static const TCHAR* Names[] = { TEXT("Sprint"), TEXT("Cut"), TEXT("Grip"), TEXT("SendHome"), TEXT("Follow"), TEXT("Cycle"), TEXT("Pause") };
-	for (int32 i = 0; i < UE_ARRAY_COUNT(Names); ++i)
+	if (!Director.IsValid()) Director = ADayDirector::Get(this);
+	ADayDirector* D = Director.Get();
+	if (!D) return;
+	if (D->GetPhase() == EDayPhase::Recap)
 	{
-		if (Pressed & (1u << i)) UE_LOG(LogLeafline, Verbose, TEXT("Input: %s pressed"), Names[i]);
+		if (Pressed & (LeafButtons::Cut | LeafButtons::Grip)) D->ConfirmRecap();
+		return;
 	}
+	if (Pressed & LeafButtons::SendHome) D->SendHome(GetAnt());
+	if (Pressed & LeafButtons::Cycle) D->CycleWorker();
 }

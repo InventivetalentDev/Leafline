@@ -1,8 +1,13 @@
 #include "Ant/AntPawn.h"
+#include "AntTreeGame.h"
 #include "Ant/AntMovementComponent.h"
+#include "Tree/TreeActor.h"
+#include "Colony/TrailNetwork.h"
+#include "World/DayDirector.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "ProceduralMeshComponent.h"
 #include "UObject/ConstructorHelpers.h"
 
 namespace
@@ -23,7 +28,8 @@ namespace
 
 AAntPawn::AAntPawn()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.TickGroup = TG_PostPhysics; // after the movement component has moved the ant
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
@@ -53,6 +59,11 @@ AAntPawn::AAntPawn()
 	CarrySocket = CreateDefaultSubobject<USceneComponent>(TEXT("CarrySocket"));
 	CarrySocket->SetupAttachment(VisualRoot);
 	CarrySocket->SetRelativeLocation(MandibleOffset);
+
+	FragmentMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("Fragment"));
+	FragmentMesh->SetupAttachment(CarrySocket);
+	FragmentMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	FragmentMesh->SetVisibility(false);
 }
 
 void AAntPawn::BeginPlay()
@@ -76,5 +87,253 @@ void AAntPawn::BeginPlay()
 		Head->SetMaterial(0, MID);
 		Thorax->SetMaterial(0, MID);
 		Gaster->SetMaterial(0, MID);
+	}
+}
+
+ATreeActor* AAntPawn::GetTree()
+{
+	if (!TreeRef.IsValid()) TreeRef = ATreeActor::Get(this);
+	return TreeRef.Get();
+}
+
+ADayDirector* AAntPawn::GetDirector()
+{
+	if (!DirectorRef.IsValid()) DirectorRef = ADayDirector::Get(this);
+	return DirectorRef.Get();
+}
+
+ATrailNetwork* AAntPawn::GetTrails()
+{
+	ADayDirector* D = GetDirector();
+	return D ? D->GetTrails() : nullptr;
+}
+
+void AAntPawn::SetWorker(int32 Index, int32 Path)
+{
+	WorkerIndex = Index;
+	PathIndex = Path;
+	LastRecordPos = GetActorLocation();
+}
+
+void AAntPawn::SetActionInput(bool bInCutHeld, bool bInFollowHeld)
+{
+	bCutHeld = bInCutHeld;
+	bFollowHeld = bInFollowHeld;
+}
+
+void AAntPawn::UnPossessed()
+{
+	Super::UnPossessed();
+	bCutHeld = false;
+	bFollowHeld = false;
+	if (Movement)
+	{
+		Movement->SetMoveInput(FVector2D::ZeroVector, FVector::ForwardVector, FVector::UpVector);
+		Movement->SetSprintInput(false);
+		if (Movement->GetState() == EAntState::Riding) Movement->StopFollow();
+	}
+}
+
+void AAntPawn::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+	if (!Movement) return;
+
+	// A leaf within reach of the mouth, for the prompt and for cutting.
+	LeafInReach = INDEX_NONE;
+	const EAntState State = Movement->GetState();
+	if (IsPlayerControlled() && !IsCarrying() && (State == EAntState::Walking || State == EAntState::Cutting))
+	{
+		if (ATreeActor* Tree = GetTree())
+		{
+			LeafInReach = Tree->FindLeafNear(GetActorTransform().TransformPosition(MandibleOffset), Cut.Reach);
+		}
+	}
+
+	UpdateCutting(DeltaSeconds);
+	UpdateRiding(DeltaSeconds);
+	UpdateRecording();
+
+	ADayDirector* Director = GetDirector();
+	if (!Director) return;
+	if (Movement->ConsumeFollowFinished() && Movement->GetState() == EAntState::Returning)
+	{
+		Director->OnAntReachedNest(this);
+		return;
+	}
+	// Walking home yourself with a fragment also counts.
+	if (IsPlayerControlled() && IsCarrying() && Movement->GetState() == EAntState::Walking &&
+		Director->IsNearNest(Movement->GetSurfacePosition()))
+	{
+		Director->OnAntReachedNest(this);
+	}
+}
+
+void AAntPawn::UpdateCutting(float Dt)
+{
+	ATreeActor* Tree = GetTree();
+	if (!Tree)
+	{
+		bPrevCutHeld = bCutHeld;
+		return;
+	}
+	if (CuttingLeaf == INDEX_NONE)
+	{
+		const bool bPressed = bCutHeld && !bPrevCutHeld;
+		if (bPressed && LeafInReach != INDEX_NONE && !IsCarrying() && Movement->GetState() == EAntState::Walking)
+		{
+			CuttingLeaf = LeafInReach;
+			CutSize = 0.f;
+			CutCap = Tree->LeafSizeCap(CuttingLeaf, Cut.LeafUsePerCut);
+			Movement->SetState(EAntState::Cutting);
+			UE_LOG(LogLeafline, Log, TEXT("%s: cutting leaf %d (size cap %.2f)"), *GetName(), CuttingLeaf, CutCap);
+		}
+	}
+	else if (bCutHeld && IsPlayerControlled())
+	{
+		CutSize = FMath::Min(CutCap, CutSize + Cut.CutRate * CutRateMultiplier * Dt);
+	}
+	else
+	{
+		if (CutSize >= Cut.MinSize && Tree->BiteLeaf(CuttingLeaf, CutSize, DiameterForSize(CutSize), Cut.LeafUsePerCut))
+		{
+			SetFragment(CutSize);
+			UE_LOG(LogLeafline, Log, TEXT("%s: cut a fragment of size %.2f (mass %.1f, %.0f cm) from leaf %d"),
+				*GetName(), CutSize, CarriedMass, DiameterForSize(CutSize), CuttingLeaf);
+		}
+		else
+		{
+			UE_LOG(LogLeafline, Log, TEXT("%s: cut cancelled at size %.2f"), *GetName(), CutSize);
+		}
+		CuttingLeaf = INDEX_NONE;
+		CutSize = 0.f;
+		if (Movement->GetState() == EAntState::Cutting) Movement->SetState(EAntState::Walking);
+	}
+	bPrevCutHeld = bCutHeld;
+}
+
+void AAntPawn::UpdateRiding(float Dt)
+{
+	ATrailNetwork* Trails = GetTrails();
+	const EAntState State = Movement->GetState();
+	if (!Trails || !IsPlayerControlled())
+	{
+		bTrailInReach = false;
+		return;
+	}
+	TrailCheckTimer -= Dt;
+	if (TrailCheckTimer <= 0.f && State == EAntState::Walking)
+	{
+		TrailCheckTimer = 0.2f;
+		int32 P, I;
+		ADayDirector* D = GetDirector();
+		bTrailInReach = Trails->FindRideStart(Movement->GetSurfacePosition(), D ? D->Tuning.RideReach : 60.f, Movement->GetBodyForward(), P, I);
+	}
+	if (bFollowHeld && State == EAntState::Walking)
+	{
+		int32 Path, Index;
+		ADayDirector* D = GetDirector();
+		if (Trails->FindRideStart(Movement->GetSurfacePosition(), D ? D->Tuning.RideReach : 60.f, Movement->GetBodyForward(), Path, Index))
+		{
+			Movement->StartFollow(Trails->GetPoints(Path), Index, 1, EAntState::Riding);
+			UE_LOG(LogLeafline, Log, TEXT("%s: riding trail %d from point %d of %d"), *GetName(), Path, Index, Trails->GetPoints(Path).Num());
+		}
+	}
+	else if (!bFollowHeld && State == EAntState::Riding)
+	{
+		Movement->StopFollow();
+	}
+}
+
+void AAntPawn::UpdateRecording()
+{
+	ATrailNetwork* Trails = GetTrails();
+	if (PathIndex == INDEX_NONE || !Trails) return;
+	const EAntState State = Movement->GetState();
+	if (State == EAntState::Returning || State == EAntState::Falling || State == EAntState::WalkingHome) return;
+	const ADayDirector* D = GetDirector();
+	const float Spacing = D ? D->Tuning.PathSpacing : 10.f;
+	const FVector P = Movement->GetSurfacePosition();
+	if (FVector::DistSquared(P, LastRecordPos) >= Spacing * Spacing)
+	{
+		Trails->AddPoint(PathIndex, P, Movement->GetSurfaceNormal());
+		LastRecordPos = P;
+	}
+}
+
+void AAntPawn::StartReturn()
+{
+	ATrailNetwork* Trails = GetTrails();
+	if (!Trails || PathIndex == INDEX_NONE) return;
+	Trails->AddPoint(PathIndex, Movement->GetSurfacePosition(), Movement->GetSurfaceNormal());
+	const TArray<FTrailPoint>& Points = Trails->GetPoints(PathIndex);
+	Movement->StartFollow(Points, Points.Num() - 1, -1, EAntState::Returning);
+	UE_LOG(LogLeafline, Log, TEXT("%s: returning along %d path points"), *GetName(), Points.Num());
+}
+
+void AAntPawn::SetFragment(float Size01)
+{
+	CarriedSize = FMath::Clamp(Size01, 0.f, 1.f);
+	CarriedMass = MassForSize(CarriedSize);
+	Movement->CarriedMass = CarriedMass;
+	BuildFragmentMesh(DiameterForSize(CarriedSize));
+	FragmentMesh->SetVisibility(true);
+}
+
+void AAntPawn::ClearFragment()
+{
+	CarriedSize = 0.f;
+	CarriedMass = 0.f;
+	if (Movement) Movement->CarriedMass = 0.f;
+	FragmentMesh->SetVisibility(false);
+}
+
+void AAntPawn::BuildFragmentMesh(float Diameter)
+{
+	// A rough disc of leaf, upright in the ant's XZ plane, held by its lower edge like a sail.
+	const int32 Segs = 20;
+	const float R = Diameter * 0.5f;
+	const FVector Center(-2.f, 0.f, R * 0.95f);
+	const float Phase = FMath::FRandRange(0.f, 2.f * PI);
+	TArray<FVector> V, N;
+	TArray<FVector2D> UV;
+	TArray<FLinearColor> Col;
+	TArray<FProcMeshTangent> Tan;
+	TArray<int32> Tri;
+	for (int32 Face = 0; Face < 2; ++Face)
+	{
+		const FVector Normal = Face == 0 ? FVector::RightVector : FVector::LeftVector;
+		const int32 Base = V.Num();
+		V.Add(Center);
+		N.Add(Normal);
+		UV.Add(FVector2D(0.5, 0.5));
+		Col.Add(FLinearColor::White);
+		Tan.Add(FProcMeshTangent(FVector::ForwardVector, false));
+		for (int32 i = 0; i < Segs; ++i)
+		{
+			const float A = 2.f * PI * i / Segs;
+			const float Rr = R * (1.f + 0.07f * FMath::Sin(3.f * A + Phase) + 0.04f * FMath::Sin(7.f * A));
+			V.Add(Center + FVector(FMath::Cos(A) * Rr, 0.f, FMath::Sin(A) * Rr));
+			N.Add(Normal);
+			UV.Add(FVector2D(0.5 + 0.5 * FMath::Cos(A), 0.5 + 0.5 * FMath::Sin(A)));
+			Col.Add(FLinearColor::White);
+			Tan.Add(FProcMeshTangent(FVector::ForwardVector, false));
+		}
+		for (int32 i = 0; i < Segs; ++i)
+		{
+			const int32 A = Base + 1 + i, B = Base + 1 + (i + 1) % Segs;
+			// UE front faces: (b - a) x (c - a) points away from the viewer, who looks down the normal.
+			const FVector Cross = FVector::CrossProduct(V[A] - V[Base], V[B] - V[Base]);
+			if (FVector::DotProduct(Cross, Normal) > 0.0) Tri.Append({ Base, B, A });
+			else Tri.Append({ Base, A, B });
+		}
+	}
+	FragmentMesh->CreateMeshSection_LinearColor(0, V, Tri, N, UV, {}, {}, {}, Col, Tan, false, false);
+	FragmentMesh->SetRelativeRotation(FRotator(12.f, 0.f, 0.f)); // leans back slightly over the body (positive pitch tilts +Z toward -X)
+	if (BasicMaterial)
+	{
+		if (!FragmentMID) FragmentMID = UMaterialInstanceDynamic::Create(BasicMaterial, this);
+		FragmentMID->SetVectorParameterValue(TEXT("Color"), FragmentColor);
+		FragmentMesh->SetMaterial(0, FragmentMID);
 	}
 }

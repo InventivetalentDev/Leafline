@@ -5,6 +5,9 @@
 #include "LeaflineGameMode.generated.h"
 
 class ATreeActor;
+class ATrailNetwork;
+class ANestActor;
+class ADayDirector;
 
 UCLASS()
 class ANTTREEGAME_API ALeaflineGameMode : public AGameModeBase
@@ -21,14 +24,18 @@ public:
 	TSubclassOf<ATreeActor> TreeClass;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Leafline")
-	int32 StartSeed = 1112;
+	TSubclassOf<ADayDirector> DirectorClass;
 
-	/** Regrows the tree from a seed and puts the player's ant at the nest. */
+	/** Regrows the tree from a seed for the current day and starts it over. */
 	void NewDay(int32 Seed);
 
 	ATreeActor* GetTree() const { return Tree; }
+	ADayDirector* GetDirector() const { return Director; }
 
 private:
-	UPROPERTY(Transient)
-	TObjectPtr<ATreeActor> Tree;
+	UPROPERTY(Transient) TObjectPtr<ATreeActor> Tree;
+	UPROPERTY(Transient) TObjectPtr<ATrailNetwork> Trails;
+	UPROPERTY(Transient) TObjectPtr<ANestActor> Nest;
+	UPROPERTY(Transient) TObjectPtr<ADayDirector> Director;
+	bool bDayStarted = false;
 };

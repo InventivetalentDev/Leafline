@@ -2,10 +2,12 @@
 #include "AntTreeGame.h"
 #include "Tree/TreeActor.h"
 #include "Ant/AntPawn.h"
-#include "Ant/AntMovementComponent.h"
+#include "Colony/TrailNetwork.h"
+#include "Colony/NestActor.h"
+#include "World/DayDirector.h"
 #include "Game/LeaflinePlayerController.h"
 #include "UI/LeaflineHUD.h"
-#include "EngineUtils.h"
+#include "GameFramework/PlayerController.h"
 
 ALeaflineGameMode::ALeaflineGameMode()
 {
@@ -13,43 +15,44 @@ ALeaflineGameMode::ALeaflineGameMode()
 	PlayerControllerClass = ALeaflinePlayerController::StaticClass();
 	HUDClass = ALeaflineHUD::StaticClass();
 	TreeClass = ATreeActor::StaticClass();
+	DirectorClass = ADayDirector::StaticClass();
 }
 
 void ALeaflineGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
 {
 	Super::InitGame(MapName, Options, ErrorMessage);
 
-	// The pawn exists before BeginPlay, so the tree it walks on is created here.
+	// Everything the first worker depends on exists before any pawn does. The director grows the tree on day start.
 	FActorSpawnParameters Params;
 	Params.ObjectFlags |= RF_Transient;
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	Tree = GetWorld()->SpawnActor<ATreeActor>(TreeClass ? *TreeClass : ATreeActor::StaticClass(), FTransform::Identity, Params);
-	if (Tree)
+	UWorld* World = GetWorld();
+	Tree = World->SpawnActor<ATreeActor>(TreeClass ? *TreeClass : ATreeActor::StaticClass(), FTransform::Identity, Params);
+	Trails = World->SpawnActor<ATrailNetwork>(ATrailNetwork::StaticClass(), FTransform::Identity, Params);
+	Nest = World->SpawnActor<ANestActor>(ANestActor::StaticClass(), FTransform::Identity, Params);
+	Director = World->SpawnActor<ADayDirector>(DirectorClass ? *DirectorClass : ADayDirector::StaticClass(), FTransform::Identity, Params);
+	if (Director)
 	{
-		Tree->Grow(StartSeed);
+		if (DefaultPawnClass && DefaultPawnClass->IsChildOf(AAntPawn::StaticClass())) Director->WorkerClass = *DefaultPawnClass;
+		Director->Init(Tree, Trails, Nest);
 	}
-	UE_LOG(LogLeafline, Log, TEXT("LeaflineGameMode: InitGame on %s, seed %d"), *MapName, StartSeed);
+	UE_LOG(LogLeafline, Log, TEXT("LeaflineGameMode: InitGame on %s"), *MapName);
 }
 
 void ALeaflineGameMode::RestartPlayer(AController* NewPlayer)
 {
-	if (!NewPlayer || NewPlayer->IsPendingKillPending()) return;
-	FTransform Spawn = Tree ? Tree->GetNestTransform(0) : FTransform::Identity;
-	Spawn.AddToTranslation(FVector(0.0, 0.0, 40.0));
-	RestartPlayerAtTransform(NewPlayer, Spawn);
+	if (!NewPlayer || NewPlayer->IsPendingKillPending() || !Director) return;
+	Director->SetPlayer(Cast<APlayerController>(NewPlayer));
+	if (!bDayStarted)
+	{
+		bDayStarted = true;
+		Director->StartDay(1);
+	}
 }
 
 void ALeaflineGameMode::NewDay(int32 Seed)
 {
-	if (!Tree) return;
-	Tree->Grow(Seed);
-	const FTransform Nest = Tree->GetNestTransform(0);
-	for (TActorIterator<AAntPawn> It(GetWorld()); It; ++It)
-	{
-		if (UAntMovementComponent* M = It->GetAntMovement())
-		{
-			M->TeleportTo(Nest.GetLocation() + FVector(0.0, 0.0, 40.0), Nest.GetRotation().GetForwardVector());
-		}
-	}
+	if (!Director) return;
+	Director->StartDay(Director->GetDay(), Seed);
 	UE_LOG(LogLeafline, Log, TEXT("New day: seed %d"), Seed);
 }

@@ -107,6 +107,19 @@ namespace
 			GM->NewDay(Seed);
 		}));
 
+	FAutoConsoleCommandWithWorldAndArgs CmdCarry(
+		TEXT("Leaf.Carry"),
+		TEXT("Leaf.Carry <0-1>: hand the controlled ant a fragment of that size (0 drops it)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			AAntPawn* Ant = PlayerAnt(World);
+			if (!Ant) return;
+			const float Size = Args.Num() > 0 ? FCString::Atof(*Args[0]) : 0.5f;
+			if (Size <= 0.f) Ant->ClearFragment();
+			else Ant->GiveFragment(Size);
+			UE_LOG(LogLeafline, Log, TEXT("Leaf.Carry %.2f (mass %.1f)"), Size, Ant->GetCarriedMass());
+		}));
+
 	void TuneMessage(const FString& Text)
 	{
 		UE_LOG(LogLeafline, Log, TEXT("%s"), *Text);
