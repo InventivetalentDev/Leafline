@@ -160,7 +160,8 @@ void ALeaflineHUD::DrawDayInfo(const ADayDirector* D, float Scale)
 {
 	UFont* Font = GEngine->GetMediumFont();
 	const float X = 40.f * Scale, Y = 34.f * Scale;
-	DrawCrisp(Canvas, FString::Printf(TEXT("Day %d"), D->GetDay()), TextColor, X, Y, Font, 1.3f * Scale);
+	DrawCrisp(Canvas, D->GetTreeName().IsEmpty() ? FString::Printf(TEXT("Day %d"), D->GetDay())
+		: FString::Printf(TEXT("Day %d: %s"), D->GetDay(), *D->GetTreeName()), TextColor, X, Y, Font, 1.3f * Scale);
 
 	// Worker pips: filled = waiting in the nest, ring = out or returning, dim = home.
 	const float Pip = 14.f * Scale, Gap = 8.f * Scale;
@@ -408,7 +409,7 @@ void ALeaflineHUD::DrawRecap(const ADayDirector* D, float Scale)
 	const float CX = Canvas->ClipX * 0.5f;
 	float Y = Canvas->ClipY * 0.28f;
 	const FDayStats& S = D->GetStats();
-	DrawTextCentered(FString::Printf(TEXT("Day %d: today's cut"), S.Day), CX, Y, AccentColor, 2.0f * Scale, Large);
+	DrawTextCentered(FString::Printf(TEXT("Day %d: today's cut from %s"), S.Day, *D->GetTreeName()), CX, Y, AccentColor, 2.0f * Scale, Large);
 	Y += 90.f * Scale;
 	const TArray<FString> Lines = {
 		FString::Printf(TEXT("Leaf hauled: %.1f"), S.MassHauled),

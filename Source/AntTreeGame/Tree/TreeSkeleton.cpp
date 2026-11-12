@@ -213,6 +213,7 @@ namespace
 			const float H0 = P.LimbStartHeight, H1 = P.LimbEndFrac * H;
 			const float Spacing = (H1 - H0) / FMath::Max(P.NumLimbs - 1, 1);
 			const float AzOffset = R.FRandRange(0.f, 2.f * PI);
+			const int32 StubIndex = P.bBrokenLimb && P.NumLimbs > 2 ? R.RandRange(1, FMath::Min(4, P.NumLimbs - 1)) : INDEX_NONE;
 			for (int32 i = 0; i < P.NumLimbs; ++i)
 			{
 				const float Hf = float(i) / FMath::Max(P.NumLimbs - 1, 1);
@@ -228,6 +229,17 @@ namespace
 				const float Shape = FMath::Sin(PI * (0.25f + 0.75f * Hf));
 				const float Len = FMath::Lerp(P.LimbLengthMin, P.LimbLengthMax, FMath::Max(Shape, 0.f)) * R.FRandRange(0.85f, 1.15f);
 				const float BaseR = FMath::Clamp(TrunkR * P.LimbRadiusRatio, 60.f, 320.f);
+				if (i == StubIndex)
+				{
+					// The broken limb: short, still thick at its end, nothing growing on it.
+					const int32 Idx = GrowBranch(1, 0, TParent, Base, Dir, FMath::Clamp(Len * 0.18f, 500.f, 1200.f), BaseR, BaseR * 0.7f, 0.05f, 0.f, true, TrunkR);
+					if (Idx != INDEX_NONE)
+					{
+						S.Branches[Idx].bStub = true;
+						OutLimbs.Add(Idx);
+					}
+					continue;
+				}
 				const int32 Idx = GrowBranch(1, 0, TParent, Base, Dir, Len, BaseR, P.LimbTipRadius, 0.1f, P.Gravitropism, true, TrunkR);
 				if (Idx != INDEX_NONE) OutLimbs.Add(Idx);
 			}
@@ -237,6 +249,7 @@ namespace
 		{
 			for (int32 ParentIdx : Parents)
 			{
+				if (S.Branches[ParentIdx].bStub) continue;
 				const float ParentLen = S.Branches[ParentIdx].Length();
 				const int32 Count = Level == 2
 					? FMath::Max(3, FMath::RoundToInt(P.BoughsPerLimb * FMath::Clamp(ParentLen / P.LimbLengthMax, 0.4f, 1.2f)))

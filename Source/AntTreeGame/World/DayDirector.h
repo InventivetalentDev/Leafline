@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Colony/ColonyTypes.h"
+#include "Tree/TreeTypes.h"
 #include "DayDirector.generated.h"
 
 class ATreeActor;
@@ -83,6 +84,9 @@ public:
 
 	/** Push Look to the level's sun, sky light, atmosphere and fog. */
 	void ApplyLook();
+
+	/** The day's tree, e.g. "a spreading giant". */
+	const FString& GetTreeName() const { return TreeName; }
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day")
 	TSubclassOf<AAntPawn> WorkerClass;
@@ -165,6 +169,9 @@ private:
 	float SunPitch = -30.f;
 	float SunYaw = -40.f;
 	float SunTemperatureApplied = 0.f;
+	FString TreeName;
+	FTreeParams BaseTreeParams;
+	bool bHaveBaseTreeParams = false;
 	float SpareFloat2 = 6500.f;
 	float SpareFloat = 0.f;
 	int32 SpareInt = 0;

@@ -312,7 +312,7 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs CmdTune(
 		TEXT("Leaf.Tune"),
-		TEXT("Leaf.Tune <cam|move|input|look> [Field] [Value]: list, read or set a tuning value while playing, e.g. Leaf.Tune cam SurfaceFollow 0. In colours ';' may stand for ','."),
+		TEXT("Leaf.Tune <cam|move|input|look|day> [Field] [Value]: list, read or set a tuning value while playing, e.g. Leaf.Tune cam SurfaceFollow 0. In colours ';' may stand for ','."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 		{
 			ALeaflinePlayerController* PC = World ? Cast<ALeaflinePlayerController>(World->GetFirstPlayerController()) : nullptr;
@@ -335,6 +335,7 @@ namespace
 			};
 			ADayDirector* LookOwner = nullptr;
 			if (Which == TEXT("cam")) UseTuning(PC->GetAntCamera());
+			else if (Which == TEXT("day")) UseTuning(ADayDirector::Get(World));
 			else if (Which == TEXT("look"))
 			{
 				LookOwner = ADayDirector::Get(World);
@@ -572,12 +573,18 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs CmdAim(
 		TEXT("Leaf.Aim"),
-		TEXT("Leaf.Aim <heading deg|up> <pitch deg>: aim the camera toward a world heading (0 = +X), or up the trunk, at a pitch, for repeatable screenshots."),
+		TEXT("Leaf.Aim <heading deg|up|trunk> <pitch deg>: aim the camera toward a world heading (0 = +X), up the trunk or toward it, at a pitch, for repeatable screenshots."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 		{
 			ALeaflinePlayerController* PC = World ? Cast<ALeaflinePlayerController>(World->GetFirstPlayerController()) : nullptr;
 			if (!PC || !PC->GetAntCamera() || Args.Num() < 2) return;
 			if (Args[0].Equals(TEXT("up"), ESearchCase::IgnoreCase)) PC->GetAntCamera()->DebugAimDirection(FVector::UpVector, FCString::Atof(*Args[1]));
+			else if (Args[0].Equals(TEXT("trunk"), ESearchCase::IgnoreCase) && PC->GetAnt() && ATreeActor::Get(World))
+			{
+				FVector ToTrunk = ATreeActor::Get(World)->GetSkeleton().TrunkBase - PC->GetAnt()->GetActorLocation();
+				ToTrunk.Z = 0.0;
+				PC->GetAntCamera()->DebugAimDirection(ToTrunk.GetSafeNormal(), FCString::Atof(*Args[1]));
+			}
 			else PC->GetAntCamera()->DebugAim(FCString::Atof(*Args[0]), FCString::Atof(*Args[1]));
 			UE_LOG(LogLeafline, Log, TEXT("Leaf.Aim heading %s pitch %s"), *Args[0], *Args[1]);
 		}));

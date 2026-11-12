@@ -28,6 +28,7 @@ struct FTreeBranch
 	float BlendK = 0.f;    // smooth-min radius used when this branch joins the field
 	float Random = 0.f;    // 0..1, per-branch random for shading
 	bool bLeafy = false;   // leaves may grow here (levels 2 and 3 above LowestLeafyHeight)
+	bool bStub = false;    // a limb broken off short: no boughs grow on it (a landmark)
 
 	float Length() const { return SampleDist.Num() ? SampleDist.Last() : 0.f; }
 };
@@ -65,6 +66,8 @@ struct FTreeParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limbs") float LimbPitchMaxDeg = 42.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limbs") float LimbRadiusRatio = 0.36f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limbs") float LimbTipRadius = 22.f;
+	/** Landmark: one of the lowest limbs is broken off short, a thick bare stub. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limbs") bool bBrokenLimb = true;
 
 	// Boughs (level 2)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Boughs") int32 BoughsPerLimb = 7;

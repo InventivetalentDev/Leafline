@@ -243,7 +243,7 @@ Console commands pay for themselves, because verification is done by driving Pla
 | `Leaf.GapAt <x> <y> <z>` | At one point: the field distance, and each nearby branch's distance to its visible bark |
 | `Leaf.GoLeaf` / `Leaf.Cut [size]` / `Leaf.SendHome [delay]` | Drive the loop from the console: go beside a random cuttable leaf, cut it at once, send the ant home |
 | `Leaf.Hold <cut\|grip\|follow> <seconds>` | Hold a button for a while, as if pressed (hold-to-cut, grip, riding) |
-| `Leaf.Aim <heading\|up> <pitch>` | Aim the camera toward a world heading (0 = +X) or up the trunk, at a pitch (repeatable screenshots) |
+| `Leaf.Aim <heading\|up\|trunk> <pitch>` | Aim the camera toward a world heading (0 = +X), up the trunk or toward it, at a pitch (repeatable screenshots) |
 | `Leaf.Delay <seconds> <command...>` | Run a console command later, also while paused (unattended screenshot runs) |
 | `Leaf.PauseMenu <0\|1> [row]` | Pause and show the pause menu (0) or the options page (1) with a row selected (screenshots) |
 | `Leaf.LightInfo` | Log the sun, sky light, atmosphere, fog, clouds and post-process settings found in the level |

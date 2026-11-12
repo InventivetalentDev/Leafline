@@ -114,6 +114,7 @@ Order by visible impact per hour:
 - [x] Options in the pause menu (Thu evening): mouse sensitivity, invert look, volume, graphics quality (Low to Epic; Low turns Lumen off). Keys, pad and mouse; saved in GameUserSettings.ini.
 - [x] Wind readability, first pass: an arrow by the wind gauge shows which way it blows relative to the view, "Here: sheltered / partly exposed / exposed" under it, and the gust warning says to grip or get to the side away from the arrow (or that you are sheltered).
 - [x] Cut sequence, first pass: sawing, a tear line on the leaf, the piece swinging onto the back.
+- [x] Tree character (Thu evening): day 1 is the classic tree; later days take turns as a spreading giant (longer, flatter limbs), a tall spire (taller, narrower, more and steeper limbs) and a leaning elder (lean, wobble, six roots). Every tree has one broken limb low down, a bare stub, as a landmark. The name shows in the HUD and on the recap. Walking surface checked on all four (`Leaf.MeshGap` worst 0.00 cm). `Leaf.Tune day TreeShapeOverride <0-3>` forces one.
 - [x] Owner playtest 1 (Thu): all seven notes fixed (`docs/playtest-notes.md`). Bark look and the camera cutaway await the owner's verdict; leaves are not dithered yet.
 
 **Done when:** a screenshot from play, set beside concept image 01, clearly shows the same game, and a new player reaches their first cut without being told the controls.

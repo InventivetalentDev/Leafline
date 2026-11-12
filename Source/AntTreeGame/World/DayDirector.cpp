@@ -154,7 +154,53 @@ void ADayDirector::StartDay(int32 InDay, int32 SeedOverride)
 	if (GI) GI->SetDay(Day);
 	Trails->ClearAll();
 
-	Tree->Params.LowestLeafyHeight = Tuning.LeafyHeightDay1 + (Day - 1) * Tuning.LeafyHeightPerDay;
+	// Each day's tree has a character: day 1 is the classic shape, later days take turns being broad and spreading,
+	// tall and narrow, or leaning with more roots. Every tree also has one broken limb low down (bBrokenLimb).
+	if (!bHaveBaseTreeParams)
+	{
+		BaseTreeParams = Tree->Params;
+		bHaveBaseTreeParams = true;
+	}
+	FTreeParams P = BaseTreeParams;
+	const int32 Shape = Tuning.TreeShapeOverride >= 0 ? Tuning.TreeShapeOverride % 4 : (Day <= 1 ? 0 : 1 + (Day - 2) % 3);
+	switch (Shape)
+	{
+	case 1:
+		TreeName = TEXT("a spreading giant");
+		P.TrunkHeight *= 0.8f;
+		P.TrunkRadius *= 1.1f;
+		P.NumLimbs = 18;
+		P.LimbLengthMax *= 1.45f;
+		P.LimbLengthMin *= 1.3f;
+		P.LimbPitchMinDeg = 4.f;
+		P.LimbPitchMaxDeg = 26.f;
+		break;
+	case 2:
+		TreeName = TEXT("a tall spire");
+		P.TrunkHeight *= 1.2f;
+		P.TrunkRadius *= 0.85f;
+		P.NumLimbs = 28;
+		P.LimbLengthMax *= 0.65f;
+		P.LimbLengthMin *= 0.8f;
+		P.LimbPitchMinDeg = 28.f;
+		P.LimbPitchMaxDeg = 58.f;
+		break;
+	case 3:
+		TreeName = TEXT("a leaning elder");
+		P.TrunkLeanDeg = 9.f;
+		P.TrunkWobble = 0.09f;
+		P.FlareMul = 1.05f;
+		P.NumRoots = 6;
+		P.RootLength *= 1.3f;
+		P.LimbPitchMinDeg = 8.f;
+		P.LimbPitchMaxDeg = 36.f;
+		break;
+	default:
+		TreeName = TEXT("the old giant");
+		break;
+	}
+	P.LowestLeafyHeight = Tuning.LeafyHeightDay1 + (Day - 1) * Tuning.LeafyHeightPerDay;
+	Tree->Params = P;
 	Tree->Grow(Seed);
 	Nest->SetActorTransform(Tree->GetNestTransform(0));
 	Nest->SetMoundSize(Tree->Params.NestMoundRadius, Tree->Params.NestMoundHeight);
@@ -166,8 +212,8 @@ void ADayDirector::StartDay(int32 InDay, int32 SeedOverride)
 	Phase = EDayPhase::Shift;
 	ShiftsStarted = 0;
 	Current = INDEX_NONE;
-	UE_LOG(LogLeafline, Log, TEXT("Day %d starts: seed %d, %d workers, lowest leafy branch at %.0f m"),
-		Day, Seed, Roster.Num(), Tree->Params.LowestLeafyHeight / 100.f);
+	UE_LOG(LogLeafline, Log, TEXT("Day %d starts: seed %d, %s, %d workers, lowest leafy branch at %.0f m"),
+		Day, Seed, *TreeName, Roster.Num(), Tree->Params.LowestLeafyHeight / 100.f);
 	PossessNext();
 	UpdateSun(0.f, true);
 }
