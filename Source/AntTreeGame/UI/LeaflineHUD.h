@@ -47,6 +47,8 @@ private:
 	/** While cutting: the line the piece will tear along (the part of the bite circle inside the blade), growing with it. */
 	void DrawCutLine(const AAntPawn* Ant, float Scale);
 	void DrawPrompt(const AAntPawn* Ant, const ADayDirector* D, float Scale);
+	/** A short banner when a worker sets out ("Worker 2 of 3 sets out"; the first of the day also names the tree). */
+	void DrawShiftBanner(const ADayDirector* D, float Scale, float Dt);
 	void DrawRecap(const ADayDirector* D, float Scale);
 	void DrawTitle(const ADayDirector* D, float Scale);
 	void DrawNest(const ADayDirector* D, float Scale);
@@ -69,6 +71,12 @@ private:
 	// Wind exposure of the ant's spot, sampled a few times a second (it marches the field).
 	float ExposureShown = -1.f;
 	float ExposureTimer = 0.f;
+
+	int32 BannerShift = -1;
+	int32 BannerDay = -1;
+	float BannerTime = 0.f;
+	FString BannerTitle;
+	FString BannerLine;
 
 	float StaminaShown = 1.f;
 	float StaminaAlpha = 0.f;

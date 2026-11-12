@@ -523,7 +523,13 @@ void UAntMovementComponent::TickFollow(float Dt)
 void UAntMovementComponent::StartFall(const FVector& WindDirection)
 {
 	FollowPoints.Reset();
-	FallVelocity = WindDirection.GetSafeNormal2D() * 520.0 + SurfaceNormal * 160.0 + FVector::UpVector * 120.0;
+	// Never into the bark: most blow-offs happen on the windward face, where the wind points into the wood, and the ant
+	// used to fly straight through the trunk (the camera then showed only bark). Keep the along-surface part of the
+	// wind and peel the ant off the surface.
+	FVector W = WindDirection.GetSafeNormal2D();
+	const double Into = FVector::DotProduct(W, SurfaceNormal);
+	if (Into < 0.0) W -= SurfaceNormal * Into;
+	FallVelocity = W * 520.0 + SurfaceNormal * 260.0 + FVector::UpVector * 120.0;
 	FallSpinAxis = FVector::CrossProduct(FVector::UpVector, WindDirection).GetSafeNormal();
 	if (FallSpinAxis.IsNearlyZero()) FallSpinAxis = FVector::RightVector;
 	SetState(EAntState::Falling);
@@ -536,6 +542,17 @@ void UAntMovementComponent::TickFalling(float Dt)
 	FallVelocity.Z -= 980.0 * Dt;
 	FallVelocity *= FMath::Max(0.0, 1.0 - 0.35 * Dt);
 	Pos += FallVelocity * Dt;
+	// Glance off wood on the way down instead of passing through it.
+	if (Pos.Z > F->GroundZ + 50.0 && F->Distance(Pos) < 0.0)
+	{
+		FVector P = Pos, N;
+		if (F->Project(P, N, 2.0))
+		{
+			Pos = P;
+			const double VN = FVector::DotProduct(FallVelocity, N);
+			if (VN < 0.0) FallVelocity -= N * (1.4 * VN);
+		}
+	}
 	Velocity = FallVelocity;
 	const FQuat Spin(FallSpinAxis, 7.0 * Dt);
 	Up = Spin.RotateVector(Up).GetSafeNormal();

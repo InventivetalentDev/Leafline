@@ -127,6 +127,8 @@ public:
 	int32 GetDay() const { return Day; }
 	int32 GetSeed() const { return Seed; }
 	int32 NumWorkers() const { return Roster.Num(); }
+	/** Workers sent out so far today (1 during the first shift). */
+	int32 GetShiftsStarted() const { return ShiftsStarted; }
 	EWorkerState GetWorkerState(int32 Index) const { return Roster.IsValidIndex(Index) ? Roster[Index].State : EWorkerState::Waiting; }
 	int32 GetCurrentWorker() const { return Current; }
 	int32 NumWaiting() const;

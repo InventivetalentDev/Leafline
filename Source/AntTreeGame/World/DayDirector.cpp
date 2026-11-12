@@ -342,7 +342,7 @@ void ADayDirector::OnAntReachedNest(AAntPawn* Ant)
 			}
 		}
 		UE_LOG(LogLeafline, Log, TEXT("Worker %d home with %.1f (today %.1f from %d fragments)"), i, Mass, Stats.MassHauled, Stats.Fragments);
-		Ant->ClearFragment();
+		// The piece stays on the ant for its last moment: it drops into the entrance as the ant goes in (DepositAndVanish).
 	}
 	else
 	{
@@ -357,7 +357,8 @@ void ADayDirector::OnAntReachedNest(AAntPawn* Ant)
 		PossessNext();
 		if (Ant->IsPlayerControlled() && Player.IsValid()) Player->UnPossess();
 	}
-	Ant->Destroy();
+	// The ant walks into the entrance and disappears, then destroys itself.
+	Ant->DepositAndVanish(Nest ? Nest->GetActorLocation() + FVector(0.f, 0.f, 6.f) : Ant->GetActorLocation());
 	CheckAllHome();
 }
 

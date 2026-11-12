@@ -117,6 +117,31 @@ void ALeaflineHUD::DrawHUD()
 		DrawCutLine(Ant, Scale);
 	}
 	DrawPrompt(Ant, D, Scale);
+	if (D) DrawShiftBanner(D, Scale, Dt);
+}
+
+void ALeaflineHUD::DrawShiftBanner(const ADayDirector* D, float Scale, float Dt)
+{
+	const int32 Shift = D->GetShiftsStarted();
+	if (D->GetPhase() == EDayPhase::Shift && Shift > 0 && (Shift != BannerShift || D->GetDay() != BannerDay))
+	{
+		BannerTitle = Shift == 1 ? FString::Printf(TEXT("Day %d: %s"), D->GetDay(), *D->GetTreeName()) : FString();
+		BannerLine = FString::Printf(TEXT("Worker %d of %d sets out"), Shift, D->NumWorkers());
+		BannerTime = Shift == 1 ? 3.5f : 2.5f;
+	}
+	BannerShift = Shift;
+	BannerDay = D->GetDay();
+	if (BannerTime <= 0.f) return;
+	BannerTime -= Dt;
+	const float A = FMath::Clamp(BannerTime / 0.6f, 0.f, 1.f);
+	const float CX = Canvas->ClipX * 0.5f;
+	float Y = Canvas->ClipY * 0.26f;
+	if (!BannerTitle.IsEmpty())
+	{
+		DrawTextCentered(BannerTitle, CX, Y, FLinearColor(AccentColor.R, AccentColor.G, AccentColor.B, A), 1.8f * Scale, GEngine->GetLargeFont());
+		Y += 70.f * Scale;
+	}
+	DrawTextCentered(BannerLine, CX, Y, FLinearColor(TextColor.R, TextColor.G, TextColor.B, A), 1.25f * Scale, GEngine->GetMediumFont());
 }
 
 void ALeaflineHUD::DrawTextCentered(const FString& Text, float CenterX, float Y, const FLinearColor& Color, float TextScale, UFont* Font)

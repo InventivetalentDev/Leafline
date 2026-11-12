@@ -86,6 +86,10 @@ public:
 	/** Replay the recorded path back to the nest, unattended. */
 	void StartReturn();
 
+	/** Home: walk into the nest entrance and sink out of sight (the piece, if any, drops in first), then destroy itself. */
+	void DepositAndVanish(const FVector& Entrance);
+	bool IsVanishing() const { return VanishTime >= 0.f; }
+
 	/** Wind knocked the ant off: it drops its fragment, falls and walks home. */
 	void BlowOff(float Force, float Hold, float Exposure);
 	bool IsGripping() const;
@@ -142,6 +146,10 @@ private:
 	/** The cut piece tears out of the leaf at WorldCenter (in the leaf's plane) and swings up onto the ant's back. */
 	void StartFragmentSwing(const FVector& WorldCenter, const FVector& LeafDir, const FVector& LeafNormal);
 	void UpdateCutVisuals(float Dt);
+	void UpdateVanish(float Dt);
+	/** The dropped piece flutters away downwind, spinning and shrinking, then goes back on the socket hidden. */
+	void UpdateFlutter(float Dt);
+	void ReattachFragment();
 	void BuildFragmentMesh(float Diameter);
 	ATreeActor* GetTree();
 	ATrailNetwork* GetTrails();
@@ -182,5 +190,13 @@ private:
 	float SawTime = 0.f;
 	float SwingTime = -1.f; // < 0: no swing running
 	FRotator FragmentRestRotation = FRotator(12.f, 35.f, 0.f);
+	float VanishTime = -1.f;
+	FVector VanishFrom = FVector::ZeroVector;
+	FVector VanishTo = FVector::ZeroVector;
+	FTransform VanishPieceFrom;
+	bool bVanishPiece = false;
+	float FlutterTime = -1.f;
+	FVector FlutterVelocity = FVector::ZeroVector;
+	FVector FlutterSpinAxis = FVector::UpVector;
 	FTransform SwingFrom;
 };

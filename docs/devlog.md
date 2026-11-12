@@ -68,4 +68,5 @@ Leafline is made by one person directing AI agents. Claude (Anthropic) does plan
 - Menus take the mouse: hover and click in the nest, Resume and Quit buttons on the pause screen.
 - First look pass against concept image 01: a warmer sun that changes through the shifts, haze over the ground far below, stronger light shafts, half again as many leaves, and leafy crowns on the distant grove. A script takes fixed reference screenshots with and without ray tracing; they look nearly the same.
 - A yellow engine warning about shadow maps showed on screen in the packaged build whenever the canopy filled the view. It is hidden now.
+- Later that evening: the thin-branch steering wheel (W/S along, A/D round), a first cut sequence (sawing, a tear line, the piece swinging onto the back), wind direction and shelter on the HUD, an options screen, a different tree shape each day with a broken limb as a landmark, a camera that stays out of the trunk, and small touches for the deposit, the next worker and being blown off. Blown-off ants used to fly straight through the trunk; fixed.
 

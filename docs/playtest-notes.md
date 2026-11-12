@@ -35,6 +35,7 @@
   - Toned down: that was a rim light I added so the ant reads in video. It was near-white at strength 2 over a wide edge; now a faint warm sheen right at the silhouette (strength 0.35, tighter falloff). The ant reads dark red-brown again. If it should go entirely, it is one number in `M_Ant` (`Multiply_11`). Not in a package yet.
 - [x] nanite warning text visible in packaged build
   - Fixed: that was the virtual shadow map warning "[VSM] Non-Nanite Marking Job Queue overflow", which shows whenever the canopy fills the view. It only costs a little speed; the on-screen text is now off (`r.Shadow.Virtual.AllowScreenOverflowMessages=0` in `DefaultEngine.ini`).
+- [ ] make it a bit clearer that an ant is returning to the nest, maybe a slight delay before continuing on to the next ant
 
 ## To revisit: thin-branch controls (2026-11-12)
 

@@ -171,6 +171,12 @@ void AAntPawn::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 	if (!Movement) return;
+	UpdateFlutter(DeltaSeconds);
+	if (VanishTime >= 0.f)
+	{
+		UpdateVanish(DeltaSeconds);
+		return;
+	}
 
 	// A leaf within reach of the mouth, for the prompt and for cutting.
 	LeafInReach = INDEX_NONE;
@@ -296,6 +302,77 @@ void AAntPawn::StartFragmentSwing(const FVector& WorldCenter, const FVector& Lea
 	FragmentMesh->SetWorldTransform(SwingFrom);
 	UE_LOG(LogLeafline, Log, TEXT("%s: piece tears out %.0f cm from the mouth and swings onto the back"), *GetName(),
 		FVector::Dist(WorldCenter, CarrySocket ? CarrySocket->GetComponentLocation() : GetActorLocation()));
+}
+
+void AAntPawn::DepositAndVanish(const FVector& Entrance)
+{
+	LeafSound::Stop(CutLoop);
+	LeafSound::Stop(GripLoop);
+	if (Movement) Movement->SetComponentTickEnabled(false);
+	VanishTime = 0.f;
+	VanishFrom = GetActorLocation();
+	VanishTo = Entrance;
+	bVanishPiece = IsCarrying() && FragmentMesh;
+	SwingTime = -1.f;
+	if (bVanishPiece) VanishPieceFrom = FragmentMesh->GetComponentTransform();
+}
+
+void AAntPawn::UpdateVanish(float Dt)
+{
+	constexpr float Duration = 0.7f;
+	VanishTime += Dt;
+	const float T = FMath::Clamp(VanishTime / Duration, 0.f, 1.f);
+	// The ant heads into the entrance and sinks down it.
+	const float Walk = FMath::SmoothStep(0.f, 1.f, FMath::Min(T / 0.7f, 1.f));
+	const float Sink = FMath::SmoothStep(0.5f, 1.f, T);
+	SetActorLocation(FMath::Lerp(VanishFrom, VanishTo, (double)Walk) - FVector(0.0, 0.0, 14.0 * Sink));
+	if (VisualRoot) VisualRoot->SetRelativeScale3D(FVector(FMath::Lerp(1.f, 0.35f, Sink)));
+	// The piece drops into the entrance ahead of the ant and shrinks away.
+	if (bVanishPiece && FragmentMesh)
+	{
+		const float E = FMath::SmoothStep(0.f, 1.f, FMath::Min(T / 0.6f, 1.f));
+		const FVector Loc = FMath::Lerp(VanishPieceFrom.GetLocation(), VanishTo, (double)E) + FVector(0.0, 0.0, 10.0 * FMath::Sin(PI * E));
+		FragmentMesh->SetWorldLocation(Loc);
+		FragmentMesh->SetWorldScale3D(VanishPieceFrom.GetScale3D() * FMath::Lerp(1.f, 0.1f, E));
+	}
+	if (T >= 1.f)
+	{
+		ClearFragment();
+		Destroy();
+	}
+}
+
+void AAntPawn::ReattachFragment()
+{
+	if (!FragmentMesh || !CarrySocket) return;
+	FlutterTime = -1.f;
+	if (FragmentMesh->GetAttachParent() != CarrySocket)
+	{
+		FragmentMesh->AttachToComponent(CarrySocket, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+	}
+	FragmentMesh->SetRelativeLocationAndRotation(FVector::ZeroVector, FragmentRestRotation);
+	FragmentMesh->SetRelativeScale3D(FVector::OneVector);
+}
+
+void AAntPawn::UpdateFlutter(float Dt)
+{
+	if (FlutterTime < 0.f || !FragmentMesh) return;
+	constexpr float Duration = 2.4f;
+	FlutterTime += Dt;
+	if (FlutterTime >= Duration)
+	{
+		FragmentMesh->SetVisibility(false);
+		ReattachFragment();
+		return;
+	}
+	// Carried off on the wind like a leaf: drifting, sinking slowly, tumbling, gone after a couple of seconds.
+	FlutterVelocity.Z = FMath::Max(FlutterVelocity.Z - 220.0 * Dt, -90.0);
+	FlutterVelocity *= FMath::Pow(0.7, Dt);
+	const FVector Wobble = FVector(FMath::Sin(FlutterTime * 7.f), FMath::Cos(FlutterTime * 5.f), 0.f) * 40.f;
+	FragmentMesh->SetWorldLocation(FragmentMesh->GetComponentLocation() + (FlutterVelocity + Wobble) * Dt);
+	FragmentMesh->AddWorldRotation(FQuat(FlutterSpinAxis, FMath::DegreesToRadians(360.f) * Dt * (1.f - 0.5f * FlutterTime / Duration)));
+	const float Fade = FMath::SmoothStep(Duration - 0.7f, Duration, FlutterTime);
+	FragmentMesh->SetWorldScale3D(FVector(FMath::Lerp(1.f, 0.05f, Fade)));
 }
 
 void AAntPawn::UpdateCutVisuals(float Dt)
@@ -462,9 +539,25 @@ void AAntPawn::BlowOff(float Force, float Hold, float Exposure)
 		CuttingLeaf = INDEX_NONE;
 		CutSize = 0.f;
 	}
+	const bool bHadPiece = IsCarrying();
 	ClearFragment();
 	bGustSeen = false;
 	const AWindSystem* Wind = AWindSystem::Get(this);
+	if (bHadPiece && FragmentMesh)
+	{
+		// The piece is torn away by the wind and flutters off on its own.
+		SwingTime = -1.f;
+		FragmentMesh->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+		FragmentMesh->SetVisibility(true);
+		FVector WindDir = Wind ? Wind->GetDirection().GetSafeNormal() : FVector::ForwardVector;
+		const FVector N = Movement->GetSurfaceNormal();
+		const double Into = FVector::DotProduct(WindDir, N);
+		if (Into < 0.0) WindDir -= N * Into; // off the bark, not into it
+		FlutterVelocity = WindDir * 420.0 + N * 200.0 + FVector(0.0, 0.0, 160.0);
+		FlutterSpinAxis = FVector(FMath::FRandRange(-1.f, 1.f), FMath::FRandRange(-1.f, 1.f), FMath::FRandRange(-1.f, 1.f)).GetSafeNormal();
+		if (FlutterSpinAxis.IsNearlyZero()) FlutterSpinAxis = FVector::UpVector;
+		FlutterTime = 0.f;
+	}
 	if (ADayDirector* D = GetDirector())
 	{
 		if (ANestActor* Nest = D->GetNest())
@@ -563,6 +656,7 @@ void AAntPawn::StartReturn()
 
 void AAntPawn::SetFragment(float Size01)
 {
+	ReattachFragment();
 	CarriedSize = FMath::Clamp(Size01, 0.f, 1.f);
 	CarriedMass = MassForSize(CarriedSize);
 	Movement->CarriedMass = CarriedMass;

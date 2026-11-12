@@ -108,6 +108,34 @@ void AAntCamera::Tick(float DeltaTime)
 	const FVector AntUp = M->GetBodyUp();
 	const FVector AntPos = M->GetSurfacePosition();
 
+	// Blown off: the orbit camera, built around a surface, lost the tumbling ant against the bark. Watch the fall from
+	// outside and above instead, on the side it was blown off (its last surface normal), and hand back on landing with
+	// the orbit state matching this view.
+	if (M->GetState() == EAntState::Falling)
+	{
+		FVector Out = M->GetSurfaceNormal();
+		Out.Z = 0.0;
+		if (Out.IsNearlyZero()) Out = -GetActorForwardVector().GetSafeNormal2D();
+		Out = Out.GetSafeNormal();
+		const FVector Want = AntPos + Out * (Tuning.BoomLength * 0.9) + FVector::UpVector * (Tuning.BoomLength * 1.2);
+		const FVector CamPos = FMath::Lerp(GetActorLocation(), Want, 1.0 - FMath::Exp(-6.0 * Dt));
+		const FVector View = (AntPos - CamPos).GetSafeNormal();
+		if (!View.IsNearlyZero())
+		{
+			SetActorLocationAndRotation(CamPos, FRotationMatrix::MakeFromXZ(View, FVector::UpVector).ToQuat());
+			CamUp = FVector::UpVector;
+			const FVector Flat = View.GetSafeNormal2D();
+			if (!Flat.IsNearlyZero()) RefForward = Flat;
+			Pitch = FMath::Clamp((float)FMath::RadiansToDegrees(FMath::Asin(FMath::Clamp(View.Z, -1.0, 1.0))), Tuning.PitchMin, Tuning.PitchMax);
+			CurrentBoom = (float)FVector::Dist(CamPos, AntPos);
+			Focus = AntPos + CamUp * Tuning.TargetHeight;
+			FocusVelocity = FVector::ZeroVector;
+			PendingLook = FVector2D::ZeroVector;
+		}
+		PublishView(CamPos, AntPos, false);
+		return;
+	}
+
 	// 1. Lazy up. The target is world up on thin branches (circling a twig must never roll the view) and the surface
 	//    up on big ones (so the camera stays on the ant's side of a limb's underside). Ease toward it with a capped
 	//    turn rate, and carry the view direction along so the view does not swing.
