@@ -63,6 +63,7 @@ void ATreeActor::Grow(int32 Seed)
 	}
 	if (Mat) WoodMesh->SetMaterial(0, Mat);
 	BuildGround();
+	BuildGrove();
 
 	// Leaves: one mesh section per limb, so a cut rebuilds only a small chunk.
 	Leaves.Build(Skeleton, Field);
@@ -98,13 +99,88 @@ bool ATreeActor::BiteLeaf(int32 Leaf, float Size01, float DiameterCm, float UseP
 	return true;
 }
 
+void ATreeActor::BuildGrove()
+{
+	// Plain trunks with a few bare limbs in a loose ring far out, drawn with the bark material and left to the haze.
+	// Built like the real tree (control nodes, samples, the same tube builder) but coarser, and never walked on.
+	FTreeSkeleton Grove;
+	Grove.Params = Params;
+	Grove.Params.AroundSpacing = 120.f;
+	Grove.Params.MaxAroundVerts = 40;
+	FRandomStream R(Skeleton.Seed * 7919 + 17);
+	const FVector C(Skeleton.TrunkBase.X, Skeleton.TrunkBase.Y, Field.GroundZ);
+	const int32 Count = FMath::Max(0, Params.GroveCount);
+	for (int32 k = 0; k < Count; ++k)
+	{
+		const float Az = 2.f * PI * k / FMath::Max(Count, 1) + R.FRandRange(-0.18f, 0.18f);
+		const float Dist = R.FRandRange(Params.GroveMinDistance, Params.GroveMaxDistance);
+		const FVector Base = C + FVector(FMath::Cos(Az), FMath::Sin(Az), 0.f) * Dist;
+		const float R0 = R.FRandRange(500.f, 1100.f);
+		const float H = R.FRandRange(22000.f, 38000.f);
+		const FVector Lean = FVector(R.FRandRange(-1.f, 1.f), R.FRandRange(-1.f, 1.f), 0.f).GetSafeNormal() * R.FRandRange(0.01f, 0.04f);
+		auto RadiusAt = [&](float Z)
+		{
+			const float Zc = FMath::Max(Z, 0.f);
+			return (40.f + (R0 - 40.f) * FMath::Pow(FMath::Max(1.f - Zc / H, 0.f), 0.85f)) * (1.f + 0.6f * FMath::Exp(-Zc / 600.f));
+		};
+		FTreeBranch T;
+		T.Level = 0;
+		T.Random = R.FRand();
+		constexpr int32 N = 16;
+		for (int32 i = 0; i <= N; ++i)
+		{
+			const float Z = -300.f + (H + 300.f) * FMath::Pow(float(i) / N, 1.4f);
+			T.Nodes.Add({ Base + Lean * FMath::Max(Z, 0.f) + FVector(0.f, 0.f, Z), RadiusAt(Z) });
+		}
+		TreeSkeleton::BuildSamples(T, Grove.Params);
+		Grove.Branches.Add(MoveTemp(T));
+
+		const int32 Limbs = R.RandRange(3, 5);
+		for (int32 l = 0; l < Limbs; ++l)
+		{
+			const float Z0 = H * R.FRandRange(0.35f, 0.85f);
+			const float A = R.FRandRange(0.f, 2.f * PI);
+			FVector Dir = (FVector(FMath::Cos(A), FMath::Sin(A), 0.f) + FVector(0.f, 0.f, R.FRandRange(0.3f, 0.9f))).GetSafeNormal();
+			const float Len = R.FRandRange(3000.f, 9000.f);
+			const float LR = RadiusAt(Z0) * 0.35f;
+			FTreeBranch B;
+			B.Level = 1;
+			B.Random = R.FRand();
+			FVector P = Base + Lean * Z0 + FVector(0.f, 0.f, Z0);
+			constexpr int32 M = 6;
+			for (int32 i = 0; i <= M; ++i)
+			{
+				B.Nodes.Add({ P, FMath::Lerp(LR, 30.f, float(i) / M) });
+				Dir = (Dir + FVector(0.f, 0.f, 0.06f)).GetSafeNormal();
+				P += Dir * (Len / M);
+			}
+			TreeSkeleton::BuildSamples(B, Grove.Params);
+			Grove.Branches.Add(MoveTemp(B));
+		}
+	}
+
+	FTreeMeshData Data;
+	TreeMeshBuilder::Build(Grove, Data);
+	if (!GroveMesh)
+	{
+		GroveMesh = MakeMeshComponent(this, RootComponent, TEXT("GroveMesh"));
+		GroveMesh->SetCastShadow(false);
+	}
+	GroveMesh->ClearAllMeshSections();
+	if (Data.Vertices.Num() == 0) return;
+	GroveMesh->CreateMeshSection_LinearColor(0, Data.Vertices, Data.Triangles, Data.Normals, Data.UV0, Data.UV1, {}, {},
+		Data.Colors, Data.Tangents, false, false);
+	if (UMaterialInterface* Mat = WoodMesh ? WoodMesh->GetMaterial(0) : nullptr) GroveMesh->SetMaterial(0, Mat);
+	UE_LOG(LogLeafline, Log, TEXT("Grove: %d distant trunks, %d triangles"), Count, Data.Triangles.Num() / 3);
+}
+
 void ATreeActor::BuildGround()
 {
 	// A polar disk at the field's ground height, rings spaced wider with distance. Wood mesh section 1.
 	const FVector C(Skeleton.TrunkBase.X, Skeleton.TrunkBase.Y, Field.GroundZ);
 	const int32 Around = 160;
 	TArray<double> Radii;
-	for (double R = 200.0; R < 60000.0; R *= 1.12) Radii.Add(R);
+	for (double R = 200.0; R < Params.GroundRadius; R *= 1.12) Radii.Add(R);
 	TArray<FVector> V, N;
 	TArray<FVector2D> UV;
 	TArray<FLinearColor> Col;

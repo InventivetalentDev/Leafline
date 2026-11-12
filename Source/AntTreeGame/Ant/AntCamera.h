@@ -13,7 +13,7 @@ struct FAntCameraTuning
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float BoomLength = 260.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float BoomLength = 220.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float MinBoomLength = 35.f;
 	/** Look-at point above the ant along its up (cm). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float TargetHeight = 25.f;
@@ -101,7 +101,7 @@ private:
 	float Pitch = -20.f;
 	FVector Focus = FVector::ZeroVector;
 	FVector FocusVelocity = FVector::ZeroVector;
-	float CurrentBoom = 260.f;
+	float CurrentBoom = 220.f;
 	float GlideRemaining = 0.f;
 	FVector2D PendingLook = FVector2D::ZeroVector;
 	float WanderTimer = 0.f;

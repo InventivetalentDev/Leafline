@@ -490,47 +490,57 @@ void AAntPawn::ClearFragment()
 
 void AAntPawn::BuildFragmentMesh(float Diameter)
 {
-	// A rough disc of leaf, upright in the ant's XZ plane, held by its lower edge like a sail.
-	const int32 Segs = 20;
+	// A piece of leaf, upright in the ant's XZ plane, held by its lower edge like a sail. Round where it was bitten out,
+	// with one straight, slightly serrated side where the leaf's own margin ran, and a gentle cup so it is not a flat
+	// plate. Drawn with the leaf material, its UVs placed as if it came from near the margin of a 2 m leaf, so the side
+	// veins (but not the midrib) show.
+	constexpr int32 Segs = 28;
 	const float R = Diameter * 0.5f;
 	const FVector Center(-2.f, 0.f, R * 0.95f);
 	const float Phase = FMath::FRandRange(0.f, 2.f * PI);
+	const float Random = FMath::FRand();
+	const float Height = FMath::Clamp((float)(GetActorLocation().Z / 30000.0), 0.f, 1.f);
+	const float MarginZ = R * 0.62f;
 	TArray<FVector> V, N;
 	TArray<FVector2D> UV;
 	TArray<FLinearColor> Col;
 	TArray<FProcMeshTangent> Tan;
 	TArray<int32> Tri;
-	for (int32 Face = 0; Face < 2; ++Face)
+	auto AddVert = [&](float X, float Z)
 	{
-		const FVector Normal = Face == 0 ? FVector::RightVector : FVector::LeftVector;
-		const int32 Base = V.Num();
-		V.Add(Center);
-		N.Add(Normal);
-		UV.Add(FVector2D(0.5, 0.5));
-		Col.Add(FLinearColor::White);
+		const float Cup = 0.14f * (X * X + Z * Z) / FMath::Max(R, 1.f);
+		V.Add(Center + FVector(X, Cup, Z));
+		N.Add(FVector::RightVector);
+		UV.Add(FVector2D(0.45f + X / 200.f, 0.78f + Z / 90.f));
+		Col.Add(FLinearColor(1.f, Random, Height, 0.f));
 		Tan.Add(FProcMeshTangent(FVector::ForwardVector, false));
-		for (int32 i = 0; i < Segs; ++i)
-		{
-			const float A = 2.f * PI * i / Segs;
-			const float Rr = R * (1.f + 0.07f * FMath::Sin(3.f * A + Phase) + 0.04f * FMath::Sin(7.f * A));
-			V.Add(Center + FVector(FMath::Cos(A) * Rr, 0.f, FMath::Sin(A) * Rr));
-			N.Add(Normal);
-			UV.Add(FVector2D(0.5 + 0.5 * FMath::Cos(A), 0.5 + 0.5 * FMath::Sin(A)));
-			Col.Add(FLinearColor::White);
-			Tan.Add(FProcMeshTangent(FVector::ForwardVector, false));
-		}
-		for (int32 i = 0; i < Segs; ++i)
-		{
-			const int32 A = Base + 1 + i, B = Base + 1 + (i + 1) % Segs;
-			// UE front faces: (b - a) x (c - a) points away from the viewer, who looks down the normal.
-			const FVector Cross = FVector::CrossProduct(V[A] - V[Base], V[B] - V[Base]);
-			if (FVector::DotProduct(Cross, Normal) > 0.0) Tri.Append({ Base, B, A });
-			else Tri.Append({ Base, A, B });
-		}
+	};
+	AddVert(0.f, 0.f);
+	for (int32 i = 0; i < Segs; ++i)
+	{
+		const float A = 2.f * PI * i / Segs;
+		const float Rr = R * (1.f + 0.06f * FMath::Sin(3.f * A + Phase) + 0.03f * FMath::Sin(7.f * A));
+		float X = FMath::Cos(A) * Rr, Z = FMath::Sin(A) * Rr;
+		if (Z > MarginZ) Z = MarginZ + 0.025f * R * FMath::Abs(FMath::Sin(X / FMath::Max(R, 1.f) * 9.f)); // the leaf margin
+		AddVert(X, Z);
+	}
+	for (int32 i = 0; i < Segs; ++i)
+	{
+		const int32 A = 1 + i, B = 1 + (i + 1) % Segs;
+		// UE front faces: (b - a) x (c - a) points away from the viewer, who looks down the normal. The leaf material is
+		// two-sided, so one face serves both sides.
+		const FVector Cross = FVector::CrossProduct(V[A] - V[0], V[B] - V[0]);
+		if (FVector::DotProduct(Cross, FVector::RightVector) > 0.0) Tri.Append({ 0, B, A });
+		else Tri.Append({ 0, A, B });
 	}
 	FragmentMesh->CreateMeshSection_LinearColor(0, V, Tri, N, UV, {}, {}, {}, Col, Tan, false, false);
-	FragmentMesh->SetRelativeRotation(FRotator(12.f, 35.f, 0.f)); // yawed so the camera behind sees its face, not its edge; // leans back slightly over the body (positive pitch tilts +Z toward -X)
-	if (BasicMaterial)
+	FragmentMesh->SetRelativeRotation(FRotator(12.f, 35.f, 0.f)); // yawed so the camera behind sees its face, not its edge; leans back slightly over the body
+	const ATreeActor* Tree = GetTree();
+	if (Tree && Tree->LeafMaterial)
+	{
+		FragmentMesh->SetMaterial(0, Tree->LeafMaterial);
+	}
+	else if (BasicMaterial)
 	{
 		if (!FragmentMID) FragmentMID = UMaterialInstanceDynamic::Create(BasicMaterial, this);
 		FragmentMID->SetVectorParameterValue(TEXT("Color"), FragmentColor);

@@ -105,6 +105,13 @@ struct FTreeParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nest") float NestMoundRadius = 120.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nest") float NestMoundHeight = 7.f;
 
+	// Grove: plain trunks far off in the haze, so the world reads as a forest instead of a disk with an edge.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grove") int32 GroveCount = 14;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grove") float GroveMinDistance = 22000.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grove") float GroveMaxDistance = 70000.f;
+	/** Radius of the ground disk (cm). Far enough that the height fog swallows its edge. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grove") float GroundRadius = 500000.f;
+
 	// Mesh
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh") float AroundSpacing = 30.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh") int32 MaxAroundVerts = 128;

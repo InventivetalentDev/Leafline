@@ -80,11 +80,16 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInstanceDynamic> GroundMID;
 
+	/** Distant trunks (no shadows, not walkable). */
+	UPROPERTY(Transient)
+	TObjectPtr<UProceduralMeshComponent> GroveMesh;
+
 	UPROPERTY()
 	TObjectPtr<UMaterialInterface> FallbackMaterial;
 
 	void BuildLeafChunk(int32 Chunk);
 	void BuildGround();
+	void BuildGrove();
 
 	FTreeSkeleton Skeleton;
 	FTreeField Field;
