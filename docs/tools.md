@@ -37,6 +37,27 @@ py Tools\zip_build.py                          # from Windows
 - Exit codes: 0 = OK, 1 = the zip is 1 GB or larger (over the MegaJam limit), 2 = no packaged build found.
 - The build has not been tested on another PC yet. Players may need the Visual C++ Redistributable 2015–2022 x64, and Windows SmartScreen may warn about the unsigned exe.
 
+## perf_packaged.sh and csv_fps.py
+
+`Tools/perf_packaged.sh` measures the packaged build at 1920x1080 in five runs:
+
+- on the trunk with hardware ray tracing;
+- in the canopy with hardware ray tracing;
+- both again with `-noraytracing`, which makes the D3D12 adapter report no ray tracing, like a GPU without it;
+- a short DX11 run that checks the game starts at all on DX11.
+
+Each run walks the ant with `Leaf.AutoMove` and a wandering camera, captures frames with the CSV profiler (`CsvProfile FRAMES=N` and `EXITONCOMPLETION`), then quits by itself. `Tools/csv_fps.py` turns each capture into average, median and 1%-low fps, skipping the first 8 s.
+
+```
+Tools/perf_packaged.sh                 # from WSL, editor closed, nobody playing the packaged build
+FRAMES=3600 Tools/perf_packaged.sh     # longer captures
+python3 Tools/csv_fps.py FILE.csv      # summarise one capture
+```
+
+- Runs go through `Scripts/unreal-lock.sh`, so the editor must be closed.
+- The packaged game's `Saved/SaveGames` and `Saved/Config` are backed up to `Build/perf-backup-*` before the runs and restored after, so a playthrough in that build is not disturbed.
+- Captures land in `Build/Windows/AntTreeGame/Saved/Profiling/CSV/`; `Tools/zip_build.py` leaves them out with the rest of `Saved`.
+
 ## unreal-lock.sh
 
 `Scripts/unreal-lock.sh` runs one command while holding this PC's Unreal lock, and always releases it, also when the command fails or is stopped. Only one Unreal process (build, cook, standalone game, editor) runs on this machine at a time; an editor takes about 12 GB idle and 20 GB in Play, and three at once crashed with "The paging file is too small". The lock is shared with other Unreal projects on this machine.
