@@ -438,12 +438,27 @@ void ADayDirector::UpdateDayFlow()
 void ADayDirector::RescueStalledScouts()
 {
 	const double Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+	// When each blown-off scout fell: however it moves, it is counted home after two minutes, so the day always ends.
+	static TMap<TWeakObjectPtr<AAntPawn>, double> FellAt;
+	for (auto It = FellAt.CreateIterator(); It; ++It)
+	{
+		if (!It.Key().IsValid()) It.RemoveCurrent();
+	}
 	for (int32 i = 0; i < Roster.Num(); ++i)
 	{
 		FWorker& W = Roster[i];
 		AAntPawn* Ant = W.Pawn.Get();
 		if (W.State != EWorkerState::BlownOff || !Ant || Ant->IsVanishing() || !Ant->GetAntMovement()) continue;
 		const UAntMovementComponent* M = Ant->GetAntMovement();
+		const double Fell = FellAt.FindOrAdd(Ant, Now);
+		if (Now - Fell > 120.0)
+		{
+			UE_LOG(LogLeafline, Log, TEXT("Worker %d still not home two minutes after its fall (at %s); counted home"), i, *M->GetSurfacePosition().ToCompactString());
+			if (Ant->IsPlayerControlled() && Player.IsValid()) Player->UnPossess();
+			Ant->Destroy();
+			W.State = EWorkerState::Home;
+			continue;
+		}
 		if (M->GetState() == EAntState::Falling)
 		{
 			W.ProgressTime = Now;
@@ -544,8 +559,10 @@ void ADayDirector::UpdateHarvestCamera(float Dt)
 	const FVector NestPos = Nest->GetActorLocation();
 	FVector Away = (NestPos - Tree->GetSkeleton().TrunkBase).GetSafeNormal2D();
 	if (Away.IsNearlyZero()) Away = FVector::ForwardVector;
-	const FVector Loc = NestPos + Away * 520.0 + FVector(0.0, 0.0, 70.0);
-	const FVector LookAt = NestPos - Away * 250.0 + FVector(0.0, 0.0, 650.0);
+	// Far enough back that the nest entrance (where the "+N" pops rise) sits in the lower part of the frame and the
+	// lower trunk, where the lines converge, fills the rest.
+	const FVector Loc = NestPos + Away * 650.0 + FVector(0.0, 0.0, 120.0);
+	const FVector LookAt = NestPos - Away * 200.0 + FVector(0.0, 0.0, 380.0);
 	Cam->SetOverview(true, Loc, LookAt);
 }
 

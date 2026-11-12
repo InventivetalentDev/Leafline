@@ -20,6 +20,14 @@ py Tools\strip_image_metadata.py                 # from Windows
 - It doesn't rename files. Pixel filenames like `PXL_20261112_081150350.jpg` still show the date and time each photo was taken.
 - Exit codes: 0 = OK, 1 = `--check` found metadata, 2 = error or unsupported file.
 
+## line_test.sh
+
+`Tools/line_test.sh <scenario>` runs one unattended day (or twenty) of the line from the editor binaries, in its own save slot (`-LeafSlot=LineTest`), and prints the day summaries from the log. The editor must be closed (runs go through the Unreal lock). Scenarios: `smoke`, `watch` / `skip` and `windwatch` / `windskip` (a watched versus a skipped harvest of the same day; use `DAYN=2` for losses), `lines1` / `lines3`, `exposed` / `sheltered` / `small`, `dry` (a patch runs dry while scouts wait), `shots` (HUD screenshots into `Saved/RefShots/line-shots-*.png`), `perfbase` / `perfpool` / `perfharvest` (frame times with the CSV profiler), `migrate` (loads `Saved/SaveGames/LineTestV1.sav`), `auto` (twenty days with `Leaf.AutoPlay`). Environment: `SEED`, `POOL`, `DAYN`. Logs: `Saved/Logs/LineTest-<scenario>.log`.
+
+## econ_sim.py
+
+`python3 Tools/econ_sim.py [--check-cpp]` (Codex) models a fresh save to the end card with the line on and off, and prints a per-day table and the recommended upgrade costs and milestones; `--check-cpp` checks `Game/Upgrades.cpp` against them. Assumptions are named constants at the top; details in `docs/economy.md`.
+
 ## zip_build.py
 
 `Tools/zip_build.py` zips the packaged build (`Build/Windows`) for sharing, into `Build/inventivetalent_Leafline.zip` with everything under one `Leafline/` folder. Run it after `Scripts/package_win64.bat`.
