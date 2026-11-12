@@ -106,6 +106,8 @@ public:
 	int32 GetFollowIndex() const { return FollowIndex; }
 	int32 GetFollowCount() const { return FollowPoints.Num(); }
 	bool IsFollowFinished() const { return bFollowFinished; }
+	/** Times a follower was pinned and stepped onto its route point (diagnostics). */
+	int32 GetFollowSnaps() const { return FollowSnaps; }
 
 	/** One movement step of Dt seconds. Ticking calls it with the frame time unless the owner steps it itself. */
 	void Step(float Dt, bool bApplyTransform = true);
@@ -221,6 +223,7 @@ private:
 
 	float FollowWait = 0.f;
 	double FollowLag = 0.0;
+	int32 FollowSnaps = 0;
 	float FollowRideOverride = 0.f;
 	float FollowReturnScale = 1.f;
 	bool bExternalStep = false;

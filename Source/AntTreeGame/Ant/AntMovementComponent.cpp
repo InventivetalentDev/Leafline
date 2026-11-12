@@ -490,6 +490,15 @@ void UAntMovementComponent::TickFollow(float Dt)
 			? FMath::Lerp(FollowPoints[FollowIndex].Pos, FollowPoints[NextIdx].Pos, FollowFrac)
 			: FollowPoints[FollowIndex].Pos;
 		FollowLag = FVector::Dist(Pos, Cur);
+		// Pinned for a second (wood between the ant and the point it follows): step onto the route point itself, which
+		// is on the bark. A small jump, rare, and it keeps every follower on its route.
+		if (FollowLag > 30.0 && FollowWait > 1.f)
+		{
+			Pos = Cur;
+			FollowLag = 0.0;
+			FollowWait = 0.f;
+			++FollowSnaps;
+		}
 		const bool bAtEnd = !FollowPoints.IsValidIndex(NextIdx);
 		FollowWait = (FollowLag > 30.0 || bAtEnd) ? FollowWait + Dt : 0.f;
 		if (bAtEnd && (FollowLag < 20.0 || FollowWait >= 2.f)) bFollowFinished = true;

@@ -127,17 +127,27 @@ Order by visible impact per hour:
 
 Spec: `docs/briefs/the-line.md`; work split and interfaces: `docs/briefs/line-contract.md`. Tagged `pre-line` before it started; commits start with `Line:`. If the owner cuts it, `FDayTuning::bRecruits` ships off and nothing is reverted.
 
-- [ ] Lines: a scout's piece on its way home turns its loop-free route (from the cut, `BuildReturnRoute`) into a line; the patch is the walkable leaves around the cut leaf (`ATreeActor::BuildPatch`, `BuildLeafApproach`).
-- [ ] Recruits (`ALineSystem`): one pool from Brood, three trips each, leave 1.5 s apart, same wind test as scouts, blown-off recruits lose the trip, stripped patches send them home without using one.
-- [ ] Fixed-step sim: recruits, the wind clock and (in the harvest) returning scouts step in 1/120 s steps, so a skipped harvest is the same simulation.
-- [ ] Day end: every ant home; harvest phase at 5×, skippable; camera at the nest looking up the trunk, Tab hops to the patches.
+- [x] Lines: a scout's piece on its way home turns its loop-free route (from the cut, `BuildReturnRoute`) into a line; the patch is the walkable leaves around the cut leaf (`ATreeActor::BuildPatch`, `BuildLeafApproach`).
+- [x] Recruits (`ALineSystem`): one pool from Brood, three trips each, leave 1.5 s apart, same wind test as scouts, blown-off recruits lose the trip, stripped patches send them home without using one.
+- [x] Fixed-step sim: recruits, the wind clock and (in the harvest) returning scouts step in 1/120 s steps, so a skipped harvest is the same simulation.
+- [x] Day end: every ant home; harvest phase at 5×, skippable; camera at the nest looking up the trunk, Tab hops to the patches.
 - [ ] Richer leaves (1× to 3×, paler green), patch read-out and outline before cutting.
-- [ ] Trail brightness by patch (replaces the age fade).
-- [ ] Six-level ladders, Brood as the recruit pool, two milestone sets, save version 2 with v1 migration, best day; `-LeafSlot` test slot.
-- [ ] Number-go-up: "+N" at the nest with a rising chime, colony counter, one row per line, recap counting up line by line.
-- [ ] Off switch `Leaf.Recruits 0|1`.
-- [ ] Codex review of the day-end state machine.
-- [ ] Acceptance tests 1 to 8 (`Tools/line_test.sh`, `Tools/econ_sim.py`).
+- [x] Trail brightness by patch (replaces the age fade).
+- [x] Six-level ladders, Brood as the recruit pool, two milestone sets, save version 2 with v1 migration, best day; `-LeafSlot` test slot.
+- [x] Number-go-up: "+N" at the nest with a rising chime, colony counter, one row per line, recap counting up line by line.
+- [x] Off switch `Leaf.Recruits 0|1`.
+- [x] Codex review of the day-end state machine (7 findings, all fixed).
+- [ ] Acceptance tests (`Tools/line_test.sh`, seed 517192, day 1, pool 4 unless noted; Thu night):
+  1. One line 27.3, three lines 45.5. Pass.
+  2. Pool 6: the first patch ran dry with two scouts still waiting ("6 idle"), and all six recruits moved to the second line. Pass.
+  3. Large pieces lose 8 to 9 of 12 recruit trips, small pieces 0. Pass. Windward versus lee routes: 9 versus 7 and 8 versus 6 lost; the direction holds but the gap is small, because the test routes run along branch tops (exposure at most 0.5) and only differ on the trunk.
+  4. Economy model only (`Tools/econ_sim.py`): end card at 16.8 min with the line, 18.5 min without. Needs the owner's play.
+  5. Economy model only: day hauls grow 10.1× from day 1 to the end card.
+  6. Watched versus skipped harvest, day 2, three large-piece lines with losses: 19.4 both, 4 home, 8 lost. Pass.
+  7. Twenty unattended days (`Leaf.AutoPlay`), twice: every day ended. Recruit cuts that missed their leaf (fallback): 144 of 341 before followers stepped onto their route when pinned, 0 of 358 after. Pass.
+  8. Editor-binary standalone, 1280x720: two lines with pool 0 game thread 1.9 ms, pool 10 at work 2.5 ms, pool 10 in the 5× harvest 5.6 ms; 60 fps throughout. Pass.
+  - Seen in the runs: from about day 6 the gusts (peak +15 % a day, lines over 100 m) blow off nearly every laden recruit unless Grip is high. That is the existing difficulty curve; the owner should decide whether to cap it.
+- [ ] Leaf colour by richness in `M_Leaf` (vertex alpha is written; the material does not use it yet).
 
 ## M6: Stretch (only if M0–M5b are complete before the freeze; the bird waits for the owner to keep the line)
 

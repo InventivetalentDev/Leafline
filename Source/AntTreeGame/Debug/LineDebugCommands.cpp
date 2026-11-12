@@ -114,7 +114,8 @@ namespace
 			const float U = float(k) / Steps;
 			float R;
 			const FVector C = TreeSkeleton::SampleAt(Trunk, FMath::Lerp(TStart, TEnd, U), &R, nullptr);
-			const float A = FMath::Lerp(AFrom, ATo, FMath::SmoothStep(0.f, 1.f, FMath::Min(U * 1.3f, 1.f)));
+			// Round the trunk near the ground, then straight up the side the branch leaves from.
+			const float A = FMath::Lerp(AFrom, ATo, FMath::SmoothStep(0.f, 1.f, FMath::Min(U * 8.f, 1.f)));
 			Guides.Add(Project(C + FVector(FMath::Cos(A), FMath::Sin(A), 0.0) * (R + 60.0)));
 		}
 		// Along the top of each branch to the next junction, and the last one to the leaf.

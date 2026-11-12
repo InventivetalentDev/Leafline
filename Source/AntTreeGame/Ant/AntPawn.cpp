@@ -14,6 +14,10 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "ProceduralMeshComponent.h"
 #include "UObject/ConstructorHelpers.h"
+#include "GameFramework/PlayerController.h"
+#include "Camera/PlayerCameraManager.h"
+#include "Engine/GameViewportClient.h"
+#include "Engine/Engine.h"
 
 namespace
 {
@@ -199,6 +203,23 @@ void AAntPawn::PushVisuals()
 {
 	if (!Movement || VanishTime >= 0.f) return;
 	Movement->ApplyTransformNow();
+	// A recruit's piece never shrinks below a few pixels on screen, so a line of them reads from a branch away (and in
+	// the harvest view from the nest). Looks only: the wind still sees the real size.
+	if (bRecruit && IsCarrying() && FragmentMesh && SwingTime < 0.f && FlutterTime < 0.f && FragmentMesh->GetAttachParent() == CarrySocket)
+	{
+		float Scale = 1.f;
+		const APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
+		if (PC && PC->PlayerCameraManager && GEngine && GEngine->GameViewport)
+		{
+			FVector2D Viewport(1920.0, 1080.0);
+			GEngine->GameViewport->GetViewportSize(Viewport);
+			const float Dist = (float)FVector::Dist(PC->PlayerCameraManager->GetCameraLocation(), GetActorLocation());
+			const float HalfTan = FMath::Tan(FMath::DegreesToRadians(PC->PlayerCameraManager->GetFOVAngle() * 0.5f));
+			const float Pixels = DiameterForSize(CarriedSize) / FMath::Max(2.f * Dist * HalfTan, 1.f) * (float)Viewport.X;
+			Scale = FMath::Clamp(9.f / FMath::Max(Pixels, 0.1f), 1.f, 6.f);
+		}
+		FragmentMesh->SetRelativeScale3D(FVector(Scale));
+	}
 	if (BodyMID)
 	{
 		BodyMID->SetScalarParameterValue(TEXT("GaitPhase"), GaitPhase);

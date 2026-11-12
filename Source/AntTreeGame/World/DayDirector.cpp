@@ -541,9 +541,9 @@ void ADayDirector::UpdateHarvestCamera(float Dt)
 		return;
 	}
 	// At the nest, low, looking up the trunk where every line comes down: the file of ants walks toward the camera.
-	const FTransform NestXf = Tree->GetNestTransform(0);
-	const FVector Away = NestXf.GetRotation().GetForwardVector().GetSafeNormal2D();
 	const FVector NestPos = Nest->GetActorLocation();
+	FVector Away = (NestPos - Tree->GetSkeleton().TrunkBase).GetSafeNormal2D();
+	if (Away.IsNearlyZero()) Away = FVector::ForwardVector;
 	const FVector Loc = NestPos + Away * 520.0 + FVector(0.0, 0.0, 70.0);
 	const FVector LookAt = NestPos - Away * 250.0 + FVector(0.0, 0.0, 650.0);
 	Cam->SetOverview(true, Loc, LookAt);
