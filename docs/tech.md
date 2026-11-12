@@ -213,7 +213,7 @@ Title -> DayStart (grow tree from hash(seed, day), set wind, reset roster and re
 - Difficulty per day: `LowestLeafyHeight` rises, gust peak and frequency rise.
 - Spawn objects the pawn depends on in `InitGame`, since the pawn exists before `BeginPlay`.
 - Milestones and the end card read `TotalHauled`, against the line set or the "by hand" set (`ULeaflineGameInstance::AreRecruitsEnabled`).
-- Save version 2 adds `BestDayHaul`; version-1 saves are migrated (levels clamped to the new range). `-LeafSlot=<name>` selects another save slot for automated runs (`Tools/line_test.sh` uses `LineTest`).
+- Save version 2 adds `BestDayHaul`; version-1 saves load with their progress (levels clamped to the new range). Unreal's save serialisation skips properties equal to their defaults, so a version-1 file never stored its `Version` and simply loads as current; checked on a copy of the owner's day-7 save. `-LeafSlot=<name>` selects another save slot for automated runs (`Tools/line_test.sh` uses `LineTest`).
 
 ## Input
 
@@ -275,6 +275,7 @@ Console commands pay for themselves, because verification is done by driving Pla
 | `Leaf.Harvest` / `Leaf.SkipHarvest` | End the shifts now and go to the harvest; skip a running harvest |
 | `Leaf.PatchSurvey [samples]` | Patch sizes over random leaves at templates 0.3 / 0.6 / 1.0, and approach failures by reason |
 | `Leaf.StartDay <day> [seed]` | Start that day now (after `Leaf.ResetSave`, for repeatable tests) |
+| `Leaf.AtSim <seconds> <command...>` | Run a console command at that sim time of the day, between fixed steps (repeatable tests: the same day plays the same) |
 | `Leaf.Cycle` | The cycle button (Tab): next worker in a shift, next view in the harvest |
 | `Leaf.LineInfo` | Log every line (home, lost, patch left, reserved, recruits on it) and the pool |
 | `Leaf.TestLines <n> [size] [exposed\|sheltered\|any] [seed]` | Scouts lay lines at once to leaves in the lowest leafy band, each with a real walk over the bark from the nest (tests) |
