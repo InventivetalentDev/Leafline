@@ -57,7 +57,7 @@ public:
 	void AddDecorLeaf(const FTreeLeaf& Leaf);
 
 	/** Two-sided blades for one chunk. */
-	void BuildChunkMesh(int32 Chunk, FTreeMeshData& Out) const;
+	void BuildChunkMesh(int32 Chunk, FTreeMeshData& Out, int32 Segments = 0) const;
 
 	TArray<FTreeLeaf> Leaves;
 

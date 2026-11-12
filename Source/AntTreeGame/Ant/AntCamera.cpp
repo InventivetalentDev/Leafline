@@ -312,7 +312,9 @@ void AAntCamera::Tick(float DeltaTime)
 		}
 	}
 	SetActorLocationAndRotation(CamPos, FRotationMatrix::MakeFromXZ(LookDir, CamUp).ToQuat());
-	PublishView(CamPos, Focus, true);
+	// The cutaway aims at the ant's body, not at the look-at point: that one sits above the ant and lags behind it on a
+	// spring, so the see-through hole in the bark was often beside the ant (owner note).
+	PublishView(CamPos, AntPos + AntUp * 3.0, true);
 	Camera->SetFieldOfView(Tuning.FieldOfView);
 	FPostProcessSettings& PP = Camera->PostProcessSettings;
 	PP.bOverride_DepthOfFieldFocalDistance = Tuning.DepthOfFieldFstop > 0.f;

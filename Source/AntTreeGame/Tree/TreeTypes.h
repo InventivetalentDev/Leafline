@@ -114,8 +114,8 @@ struct FTreeParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grove") float GroveMaxDistance = 70000.f;
 	/** Leaf clumps per grove crown (around the top and at the limb ends); 0 leaves the trunks bare. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grove") int32 GroveCrownClumps = 9;
-	/** Leaves per clump; each is about half the clump radius long, so this sets how closed the crown looks. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grove") int32 GroveLeavesPerClump = 70;
+	/** Leaves per clump; each is about a quarter of the clump radius long, so this sets how closed the crown looks. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grove") int32 GroveLeavesPerClump = 260;
 	/** Radius of the ground disk (cm). Far enough that the height fog swallows its edge. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grove") float GroundRadius = 500000.f;
 

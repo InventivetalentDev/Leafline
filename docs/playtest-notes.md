@@ -35,7 +35,24 @@
   - Toned down: that was a rim light I added so the ant reads in video. It was near-white at strength 2 over a wide edge; now a faint warm sheen right at the silhouette (strength 0.35, tighter falloff). The ant reads dark red-brown again. If it should go entirely, it is one number in `M_Ant` (`Multiply_11`). Not in a package yet.
 - [x] nanite warning text visible in packaged build
   - Fixed: that was the virtual shadow map warning "[VSM] Non-Nanite Marking Job Queue overflow", which shows whenever the canopy fills the view. It only costs a little speed; the on-screen text is now off (`r.Shadow.Virtual.AllowScreenOverflowMessages=0` in `DefaultEngine.ini`).
-- [ ] make it a bit clearer that an ant is returning to the nest, maybe a slight delay before continuing on to the next ant
+- [x] make it a bit clearer that an ant is returning to the nest
+  - Done: after Q the camera stays with the worker for 1.4 s as it turns for home, with "Worker 1 heads home with its piece" on screen, then the next worker comes out. At the nest the ant now walks into the entrance and sinks out of sight while its piece drops in. Not in a package yet.
+- [ ] walking around branches still doesn't seem to work quite right sometimes, still occasionally get stuck at the tangent point
+- [x] background tree leaves are way too big
+  - Fixed: the distant crowns had leaves half to three quarters of their clump size (8 to 20 m). Now about a quarter (a few metres), almost four times as many, drawn with fewer segments so the triangle count stays about the same. Not in a package yet.
+- [ ] gripping needs more of a visual indicator, like a new gripping pose on the model or some indicator color or something
+- [ ] when plugging in a ps5 controller, sounds seems to cut off (getting routed to the controller speaker maybe?)
+- [ ] scent lines should maybe fade after a while? or at least be more faint for older ones so it doesn't get confusing
+- [ ] wind could maybe wiggle the leaf you're carrying a bit more to make wind more obvious
+- [x] can probably move the leaves start down to the lower branches
+  - Done: on day 1 every bough and twig is leafy, so leaves start on the lowest limbs (about 26 m). Later days raise it 7 m a day (was 15: day 4 now starts at 41 m instead of 85). The first goal text says the real height. Not in a package yet.
+- [ ] overall, try to move as much of what's currently UI text (like "gust, you're sheltered here") to have an in-world visual indicator (can still keep the UI text as well, but needs some proper in-world feedback imo)
+- [x] when the sprint expires, keep it expired until the next explicit press of the sprint button
+  - Fixed: after the bar runs dry, sprint stays off (bar red) until you let go of the button and press it again. Not in a package yet.
+- [x] the see-through stem "hole" is often offset from where the ant would be
+  - Fixed: the cutaway was aimed at the camera's look-at point, which sits above the ant and trails it on a spring. It now aims at the ant's body. Not in a package yet.
+- [x] the "ride the trail" option is way faster than walking yourself
+  - Done: walking on another worker's scent trail is now 1.7 times as fast (your own trail under your feet does not count); it eases in and out. Riding with F is still there for now; say if it should go. Not in a package yet.
 
 ## To revisit: thin-branch controls (2026-11-12)
 

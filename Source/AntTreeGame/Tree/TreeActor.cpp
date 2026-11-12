@@ -88,7 +88,7 @@ void ATreeActor::Grow(int32 Seed)
 	if (GroveLeaves.Num() > 0)
 	{
 		FTreeMeshData Crowns;
-		GroveLeaves.BuildChunkMesh(0, Crowns);
+		GroveLeaves.BuildChunkMesh(0, Crowns, 3); // far away: three segments per blade are plenty
 		GroveLeafMesh->CreateMeshSection_LinearColor(0, Crowns.Vertices, Crowns.Triangles, Crowns.Normals, Crowns.UV0, {}, {}, {},
 			Crowns.Colors, Crowns.Tangents, false, false);
 		if (LeafMaterialInUse) GroveLeafMesh->SetMaterial(0, LeafMaterialInUse);
@@ -203,7 +203,7 @@ void ATreeActor::BuildGrove()
 			Out.Z = Out.Z * 0.7f + 0.2f; // flatter underneath, fuller on top
 			Out.Normalize();
 			FTreeLeaf L;
-			L.Length = Cl.Radius * R.FRandRange(0.5f, 0.75f);
+			L.Length = Cl.Radius * R.FRandRange(0.2f, 0.3f); // a few metres: big enough to read at a distance, not giant
 			L.Width = L.Length * Params.LeafWidthRatio;
 			const FVector Tan = FVector::CrossProduct(Out, R.VRand()).GetSafeNormal();
 			L.Dir = (Tan + Out * 0.35f + FVector(0.f, 0.f, -0.3f)).GetSafeNormal();

@@ -297,7 +297,9 @@ void ADayDirector::SendHome(AAntPawn* Ant)
 	Ant->StartReturn();
 	LeafSound::Play(this, TEXT("send_home"), 0.6f);
 	UE_LOG(LogLeafline, Log, TEXT("Worker %d sent home carrying %.1f"), i, Ant->GetCarriedMass());
-	PossessNext();
+	// Stay with it for a moment as it turns for home, so it is clear the worker is on its way; then the next comes out.
+	PendingPossess = 1.4f;
+	PendingFrom = Ant;
 }
 
 void ADayDirector::OnBlownOff(AAntPawn* Ant)
@@ -491,7 +493,7 @@ void ADayDirector::Tick(float DeltaTime)
 	if (PendingPossess > 0.f)
 	{
 		PendingPossess -= DeltaTime;
-		// Only move on if the player is still watching the blown-off ant (control may have moved already).
+		// Only move on if the player is still watching that ant (blown off or sent home; control may have moved already).
 		APawn* Watched = Player.IsValid() ? Player->GetPawn() : nullptr;
 		if (PendingPossess <= 0.f && Phase == EDayPhase::Shift && (!Watched || Watched == PendingFrom.Get())) PossessNext();
 	}

@@ -88,7 +88,7 @@ struct FDayTuning
 	/** Tree shape for the day: -1 by day (day 1 classic, then spreading, spire, leaning in turn), 0..3 to force one. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day") int32 TreeShapeOverride = -1;
 	/** Lowest leafy branch on day 1 and its rise per day (cm). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day") float LeafyHeightDay1 = 4000.f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day") float LeafyHeightPerDay = 1500.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day") float LeafyHeightDay1 = 2000.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day") float LeafyHeightPerDay = 700.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day") int32 BaseSeed = 1112;
 };

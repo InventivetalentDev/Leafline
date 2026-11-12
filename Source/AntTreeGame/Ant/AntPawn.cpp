@@ -438,15 +438,22 @@ void AAntPawn::UpdateRiding(float Dt)
 	if (!Trails || !IsPlayerControlled())
 	{
 		bTrailInReach = false;
+		if (Movement) Movement->SetOnTrail(false);
 		return;
 	}
 	TrailCheckTimer -= Dt;
 	if (TrailCheckTimer <= 0.f && State == EAntState::Walking)
 	{
-		TrailCheckTimer = 0.2f;
+		TrailCheckTimer = 0.15f;
 		int32 P, I;
 		ADayDirector* D = GetDirector();
 		bTrailInReach = Trails->FindRideStart(Movement->GetSurfacePosition(), D ? D->Tuning.RideReach : 60.f, Movement->GetBodyForward(), P, I, PathIndex);
+		// On another worker's trail (not the one this ant is laying under its feet): walk faster.
+		Movement->SetOnTrail(bTrailInReach && Trails->FindRideStart(Movement->GetSurfacePosition(), 22.f, Movement->GetBodyForward(), P, I, PathIndex));
+	}
+	else if (State != EAntState::Walking)
+	{
+		Movement->SetOnTrail(false);
 	}
 	if (bFollowHeld && State == EAntState::Walking && !Movement->HasMoveInput())
 	{

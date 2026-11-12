@@ -44,6 +44,8 @@ struct FAntMoveTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stamina") float StaminaResumeThreshold = 0.25f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Carry") float SpeedLossPerMass = 0.08f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Carry") float MinCarrySpeedFactor = 0.45f;
+	/** Walking on another worker's scent trail is this much faster (riding with F stays faster still). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Speed") float TrailSpeedMultiplier = 1.7f;
 	/** Ground distance from the trunk axis at which the ant is turned back (cm). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bounds") float BoundaryRadius = 7000.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bounds") float BoundaryWidth = 800.f;
@@ -80,6 +82,9 @@ public:
 	/** Camera-relative move input: X right, Y forward. */
 	void SetMoveInput(const FVector2D& Input, const FVector& CamForward, const FVector& CamUp);
 	void SetSprintInput(bool bSprint) { bSprintInput = bSprint; }
+	/** The pawn says whether the ant is on another worker's trail (checked a few times a second). */
+	void SetOnTrail(bool bOn) { bOnTrail = bOn; }
+	bool IsOnTrail() const { return bOnTrail; }
 	bool HasMoveInput() const { return MoveInput.SizeSquared() > 0.04; }
 
 	void TeleportTo(const FVector& Location, const FVector& Facing);
@@ -151,6 +156,9 @@ private:
 	bool bSprintInput = false;
 	bool bSprinting = false;
 	bool bSprintLocked = false;
+	bool bSprintReleasedSinceLock = false; // after running dry, sprint resumes only on a fresh press
+	bool bOnTrail = false;
+	float TrailBoost = 1.f; // eased toward TrailSpeedMultiplier while on a trail
 	float Stamina = 1.f;
 	EAntState State = EAntState::Walking;
 	bool bPlaced = false;

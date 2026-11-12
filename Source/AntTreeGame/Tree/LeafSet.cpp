@@ -162,11 +162,11 @@ bool FLeafSet::ApplyBite(int32 Index, float Size01, float DiameterCm, float UseP
 	return true;
 }
 
-void FLeafSet::BuildChunkMesh(int32 Chunk, FTreeMeshData& Out) const
+void FLeafSet::BuildChunkMesh(int32 Chunk, FTreeMeshData& Out, int32 Segments) const
 {
 	Out.Reset();
 	if (!ChunkLeaves.IsValidIndex(Chunk)) return;
-	const int32 K = LeafSegments;
+	const int32 K = Segments > 1 ? Segments : LeafSegments;
 
 	for (int32 Idx : ChunkLeaves[Chunk])
 	{

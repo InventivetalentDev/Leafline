@@ -94,10 +94,12 @@ void ALeaflineHUD::DrawHUD()
 	{
 		const UAntMovementComponent* M = Ant->GetAntMovement();
 		FString Goal;
-		const bool bLow = M && D->GetTree() && M->GetSurfacePosition().Z < D->GetTree()->Params.LowestLeafyHeight - 600.f;
+		// Leaves grow on boughs and twigs above LowestLeafyHeight, and the first limbs start at LimbStartHeight.
+		const float LeavesFrom = D->GetTree() ? FMath::Max(D->GetTree()->Params.LowestLeafyHeight, D->GetTree()->Params.LimbStartHeight) : 3000.f;
+		const bool bLow = M && M->GetSurfacePosition().Z < LeavesFrom - 600.f;
 		if (Ant->GetWorkerIndex() == 0 && D->GetStats().Fragments == 0 && !Ant->IsCarrying() && M && M->GetState() == EAntState::Walking && bLow)
 		{
-			Goal = TEXT("Climb the trunk: the leaves start about 40 m up");
+			Goal = FString::Printf(TEXT("Climb the trunk: the leaves start about %d m up"), FMath::RoundToInt(LeavesFrom / 100.f));
 		}
 		else if (Ant->GetWorkerIndex() == 1 && !Ant->IsCarrying() && M && M->GetState() == EAntState::Walking)
 		{
@@ -131,6 +133,15 @@ void ALeaflineHUD::DrawShiftBanner(const ADayDirector* D, float Scale, float Dt)
 	}
 	BannerShift = Shift;
 	BannerDay = D->GetDay();
+	// While still watching a worker that was just sent home: say so (the next worker comes out a moment later).
+	const APlayerController* PC = GetOwningPlayerController();
+	const AAntPawn* Watched = PC ? Cast<AAntPawn>(PC->GetPawn()) : nullptr;
+	if (Watched && Watched->GetAntMovement() && Watched->GetAntMovement()->GetState() == EAntState::Returning && BannerTime <= 0.f)
+	{
+		const float CX = Canvas->ClipX * 0.5f;
+		DrawTextCentered(FString::Printf(TEXT("Worker %d heads home with its piece"), Watched->GetWorkerIndex() + 1), CX, Canvas->ClipY * 0.26f,
+			TextColor, 1.25f * Scale, GEngine->GetMediumFont());
+	}
 	if (BannerTime <= 0.f) return;
 	BannerTime -= Dt;
 	const float A = FMath::Clamp(BannerTime / 0.6f, 0.f, 1.f);

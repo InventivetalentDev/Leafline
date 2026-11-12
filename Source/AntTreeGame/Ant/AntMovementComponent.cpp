@@ -205,7 +205,8 @@ void UAntMovementComponent::TickWalking(float Dt)
 	UpdateStamina(Dt, bWantsMove);
 
 	const float CarryFactor = FMath::Clamp(1.f - Tuning.SpeedLossPerMass * CarriedMass, Tuning.MinCarrySpeedFactor, 1.f);
-	const float Speed = Tuning.WalkSpeed * CarryFactor * (bSprinting ? Tuning.SprintMultiplier : 1.f);
+	TrailBoost = FMath::FInterpTo(TrailBoost, bOnTrail ? Tuning.TrailSpeedMultiplier : 1.f, Dt, 4.f);
+	const float Speed = Tuning.WalkSpeed * CarryFactor * TrailBoost * (bSprinting ? Tuning.SprintMultiplier : 1.f);
 	const double Expected = FMath::Max(Velocity.Size(), (double)Speed) * Dt;
 	const int32 Steps = FMath::Clamp(FMath::CeilToInt(Expected / FMath::Max(Tuning.MaxSubstep, 1.f)), 1, 24);
 	const float H = Dt / Steps;
@@ -642,6 +643,7 @@ void UAntMovementComponent::UpdateStamina(float Dt, bool bWantsMove)
 		{
 			Stamina = 0.f;
 			bSprintLocked = true;
+			bSprintReleasedSinceLock = false;
 			bSprinting = false;
 			UE_LOG(LogLeafline, Log, TEXT("%s: stamina empty"), *GetOwner()->GetName());
 		}
@@ -649,7 +651,10 @@ void UAntMovementComponent::UpdateStamina(float Dt, bool bWantsMove)
 	else
 	{
 		Stamina = FMath::Min(1.f, Stamina + Tuning.StaminaRegen * Dt);
-		if (bSprintLocked && Stamina >= Tuning.StaminaResumeThreshold) bSprintLocked = false;
+		// Holding sprint through the empty bar no longer restarts it in stutters as the bar refills: the button must be
+		// let go and pressed again (owner note).
+		if (bSprintLocked && !bSprintInput) bSprintReleasedSinceLock = true;
+		if (bSprintLocked && bSprintReleasedSinceLock && Stamina >= Tuning.StaminaResumeThreshold) bSprintLocked = false;
 	}
 }
 
