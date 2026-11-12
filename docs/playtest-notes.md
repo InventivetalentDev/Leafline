@@ -21,8 +21,19 @@
 - [ ] low priority: leaf cutting animation would be nice
 - [ ] low priority: if you're already halfway back down the tree and you engage the auto-return, ideally it should just follow the scent line if you're close to it from that location, instead of walking strictly back (and going back up the tree etc.)
 - [ ] add key/controller icons (https://thoseawesomeguys.com/prompts/)
-- [ ] add controller support
+- [x] add controller support
+  - Xbox pads worked already (XInput). PS5 and PS4 pads now work through Microsoft GameInput, mapped per SDL_GameControllerDB and checked with your DualSense. Right stick looks inverted, as you asked. Not in the packaged build yet.
 - [ ] mouse cursor controls in the UI would be nice
 - [x] got stuck on the bottom of the tree on day 4
   - Fixed: the walking surface had a thin vertical strip (up to 20 cm tall) on the outer side of every slight bend in a branch, left over from my earlier fix; the ant bounced off it. Replayed day 4's tree (seed 208038): the climb from the nest now goes straight up. Not in the packaged build yet.
 - [ ] leaf animation seems to play without actually moving the leaf, only the shadow moves?
+
+## To revisit: thin-branch controls (2026-11-12)
+
+Controls are camera-relative, but on thin branches two rules override them: input is snapped to "along the branch" unless it is clearly sideways (more than about 27 degrees off the branch on screen), and clearly sideways input walks the ant round the branch, with the circling direction locked while the stick holds still. Both can make "right" move the ant up on screen. Options:
+
+- [ ] Steering-wheel A/D on thin branches: W/S always along the branch (away from / toward the camera), A/D always clockwise / anticlockwise round it as seen from the camera. Consistent, less literal.
+- [ ] Softer snapping: blend along and around instead of the 27-degree threshold, so diagonal input moves diagonally on the surface. Closer to pure screen-relative, but a slight aim off the branch spirals.
+- [ ] Keep the current rules and tune the specific spots that feel wrong (needs examples: twig or thicker branch, where the camera was).
+- Also contributing: the camera slowly rolls to follow the surface on mid-size and big branches, so screen directions drift while walking.
+
