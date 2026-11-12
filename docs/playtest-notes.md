@@ -1,7 +1,7 @@
 - [x] I'm still climbing through the air at the trunk base
   - Fixed: the walking surface now matches the visible bark (mean gap 0.12 cm around the trunk base and roots, was 52 cm; worst 7.5 cm in the small blend where roots meet the trunk). In the editor build.
 - [x] "safe" text when cutting leaves transitions to weird informational text about it being dangerous in wind which just seems confusing
-  - Fixed: the label under the cut arc now reads "Safe in a gust", "Risky in a gust" or "Too big for a gust". In the editor build.
+  - Fixed: the label under the cut arc names what it is about: "This piece: safe in a gust", "This piece: risky in a gust" or "This piece: too big for a gust" (the wind risk of the piece being cut, with your Grip upgrade). In the editor build.
 - [x] pretty blurry UI text
   - Fixed: all HUD text is rasterised at its on-screen size instead of being stretched. In the editor build.
 - [x] tree texture has some UV issues; weird lines and stretched textures in places

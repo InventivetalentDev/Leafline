@@ -213,7 +213,9 @@ void ALeaflineHUD::DrawCutArc(const AAntPawn* Ant, float Scale)
 	const FLinearColor Now = RiskColor(Size, Ratio);
 	UFont* Font = GEngine->GetMediumFont();
 	DrawTextCentered(FString::Printf(TEXT("%.1f"), Ant->MassForSize(Size)), CX, CY - 12.f * Scale, TextColor, 1.2f * Scale, Font);
-	const TCHAR* Label = Ratio >= 1.f ? TEXT("Too big for a gust") : (Wind && Ratio >= Wind->Tuning.RiskyRatio ? TEXT("Risky in a gust") : TEXT("Safe in a gust"));
+	// Name the subject: the label is about the piece being cut, not the ant or the leaf.
+	const TCHAR* Label = Ratio >= 1.f ? TEXT("This piece: too big for a gust")
+		: (Wind && Ratio >= Wind->Tuning.RiskyRatio ? TEXT("This piece: risky in a gust") : TEXT("This piece: safe in a gust"));
 	DrawTextCentered(Label, CX, CY + R + 14.f * Scale, Now, 1.0f * Scale, Font);
 }
 
