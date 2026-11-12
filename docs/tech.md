@@ -130,6 +130,7 @@ Tick(dt):
 ```
 
 - Substep when `Speed * dt` exceeds half an ant length, so thin twigs are not skipped.
+- Thin branches (radius under about 70 cm, fully below 15): with `bSteeringWheel` (default) W/S walk along the branch and A/D round it, clockwise / anticlockwise as seen from the camera. Which end W means (`WheelAway`) is captured from the camera when the stick is first held and kept until it is released, carried across branch joins by continuity. Without it: camera-relative input with the sideways snap.
 - States: `Walking`, `Cutting` (rooted), `Gripping` (rooted), `Riding` (following a trail), `Returning` (unattended walk home: from the nearby scent line point nearest the nest, along that line with its loops cut out; `ATrailNetwork::BuildReturnRoute`), `Falling` (simple ballistic drop to the ground, then `WalkingHome` along the ground to the nest).
 - Sprint multiplies speed and drains stamina. Carried mass scales speed down.
 - The same component drives the player's ant and unattended ants; only the source of "wish" differs.

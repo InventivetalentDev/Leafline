@@ -184,6 +184,7 @@ void AAntPawn::Tick(float DeltaSeconds)
 	}
 
 	UpdateCutting(DeltaSeconds);
+	UpdateCutVisuals(DeltaSeconds);
 	UpdateRiding(DeltaSeconds);
 	UpdateGrip();
 	UpdateRecording();
@@ -257,11 +258,17 @@ void AAntPawn::UpdateCutting(float Dt)
 	}
 	else
 	{
+		// Where the piece comes out, taken before the bite changes the leaf.
+		FVector2f BiteC(0.f, 0.f);
+		float BiteR = 0.f;
+		Tree->GetLeaves().PlanBite(CuttingLeaf, DiameterForSize(CutSize), BiteC, BiteR);
+		const FTreeLeaf LeafBefore = Tree->GetLeaves().Get(CuttingLeaf);
 		if (CutSize >= Cut.MinSize && Tree->BiteLeaf(CuttingLeaf, CutSize, DiameterForSize(CutSize), Cut.LeafUsePerCut))
 		{
 			SetFragment(CutSize);
+			// The tear now; the pickup sound plays when the piece lands on the back (UpdateCutVisuals).
 			LeafSound::Play(this, TEXT("cut_done"), 0.7f);
-			LeafSound::Play(this, TEXT("pickup"), 0.45f, 1.1f - 0.2f * CutSize);
+			StartFragmentSwing(LeafBefore.Point(BiteC.X, BiteC.Y), LeafBefore.Dir, LeafBefore.Normal);
 			UE_LOG(LogLeafline, Log, TEXT("%s: cut a fragment of size %.2f (mass %.1f, %.0f cm) from leaf %d"),
 				*GetName(), CutSize, CarriedMass, DiameterForSize(CutSize), CuttingLeaf);
 		}
@@ -275,6 +282,63 @@ void AAntPawn::UpdateCutting(float Dt)
 		if (Movement->GetState() == EAntState::Cutting) Movement->SetState(EAntState::Walking);
 	}
 	bPrevCutHeld = bCutHeld;
+}
+
+void AAntPawn::StartFragmentSwing(const FVector& WorldCenter, const FVector& LeafDir, const FVector& LeafNormal)
+{
+	if (!FragmentMesh) return;
+	// The fragment mesh stands in its local XZ plane (face along local Y) with its centre about one radius above its
+	// origin. Lay it in the leaf's plane, centred on the bite.
+	const FQuat Rot = FRotationMatrix::MakeFromXY(LeafDir, LeafNormal).ToQuat();
+	const float R = DiameterForSize(CarriedSize) * 0.5f;
+	SwingFrom = FTransform(Rot, WorldCenter - Rot.RotateVector(FVector(-2.f, 0.f, R * 0.95f)));
+	SwingTime = 0.f;
+	FragmentMesh->SetWorldTransform(SwingFrom);
+	UE_LOG(LogLeafline, Log, TEXT("%s: piece tears out %.0f cm from the mouth and swings onto the back"), *GetName(),
+		FVector::Dist(WorldCenter, CarrySocket ? CarrySocket->GetComponentLocation() : GetActorLocation()));
+}
+
+void AAntPawn::UpdateCutVisuals(float Dt)
+{
+	// Sawing: while cutting, the body nods quickly and sweeps slowly from side to side, as if working along the arc.
+	if (Body)
+	{
+		if (IsCutting())
+		{
+			SawTime += Dt;
+			const float Nod = 4.f * FMath::Sin(SawTime * 2.f * PI * 4.5f);
+			const float Sweep = 9.f * FMath::Sin(SawTime * 2.f * PI * 0.9f);
+			Body->SetRelativeRotation(FRotator(Nod, Sweep, 0.f));
+			Body->SetRelativeLocation(FVector(0.6f * FMath::Sin(SawTime * 2.f * PI * 4.5f), 0.f, 0.f));
+		}
+		else if (SawTime > 0.f)
+		{
+			SawTime = 0.f;
+			Body->SetRelativeRotation(FRotator::ZeroRotator);
+			Body->SetRelativeLocation(FVector::ZeroVector);
+		}
+	}
+
+	// The torn piece swings up from the leaf over the ant onto its back.
+	if (SwingTime >= 0.f && FragmentMesh && CarrySocket)
+	{
+		constexpr float Duration = 0.45f;
+		SwingTime += Dt;
+		const FTransform Rest = FTransform(FragmentRestRotation) * CarrySocket->GetComponentTransform();
+		if (SwingTime >= Duration || !IsCarrying())
+		{
+			SwingTime = -1.f;
+			FragmentMesh->SetRelativeLocationAndRotation(FVector::ZeroVector, FragmentRestRotation);
+			if (IsCarrying()) LeafSound::Play(this, TEXT("pickup"), 0.45f, 1.1f - 0.2f * CarriedSize);
+			return;
+		}
+		const float E = FMath::SmoothStep(0.f, 1.f, SwingTime / Duration);
+		const FVector Up = GetActorUpVector();
+		const double Arc = FMath::Max(14.0, 0.3 * FVector::Dist(SwingFrom.GetLocation(), Rest.GetLocation()));
+		const FVector Loc = FMath::Lerp(SwingFrom.GetLocation(), Rest.GetLocation(), (double)E) + Up * (Arc * FMath::Sin(PI * E));
+		const FQuat Rot = FQuat::Slerp(SwingFrom.GetRotation(), Rest.GetRotation(), E);
+		FragmentMesh->SetWorldLocationAndRotation(Loc, Rot);
+	}
 }
 
 bool AAntPawn::DebugCutNow(float Size01)
@@ -560,7 +624,7 @@ void AAntPawn::BuildFragmentMesh(float Diameter)
 		else Tri.Append({ 0, A, B });
 	}
 	FragmentMesh->CreateMeshSection_LinearColor(0, V, Tri, N, UV, {}, {}, {}, Col, Tan, false, false);
-	FragmentMesh->SetRelativeRotation(FRotator(12.f, 35.f, 0.f)); // yawed so the camera behind sees its face, not its edge; leans back slightly over the body
+	FragmentMesh->SetRelativeLocationAndRotation(FVector::ZeroVector, FragmentRestRotation); // yawed so the camera behind sees its face, not its edge; leans back slightly over the body
 	const ATreeActor* Tree = GetTree();
 	if (Tree && Tree->LeafMaterial)
 	{

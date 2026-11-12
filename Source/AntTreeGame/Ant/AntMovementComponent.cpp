@@ -248,6 +248,26 @@ void UAntMovementComponent::TickWalking(float Dt)
 		SpareInt = 0;
 		AroundSign = 0;
 	}
+	// Steering wheel: fix which way along the branch W means when the stick is first held on a thin branch and keep it
+	// until the stick is let go. Onto the next branch it carries over by continuity.
+	if (Tuning.bSteeringWheel && ThinBlend > 0.f && MoveInput.SizeSquared() > 0.04 && !Axis.IsNearlyZero())
+	{
+		if (WheelAway.IsNearlyZero())
+		{
+			double S = FVector::DotProduct(Axis, CamForward) + 0.7 * FVector::DotProduct(Axis, CamUp);
+			if (FMath::Abs(S) < 0.15) S = FVector::DotProduct(Axis, Forward); // branch across the screen: the way the ant faces
+			WheelAway = S >= 0.0 ? Axis : -Axis;
+		}
+		else
+		{
+			WheelAway = FVector::DotProduct(Axis, WheelAway) >= 0.0 ? Axis : -Axis;
+		}
+	}
+	else
+	{
+		WheelAway = FVector::ZeroVector;
+	}
+	const bool bWheel = !WheelAway.IsNearlyZero();
 
 	for (int32 s = 0; s < Steps; ++s)
 	{
@@ -287,6 +307,20 @@ void UAntMovementComponent::TickWalking(float Dt)
 				else if (SpareFloat > 0.f)
 				{
 					SpareInt = -1;
+				}
+				else if (bWheel)
+				{
+					// W heads the way WheelAway points, S the other way; pure A/D keeps the last sense.
+					if (FMath::Abs(MoveInput.Y) > 0.35 * FMath::Abs(MoveInput.X))
+					{
+						const int32 AwaySign = FVector::DotProduct(WheelAway, Axis) >= 0.0 ? 1 : -1;
+						SpareInt = (MoveInput.Y >= 0.0 ? 1 : -1) * AwaySign;
+					}
+					else if (SpareInt == 0)
+					{
+						SpareInt = FVector::DotProduct(Forward, A) >= 0.0 ? 1 : -1;
+					}
+					if (SpareInt > 0 && TipFade < 0.3) SpareVector = FVector(Stick.X, Stick.Y, 1.0);
 				}
 				else
 				{
@@ -335,7 +369,21 @@ void UAntMovementComponent::TickWalking(float Dt)
 				// view) round five times a second.
 				const double AroundRate = FMath::Clamp(RadiusHere / 30.0, 0.2, 1.0);
 				const double AlongMag = InputMag * (1.0 - Keep) + FMath::Abs(AlongPart) * Keep;
-				Wish = FMath::Lerp(Wish, A * (SpareInt * AlongMag * Fade * TipSlow) + Around * (AroundSign * InputMag * Keep * AroundRate), (double)ThinBlend);
+				if (bWheel)
+				{
+					// Steering wheel: Y along, X round (clockwise looking along WheelAway, i.e. as seen from behind). Each
+					// axis is dropped when it is a small part of the input, so W alone never spirals and D alone never drifts.
+					double X = MoveInput.X, Y = MoveInput.Y;
+					if (FMath::Abs(X) < 0.35 * FMath::Abs(Y)) X = 0.0;
+					if (FMath::Abs(Y) < 0.35 * FMath::Abs(MoveInput.X)) Y = 0.0;
+					// UE is left-handed (X forward, Y right, Z up): up x forward = right, so on top of the branch D goes right.
+					const FVector Clockwise = FVector::CrossProduct(N, WheelAway).GetSafeNormal();
+					Wish = FMath::Lerp(Wish, A * (SpareInt * FMath::Abs(Y) * Fade * TipSlow) + Clockwise * (X * AroundRate * TipFade), (double)ThinBlend);
+				}
+				else
+				{
+					Wish = FMath::Lerp(Wish, A * (SpareInt * AlongMag * Fade * TipSlow) + Around * (AroundSign * InputMag * Keep * AroundRate), (double)ThinBlend);
+				}
 			}
 		}
 

@@ -113,6 +113,7 @@ void ALeaflineHUD::DrawHUD()
 		DrawCarry(Ant, Scale);
 		DrawCutArc(Ant, Scale);
 		DrawLeafTarget(Ant, Scale);
+		DrawCutLine(Ant, Scale);
 	}
 	DrawPrompt(Ant, D, Scale);
 }
@@ -236,6 +237,47 @@ void ALeaflineHUD::DrawCutArc(const AAntPawn* Ant, float Scale)
 	const TCHAR* Label = Ratio >= 1.f ? TEXT("This piece: too big for a gust")
 		: (Wind && Ratio >= Wind->Tuning.RiskyRatio ? TEXT("This piece: risky in a gust") : TEXT("This piece: safe in a gust"));
 	DrawTextCentered(Label, CX, CY + R + 14.f * Scale, Now, 1.0f * Scale, Font);
+}
+
+void ALeaflineHUD::DrawCutLine(const AAntPawn* Ant, float Scale)
+{
+	const int32 Index = Ant->GetCuttingLeaf();
+	if (Index == INDEX_NONE) return;
+	const ATreeActor* Tree = ATreeActor::Get(this);
+	const APlayerController* PC = GetOwningPlayerController();
+	if (!Tree || !PC || !PC->PlayerCameraManager || Index >= Tree->GetLeaves().Num()) return;
+	const FTreeLeaf& L = Tree->GetLeaves().Get(Index);
+	FVector2f C(0.f, 0.f);
+	float R = 0.f;
+	Tree->GetLeaves().PlanBite(Index, Ant->DiameterForSize(Ant->GetCutSize()), C, R);
+	const FVector CamPos = PC->PlayerCameraManager->GetCameraLocation();
+	const FVector CamFwd = PC->PlayerCameraManager->GetCameraRotation().Vector();
+	const FVector Lift = L.Normal * (FVector::DotProduct(L.Normal, CamPos - L.Origin) >= 0.0 ? 0.5 : -0.5);
+
+	// Pale and pulsing with the sawing, like a fresh cut catching the light.
+	const float Pulse = 0.7f + 0.3f * FMath::Sin(GetWorld() ? GetWorld()->GetRealTimeSeconds() * 28.f : 0.f);
+	const FLinearColor Color(1.f, 0.96f, 0.75f, Pulse);
+	constexpr int32 Steps = 48;
+	FVector2D Prev(0.0, 0.0);
+	bool bPrev = false;
+	for (int32 i = 0; i <= Steps; ++i)
+	{
+		const float A = 2.f * PI * i / Steps;
+		const float Along = C.X + R * FMath::Cos(A);
+		const float Across = C.Y + R * FMath::Sin(A);
+		const bool bInside = Along >= 0.f && Along <= L.Length && FMath::Abs(Across) <= L.HalfWidthAt(Along);
+		const FVector W = L.Point(Along, Across) + Lift;
+		const bool bVisible = bInside && FVector::DotProduct(W - CamPos, CamFwd) > 10.0;
+		FVector2D S(0.0, 0.0);
+		if (bVisible)
+		{
+			const FVector P = Canvas->Project(W);
+			S = FVector2D(P.X, P.Y);
+			if (bPrev) DrawLine(Prev.X, Prev.Y, S.X, S.Y, Color, 2.5f * Scale);
+		}
+		Prev = S;
+		bPrev = bVisible;
+	}
 }
 
 void ALeaflineHUD::DrawLeafTarget(const AAntPawn* Ant, float Scale)

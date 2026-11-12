@@ -47,6 +47,12 @@ struct FAntMoveTuning
 	/** Ground distance from the trunk axis at which the ant is turned back (cm). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bounds") float BoundaryRadius = 7000.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bounds") float BoundaryWidth = 800.f;
+	/**
+	 * Thin branches as a steering wheel: W/S along the branch (away from / toward the camera), A/D round it (clockwise /
+	 * anticlockwise as seen from the camera). Which end W heads for is fixed when the stick is first held and kept until
+	 * it is let go, so the camera's slow roll cannot change it mid-move. Off: camera-relative with the sideways snap.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Thin branches") bool bSteeringWheel = true;
 };
 
 /**
@@ -185,4 +191,7 @@ private:
 	FVector2D AroundStick = FVector2D::ZeroVector;
 	int32 AroundSign = 0;
 	float AroundKeep = 0.f;
+
+	// Steering wheel: the world direction along the branch that W means while the stick is held; zero when released.
+	FVector WheelAway = FVector::ZeroVector;
 };

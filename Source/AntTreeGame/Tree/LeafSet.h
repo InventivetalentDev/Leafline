@@ -44,6 +44,9 @@ public:
 	/** Nearest cuttable leaf whose blade start is within Reach of P, or INDEX_NONE. */
 	int32 FindNearest(const FVector& P, float Reach) const;
 
+	/** Where the next bite of this diameter would go (leaf-local along/across, cm) and its radius. */
+	void PlanBite(int32 Index, float DiameterCm, FVector2f& OutCenter, float& OutRadius) const;
+
 	/** Bites a fragment of size Size01 (0..1) and diameter DiameterCm out of a leaf. Returns false if it cannot be cut. */
 	bool ApplyBite(int32 Index, float Size01, float DiameterCm, float UsePerCut);
 

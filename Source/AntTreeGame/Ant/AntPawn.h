@@ -69,6 +69,8 @@ public:
 	float GetCutSize() const { return CutSize; }
 	float GetCutCap() const { return CutCap; }
 	int32 GetLeafInReach() const { return LeafInReach; }
+	/** The leaf being cut, or INDEX_NONE. */
+	int32 GetCuttingLeaf() const { return CuttingLeaf; }
 	bool IsTrailInReach() const { return bTrailInReach; }
 	bool IsCarrying() const { return CarriedSize > 0.f; }
 	float GetCarriedSize() const { return CarriedSize; }
@@ -137,6 +139,9 @@ private:
 	void UpdateWind(float Dt);
 	float GetGripMultiplier() const;
 	void SetFragment(float Size01);
+	/** The cut piece tears out of the leaf at WorldCenter (in the leaf's plane) and swings up onto the ant's back. */
+	void StartFragmentSwing(const FVector& WorldCenter, const FVector& LeafDir, const FVector& LeafNormal);
+	void UpdateCutVisuals(float Dt);
 	void BuildFragmentMesh(float Diameter);
 	ATreeActor* GetTree();
 	ATrailNetwork* GetTrails();
@@ -173,4 +178,9 @@ private:
 	float TrailCheckTimer = 0.f;
 	float SpareFloat = 0.f;
 	int32 SpareInt = 0;
+	// Cut sequence: sawing motion while cutting, then the piece's swing from the leaf to the back.
+	float SawTime = 0.f;
+	float SwingTime = -1.f; // < 0: no swing running
+	FRotator FragmentRestRotation = FRotator(12.f, 35.f, 0.f);
+	FTransform SwingFrom;
 };

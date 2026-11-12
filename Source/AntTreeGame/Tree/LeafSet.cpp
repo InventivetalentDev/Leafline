@@ -137,16 +137,26 @@ float FLeafSet::SizeCap(int32 Index, float UsePerCut) const
 	return FMath::Clamp((Leaves[Index].Remaining / FMath::Max(UsePerCut, 0.01f) - 0.35f) / 0.65f, 0.f, 1.f);
 }
 
+void FLeafSet::PlanBite(int32 Index, float DiameterCm, FVector2f& OutCenter, float& OutRadius) const
+{
+	if (!Leaves.IsValidIndex(Index)) return;
+	const FTreeLeaf& L = Leaves[Index];
+	const int32 K = FMath::Min<int32>(L.Bites, 2);
+	const float SideSign = (K % 2 == 0) ? 1.f : -1.f;
+	// The first bite is nearest the stalk, where the ant stands, and later ones work outward (30%, 52%, 74% along), so the
+	// piece comes out close to the mouth.
+	const float Along = L.Length * FMath::Clamp(0.30f + 0.22f * K, 0.25f, 0.9f);
+	OutCenter = FVector2f(Along, SideSign * L.HalfWidthAt(Along) * 0.95f);
+	OutRadius = DiameterCm * 0.55f;
+}
+
 bool FLeafSet::ApplyBite(int32 Index, float Size01, float DiameterCm, float UsePerCut)
 {
 	if (!Leaves.IsValidIndex(Index)) return false;
 	FTreeLeaf& L = Leaves[Index];
 	if (!L.CanCut()) return false;
 	const int32 K = L.Bites;
-	const float SideSign = (K % 2 == 0) ? 1.f : -1.f;
-	const float Along = L.Length * FMath::Clamp(0.72f - 0.22f * K, 0.25f, 0.9f);
-	L.BiteCenter[K] = FVector2f(Along, SideSign * L.HalfWidthAt(Along) * 0.95f);
-	L.BiteRadius[K] = DiameterCm * 0.55f;
+	PlanBite(Index, DiameterCm, L.BiteCenter[K], L.BiteRadius[K]);
 	L.Bites = K + 1;
 	L.Remaining = FMath::Max(0.f, L.Remaining - UsePerCut * (0.35f + 0.65f * Size01));
 	return true;

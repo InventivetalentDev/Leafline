@@ -19,6 +19,7 @@
 - [ ] eventually make selection outlines for leaves etc, instead of just showing an UI overlay
   - Leaves done (outline on the targeted leaf). Trails not yet.
 - [ ] low priority: leaf cutting animation would be nice
+  - First pass: while cutting the ant saws (quick nod, slow side-to-side sweep), and a pale line on the leaf shows where the piece will tear, growing with the cut. On release the piece tears out there and swings up onto the ant's back in about half a second; the tear and the landing each have their sound. Bites now start nearest the stalk, so the piece comes out about 90 cm from the ant instead of 180. Seen in still screenshots only. Not in a package yet.
 - [x] low priority: if you're already halfway back down the tree and you engage the auto-return, ideally it should just follow the scent line if you're close to it from that location, instead of walking strictly back (and going back up the tree etc.)
   - Done: a worker sent home now starts from the scent line point within 1 m that is nearest the nest (its own line or another worker's), then follows it home and skips its loops (where the line comes back within 35 cm of itself it cuts across). It only cuts across where the straight line stays on the bark, never through the air to another branch. Test: an ant that wandered on the trunk for 45 s went home along 61 m instead of retracing 105 m (both include a 40 m jump from the test's teleport), and reached the nest. That test had only one worker's line, so joining another worker's line is not yet exercised. In the package of 12 Nov 18:28.
 - [ ] add key/controller icons (https://thoseawesomeguys.com/prompts/)
@@ -39,7 +40,8 @@
 
 Controls are camera-relative, but on thin branches two rules override them: input is snapped to "along the branch" unless it is clearly sideways (more than about 27 degrees off the branch on screen), and clearly sideways input walks the ant round the branch, with the circling direction locked while the stick holds still. Both can make "right" move the ant up on screen. Options:
 
-- [ ] Steering-wheel A/D on thin branches: W/S always along the branch (away from / toward the camera), A/D always clockwise / anticlockwise round it as seen from the camera. Consistent, less literal.
+- [x] Steering-wheel A/D on thin branches: W/S always along the branch (away from / toward the camera), A/D always clockwise / anticlockwise round it as seen from the camera. Consistent, less literal.
+  - Chosen (the planning session's pick) and built, on by default. Which end W heads for is fixed when you start pressing and kept until you let go, so the camera's roll cannot flip it mid-move. Small parts of the other axis are dropped, so W alone never spirals. Test on a 6 cm twig: D alone circles at about a lap a second without drifting along; W walks to the tip and rests; S walks straight back to the bough (the old rules wobbled on the same walk back). `Leaf.Tune move bSteeringWheel False` brings back the old rules for comparison. Not in a package yet.
 - [ ] Softer snapping: blend along and around instead of the 27-degree threshold, so diagonal input moves diagonally on the surface. Closer to pure screen-relative, but a slight aim off the branch spirals.
 - [ ] Keep the current rules and tune the specific spots that feel wrong (needs examples: twig or thicker branch, where the camera was).
 - Also contributing: the camera slowly rolls to follow the surface on mid-size and big branches, so screen directions drift while walking.
