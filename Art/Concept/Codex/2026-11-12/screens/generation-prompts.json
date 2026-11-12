@@ -1,0 +1,55 @@
+{
+  "date": "2026-11-12",
+  "project": "Leafline",
+  "sources": [
+    "docs/design.md",
+    "docs/briefs/codex.md"
+  ],
+  "mode": "built-in image_gen",
+  "art_direction_source": "Art/Concept/Codex/2026-11-12/initial/generation-prompts.json: images[0].prompt, Art direction paragraph",
+  "art_direction": "Art direction: grounded stylized realism with a painterly cinematic finish, attractive readable large shapes, credible macro-scale nature, warm brown bark and green leaves. Tree forms should feel feasible with procedural geometry and math/shader-driven surfaces: strong bark ridges and branching silhouettes, restrained microdetail. A recognizable dark reddish-brown worker ant has six legs, elbowed antennae, a segmented body and mandibles, with no human face, clothing or hands. The ant is millimetres long on an ordinary full-sized tree; preserve the enormous size difference. Scent paths, when requested, are a restrained translucent cyan gameplay visualization hugging the traversable surface, never a physical cable or magical beam.",
+  "images": [
+    {
+      "file": "01-title-screen.png",
+      "title": "Title screen mood",
+      "prompt": "Use case: stylized-concept.\nArt direction: grounded stylized realism with a painterly cinematic finish, attractive readable large shapes, credible macro-scale nature, warm brown bark and green leaves. Tree forms should feel feasible with procedural geometry and math/shader-driven surfaces: strong bark ridges and branching silhouettes, restrained microdetail. A recognizable dark reddish-brown worker ant has six legs, elbowed antennae, a segmented body and mandibles, with no human face, clothing or hands. The ant is millimetres long on an ordinary full-sized tree; preserve the enormous size difference. Scent paths, when requested, are a restrained translucent cyan gameplay visualization hugging the traversable surface, never a physical cable or magical beam.\nAsset type: game title-screen mood and UI layout reference only; no actual typography.\nPrimary request: An enormous sunlit summer tree viewed close to warm plated bark from ant height, deep fissures with moss, green backlit canopy and dappled shafts. On a bark ridge in the lower-right, a tiny reddish-brown leafcutter carries a green fragment upright above its head like a sail, following a restrained translucent cyan scent trail flush to the bark.\nComposition/framing: one widescreen 16:9 screen composition. Leave upper-left and upper-center calm for a future title. Three softly translucent dark-green rounded blank menu panels stacked vertically in the left third, understated warm light edging and one quiet cyan focus edge, absolutely empty interiors. Keep tree, ant and trail visible on the right. Calm morning mood, clean layout and green/brown palette. No text, placeholder text, fake writing, icons, pointer, letters or numbers.\nConstraints: No text, letters, numbers, glyphs, captions, logos, trademarks, watermarks or weapons anywhere. Natural leafcutter ant anatomy, six legs and two elbowed antennae. A carried fragment is gripped at its lower edge by the mandibles and stands UPRIGHT ABOVE THE HEAD like a broad vertical sail, never held out horizontally in front and never worn as a backpack. No clothing, human hands or humanoid insects. No birds. No collage.",
+      "output_size": [
+        1920,
+        1080
+      ],
+      "generated_size": [
+        1672,
+        941
+      ],
+      "postprocessing": "Lanczos resize and centered aspect-ratio fit to output_size; metadata stripped with Tools/strip_image_metadata.py."
+    },
+    {
+      "file": "02-day-recap.png",
+      "title": "End-of-day recap mood",
+      "prompt": "Use case: stylized-concept.\nArt direction: grounded stylized realism with a painterly cinematic finish, attractive readable large shapes, credible macro-scale nature, warm brown bark and green leaves. Tree forms should feel feasible with procedural geometry and math/shader-driven surfaces: strong bark ridges and branching silhouettes, restrained microdetail. A recognizable dark reddish-brown worker ant has six legs, elbowed antennae, a segmented body and mandibles, with no human face, clothing or hands. The ant is millimetres long on an ordinary full-sized tree; preserve the enormous size difference. Scent paths, when requested, are a restrained translucent cyan gameplay visualization hugging the traversable surface, never a physical cable or magical beam.\nAsset type: end-of-day game recap screen mood and UI layout reference only; no actual typography.\nPrimary request: A peaceful enormous tree root and bark background in warm late-afternoon dappled light, green canopy beyond, a small nest opening among roots at lower-right. Two tiny leafcutter workers return near the entrance, each carrying a bright green fragment upright above its head like a sail. A restrained translucent cyan scent trail follows the root surface toward home.\nComposition/framing: one widescreen 16:9 screen, desaturate and soften background enough for UI readability. Center one broad translucent deep-green recap panel with an open empty header area, three evenly spaced horizontal blank stat rows, a narrow understated green progress bar with three small circular milestone stops, and a single blank button below. Rows represent leaf mass, workers blown off and trail length but must show NO words, numbers, glyphs or fake writing. Quiet amber rim light, restrained cyan accents, readable blank layout. The phrase for the recap is for later implementation only; draw no title.\nConstraints: No text, letters, numbers, glyphs, captions, logos, trademarks, watermarks or weapons anywhere. Natural leafcutter ant anatomy, six legs and two elbowed antennae. A carried fragment is gripped at its lower edge by the mandibles and stands UPRIGHT ABOVE THE HEAD like a broad vertical sail, never held out horizontally in front and never worn as a backpack. No clothing, human hands or humanoid insects. No birds. No collage.",
+      "output_size": [
+        1920,
+        1080
+      ],
+      "generated_size": [
+        1672,
+        941
+      ],
+      "postprocessing": "Lanczos resize and centered aspect-ratio fit to output_size; metadata stripped with Tools/strip_image_metadata.py."
+    },
+    {
+      "file": "03-nest-upgrades.png",
+      "title": "Nest upgrade list mood",
+      "prompt": "Use case: stylized-concept.\nArt direction: grounded stylized realism with a painterly cinematic finish, attractive readable large shapes, credible macro-scale nature, warm brown bark and green leaves. Tree forms should feel feasible with procedural geometry and math/shader-driven surfaces: strong bark ridges and branching silhouettes, restrained microdetail. A recognizable dark reddish-brown worker ant has six legs, elbowed antennae, a segmented body and mandibles, with no human face, clothing or hands. The ant is millimetres long on an ordinary full-sized tree; preserve the enormous size difference. Scent paths, when requested, are a restrained translucent cyan gameplay visualization hugging the traversable surface, never a physical cable or magical beam.\nAsset type: nest upgrade-list screen mood and UI layout reference only; no actual typography.\nPrimary request: A tiny natural nest entrance nestled among mossy roots at the base of an enormous summer tree, no interior view. Warm plated brown bark and lush moss, soft morning light with green canopy bokeh. One tiny dark reddish-brown leafcutter approaches on a restrained translucent cyan trail lying on the root; it carries a fresh fragment upright above its head like a sail.\nComposition/framing: one widescreen 16:9 screen. Nest entrance and ant readable in the right third. A clean dark translucent forest-green list panel fills the left half with five blank horizontal upgrade rows. Each row has a generous entirely empty label area, exactly three small circular level indicators, and one blank rectangular purchase button; one row subtly cyan-focused. Small empty resource panel above, blank continue button below. The five rows stand for mandibles, strength, grip, stamina and brood, but render NO words, numbers, letters, pictograms, fake writing or currency symbols. Colour and layout only; practical subdued UI over warm natural roots.\nConstraints: No text, letters, numbers, glyphs, captions, logos, trademarks, watermarks or weapons anywhere. Natural leafcutter ant anatomy, six legs and two elbowed antennae. A carried fragment is gripped at its lower edge by the mandibles and stands UPRIGHT ABOVE THE HEAD like a broad vertical sail, never held out horizontally in front and never worn as a backpack. No clothing, human hands or humanoid insects. No birds. No collage.",
+      "output_size": [
+        1920,
+        1080
+      ],
+      "generated_size": [
+        1672,
+        941
+      ],
+      "postprocessing": "Lanczos resize and centered aspect-ratio fit to output_size; metadata stripped with Tools/strip_image_metadata.py."
+    }
+  ]
+}

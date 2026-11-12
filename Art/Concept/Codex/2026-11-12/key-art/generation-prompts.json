@@ -1,0 +1,94 @@
+{
+  "project": "Leafline",
+  "date": "2026-11-12",
+  "set": "key-art",
+  "mode": "built-in image_gen",
+  "sources": [
+    "docs/design.md",
+    "docs/tech.md",
+    "docs/briefs/codex.md",
+    "docs/briefs/ant-mesh.md"
+  ],
+  "art_direction_source": "Art/Concept/Codex/2026-11-12/initial/generation-prompts.json",
+  "visual_scale_references_reviewed": [
+    "Art/Reference/Photos/PXL_20261112_081204787.jpg",
+    "Art/Reference/Photos/PXL_20261112_081150350.jpg"
+  ],
+  "usage": "Concept/reference and store-page artwork; not in-game textures.",
+  "images": [
+    {
+      "set": "key-art",
+      "file": "01-cover-v2.png",
+      "generated_size": {
+        "width": 1408,
+        "height": 1117
+      },
+      "exports": [
+        {
+          "file": "01-cover-v2-630x500.png",
+          "width": 630,
+          "height": 500,
+          "method": "High-quality resampling with a centered crop; generated master retained."
+        }
+      ],
+      "title": "Leafline cover",
+      "requested_size": {
+        "width": 630,
+        "height": 500
+      },
+      "prompt": "Use case: stylized-concept.\nProject: Leafline. These are newly made concept/reference and store-page images, never in-game textures.\nShared art direction, reused from the initial set: grounded stylized realism with a painterly cinematic finish, attractive readable large shapes, credible macro-scale nature, warm brown bark and green leaves. Tree forms should feel feasible with procedural geometry and math/shader-driven surfaces: strong bark ridges and branching silhouettes, restrained microdetail.\nCurrent design: summer canopy, warm plated bark with deep fissures and patches of moss, backlit green leaves. An ordinary full-sized tree is enormous beside a millimetre-long ant: broad bark plates and a trunk whose curvature disappears beyond the frame. Use the intimate close-to-bark perspective of a camera looking up a real trunk, with mild depth of field that preserves readable surfaces.\nLeafcutter identity when present: dark reddish-brown Atta worker, large heart-shaped head, elbowed antennae, strong mandibles, small dorsal thorax spines, narrow TWO-SEGMENT waist, oval gaster, exactly six legs in three pairs from the thorax. Natural insect anatomy without human hands, faces or clothing.\nCarrying rule when present: exactly one CUT leaf fragment gripped at its lower edge in the mandibles and held UPRIGHT ABOVE THE HEAD, a vertical sail catching light, never flat out in front, never a whole leaf on a stem, never in a backpack or on a pole.\nScent rule when present: a THIN restrained translucent cyan trace hugging the bark surface, subordinate to the environment, never a neon rope or raised rail.\nConstraints: original art, no text at all, no lettering, logos, trademarks, watermarks or UI. No weapons, rockets, birds, injuries, animal harm, nest interior, villages or fantasy architecture. No collage or multi-panel board.\nAsset type: text-free itch cover artwork. Output framing: a compact landscape cover at 630 x 500 pixels, aspect ratio 63:50. Preserve this near-square landscape ratio.\nPrimary request: a tiny leafcutter with one oversized upright leaf sail on vast bark, a cyan trail curving away behind it, two more workers much smaller in the distance on the SAME trail.\nComposition: low three-quarter ant-level view up an immense sweeping trunk. The foreground worker occupies about one tenth of the image width and stands in the lower middle region; its upright green fragment rises clearly over its head and is two or three ant body lengths across. The cyan trail forms a restrained elegant S-curve into the distance. Keep a calm low-detail upper quarter for a title to be added later, using gently graded canopy light with no foreground silhouette crossing that space. The title space is natural part of the picture, not a blank frame or panel. The few distant workers also hold upright fragments and become tiny specks against the bark, emphasizing the tremendous scale.\nLighting/mood: warm dappled sunlight across sculptural bark, luminous green leaf sail, summer-green canopy, inviting adventure and quiet colony purpose. Refined store-page composition that reads at thumbnail size. No text."
+    },
+    {
+      "set": "key-art",
+      "file": "02-wide-banner.png",
+      "generated_size": {
+        "width": 2172,
+        "height": 724
+      },
+      "exports": [
+        {
+          "file": "02-wide-banner-1920x620.png",
+          "width": 1920,
+          "height": 620,
+          "method": "High-quality resampling with a centered crop; generated master retained."
+        }
+      ],
+      "title": "Leafline wide banner",
+      "requested_size": {
+        "width": 1920,
+        "height": 620,
+        "approximate": true
+      },
+      "prompt": "Use case: stylized-concept.\nProject: Leafline. These are newly made concept/reference and store-page images, never in-game textures.\nShared art direction, reused from the initial set: grounded stylized realism with a painterly cinematic finish, attractive readable large shapes, credible macro-scale nature, warm brown bark and green leaves. Tree forms should feel feasible with procedural geometry and math/shader-driven surfaces: strong bark ridges and branching silhouettes, restrained microdetail.\nCurrent design: summer canopy, warm plated bark with deep fissures and patches of moss, backlit green leaves. An ordinary full-sized tree is enormous beside a millimetre-long ant: broad bark plates and a trunk whose curvature disappears beyond the frame. Use the intimate close-to-bark perspective of a camera looking up a real trunk, with mild depth of field that preserves readable surfaces.\nLeafcutter identity when present: dark reddish-brown Atta worker, large heart-shaped head, elbowed antennae, strong mandibles, small dorsal thorax spines, narrow TWO-SEGMENT waist, oval gaster, exactly six legs in three pairs from the thorax. Natural insect anatomy without human hands, faces or clothing.\nCarrying rule when present: exactly one CUT leaf fragment gripped at its lower edge in the mandibles and held UPRIGHT ABOVE THE HEAD, a vertical sail catching light, never flat out in front, never a whole leaf on a stem, never in a backpack or on a pole.\nScent rule when present: a THIN restrained translucent cyan trace hugging the bark surface, subordinate to the environment, never a neon rope or raised rail.\nConstraints: original art, no text at all, no lettering, logos, trademarks, watermarks or UI. No weapons, rockets, birds, injuries, animal harm, nest interior, villages or fantasy architecture. No collage or multi-panel board.\nAsset type: text-free itch page wide banner. Output: an ULTRAWIDE panoramic landscape, approximately 1920 x 620 pixels, about 3.1:1 aspect ratio. Compose for a shallow banner, not a standard 3:2 image.\nPrimary request: the Leafline worker-and-leaf motif stretched across an enormous bark landscape with a long winding cyan scent trail.\nComposition: a close-to-bark low side/three-quarter camera gives the tree trunk the scale of a vast landscape. Place one small worker carrying a single upright leaf sail in the lower-right third, fully inside the safe central height, with two tiny loaded workers receding along the SAME restrained cyan line toward a softly lit branch fork. The foreground ant is only about six percent of total width. Keep the left third calm, low contrast and relatively low detail for a title to be added later; it should be a natural soft green-gold canopy opening and broad bark shapes, not a separate empty panel. Use the broad sweep of trunk and ribbon to connect the full width. Do not show a whole tree as a miniature sapling. Keep all important silhouettes away from the extreme top and bottom edges.\nLighting/mood: matching warm bark, delicate moss, dappled sun shafts and luminous upright green fragments. Quiet purposeful summer adventure. No text."
+    },
+    {
+      "file": "01-cover.png",
+      "title": "Cover",
+      "prompt": "Use case: stylized-concept.\nArt direction: grounded stylized realism with a painterly cinematic finish, attractive readable large shapes, credible macro-scale nature, warm brown bark and green leaves. Tree forms should feel feasible with procedural geometry and math/shader-driven surfaces: strong bark ridges and branching silhouettes, restrained microdetail. A recognizable dark reddish-brown worker ant has six legs, elbowed antennae, a segmented body and mandibles, with no human face, clothing or hands. The ant is millimetres long on an ordinary full-sized tree; preserve the enormous size difference. Scent paths, when requested, are a restrained translucent cyan gameplay visualization hugging the traversable surface, never a physical cable or magical beam.\nAsset type: polished store-page cover art for Leafline, no lettering.\nPrimary request: A tiny dark reddish-brown leafcutter ant climbs vast warm plated bark, carrying an oversized fresh green fragment upright above its head like a sail. A restrained translucent cyan scent trail lies directly on the bark and curves away behind it; three smaller distant leafcutter workers follow the same path, each carrying an upright sail fragment. The tree dominates the frame, with deep mossy fissures like valleys, a summer canopy, and dappled sunlight. Preserve the immense scale of an ordinary tree seen from ant height.\nComposition/framing: one complete cover illustration at 630x500, aspect ratio 1.26:1. Place the main ant and its whole leaf in the lower-right half, about one fifth of the frame width together; show huge receding bark shapes. Leave calm low-detail softly lit space across the upper-left for a title to be added later, but render no title. All subjects must fit inside the frame. Warm cinematic painterly sunlight, backlit leaf, quiet green distance.\nConstraints: No text, letters, numbers, glyphs, captions, logos, trademarks, watermarks or weapons anywhere. Natural leafcutter ant anatomy, six legs and two elbowed antennae. A carried fragment is gripped at its lower edge by the mandibles and stands UPRIGHT ABOVE THE HEAD like a broad vertical sail, never held out horizontally in front and never worn as a backpack. No clothing, human hands or humanoid insects. No birds. No collage.",
+      "output_size": [
+        630,
+        500
+      ],
+      "generated_size": [
+        1408,
+        1117
+      ],
+      "postprocessing": "Lanczos resize and centered aspect-ratio fit to output_size; metadata stripped with Tools/strip_image_metadata.py."
+    },
+    {
+      "file": "02-banner.png",
+      "title": "Wide banner",
+      "prompt": "Use case: stylized-concept.\nArt direction: grounded stylized realism with a painterly cinematic finish, attractive readable large shapes, credible macro-scale nature, warm brown bark and green leaves. Tree forms should feel feasible with procedural geometry and math/shader-driven surfaces: strong bark ridges and branching silhouettes, restrained microdetail. A recognizable dark reddish-brown worker ant has six legs, elbowed antennae, a segmented body and mandibles, with no human face, clothing or hands. The ant is millimetres long on an ordinary full-sized tree; preserve the enormous size difference. Scent paths, when requested, are a restrained translucent cyan gameplay visualization hugging the traversable surface, never a physical cable or magical beam.\nAsset type: polished wide store-page banner art for Leafline, no lettering.\nPrimary request: A tiny dark reddish-brown leafcutter ant on enormous warm plated tree bark carries an oversized fresh green fragment UPRIGHT ABOVE ITS HEAD like a broad vertical sail. A restrained translucent cyan scent trail hugs the bark, making a sweeping curve behind it into the distance; several much smaller workers carrying upright green sails follow that same trail. Moss fills deep fissures, a summer green canopy glows in the distance, dappled sunlight and gentle shafts establish the enormous natural scale.\nComposition/framing: a single panoramic banner, approximately 1920x620, aspect ratio about 3.1:1. Main ant and full overhead leaf silhouette on the right third, occupying at most half the image height together, small relative to enormous bark ridges. Trail leads through center into depth. Left third is calm low-detail shaded bark and soft green atmosphere for future title placement; no lettering. Keep every ant and leaf away from edges and within the middle 80 percent of the height. Grounded painterly cinematic finish, warm morning rim light.\nConstraints: No text, letters, numbers, glyphs, captions, logos, trademarks, watermarks or weapons anywhere. Natural leafcutter ant anatomy, six legs and two elbowed antennae. A carried fragment is gripped at its lower edge by the mandibles and stands UPRIGHT ABOVE THE HEAD like a broad vertical sail, never held out horizontally in front and never worn as a backpack. No clothing, human hands or humanoid insects. No birds. No collage.",
+      "output_size": [
+        1920,
+        620
+      ],
+      "generated_size": [
+        2172,
+        724
+      ],
+      "postprocessing": "Lanczos resize and centered aspect-ratio fit to output_size; metadata stripped with Tools/strip_image_metadata.py."
+    }
+  ],
+  "art_direction": "Art direction: grounded stylized realism with a painterly cinematic finish, attractive readable large shapes, credible macro-scale nature, warm brown bark and green leaves. Tree forms should feel feasible with procedural geometry and math/shader-driven surfaces: strong bark ridges and branching silhouettes, restrained microdetail. A recognizable dark reddish-brown worker ant has six legs, elbowed antennae, a segmented body and mandibles, with no human face, clothing or hands. The ant is millimetres long on an ordinary full-sized tree; preserve the enormous size difference. Scent paths, when requested, are a restrained translucent cyan gameplay visualization hugging the traversable surface, never a physical cable or magical beam."
+}
