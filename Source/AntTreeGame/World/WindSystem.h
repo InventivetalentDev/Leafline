@@ -9,6 +9,7 @@ class UProceduralMeshComponent;
 class UMaterialInterface;
 class UMaterialInstanceDynamic;
 class ULeaflineAudioLoop;
+class UMaterialParameterCollection;
 
 UENUM(BlueprintType)
 enum class EWindPhase : uint8
@@ -125,6 +126,10 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UMaterialInterface> FallbackMaterial;
+
+	/** Wind strength and direction for materials (leaf sway). */
+	UPROPERTY()
+	TObjectPtr<UMaterialParameterCollection> WindCollection;
 
 	UPROPERTY(Transient) TObjectPtr<ULeaflineAudioLoop> CalmLoop;
 	UPROPERTY(Transient) TObjectPtr<ULeaflineAudioLoop> GustLoop;

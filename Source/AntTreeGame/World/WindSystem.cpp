@@ -8,6 +8,8 @@
 #include "UObject/ConstructorHelpers.h"
 #include "EngineUtils.h"
 #include "Audio/LeafSound.h"
+#include "Kismet/KismetMaterialLibrary.h"
+#include "Materials/MaterialParameterCollection.h"
 
 AWindSystem::AWindSystem()
 {
@@ -20,6 +22,8 @@ AWindSystem::AWindSystem()
 	StreakMaterial = TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(TEXT("/Game/Leafline/Materials/M_WindStreak.M_WindStreak")));
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> BasicMat(TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
 	if (BasicMat.Succeeded()) FallbackMaterial = BasicMat.Object;
+	static ConstructorHelpers::FObjectFinder<UMaterialParameterCollection> WindMPC(TEXT("/Game/Leafline/Materials/MPC_Wind.MPC_Wind"));
+	if (WindMPC.Succeeded()) WindCollection = WindMPC.Object;
 }
 
 AWindSystem* AWindSystem::Get(const UObject* WorldContext)
@@ -131,6 +135,11 @@ void AWindSystem::Tick(float DeltaTime)
 
 	const float Yaw = BaseYaw + Tuning.DirectionWanderDeg * FMath::Sin(Clock * 0.11f);
 	Direction = FRotator(0.f, Yaw, 0.f).Vector();
+	if (WindCollection)
+	{
+		UKismetMaterialLibrary::SetScalarParameterValue(this, WindCollection, TEXT("WindStrength"), Strength);
+		UKismetMaterialLibrary::SetVectorParameterValue(this, WindCollection, TEXT("WindDirection"), FLinearColor(Direction));
+	}
 	UpdateStreaks(DeltaTime);
 }
 

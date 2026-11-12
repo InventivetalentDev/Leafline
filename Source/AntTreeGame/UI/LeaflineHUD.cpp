@@ -37,6 +37,24 @@ void ALeaflineHUD::DrawHUD()
 		}
 	}
 	if (D) DrawDayInfo(D, Scale);
+	// First-day goals, instead of a tutorial.
+	if (D && Ant && D->GetDay() == 1 && D->GetPhase() == EDayPhase::Shift)
+	{
+		const UAntMovementComponent* M = Ant->GetAntMovement();
+		FString Goal;
+		if (Ant->GetWorkerIndex() == 0 && D->GetStats().Fragments == 0 && !Ant->IsCarrying() && M && M->GetState() == EAntState::Walking)
+		{
+			Goal = TEXT("Climb the trunk: the leaves start about 40 m up");
+		}
+		else if (Ant->GetWorkerIndex() == 1 && !Ant->IsCarrying() && M && M->GetState() == EAntState::Walking)
+		{
+			Goal = TEXT("Your first worker walks home on its own. Hold F on the cyan trail to ride it up");
+		}
+		if (!Goal.IsEmpty())
+		{
+			DrawTextCentered(Goal, Canvas->ClipX * 0.5f, 40.f * Scale, AccentColor, 1.2f * Scale, GEngine->GetMediumFont());
+		}
+	}
 	if (Ant)
 	{
 		DrawStamina(Ant, Scale, Dt);

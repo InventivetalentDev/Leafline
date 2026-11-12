@@ -229,4 +229,11 @@ void AAntCamera::Tick(float DeltaTime)
 	const FVector CamPos = Focus - View * CurrentBoom;
 	SetActorLocationAndRotation(CamPos, FRotationMatrix::MakeFromXZ(View, CamUp).ToQuat());
 	Camera->SetFieldOfView(Tuning.FieldOfView);
+	FPostProcessSettings& PP = Camera->PostProcessSettings;
+	PP.bOverride_DepthOfFieldFocalDistance = Tuning.DepthOfFieldFstop > 0.f;
+	PP.bOverride_DepthOfFieldFstop = Tuning.DepthOfFieldFstop > 0.f;
+	PP.DepthOfFieldFocalDistance = FMath::Max(CurrentBoom, 10.f);
+	PP.DepthOfFieldFstop = FMath::Max(Tuning.DepthOfFieldFstop, 0.7f);
+	PP.bOverride_AutoExposureBias = true;
+	PP.AutoExposureBias = Tuning.ExposureBias;
 }

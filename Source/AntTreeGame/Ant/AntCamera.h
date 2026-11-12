@@ -38,6 +38,9 @@ struct FAntCameraTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float BoomShrinkRate = 5.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float BoomGrowRate = 2.5f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float FieldOfView = 75.f;
+	/** Mild depth of field focused on the ant sells the macro scale; 0 disables it. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float DepthOfFieldFstop = 4.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float ExposureBias = -0.4f;
 	/** Rate at which the yaw drifts behind the ant while it moves (1/s). 0 = free orbit only. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float AutoAlignRate = 0.f;
 };
