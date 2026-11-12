@@ -9,7 +9,7 @@
 - [x] stuck in pause screen, none of the supposed resume buttons did anything (neither did the quit buttons)
   - Fixed: the HUD now ticks while the game is paused, so the buttons respond. In the current packaged build.
 - [x] potentially allow the camera to clip through the tree so moving around e.g. branches is less jarring, but make it seem a bit more intentional by dithering the material when the camera gets close
-  - Done: the camera no longer pulls in for wood; bark between the camera and the ant (and right in front of the camera) dithers away. Leaves are not dithered yet. The old behaviour is the camera setting `bAvoidThickOcclusion`. Only seen in still screenshots so far; how it feels in motion needs your verdict. In the editor build.
+  - Done: the camera no longer pulls in for wood; bark between the camera and the ant (and right in front of the camera) dithers away. Leaves now fade the same way (since 12 Nov evening), except right beside the ant, where the leaf you are cutting usually is. The old behaviour is the camera setting `bAvoidThickOcclusion`. Only seen in still screenshots so far; how it feels in motion needs your verdict. In the editor build.
 - [x] ant starts inside the nest mesh at the start (no colission?)
   - Fixed: the nest mound is part of the walking surface, so ants start on top of the entrance and walk over the mound. In the editor build.
 - [x] can't walk around around branches anymore? all of WASD just seem to walk up and down the branch; also makes it hard to navigate to even smaller branches
@@ -30,7 +30,8 @@
   - Fixed: the walking surface had a thin vertical strip (up to 20 cm tall) on the outer side of every slight bend in a branch, left over from my earlier fix; the ant bounced off it. Replayed day 4's tree (seed 208038): the climb from the nest now goes straight up. In the package of 12 Nov 18:28.
 - [x] leaf animation seems to play without actually moving the leaf, only the shadow moves?
   - Real cause: every leaf was built twice (a front and a back face with opposite normals, on a two-sided material). The two copies z-fought, and the sway, which moves vertices along their normals, pushed them apart in opposite directions: two leaves cutting through each other, and doubled shadows. Leaves are one face now (half the leaf geometry). Sway is a little larger than before (about 2 cm calm, 20 cm at the tip in a full gust). In the package of 12 Nov 18:28.
-- [ ] glow around the ant looks weird
+- [x] glow around the ant looks weird
+  - Toned down: that was a rim light I added so the ant reads in video. It was near-white at strength 2 over a wide edge; now a faint warm sheen right at the silhouette (strength 0.35, tighter falloff). The ant reads dark red-brown again. If it should go entirely, it is one number in `M_Ant` (`Multiply_11`).
 - [x] nanite warning text visible in packaged build
   - Fixed: that was the virtual shadow map warning "[VSM] Non-Nanite Marking Job Queue overflow", which shows whenever the canopy fills the view. It only costs a little speed; the on-screen text is now off (`r.Shadow.Virtual.AllowScreenOverflowMessages=0` in `DefaultEngine.ini`).
 
