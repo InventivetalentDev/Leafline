@@ -61,11 +61,17 @@ private:
 	{
 		TArray<FTrailPoint> Points;
 		TArray<uint8> Drawn;
-		bool bDirty = false;
+		TArray<float> Dist;              // distance along the path to each point (cm)
+		int32 DirtyFromChunk = INDEX_NONE; // only the growing tail is rebuilt
 	};
 
 	FIntVector Cell(const FVector& P) const;
-	void RebuildSection(int32 Path);
+	/** Ribbon geometry for points [Chunk*ChunkSize, (Chunk+1)*ChunkSize] of a path, in its own mesh section. */
+	void RebuildChunk(int32 Path, int32 Chunk);
+
+	static constexpr int32 ChunkSize = 200;
+	TMap<FIntPoint, int32> ChunkSection;
+	int32 NextSection = 0;
 
 	TArray<FPath> Paths;
 	TMap<FIntVector, TArray<FIntPoint>> Grid; // cell -> (path, point index), every point

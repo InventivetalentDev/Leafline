@@ -207,12 +207,13 @@ void AAntCamera::Tick(float DeltaTime)
 		{
 			const double HitDist = HitT * Tuning.BoomLength;
 			// Thickness of the obstruction along the ray: step through it until outside again.
+			// March reports contact within 0.5 cm of the probe, so walk while touching or inside.
 			double Exit = HitDist;
-			for (int32 i = 0; i < 24 && Exit < Tuning.BoomLength; ++i)
+			for (int32 i = 0; i < 40 && Exit < Tuning.BoomLength; ++i)
 			{
-				const double D = Field->Distance(Focus - View * Exit);
-				if (D > Tuning.ProbeRadius) break;
-				Exit += FMath::Max(-D, 0.0) + 4.0;
+				const double Gap = Field->Distance(Focus - View * Exit) - Tuning.ProbeRadius;
+				if (Gap > 1.0) break;
+				Exit += FMath::Max(FMath::Abs(Gap), 2.0);
 			}
 			if (Exit - HitDist > 60.0 || Exit >= Tuning.BoomLength)
 			{

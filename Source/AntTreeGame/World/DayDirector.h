@@ -111,6 +111,7 @@ private:
 	float SpareFloat = 0.f;
 	int32 SpareInt = 0;
 	float PendingPossess = 0.f;
+	TWeakObjectPtr<AAntPawn> PendingFrom;
 	int32 NestSelection = 0;
 	bool bEndCardPending = false;
 };

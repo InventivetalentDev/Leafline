@@ -27,6 +27,8 @@ void ATrailNetwork::ClearAll()
 {
 	Paths.Reset();
 	Grid.Reset();
+	ChunkSection.Reset();
+	NextSection = 0;
 	if (Mesh) Mesh->ClearAllMeshSections();
 }
 
@@ -64,10 +66,15 @@ void ATrailNetwork::AddPoint(int32 PathIndex, const FVector& Pos, const FVector&
 				}
 			}
 
+	const float PrevDist = Path.Dist.Num() ? Path.Dist.Last() : 0.f;
+	const float Step = Path.Points.Num() ? (float)FVector::Dist(Path.Points.Last().Pos, Pos) : 0.f;
 	const int32 Index = Path.Points.Add({ Pos, Normal });
 	Path.Drawn.Add(bNearOther ? 0 : 1);
+	Path.Dist.Add(PrevDist + Step);
 	Grid.FindOrAdd(C).Add(FIntPoint(PathIndex, Index));
-	Path.bDirty = true;
+	// The segment ending at this point belongs to the chunk of the point before it.
+	const int32 Chunk = FMath::Max(Index - 1, 0) / ChunkSize;
+	Path.DirtyFromChunk = Path.DirtyFromChunk == INDEX_NONE ? Chunk : FMath::Min(Path.DirtyFromChunk, Chunk);
 }
 
 void ATrailNetwork::Tick(float DeltaTime)
@@ -78,22 +85,27 @@ void ATrailNetwork::Tick(float DeltaTime)
 	RebuildTimer = 0.2f;
 	for (int32 p = 0; p < Paths.Num(); ++p)
 	{
-		if (Paths[p].bDirty) RebuildSection(p);
+		FPath& Path = Paths[p];
+		if (Path.DirtyFromChunk == INDEX_NONE) continue;
+		const int32 LastChunk = FMath::Max(Path.Points.Num() - 2, 0) / ChunkSize;
+		for (int32 c = Path.DirtyFromChunk; c <= LastChunk; ++c) RebuildChunk(p, c);
+		Path.DirtyFromChunk = INDEX_NONE;
 	}
 }
 
-void ATrailNetwork::RebuildSection(int32 PathIndex)
+void ATrailNetwork::RebuildChunk(int32 PathIndex, int32 Chunk)
 {
 	FPath& Path = Paths[PathIndex];
-	Path.bDirty = false;
 	TArray<FVector> V, N;
 	TArray<FVector2D> UV;
 	TArray<FLinearColor> Col;
 	TArray<FProcMeshTangent> Tan;
 	TArray<int32> Tri;
 	const int32 Num = Path.Points.Num();
-	float Along = 0.f;
-	for (int32 i = 0; i + 1 < Num; ++i)
+	const int32 First = Chunk * ChunkSize;
+	const int32 Last = FMath::Min((Chunk + 1) * ChunkSize, Num - 1);
+	float Along = Path.Dist.IsValidIndex(First) ? Path.Dist[First] : 0.f;
+	for (int32 i = First; i < Last; ++i)
 	{
 		const FTrailPoint& A = Path.Points[i];
 		const FTrailPoint& B = Path.Points[i + 1];
@@ -123,7 +135,9 @@ void ATrailNetwork::RebuildSection(int32 PathIndex)
 		AddTri(Base + 1, Base + 3, Base + 2);
 		Along += SegLen;
 	}
-	Mesh->CreateMeshSection_LinearColor(PathIndex, V, Tri, N, UV, {}, {}, {}, Col, Tan, false, false);
+	int32* Found = ChunkSection.Find(FIntPoint(PathIndex, Chunk));
+	const int32 Section = Found ? *Found : ChunkSection.Add(FIntPoint(PathIndex, Chunk), NextSection++);
+	Mesh->CreateMeshSection_LinearColor(Section, V, Tri, N, UV, {}, {}, {}, Col, Tan, false, false);
 	if (!MaterialInUse)
 	{
 		MaterialInUse = TrailMaterial;
@@ -134,7 +148,7 @@ void ATrailNetwork::RebuildSection(int32 PathIndex)
 			MaterialInUse = MID;
 		}
 	}
-	if (MaterialInUse) Mesh->SetMaterial(PathIndex, MaterialInUse);
+	if (MaterialInUse) Mesh->SetMaterial(Section, MaterialInUse);
 }
 
 bool ATrailNetwork::FindRideStart(const FVector& P, float Reach, const FVector& PreferredDir, int32& OutPath, int32& OutIndex, int32 ExcludePath) const

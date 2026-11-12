@@ -23,7 +23,7 @@ struct FTreeLeaf
 	FVector2f BiteCenter[3]; // leaf-local (along, across) in cm
 	float BiteRadius[3] = { 0.f, 0.f, 0.f };
 
-	bool CanCut() const { return Bites < 3 && Remaining > 0.12f; }
+	bool CanCut() const { return Bites < 3 && Remaining > 0.16f; }
 	/** Half width of the untouched blade at a distance along the midrib. */
 	float HalfWidthAt(float Along) const;
 	/** World point at leaf-local (along, across). */

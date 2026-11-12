@@ -74,6 +74,7 @@ public:
 	/** Camera-relative move input: X right, Y forward. */
 	void SetMoveInput(const FVector2D& Input, const FVector& CamForward, const FVector& CamUp);
 	void SetSprintInput(bool bSprint) { bSprintInput = bSprint; }
+	bool HasMoveInput() const { return MoveInput.SizeSquared() > 0.04; }
 
 	void TeleportTo(const FVector& Location, const FVector& Facing);
 	bool PlaceOnBranch(int32 Branch, float T);

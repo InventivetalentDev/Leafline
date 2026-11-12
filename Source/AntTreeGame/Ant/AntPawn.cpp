@@ -299,7 +299,7 @@ void AAntPawn::UpdateRiding(float Dt)
 		ADayDirector* D = GetDirector();
 		bTrailInReach = Trails->FindRideStart(Movement->GetSurfacePosition(), D ? D->Tuning.RideReach : 60.f, Movement->GetBodyForward(), P, I, PathIndex);
 	}
-	if (bFollowHeld && State == EAntState::Walking)
+	if (bFollowHeld && State == EAntState::Walking && !Movement->HasMoveInput())
 	{
 		int32 Path, Index;
 		ADayDirector* D = GetDirector();

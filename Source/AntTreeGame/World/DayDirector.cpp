@@ -138,6 +138,18 @@ void ADayDirector::PossessNext()
 		UE_LOG(LogLeafline, Log, TEXT("Shift %d of %d: worker %d leaves the nest"), ShiftsStarted, Roster.Num(), i);
 		return;
 	}
+	// A worker left standing when the player switched away must not be forgotten.
+	for (int32 i = 0; i < Roster.Num(); ++i)
+	{
+		AAntPawn* Idle = Roster[i].Pawn.Get();
+		if (Roster[i].State == EWorkerState::Out && Idle && !Idle->IsPlayerControlled())
+		{
+			Current = i;
+			if (PC) PC->Possess(Idle);
+			UE_LOG(LogLeafline, Log, TEXT("Back to worker %d, still out"), i);
+			return;
+		}
+	}
 	for (int32 i = 0; i < Roster.Num(); ++i)
 	{
 		if (Roster[i].State == EWorkerState::Returning && Roster[i].Pawn.IsValid())
@@ -185,7 +197,11 @@ void ADayDirector::OnBlownOff(AAntPawn* Ant)
 	Stats.BlownOff += 1;
 	UE_LOG(LogLeafline, Log, TEXT("Worker %d blown off (was %s); it walks home empty-handed"), i, *UEnum::GetValueAsString(Was));
 	// Let the player watch the fall for a moment before the next worker comes out.
-	if (Ant->IsPlayerControlled() && Was == EWorkerState::Out) PendingPossess = 2.5f;
+	if (Ant->IsPlayerControlled() && Was == EWorkerState::Out)
+	{
+		PendingPossess = 2.5f;
+		PendingFrom = Ant;
+	}
 	CheckAllHome();
 }
 
@@ -241,6 +257,7 @@ void ADayDirector::CheckAllHome()
 	if (Phase != EDayPhase::Shift) return;
 	Phase = EDayPhase::AllHome;
 	PhaseTimer = 1.5f;
+	Stats.TrailLaid = Trails ? Trails->DrawnLength() : Stats.TrailLaid;
 	if (ULeaflineGameInstance* GI = Colony(this))
 	{
 		GI->SetDay(Day + 1);
@@ -343,7 +360,9 @@ void ADayDirector::Tick(float DeltaTime)
 	if (PendingPossess > 0.f)
 	{
 		PendingPossess -= DeltaTime;
-		if (PendingPossess <= 0.f && Phase == EDayPhase::Shift) PossessNext();
+		// Only move on if the player is still watching the blown-off ant (control may have moved already).
+		APawn* Watched = Player.IsValid() ? Player->GetPawn() : nullptr;
+		if (PendingPossess <= 0.f && Phase == EDayPhase::Shift && (!Watched || Watched == PendingFrom.Get())) PossessNext();
 	}
 	if (Phase == EDayPhase::AllHome)
 	{

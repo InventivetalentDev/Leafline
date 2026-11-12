@@ -373,7 +373,12 @@ void UAntMovementComponent::TickFollow(float Dt)
 	Pos = MoveTowards(Pos, Target, Speed * 2.0 * Dt + 1.0);
 	FVector N;
 	double Err = 0.0;
-	if (!F->Project(Pos, N, Tuning.RideHeight, &Err)) ++ProjFailCount;
+	if (!F->Project(Pos, N, Tuning.RideHeight, &Err))
+	{
+		++ProjFailCount;
+		Pos = Start;
+		N = SurfaceNormal;
+	}
 	SurfaceNormal = N;
 	LastProjError = Err;
 	Velocity = Dt > 0.f ? ProjectOnPlane((Pos - Start) / Dt, N) : FVector::ZeroVector;

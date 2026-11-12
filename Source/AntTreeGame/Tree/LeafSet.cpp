@@ -127,7 +127,8 @@ int32 FLeafSet::FindNearest(const FVector& P, float Reach) const
 float FLeafSet::SizeCap(int32 Index, float UsePerCut) const
 {
 	if (!Leaves.IsValidIndex(Index) || !Leaves[Index].CanCut()) return 0.f;
-	return FMath::Clamp(Leaves[Index].Remaining / FMath::Max(UsePerCut, 0.01f), 0.f, 1.f);
+	// A cut of size s uses UsePerCut * (0.35 + 0.65 s); never allow more than what is left.
+	return FMath::Clamp((Leaves[Index].Remaining / FMath::Max(UsePerCut, 0.01f) - 0.35f) / 0.65f, 0.f, 1.f);
 }
 
 bool FLeafSet::ApplyBite(int32 Index, float Size01, float DiameterCm, float UsePerCut)
@@ -170,10 +171,8 @@ void FLeafSet::BuildChunkMesh(int32 Chunk, FTreeMeshData& Out) const
 				if (FMath::Sign(Across) != FMath::Sign(C.Y)) continue;
 				const float H = FMath::Sqrt(R * R - DX * DX);
 				const float Inner = C.Y - FMath::Sign(C.Y) * H; // circle boundary on the midrib side
-				if (FMath::Abs(Across) > FMath::Abs(Inner))
-				{
-					Across = FMath::Sign(Inner) == FMath::Sign(Across) ? Inner : 0.f;
-				}
+				if (FMath::Sign(Inner) != FMath::Sign(Across)) Across = 0.f; // the bite reaches past the midrib
+				else if (FMath::Abs(Across) > FMath::Abs(Inner)) Across = Inner;
 			}
 			return Across;
 		};
