@@ -25,3 +25,4 @@
 - [ ] mouse cursor controls in the UI would be nice
 - [x] got stuck on the bottom of the tree on day 4
   - Fixed: the walking surface had a thin vertical strip (up to 20 cm tall) on the outer side of every slight bend in a branch, left over from my earlier fix; the ant bounced off it. Replayed day 4's tree (seed 208038): the climb from the nest now goes straight up. Not in the packaged build yet.
+- [ ] leaf animation seems to play without actually moving the leaf, only the shadow moves?
