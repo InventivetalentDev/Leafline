@@ -31,6 +31,13 @@ namespace
 		return PC ? Cast<AAntPawn>(PC->GetPawn()) : nullptr;
 	}
 
+	/** After a debug teleport, put the camera behind the ant again so camera-relative input means what it should. */
+	void SnapCamera(UWorld* World)
+	{
+		ALeaflinePlayerController* PC = World ? Cast<ALeaflinePlayerController>(World->GetFirstPlayerController()) : nullptr;
+		if (PC && PC->GetAntCamera()) PC->GetAntCamera()->SetTarget(PC->GetAnt(), false);
+	}
+
 	FAutoConsoleCommandWithWorldAndArgs CmdAutoMove(
 		TEXT("Leaf.AutoMove"),
 		TEXT("Leaf.AutoMove <-1..1>: constant forward input for unattended movement tests (0 stops)."),
@@ -89,7 +96,11 @@ namespace
 			{
 				Branch = FCString::Atoi(*Args[0]);
 			}
-			if (!Ant->GetAntMovement()->PlaceOnBranch(Branch, T))
+			if (Ant->GetAntMovement()->PlaceOnBranch(Branch, T))
+			{
+				SnapCamera(World);
+			}
+			else
 			{
 				UE_LOG(LogLeafline, Warning, TEXT("Leaf.Teleport: no branch %s (tree has %d)"), *Args[0], Branches.Num());
 			}
@@ -138,6 +149,7 @@ namespace
 				const FTreeLeaf& L = Leaves.Get(i);
 				if (!L.CanCut()) continue;
 				Ant->GetAntMovement()->TeleportTo(L.Base - L.Dir * 15.0, L.Dir);
+				SnapCamera(World);
 				UE_LOG(LogLeafline, Log, TEXT("Leaf.GoLeaf: beside leaf %d on branch %d at z %.0f"), i, L.Branch, L.Base.Z);
 				return;
 			}
@@ -209,6 +221,7 @@ namespace
 			const FVector Axis = Tree->GetSkeleton().TrunkBase + FVector(0.0, 0.0, 1500.0);
 			const FVector Side = bExposed ? -Wind->GetDirection() : Wind->GetDirection();
 			Ant->GetAntMovement()->TeleportTo(Axis + Side * 1100.0, FVector::UpVector); // just outside the trunk, so the trunk (not the ground) is nearest
+			SnapCamera(World);
 			UE_LOG(LogLeafline, Log, TEXT("Leaf.FaceWind: %s side, exposure %.2f"), bExposed ? TEXT("exposed") : TEXT("sheltered"),
 				Wind->GetExposure(Ant->GetAntMovement()->GetSurfacePosition(), Ant->GetAntMovement()->GetSurfaceNormal()));
 		}));
