@@ -33,6 +33,8 @@ private:
 	void DrawDayInfo(const ADayDirector* D, float Scale);
 	void DrawCarry(const AAntPawn* Ant, float Scale);
 	void DrawCutArc(const AAntPawn* Ant, float Scale);
+	/** Outline of the leaf the ant would cut, so the player can see the target before pressing cut. */
+	void DrawLeafTarget(const AAntPawn* Ant, float Scale);
 	void DrawPrompt(const AAntPawn* Ant, const ADayDirector* D, float Scale);
 	void DrawRecap(const ADayDirector* D, float Scale);
 	void DrawTitle(const ADayDirector* D, float Scale);

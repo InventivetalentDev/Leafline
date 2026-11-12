@@ -44,11 +44,23 @@ void FTreeField::Build(const FTreeSkeleton& S)
 	{
 		FBranchRange Range;
 		Range.First = Segs.Num();
-		for (int32 i = 0; i + 1 < B.Samples.Num(); ++i)
+		// Ring planes exactly as TreeMeshBuilder orients its rings (central-difference tangents), so the field's pieces
+		// meet where the mesh's do: no gaps on the outer side of bends and no overlaps on the inner side.
+		const int32 NS = B.Samples.Num();
+		TArray<FVector, TInlineAllocator<256>> Tan;
+		Tan.SetNum(NS);
+		for (int32 i = 0; i < NS; ++i)
+		{
+			Tan[i] = (B.Samples[FMath::Min(i + 1, NS - 1)] - B.Samples[FMath::Max(i - 1, 0)]).GetSafeNormal();
+			if (Tan[i].IsNearlyZero()) Tan[i] = i > 0 ? Tan[i - 1] : FVector::UpVector;
+		}
+		for (int32 i = 0; i + 1 < NS; ++i)
 		{
 			FSeg Seg;
 			Seg.A = B.Samples[i];
 			Seg.BA = B.Samples[i + 1] - B.Samples[i];
+			Seg.NA = Tan[i];
+			Seg.NB = Tan[i + 1];
 			const double L2 = Seg.BA.SizeSquared();
 			Seg.InvLenSq = L2 > UE_SMALL_NUMBER ? 1.0 / L2 : 0.0;
 			Seg.RA = B.SampleRadius[i];
@@ -92,58 +104,44 @@ double FTreeField::BranchDistance(int32 Branch, const FVector& P) const
 	for (int32 i = 0; i < R.Num; ++i, ++S)
 	{
 		const FVector PA = P - S->A;
-		const double Dot = FVector::DotProduct(PA, S->BA);
-		const double TRaw = Dot * S->InvLenSq;
-		const double T = FMath::Clamp(TRaw, 0.0, 1.0);
-		const double AxisDist = (PA - S->BA * T).Size();
+		const double TRaw = FVector::DotProduct(PA, S->BA) * S->InvLenSq;
+		const double AxisDist = (PA - S->BA * FMath::Clamp(TRaw, 0.0, 1.0)).Size();
+		// The piece reaches a little past the axis segment where a ring plane leans over a bend, but every point of it
+		// stays within about 1/0.85 of its larger radius of the segment: a cheap lower bound to skip far pieces.
+		const double MaxR = FMath::Max(S->RA, S->RB);
+		if (AxisDist * 0.85 - MaxR >= Best) continue;
 
-		// The branch's true ends are rounded caps of the end radius, like the mesh's tip (the start is buried in the parent).
-		if ((TRaw > 1.0 && i == R.Num - 1) || (TRaw < 0.0 && i == 0))
+		// Which side of the two ring planes. Outside them the neighbour owns the point, except at the branch's true
+		// ends, which are rounded caps of the end radius like the mesh's tip (the start is buried in the parent).
+		// A hair of overlap at the planes: mesh vertices lie exactly on them, and rounding must not drop a point
+		// between two neighbours (it would read as a hole of metres).
+		constexpr double PlaneSlack = 1e-3;
+		const double SA = FVector::DotProduct(PA, S->NA);
+		if (SA < -PlaneSlack)
 		{
-			Best = FMath::Min(Best, AxisDist - (TRaw > 1.0 ? S->RB : S->RA));
+			if (i == 0) Best = FMath::Min(Best, PA.Size() - S->RA);
+			continue;
+		}
+		const FVector PB = PA - S->BA;
+		const double SB = FVector::DotProduct(PB, S->NB);
+		if (SB > PlaneSlack)
+		{
+			if (i == R.Num - 1) Best = FMath::Min(Best, PB.Size() - S->RB);
 			continue;
 		}
 
-		// On the outer side of a bend, past this segment's end plane and before the next one's start plane, neither
-		// frustum covers the joint and the surface would have a shallow notch. Round the joint there, and only there,
-		// with a sphere of the joint radius (the mesh ring sits in the bisector plane and bridges it the same way).
-		if (TRaw > 1.0)
-		{
-			const FSeg* Next = S + 1;
-			if (FVector::DotProduct(P - Next->A, Next->BA) < 0.0)
-			{
-				Best = FMath::Min(Best, (P - Next->A).Size() - S->RB);
-				continue;
-			}
-		}
-		else if (TRaw < 0.0)
-		{
-			const FSeg* Prev = S - 1;
-			if (FVector::DotProduct(P - Prev->A, Prev->BA) * Prev->InvLenSq > 1.0)
-			{
-				Best = FMath::Min(Best, AxisDist - S->RA);
-				continue;
-			}
-		}
-
-		// Every point of the frustum lies within its larger radius of the axis segment, so this bounds D from below.
-		const double MaxR = FMath::Max(S->RA, S->RB);
-		if (AxisDist - MaxR >= Best) continue;
-
-		// Exact distance to the frustum's side: the mesh draws exactly these cones, and interior joints get no caps (a
-		// cap of the joint radius bulges out of a steep taper by metres at the root flare; the neighbour covers it).
-		// Work in the plane through the axis: X along it, Rho away from it; the side runs from (0, RA) to (L, RB).
-		if (S->InvLenSq <= 0.0) continue;
-		const double InvLen = FMath::Sqrt(S->InvLenSq);
-		const double X = Dot * InvLen;
-		const double Rho = FMath::Sqrt(FMath::Max(PA.SizeSquared() - X * X, 0.0));
-		const double L = 1.0 / InvLen;
-		const double EY = S->RB - S->RA;
-		const double QY = Rho - S->RA;
-		const double U = FMath::Clamp((X * L + QY * EY) / (L * L + EY * EY), 0.0, 1.0);
-		double D = FMath::Sqrt(FMath::Square(X - L * U) + FMath::Square(QY - EY * U));
-		if (TRaw >= 0.0 && TRaw <= 1.0 && QY < EY * TRaw) D = -D;
-		Best = FMath::Min(Best, D);
+		// Between the planes: blend centre, radius and axis from ring A to ring B by where P sits between the planes.
+		// On a ring plane this is exactly that ring (radius R about its centre, perpendicular to its tangent), and two
+		// neighbours agree on their shared plane, so the field is continuous and passes through every mesh ring.
+		const double Den = SA - SB;
+		const double T = Den > 1e-9 ? FMath::Clamp(SA / Den, 0.0, 1.0) : 0.0;
+		const FVector C = S->A + S->BA * T;
+		const double Rad = S->RA + (S->RB - S->RA) * T;
+		const FVector Ax = (S->NA + (S->NB - S->NA) * T).GetSafeNormal();
+		const FVector Q = P - C;
+		const double Along = FVector::DotProduct(Q, Ax);
+		const double Rho = FMath::Sqrt(FMath::Max(Q.SizeSquared() - Along * Along, 0.0));
+		Best = FMath::Min(Best, Rho - Rad);
 	}
 	return Best;
 }

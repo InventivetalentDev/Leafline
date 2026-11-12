@@ -300,7 +300,15 @@ void UAntMovementComponent::TickWalking(float Dt)
 				// at the apex instead of overshooting it back and forth.
 				const double TipSlow = SpareInt > 0 ? FMath::Clamp(DistToEnd / 50.0, 0.15, 1.0) : 1.0;
 				const double Fade = SpareFloat > 0.f ? 1.0 : TipFade;
-				Wish = FMath::Lerp(Wish, A * (SpareInt * InputMag * Fade * TipSlow), (double)ThinBlend);
+				// Sideways input that is clearly meant (more than about 27 degrees off the branch) walks the ant round the
+				// branch, so it can reach twigs on the far side; small sideways parts are dropped, so walking along a thin
+				// branch never spirals. Not on the rounded tip, where "round the branch" has no meaning.
+				const double AlongPart = FVector::DotProduct(Wish, A);
+				const FVector AroundV = Wish - A * AlongPart;
+				const double WishLen = Wish.Size();
+				const double Keep = (TipFade >= 1.0 && WishLen > 1e-3) ? FMath::SmoothStep(0.45, 0.8, AroundV.Size() / WishLen) : 0.0;
+				const double AlongMag = InputMag * (1.0 - Keep) + FMath::Abs(AlongPart) * Keep;
+				Wish = FMath::Lerp(Wish, A * (SpareInt * AlongMag * Fade * TipSlow) + AroundV * Keep, (double)ThinBlend);
 			}
 		}
 
@@ -599,7 +607,7 @@ void UAntMovementComponent::UpdateTelemetry(float Dt, double Moved, bool bHadInp
 	LogTimer += Dt;
 	if (LogTimer >= 5.f)
 	{
-		if (LeafDebug::AutoMove != 0.f || LeafDebug::bDebugField)
+		if (LeafDebug::AutoMove != 0.f || LeafDebug::AutoStrafe != 0.f || LeafDebug::bDebugField)
 		{
 			TArray<int32> Levels = VisitedLevels.Array();
 			Levels.Sort();

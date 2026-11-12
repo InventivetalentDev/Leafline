@@ -79,7 +79,7 @@ bool    Project(FVector& P, FVector& OutNormal, float Height) const;
 bool    March(const FVector& From, const FVector& To, float Radius, float& OutT) const;
 ```
 
-- Per branch: exact distance to the cone frusta between centreline samples, the same shapes the mesh draws. Interior joints have no caps (a cap of the joint radius bulged metres out of the root flare and made the ant climb through the air); only the branch's two ends are rounded. `Leaf.SurfaceGap` measures how far the walking surface floats above the bark.
+- Per branch: the pieces between consecutive mesh rings. Each piece is bounded by the two ring planes exactly as `TreeMeshBuilder` orients its rings (central-difference tangents), and blends centre, radius and axis from one ring to the next by where the point sits between the planes, so the field passes through every ring and neighbours agree on their shared plane: no gap on the outer side of a bend, no overlap on the inner side. Only the branch's two ends are rounded caps. (Earlier versions capped every joint with a sphere, which bulged metres out of the root flare, then used cones bounded by planes perpendicular to their own axes, which left a ridge up to 20 cm tall on the outer side of every slight bend: the day-4 "can't climb past this line" bug.) `Leaf.MeshGap` checks the field against every visible mesh vertex.
 - The ground plane carries the nest mound, a half-buried ellipsoid sized by `FTreeParams::NestMoundRadius`/`NestMoundHeight`; `ANestActor::SetMoundSize` scales the visible mound to match.
 - Combine all branches **and the ground** with a polynomial smooth minimum. The blend radius `k` gives a small fillet at every junction and at the root flare. Start with `k` = 30% of the child's radius, capped at 1.5 AL. **Tune.**
 - `Gradient` by central differences is fine (six extra evaluations).
@@ -234,7 +234,7 @@ Console commands pay for themselves, because verification is done by driving Pla
 
 | Command | Purpose |
 |---|---|
-| `Leaf.AutoMove <x>` / `Leaf.AutoTurn <deg/s> [wander]` | Constant input for unattended movement tests; `wander` flips the turn direction at random. While active, a line every 5 s logs distance, max projection error, stalls and branch levels visited |
+| `Leaf.AutoMove <x>` / `Leaf.AutoStrafe <x>` / `Leaf.AutoTurn <deg/s> [wander]` | Constant input for unattended movement tests; `wander` flips the turn direction at random. While active, a line every 5 s logs distance, max projection error, stalls and branch levels visited |
 | `Leaf.Teleport <branch> <t>` / `Leaf.Teleport L<level> [t]` | Put the ant on a given branch, or a random branch of a level (0 trunk, 1 limb, 2 bough, 3 twig, -1 root) |
 | `Leaf.FieldBench [n]` | Time n field evaluations near the surface |
 | `Leaf.SurfaceGap [maxZ]` | Project points around the trunk and roots (below maxZ, default 1500 cm) onto the walking field and log how far they float above the visible bark: mean, worst and where |

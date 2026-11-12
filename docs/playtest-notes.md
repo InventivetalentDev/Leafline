@@ -12,3 +12,12 @@
   - Done: the camera no longer pulls in for wood; bark between the camera and the ant (and right in front of the camera) dithers away. Leaves are not dithered yet. The old behaviour is the camera setting `bAvoidThickOcclusion`. Only seen in still screenshots so far; how it feels in motion needs your verdict. In the editor build.
 - [x] ant starts inside the nest mesh at the start (no colission?)
   - Fixed: the nest mound is part of the walking surface, so ants start on top of the entrance and walk over the mound. In the editor build.
+- [ ] can't walk around around branches anymore? all of WASD just seem to walk up and down the branch; also makes it hard to navigate to even smaller branches
+- [ ] aiming to pick leafes is a bit difficult
+- [ ] eventually make selection outlines for leaves etc, instead of just showing an UI overlay
+- [ ] low priority: leaf cutting animation would be nice
+- [ ] low priority: if you're already halfway back down the tree and you engage the auto-return, ideally it should just follow the scent line if you're close to it from that location, instead of walking strictly back (and going back up the tree etc.)
+- [ ] add key/controller icons (https://thoseawesomeguys.com/prompts/)
+- [ ] add controller support
+- [ ] mouse cursor controls in the UI would be nice
+- [ ] got stuck on the bottom of the tree on day 4

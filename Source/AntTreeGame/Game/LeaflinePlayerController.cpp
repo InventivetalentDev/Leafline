@@ -143,6 +143,7 @@ void ALeaflinePlayerController::PlayerTick(float DeltaTime)
 
 	FVector2D Move = Input->GetActionValue(MoveAction).Get<FVector2D>();
 	Move.Y = FMath::Clamp(Move.Y + LeafDebug::AutoMove, -1.0, 1.0);
+	Move.X = FMath::Clamp(Move.X + LeafDebug::AutoStrafe, -1.0, 1.0);
 
 	const FVector2D Mouse = Input->GetActionValue(LookMouseAction).Get<FVector2D>();
 	const FVector2D Stick = Input->GetActionValue(LookStickAction).Get<FVector2D>();

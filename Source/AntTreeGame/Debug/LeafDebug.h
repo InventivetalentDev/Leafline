@@ -7,6 +7,8 @@ namespace LeafDebug
 {
 	/** Constant forward input (0..1) applied on top of the player's input. */
 	extern float AutoMove;
+	/** Constant sideways input (-1..1, positive = screen right) applied on top of the player's input. */
+	extern float AutoStrafe;
 	/** Constant camera yaw rate in degrees per second. */
 	extern float AutoTurn;
 	/** When true, AutoTurn flips direction at random intervals so the walk covers more of the tree. */

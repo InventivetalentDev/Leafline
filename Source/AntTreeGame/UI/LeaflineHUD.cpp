@@ -6,6 +6,7 @@
 #include "Engine/Engine.h"
 #include "Engine/Font.h"
 #include "GameFramework/PlayerController.h"
+#include "Camera/PlayerCameraManager.h"
 #include "Game/LeaflineGameInstance.h"
 #include "World/WindSystem.h"
 #include "Tree/TreeActor.h"
@@ -94,6 +95,7 @@ void ALeaflineHUD::DrawHUD()
 		DrawStamina(Ant, Scale, Dt);
 		DrawCarry(Ant, Scale);
 		DrawCutArc(Ant, Scale);
+		DrawLeafTarget(Ant, Scale);
 	}
 	DrawPrompt(Ant, D, Scale);
 }
@@ -217,6 +219,42 @@ void ALeaflineHUD::DrawCutArc(const AAntPawn* Ant, float Scale)
 	const TCHAR* Label = Ratio >= 1.f ? TEXT("This piece: too big for a gust")
 		: (Wind && Ratio >= Wind->Tuning.RiskyRatio ? TEXT("This piece: risky in a gust") : TEXT("This piece: safe in a gust"));
 	DrawTextCentered(Label, CX, CY + R + 14.f * Scale, Now, 1.0f * Scale, Font);
+}
+
+void ALeaflineHUD::DrawLeafTarget(const AAntPawn* Ant, float Scale)
+{
+	const int32 Index = Ant->GetLeafInReach();
+	if (Index == INDEX_NONE || Ant->IsCutting() || Ant->IsCarrying()) return;
+	const ATreeActor* Tree = ATreeActor::Get(this);
+	const APlayerController* PC = GetOwningPlayerController();
+	if (!Tree || !PC || !PC->PlayerCameraManager || Index >= Tree->GetLeaves().Num()) return;
+	const FTreeLeaf& L = Tree->GetLeaves().Get(Index);
+	const FVector CamPos = PC->PlayerCameraManager->GetCameraLocation();
+	const FVector CamFwd = PC->PlayerCameraManager->GetCameraRotation().Vector();
+
+	// Trace the blade's edge: up one side from the base to the tip and back down the other.
+	constexpr int32 Steps = 14;
+	TArray<FVector2D, TInlineAllocator<2 * Steps + 2>> Screen;
+	for (int32 Side = 0; Side < 2; ++Side)
+	{
+		for (int32 i = 0; i <= Steps; ++i)
+		{
+			const float Along = L.Length * (Side == 0 ? i : Steps - i) / Steps;
+			const float Across = L.HalfWidthAt(Along) * (Side == 0 ? 1.f : -1.f);
+			const FVector W = L.Point(Along, Across) + L.Normal * 0.5f;
+			if (FVector::DotProduct(W - CamPos, CamFwd) < 10.0) return; // part of the blade is behind the camera
+			const FVector S = Canvas->Project(W);
+			Screen.Add(FVector2D(S.X, S.Y));
+		}
+	}
+	const float Pulse = 0.65f + 0.35f * FMath::Sin(GetWorld() ? GetWorld()->GetRealTimeSeconds() * 5.f : 0.f);
+	const FLinearColor Color(1.f, 0.88f, 0.45f, Pulse);
+	for (int32 i = 0; i < Screen.Num(); ++i)
+	{
+		const FVector2D& A = Screen[i];
+		const FVector2D& B = Screen[(i + 1) % Screen.Num()];
+		DrawLine(A.X, A.Y, B.X, B.Y, Color, 2.f * Scale);
+	}
 }
 
 void ALeaflineHUD::DrawPrompt(const AAntPawn* Ant, const ADayDirector* D, float Scale)

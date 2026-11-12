@@ -19,6 +19,7 @@
 namespace LeafDebug
 {
 	float AutoMove = 0.f;
+	float AutoStrafe = 0.f;
 	float AutoTurn = 0.f;
 	bool bAutoWander = false;
 	bool bDebugField = false;
@@ -49,6 +50,15 @@ namespace
 		{
 			LeafDebug::AutoMove = Args.Num() > 0 ? FCString::Atof(*Args[0]) : 0.f;
 			UE_LOG(LogLeafline, Log, TEXT("Leaf.AutoMove %.2f"), LeafDebug::AutoMove);
+		}));
+
+	FAutoConsoleCommandWithWorldAndArgs CmdAutoStrafe(
+		TEXT("Leaf.AutoStrafe"),
+		TEXT("Leaf.AutoStrafe <-1..1>: constant sideways input (positive = screen right) for unattended movement tests (0 stops)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld*)
+		{
+			LeafDebug::AutoStrafe = Args.Num() > 0 ? FCString::Atof(*Args[0]) : 0.f;
+			UE_LOG(LogLeafline, Log, TEXT("Leaf.AutoStrafe %.2f"), LeafDebug::AutoStrafe);
 		}));
 
 	FAutoConsoleCommandWithWorldAndArgs CmdAutoTurn(

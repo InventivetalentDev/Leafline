@@ -35,10 +35,13 @@ public:
 	mutable int64 EvalCount = 0;
 
 private:
+	/** A piece of branch between two mesh rings: it runs from the ring plane at A (normal NA) to the one at B (NB). */
 	struct FSeg
 	{
 		FVector A;
 		FVector BA;
+		FVector NA;
+		FVector NB;
 		double InvLenSq;
 		float RA;
 		float RB;
