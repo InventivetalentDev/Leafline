@@ -44,10 +44,12 @@ Create these two scripts in M0; always call them rather than passing quoted Wind
 
 `Scripts/package_win64.bat` (Development configuration, as the jam asks):
 ```
-"C:\Program Files\Epic Games\UE_5.8\Engine\Build\BatchFiles\RunUAT.bat" BuildCookRun -project="D:\UnrealProjects\AntTreeGame\AntTreeGame.uproject" -platform=Win64 -clientconfig=Development -build -cook -stage -pak -archive -archivedirectory="D:\UnrealProjects\AntTreeGame\Build" -noP4 -utf8output
+"C:\Program Files\Epic Games\UE_5.8\Engine\Build\BatchFiles\RunUAT.bat" BuildCookRun -project="D:\UnrealProjects\AntTreeGame\AntTreeGame.uproject" -platform=Win64 -clientconfig=Development -build -cook -stage -pak -prereqs -archive -archivedirectory="D:\UnrealProjects\AntTreeGame\Build" -noP4 -unattended -utf8output -WaitForUATMutex
 ```
 
 Run with `cmd.exe /c "D:\UnrealProjects\AntTreeGame\Scripts\build_editor.bat"`.
+
+Builds, packaging and standalone runs go through the machine-wide lock wrapper (`docs/tools.md`): `Scripts/unreal-lock.sh <holder> -- cmd.exe /c "D:\UnrealProjects\AntTreeGame\Scripts\build_editor.bat"`. Check `Scripts/unreal-lock.sh --status` before launching the editor. `Scripts/RunGame.bat` starts the game standalone without packaging.
 
 Launch the editor detached, from `/mnt/c`, with the Bash tool's `run_in_background` (the command blocks until the editor exits). Keep `-ModelContextProtocolStartServer`: the plugin does not auto-start its server by default. Then wait for `Starting MCP server on port 8000` in `Saved/Logs/AntTreeGame.log`; unreal-mcp reconnects by itself.
 ```

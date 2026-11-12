@@ -19,3 +19,23 @@ py Tools\strip_image_metadata.py                 # from Windows
 - It doesn't touch files that are already clean, so it's safe to re-run.
 - It doesn't rename files. Pixel filenames like `PXL_20261112_081150350.jpg` still show the date and time each photo was taken.
 - Exit codes: 0 = OK, 1 = `--check` found metadata, 2 = error or unsupported file.
+
+## unreal-lock.sh
+
+`Scripts/unreal-lock.sh` runs one command while holding this PC's Unreal lock, and always releases it, also when the command fails or is stopped. Only one Unreal process (build, cook, standalone game, editor) runs on this machine at a time; an editor takes about 12 GB idle and 20 GB in Play, and three at once crashed with "The paging file is too small". The lock is shared with other Unreal projects on this machine.
+
+```
+Scripts/unreal-lock.sh <holder> -- <command...>   # wait for the lock, run, release
+Scripts/unreal-lock.sh --status                   # free, held (by whom, how long) or stale
+Scripts/unreal-lock.sh --no-wait|--timeout <min>|--break-stale ...
+```
+
+- The lock is the directory `/mnt/d/UnrealProjects/wt/locks/unreal`; its `owner` file says who holds it. `FOREST_LOCK_DIR` overrides the location (the variable names come from the project the script was written for).
+- Exit code: the command's own; 75 when held and not waiting; 76 when stale; `--status` gives 0 free, 1 held, 2 stale.
+- Never take or release the lock by hand. A lock taken by hand is waited on, never broken.
+- For the editor, the wrapped command must keep running until the editor exits, or the lock is released while it still runs. `cmd.exe /c start ""` should block that long, but that is untested with the editor.
+- `Scripts/unreal-lock-test.sh` tests the script.
+
+## RunGame.bat
+
+`Scripts/RunGame.bat <logname> "<execcmds>"` starts the game standalone from the editor binaries, without packaging. Run it through `unreal-lock.sh`.
