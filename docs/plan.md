@@ -31,29 +31,29 @@ Rules for parallel work:
 
 ## M0: Bootstrap
 
-- [ ] `git init`, `.gitignore` for Unreal (`Binaries/`, `Intermediate/`, `Saved/`, `DerivedDataCache/`, `.vs/`), Git LFS for `*.uasset`, `*.umap`, `*.png`, `*.jpg`, `*.wav`, `*.fbx`, `*.blend`.
-- [ ] Run `python3 Tools/strip_image_metadata.py` (see `docs/tools.md`) so no photo metadata is committed.
-- [ ] Delete the template content: `Content/Characters`, `Content/ThirdPerson`, `Content/LevelPrototyping`, `Content/Input`, and the template's external actors. Fix `DefaultEngine.ini` map and game mode entries that point at them.
-- [ ] Set `ProjectName=Leafline` in `DefaultGame.ini`.
-- [ ] Add the C++ module (`Source/AntTreeGame`, the two target files, the `Modules` entry in the `.uproject`). Enable the `ModelContextProtocol` and `ProceduralMeshComponent` plugins.
-- [ ] `Scripts/build_editor.bat` and `Scripts/package_win64.bat` (see `CLAUDE.md`). First successful build.
-- [ ] Empty level `/Game/Leafline/Maps/L_Main` with sky, sun, fog; set as default map. `LeaflineGameMode` set as default.
-- [ ] Editor opens, MCP server answers, a screenshot can be captured.
-- [ ] First commit. Create the **private** GitHub repo `Leafline` and push. The owner has approved a private repo; making it public needs a fresh yes on Sunday.
+- [x] `git init`, `.gitignore` for Unreal (`Binaries/`, `Intermediate/`, `Saved/`, `DerivedDataCache/`, `.vs/`), Git LFS for `*.uasset`, `*.umap`, `*.png`, `*.jpg`, `*.wav`, `*.fbx`, `*.blend`.
+- [x] Run `python3 Tools/strip_image_metadata.py` (see `docs/tools.md`) so no photo metadata is committed.
+- [x] Delete the template content: `Content/Characters`, `Content/ThirdPerson`, `Content/LevelPrototyping`, `Content/Input`, and the template's external actors. Fix `DefaultEngine.ini` map and game mode entries that point at them.
+- [x] Set `ProjectName=Leafline` in `DefaultGame.ini`.
+- [x] Add the C++ module (`Source/AntTreeGame`, the two target files, the `Modules` entry in the `.uproject`). Enable the `ModelContextProtocol` and `ProceduralMeshComponent` plugins.
+- [x] `Scripts/build_editor.bat` and `Scripts/package_win64.bat` (see `CLAUDE.md`). First successful build.
+- [x] Empty level `/Game/Leafline/Maps/L_Main` with sky, sun, fog; set as default map. `LeaflineGameMode` set as default.
+- [x] Editor opens, MCP server answers, a screenshot can be captured.
+- [ ] First commit (done). Create the **private** GitHub repo `Leafline` and push. The owner has approved a private repo; making it public needs a fresh yes on Sunday.
 
 **Done when:** the editor opens the empty level from a clean clone and build, and the MCP tools respond.
 
 ## M1: The pillar (tree, walking, camera)
 
-- [ ] `TreeSkeleton`: seeded trunk, limbs, boughs, twigs, root flare and roots.
-- [ ] `TreeField`: distance, gradient, project, march, with the ground included.
-- [ ] `TreeMeshBuilder` and `TreeActor`: smooth tubes, flat placeholder bark colour.
-- [ ] Lighting check by screenshot (see Verify in `tech.md`).
-- [ ] `AntPawn` with `AntMovement`: walking in any orientation, sprint, stamina.
-- [ ] `AntCamera`: lazy up vector, orbit, spring follow, field-based avoidance.
-- [ ] Input created in C++; keyboard, mouse and gamepad.
-- [ ] Debug commands: `Leaf.AutoMove`, `Leaf.AutoTurn`, `Leaf.Teleport`, `Leaf.NewDay`, `Leaf.DebugField`.
-- [ ] Minimal canvas HUD: stamina bar.
+- [x] `TreeSkeleton`: seeded trunk, limbs, boughs, twigs, root flare and roots.
+- [x] `TreeField`: distance, gradient, project, march, with the ground included.
+- [x] `TreeMeshBuilder` and `TreeActor`: smooth tubes, flat placeholder bark colour.
+- [x] Lighting check by screenshot (see Verify in `tech.md`).
+- [x] `AntPawn` with `AntMovement`: walking in any orientation, sprint, stamina.
+- [x] `AntCamera`: lazy up vector, orbit, spring follow, field-based avoidance.
+- [x] Input created in C++; keyboard, mouse and gamepad.
+- [x] Debug commands: `Leaf.AutoMove`, `Leaf.AutoTurn`, `Leaf.Teleport`, `Leaf.NewDay`, `Leaf.DebugField`.
+- [x] Minimal canvas HUD: stamina bar.
 
 **Done when:**
 - An unattended test (`Leaf.AutoMove 1` with a slow `Leaf.AutoTurn`) runs for five minutes across trunk, junctions, undersides and twig tips with no stall and projection error under 1 cm in the log.

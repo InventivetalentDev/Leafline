@@ -21,3 +21,12 @@ Leafline is made by one person directing AI agents. Claude (Anthropic) does plan
 - Rocket launchers against birds, from my original notes, are gone. The MegaJam rules exclude anything that reads as animal cruelty, and distraction fits the game better anyway.
 - Technical bet: the tree is a distance field. Walking, the camera, wind shelter and trails all query that one function instead of physics collision.
 - Wrote `design.md`, `tech.md`, `plan.md`, agent briefs and `CLAUDE.md`. Building moves to a cheaper model from here.
+
+## 2026-11-12 (Thu): bootstrap and the first walk
+
+- Deleted the Third Person template content and added the C++ module. The first build compiled on the first try.
+- The tree grows from a seed in about 150 ms: a trunk with a root flare and roots, 22 limbs, about 120 boughs and 850 twigs, roughly 830,000 triangles of smooth tubes. Growth bends branches away from each other so they don't pass through one another.
+- The ant walks on the distance field, not on collision. In an unattended run it walked from the ground up the trunk, across limbs, boughs and twigs, with no stalls and a projection error that never went above 0.07 cm.
+- Lighting check passed: the procedural mesh casts and receives shadows under Lumen.
+- Watching that unattended run made me motion sick. The camera's up followed the ant's up, so walking round a thin twig rolled the whole view. Now the horizon stays level on thin branches, follows the surface only on big limbs and the trunk, and can't roll faster than 45° per second. `Leaf.Tune` lets me change camera values while playing.
+- In parallel, a Claude agent wrote the Blender script for the ant mesh, another synthesised the sound effects, and Codex painted key art and reference studies.
