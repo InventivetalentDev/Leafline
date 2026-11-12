@@ -8,6 +8,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Game/LeaflineGameInstance.h"
 #include "World/WindSystem.h"
+#include "Tree/TreeActor.h"
 #include "Colony/TrailNetwork.h"
 
 void ALeaflineHUD::DrawHUD()
@@ -42,7 +43,8 @@ void ALeaflineHUD::DrawHUD()
 	{
 		const UAntMovementComponent* M = Ant->GetAntMovement();
 		FString Goal;
-		if (Ant->GetWorkerIndex() == 0 && D->GetStats().Fragments == 0 && !Ant->IsCarrying() && M && M->GetState() == EAntState::Walking)
+		const bool bLow = M && D->GetTree() && M->GetSurfacePosition().Z < D->GetTree()->Params.LowestLeafyHeight - 600.f;
+		if (Ant->GetWorkerIndex() == 0 && D->GetStats().Fragments == 0 && !Ant->IsCarrying() && M && M->GetState() == EAntState::Walking && bLow)
 		{
 			Goal = TEXT("Climb the trunk: the leaves start about 40 m up");
 		}
