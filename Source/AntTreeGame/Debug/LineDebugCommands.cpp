@@ -30,17 +30,26 @@ namespace
 		const FVector Axis = Tree->GetSkeleton().TrunkBase;
 		const float Low = Tree->Params.LowestLeafyHeight;
 		const FVector Upwind = Wind ? -Wind->GetDirection().GetSafeNormal2D() : FVector::ForwardVector;
-		TArray<int32> Candidates;
+		// Leaves in the lowest leafy band, ranked by which way they face from the trunk; "exposed" takes the quarter
+		// facing most into the wind, "sheltered" the quarter facing most away.
+		TArray<TPair<double, int32>> Ranked;
 		for (int32 i = 0; i < Leaves.Num(); ++i)
 		{
 			const FTreeLeaf& L = Leaves.Get(i);
-			if (!L.CanCut() || L.Base.Z > Low + 900.f) continue;
+			if (!L.CanCut() || L.Base.Z > Low + 1500.f) continue;
 			const FVector Out2D = (L.Base - Axis).GetSafeNormal2D();
-			const double Facing = FVector::DotProduct(Out2D, Upwind);
-			if (Side == TEXT("exposed") && Facing < 0.5) continue;
-			if (Side == TEXT("sheltered") && Facing > -0.5) continue;
-			Candidates.Add(i);
+			Ranked.Add({ FVector::DotProduct(Out2D, Upwind), i });
 		}
+		Ranked.Sort([](const TPair<double, int32>& A, const TPair<double, int32>& B) { return A.Key > B.Key; });
+		TArray<int32> Candidates;
+		const int32 Quarter = FMath::Max(1, Ranked.Num() / 4);
+		for (int32 k = 0; k < Ranked.Num(); ++k)
+		{
+			if (Side == TEXT("exposed") && k >= Quarter) break;
+			if (Side == TEXT("sheltered") && k < Ranked.Num() - Quarter) continue;
+			Candidates.Add(Ranked[k].Value);
+		}
+		UE_LOG(LogLeafline, Log, TEXT("Test leaves: %d in the low band, %d candidates on the %s side"), Ranked.Num(), Candidates.Num(), *Side);
 		FRandomStream R(Seed);
 		// Spread the picks: no two on the same branch.
 		TSet<int32> Branches;
@@ -223,6 +232,26 @@ namespace
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>&, UWorld* World)
 		{
 			if (ADayDirector* D = ADayDirector::Get(World)) D->SkipHarvest();
+		}));
+
+	FAutoConsoleCommandWithWorldAndArgs CmdAtSim(
+		TEXT("Leaf.AtSim"),
+		TEXT("Leaf.AtSim <seconds> <command...>: run a console command at that sim time of the day (fixed steps), for repeatable tests."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			ALineSystem* L = LinesOf(World);
+			if (!L || Args.Num() < 2) return;
+			FString Cmd;
+			for (int32 k = 1; k < Args.Num(); ++k) Cmd += (k > 1 ? TEXT(" ") : TEXT("")) + Args[k];
+			L->ScheduleAtSim(FCString::Atod(*Args[0]), Cmd);
+		}));
+
+	FAutoConsoleCommandWithWorldAndArgs CmdCycle(
+		TEXT("Leaf.Cycle"),
+		TEXT("Leaf.Cycle: the cycle button (Tab): next worker during shifts, next view during the harvest."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>&, UWorld* World)
+		{
+			if (ADayDirector* D = ADayDirector::Get(World)) D->CycleWorker();
 		}));
 
 	FAutoConsoleCommandWithWorldAndArgs CmdPatch(

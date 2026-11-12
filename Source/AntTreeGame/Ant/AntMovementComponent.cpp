@@ -490,8 +490,9 @@ void UAntMovementComponent::TickFollow(float Dt)
 			? FMath::Lerp(FollowPoints[FollowIndex].Pos, FollowPoints[NextIdx].Pos, FollowFrac)
 			: FollowPoints[FollowIndex].Pos;
 		FollowLag = FVector::Dist(Pos, Cur);
-		FollowWait = FollowLag > 30.0 ? FollowWait + Dt : 0.f;
-		if (!FollowPoints.IsValidIndex(NextIdx) && (FollowLag < 20.0 || FollowWait >= 2.f)) bFollowFinished = true;
+		const bool bAtEnd = !FollowPoints.IsValidIndex(NextIdx);
+		FollowWait = (FollowLag > 30.0 || bAtEnd) ? FollowWait + Dt : 0.f;
+		if (bAtEnd && (FollowLag < 20.0 || FollowWait >= 2.f)) bFollowFinished = true;
 	}
 	double Remaining = (FollowLag > 30.0 && FollowWait < 2.f) ? 0.0 : Speed * Dt;
 	while (Remaining > 0.0 && !bFollowFinished)

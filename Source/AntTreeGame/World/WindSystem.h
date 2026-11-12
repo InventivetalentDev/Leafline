@@ -144,6 +144,7 @@ private:
 
 	TWeakObjectPtr<ATreeActor> Tree;
 	FRandomStream Rand;
+	FRandomStream StreakRand;
 	TArray<FStreak> Streaks;
 	EWindPhase Phase = EWindPhase::Calm;
 	float PhaseTimeLeft = 10.f;

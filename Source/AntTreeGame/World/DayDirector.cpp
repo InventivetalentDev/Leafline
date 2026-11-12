@@ -276,11 +276,12 @@ void ADayDirector::PossessNext()
 	}
 	for (int32 i = 0; i < Roster.Num(); ++i)
 	{
-		if (Roster[i].State == EWorkerState::Returning && Roster[i].Pawn.IsValid())
+		const EWorkerState St = Roster[i].State;
+		if ((St == EWorkerState::Returning || St == EWorkerState::BlownOff) && Roster[i].Pawn.IsValid() && !Roster[i].Pawn->IsVanishing())
 		{
 			Current = i;
 			if (PC) PC->Possess(Roster[i].Pawn.Get());
-			UE_LOG(LogLeafline, Log, TEXT("No workers left in the nest: following returning worker %d"), i);
+			UE_LOG(LogLeafline, Log, TEXT("No workers left in the nest: following worker %d home"), i);
 			return;
 		}
 	}
@@ -307,7 +308,12 @@ void ADayDirector::SendHome(AAntPawn* Ant)
 	}
 	Roster[i].State = EWorkerState::Returning;
 	Ant->StartReturn();
-	if (Lines && Ant->IsCarrying()) Lines->AddLine(Ant, false);
+	if (Lines)
+	{
+		if (Ant->IsCarrying()) Lines->AddLine(Ant, false);
+		// From now on it walks on the fixed sim clock, like the recruits: the harvest then runs the same at any speed.
+		Lines->AddDrivenAnt(Ant);
+	}
 	LeafSound::Play(this, TEXT("send_home"), 0.6f);
 	UE_LOG(LogLeafline, Log, TEXT("Worker %d sent home carrying %.1f"), i, Ant->GetCarriedMass());
 	// Stay with it for a moment as it turns for home, so it is clear the worker is on its way; then the next comes out.
@@ -325,6 +331,7 @@ void ADayDirector::OnBlownOff(AAntPawn* Ant)
 	Stats.BlownOff += 1;
 	// A scout sent home with a piece started a line; that piece is now lost to the wind.
 	if (Lines && Was == EWorkerState::Returning) Lines->OnScoutPieceResolved(i, false, 0.f);
+	if (Lines) Lines->AddDrivenAnt(Ant);
 	UE_LOG(LogLeafline, Log, TEXT("Worker %d blown off (was %s); it walks home empty-handed"), i, *UEnum::GetValueAsString(Was));
 	// Let the player watch the fall for a moment before the next worker comes out.
 	if (Ant->IsPlayerControlled() && Was == EWorkerState::Out)
@@ -407,9 +414,12 @@ void ADayDirector::UpdateDayFlow()
 	for (const FWorker& W : Roster)
 	{
 		bScoutsOut |= W.State == EWorkerState::Waiting || W.State == EWorkerState::Out;
-		bScoutsMoving |= W.State == EWorkerState::Returning;
+		// Every ant home: a blown-off scout still walking back counts too (RescueStalledScouts bounds the wait).
+		bScoutsMoving |= W.State == EWorkerState::Returning ||
+			(W.State == EWorkerState::BlownOff && W.Pawn.IsValid() && !W.Pawn->IsVanishing());
 	}
-	const bool bRecruitWork = Lines && Lines->IsActive() && Lines->HasWork();
+	// Recruits latch their on/off state at day start, and any still out are always waited for.
+	const bool bRecruitWork = Lines && Lines->HasWork();
 	if (Phase == EDayPhase::Shift)
 	{
 		// Let the player watch the last send-home or fall for its moment before anything changes.
@@ -423,6 +433,36 @@ void ADayDirector::UpdateDayFlow()
 		return;
 	}
 	if (!bRecruitWork && !bScoutsMoving) EndDay();
+}
+
+void ADayDirector::RescueStalledScouts()
+{
+	const double Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+	for (int32 i = 0; i < Roster.Num(); ++i)
+	{
+		FWorker& W = Roster[i];
+		AAntPawn* Ant = W.Pawn.Get();
+		if (W.State != EWorkerState::BlownOff || !Ant || Ant->IsVanishing() || !Ant->GetAntMovement()) continue;
+		const UAntMovementComponent* M = Ant->GetAntMovement();
+		if (M->GetState() == EAntState::Falling)
+		{
+			W.ProgressTime = Now;
+			W.ProgressPos = M->GetSurfacePosition();
+			continue;
+		}
+		if (W.ProgressTime < 0.0 || FVector::DistSquared(M->GetSurfacePosition(), W.ProgressPos) > 40.0 * 40.0)
+		{
+			W.ProgressPos = M->GetSurfacePosition();
+			W.ProgressTime = Now;
+		}
+		else if (Now - W.ProgressTime > 8.0)
+		{
+			UE_LOG(LogLeafline, Log, TEXT("Worker %d stalled on its walk home after a fall (at %s); counted home"), i, *M->GetSurfacePosition().ToCompactString());
+			if (Ant->IsPlayerControlled() && Player.IsValid()) Player->UnPossess();
+			Ant->Destroy();
+			W.State = EWorkerState::Home;
+		}
+	}
 }
 
 void ADayDirector::EnterHarvest()
@@ -550,7 +590,11 @@ void ADayDirector::ForceHarvest()
 			{
 				W.State = EWorkerState::Returning;
 				Ant->StartReturn();
-				if (Lines) Lines->AddLine(Ant, false);
+				if (Lines)
+				{
+					Lines->AddLine(Ant, false);
+					Lines->AddDrivenAnt(Ant);
+				}
 			}
 			else
 			{
@@ -716,6 +760,7 @@ void ADayDirector::Tick(float DeltaTime)
 		APawn* Watched = Player.IsValid() ? Player->GetPawn() : nullptr;
 		if (PendingPossess <= 0.f && Phase == EDayPhase::Shift && (!Watched || Watched == PendingFrom.Get())) PossessNext();
 	}
+	RescueStalledScouts();
 	UpdateDayFlow();
 	UpdateHarvestCamera(DeltaTime);
 	if (Phase == EDayPhase::AllHome)

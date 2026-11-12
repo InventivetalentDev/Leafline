@@ -273,6 +273,9 @@ Console commands pay for themselves, because verification is done by driving Pla
 | `Leaf.Pool <n>` | Force the recruit pool from the next day; -1 returns to the Brood upgrade |
 | `Leaf.Patch [leaf] [size]` | Log the patch around the leaf in reach (or a given leaf): leaves, pieces at that size, richness |
 | `Leaf.Harvest` / `Leaf.SkipHarvest` | End the shifts now and go to the harvest; skip a running harvest |
+| `Leaf.PatchSurvey [samples]` | Patch sizes over random leaves at templates 0.3 / 0.6 / 1.0, and approach failures by reason |
+| `Leaf.StartDay <day> [seed]` | Start that day now (after `Leaf.ResetSave`, for repeatable tests) |
+| `Leaf.Cycle` | The cycle button (Tab): next worker in a shift, next view in the harvest |
 | `Leaf.LineInfo` | Log every line (home, lost, patch left, reserved, recruits on it) and the pool |
 | `Leaf.TestLines <n> [size] [exposed\|sheltered\|any] [seed]` | Scouts lay lines at once to leaves in the lowest leafy band, each with a real walk over the bark from the nest (tests) |
 | `Leaf.AutoPlay <days> [lines] [watch\|skip] [buy] [quit]` | Unattended days with scripted scouts and random lines; logs whether every day ends |

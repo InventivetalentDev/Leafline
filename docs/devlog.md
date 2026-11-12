@@ -70,3 +70,12 @@ Leafline is made by one person directing AI agents. Claude (Anthropic) does plan
 - A yellow engine warning about shadow maps showed on screen in the packaged build whenever the canopy filled the view. It is hidden now.
 - Later that evening: the thin-branch steering wheel (W/S along, A/D round), a first cut sequence (sawing, a tear line, the piece swinging onto the back), wind direction and shelter on the HUD, an options screen, a different tree shape each day with a broken limb as a landmark, a camera that stays out of the trunk, and small touches for the deposit, the next worker and being blown off. Blown-off ants used to fly straight through the trunk; fixed.
 
+
+## 2026-11-12 (Thu night): the line
+
+- New core feature from the owner's brief (`docs/briefs/the-line.md`): when a scout's piece is on its way home, its route becomes a *line*, and recruits from the colony walk it, cut the same size of piece from the leaves around the scout's cut and carry them home while you scout on. Patches run dry, so lines have to keep coming.
+- Recruits are the same ants as the scouts, driven by a new line system on a fixed 1/120 s clock together with the wind's gust clock, so the end-of-day harvest (5×, skippable) runs the same simulation however fast it is shown.
+- Leaves now have a value: pale young leaves high and far out are worth up to three times as much. The patch around the leaf you are looking at is outlined with what it is worth, and trails glow by how much their patch has left.
+- Upgrades have six levels; Brood is now the recruit pool. Saves move to version 2 without losing the old colony, and remember the best day.
+- Work split: the main session wrote the line core; a Claude agent did leaf richness, patch membership and walkable approach routes over the branch graph; Codex did the ladders, save migration and an economy model (end card at about 17 minutes with the line, 18.5 without); a second Claude agent did the "+N" pops, colony counter, line rows and recap. Codex then reviewed the day-end state machine and found seven problems, all fixed.
+- Found on the way: an ant following a route got pinned where the ground meets the trunk, because the point it followed ran ahead and the straight step toward it cut into the wood. The followed point now waits for the ant. This helps returning scouts too.

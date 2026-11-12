@@ -166,7 +166,12 @@ private:
 	{
 		TWeakObjectPtr<AAntPawn> Pawn;
 		EWorkerState State = EWorkerState::Waiting;
+		// Blown off and walking home over the ground: where it last made headway, and when (world seconds).
+		FVector ProgressPos = FVector::ZeroVector;
+		double ProgressTime = -1.0;
 	};
+	/** A blown-off scout that stalls on its walk home (against a root) is counted home, so the day can end. */
+	void RescueStalledScouts();
 
 	AAntPawn* SpawnWorker(int32 Index);
 	/** Control the next waiting worker, or else follow a returning one. */

@@ -10,6 +10,7 @@
 #include "Game/LeaflineGameInstance.h"
 #include "Audio/LeafSound.h"
 #include "EngineUtils.h"
+#include "GameFramework/PlayerController.h"
 
 namespace
 {
@@ -97,6 +98,7 @@ void ALineSystem::StartDay()
 		const ULeaflineGameInstance* GI = Cast<ULeaflineGameInstance>(GetGameInstance());
 		Pool = PoolOverride >= 0 ? PoolOverride : (GI ? GI->GetRecruitPool() : 0);
 	}
+	bOnToday = Director && Director->AreRecruitsOn();
 	Recruits.SetNum(Pool);
 	for (FRecruit& R : Recruits) R.TripsLeft = Tuning.TripsPerRecruit;
 	UE_LOG(LogLeafline, Log, TEXT("Recruits: pool of %d, %d trips each%s"), Pool, Tuning.TripsPerRecruit,
@@ -107,7 +109,7 @@ void ALineSystem::StartDay()
 
 bool ALineSystem::IsActive() const
 {
-	return Director && Director->AreRecruitsOn() && Recruits.Num() > 0;
+	return bOnToday && Recruits.Num() > 0;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -414,7 +416,7 @@ void ALineSystem::ReleaseReservation(FRecruit& R)
 	}
 	L.Reserved = FMath::Max(L.Reserved - 1, 0);
 	R.PatchSlot = INDEX_NONE;
-	RecountLine(L);
+	RecountAll();
 	bGlowDirty = true;
 }
 
@@ -436,7 +438,7 @@ void ALineSystem::AssignIdle()
 		LeafReserved.FindOrAdd(L.Patch[Slot]) += 1;
 		L.Reserved += 1;
 		L.Assigned += 1;
-		RecountLine(L);
+		RecountAll();
 		R.Line = LineIdx;
 		R.PatchSlot = Slot;
 		R.DepartAt = FMath::Max(SimTime, LastDepart + Tuning.DepartSpacing);
@@ -529,7 +531,7 @@ void ALineSystem::ArriveAtLeaf(int32 Index, bool bFallback)
 				Leaf = L.Patch[s];
 				LeafReserved.FindOrAdd(Leaf) += 1;
 				L.Reserved += 1;
-				RecountLine(L);
+				RecountAll();
 				break;
 			}
 		}
@@ -591,13 +593,14 @@ void ALineSystem::FinishTrip(int32 Index, bool bUsedTrip, bool bQuiet)
 	bGlowDirty = true;
 }
 
-void ALineSystem::OnRecruitBlownOff(AAntPawn* Ant)
+void ALineSystem::OnRecruitBlownOff(AAntPawn* Ant, bool bHadPiece)
 {
 	const int32 i = FindRecruit(Ant);
 	if (i == INDEX_NONE) return;
 	FRecruit& R = Recruits[i];
 	const ERecruitState Was = R.State;
-	if (Was == ERecruitState::Laden)
+	// Count the piece from what the ant held, not the state: a cut can finish and blow away in the same step.
+	if (bHadPiece)
 	{
 		++RecruitLosses;
 		if (Lines.IsValidIndex(R.Line)) Lines[R.Line].PiecesLost += 1;
@@ -605,7 +608,7 @@ void ALineSystem::OnRecruitBlownOff(AAntPawn* Ant)
 	ReleaseReservation(R);
 	if (Lines.IsValidIndex(R.Line)) Lines[R.Line].Assigned = FMath::Max(Lines[R.Line].Assigned - 1, 0);
 	UE_LOG(LogLeafline, Log, TEXT("Recruit %d blown off while %s on line %d%s; it walks home and loses this trip"),
-		i, StateName(Was), Lines.IsValidIndex(R.Line) ? Lines[R.Line].Number : 0, Was == ERecruitState::Laden ? TEXT(" (piece lost)") : TEXT(""));
+		i, StateName(Was), Lines.IsValidIndex(R.Line) ? Lines[R.Line].Number : 0, bHadPiece ? TEXT(" (piece lost)") : TEXT(""));
 	R.Line = INDEX_NONE;
 	SetState(R, ERecruitState::Fallen);
 	bGlowDirty = true;
@@ -733,8 +736,19 @@ void ALineSystem::AddDrivenAnt(AAntPawn* Ant)
 
 void ALineSystem::StepAnts(float Dt)
 {
+	for (int32 k = 0; k < Scheduled.Num(); ++k)
+	{
+		if (SimTime + 1e-6 < Scheduled[k].Key) continue;
+		const FString Cmd = Scheduled[k].Value;
+		Scheduled.RemoveAt(k--);
+		UE_LOG(LogLeafline, Log, TEXT("Leaf.AtSim %.3f: %s"), SimTime, *Cmd);
+		if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr) PC->ConsoleCommand(Cmd);
+	}
 	if (Wind) Wind->Advance(Dt);
 	SimTime += Dt;
+	// Counts are refreshed every step (patches can share leaves, and a scout may bite one), never per rendered frame,
+	// so assignments come out the same at any speed.
+	RecountAll();
 	AssignIdle();
 	for (int32 i = 0; i < Recruits.Num(); ++i) UpdateRecruit(i, Dt);
 	for (int32 i = DrivenAnts.Num() - 1; i >= 0; --i)
@@ -788,7 +802,6 @@ void ALineSystem::Tick(float DeltaTime)
 		if (AAntPawn* Ant = A.Get()) Ant->PushVisuals();
 	}
 
-	RecountAll();
 	if (bGlowDirty) UpdateTrailGlow();
 }
 

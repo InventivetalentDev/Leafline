@@ -58,6 +58,7 @@ void AWindSystem::StartDay(int32 InDay, int32 Seed)
 {
 	Day = FMath::Max(1, InDay);
 	Rand.Initialize(Seed * 31 + 7);
+	StreakRand.Initialize(Seed * 17 + 3); // looks only: gust timing must not depend on how many frames drew streaks
 	BaseYaw = Rand.FRandRange(0.f, 360.f);
 	Direction = FRotator(0.f, BaseYaw, 0.f).Vector();
 	Streaks.Reset();
@@ -211,9 +212,9 @@ void AWindSystem::UpdateStreaks(float Dt)
 	while (Streaks.Num() < Wanted)
 	{
 		FStreak S;
-		S.Pos = CamPos + FVector(Rand.FRandRange(-R, R), Rand.FRandRange(-R, R), Rand.FRandRange(-R * 0.5f, R * 0.5f)) - Direction * R * 0.5f;
-		S.Length = Rand.FRandRange(120.f, 420.f);
-		S.MaxLife = Rand.FRandRange(0.5f, 1.3f);
+		S.Pos = CamPos + FVector(StreakRand.FRandRange(-R, R), StreakRand.FRandRange(-R, R), StreakRand.FRandRange(-R * 0.5f, R * 0.5f)) - Direction * R * 0.5f;
+		S.Length = StreakRand.FRandRange(120.f, 420.f);
+		S.MaxLife = StreakRand.FRandRange(0.5f, 1.3f);
 		Streaks.Add(S);
 	}
 

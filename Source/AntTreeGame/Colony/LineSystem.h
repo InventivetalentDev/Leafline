@@ -160,7 +160,7 @@ public:
 	void OnScoutPieceResolved(int32 Worker, bool bHome, float Mass);
 
 	// Recruit callbacks from AAntPawn.
-	void OnRecruitBlownOff(AAntPawn* Ant);
+	void OnRecruitBlownOff(AAntPawn* Ant, bool bHadPiece);
 
 	/** Sim speed: 1 during shifts. The director sets HarvestSpeed or SkipSpeed. */
 	void SetSpeedFactor(float Factor) { SpeedFactor = FMath::Max(Factor, 0.f); }
@@ -196,6 +196,10 @@ public:
 
 	/** Record a delivery (also used by the director for scout deposits): stats, "+N" pop, rising chime. */
 	void RecordDelivery(const FVector& At, float Mass, int32 Line);
+
+	/** Debug: run a console command at the first sim step at or after this sim time (repeatable tests). */
+	void ScheduleAtSim(double Time, const FString& Command) { Scheduled.Add({ Time, Command }); }
+	double GetSimTime() const { return SimTime; }
 
 	/** Debug: force the pool size until the next StartDay with -1 (Leaf.Pool). */
 	void SetPoolOverride(int32 N) { PoolOverride = N; }
@@ -252,6 +256,7 @@ private:
 	TArray<FRecruit> Recruits;
 	TArray<TWeakObjectPtr<AAntPawn>> DrivenAnts;
 	TArray<FDeliveryPop> Deliveries;
+	TArray<TPair<double, FString>> Scheduled;
 	/** Reserved pieces per leaf (recruits on their way). */
 	TMap<int32, int32> LeafReserved;
 	mutable TMap<uint64, FPatchPreview> PreviewCache;
@@ -261,6 +266,8 @@ private:
 	double LastDepart = -1000.0;
 	float SpeedFactor = 1.f;
 	int32 PoolOverride = -1;
+	/** Recruits on for today: latched at StartDay, so the off switch mid-day never strands a recruit outside. */
+	bool bOnToday = false;
 	float UsePerCut = 0.38f;
 	float CutReach = 80.f;
 	mutable double PreviewCacheTime = 0.0;

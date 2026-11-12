@@ -339,6 +339,11 @@ void AAntPawn::FinishCut()
 	float BiteR = 0.f;
 	Tree->GetLeaves().PlanBite(CuttingLeaf, DiameterForSize(CutSize), BiteC, BiteR);
 	const FTreeLeaf LeafBefore = Tree->GetLeaves().Get(CuttingLeaf);
+	// Someone else may have bitten this leaf since the cut began: never take more than it still allows. A recruit
+	// cuts its line's size or nothing.
+	const float CapNow = Tree->LeafSizeCap(CuttingLeaf, Cut.LeafUsePerCut);
+	if (bAutoCut && CapNow < CutSize - 0.001f) CutSize = 0.f;
+	CutSize = FMath::Min(CutSize, CapNow);
 	if (CutSize >= Cut.MinSize && Tree->BiteLeaf(CuttingLeaf, CutSize, DiameterForSize(CutSize), Cut.LeafUsePerCut))
 	{
 		CarriedRichness = FMath::Max(LeafBefore.Richness, 1.f);
@@ -724,7 +729,7 @@ void AAntPawn::BlowOff(float Force, float Hold, float Exposure)
 	Movement->StartFall(Wind ? Wind->GetDirection() : FVector::ForwardVector);
 	if (bRecruit)
 	{
-		if (ALineSystem* Lines = LineOwner.Get()) Lines->OnRecruitBlownOff(this);
+		if (ALineSystem* Lines = LineOwner.Get()) Lines->OnRecruitBlownOff(this, bHadPiece);
 	}
 	else if (ADayDirector* D = GetDirector())
 	{
