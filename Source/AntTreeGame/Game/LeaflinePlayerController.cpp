@@ -43,6 +43,9 @@ void ALeaflinePlayerController::CreateInput()
 	FollowAction = MakeAction(TEXT("IA_Follow"), EInputActionValueType::Boolean);
 	CycleAction = MakeAction(TEXT("IA_Cycle"), EInputActionValueType::Boolean);
 	PauseAction = MakeAction(TEXT("IA_Pause"), EInputActionValueType::Boolean);
+	// Resume and quit must still work while the game is paused.
+	PauseAction->bTriggerWhenPaused = true;
+	SendHomeAction->bTriggerWhenPaused = true;
 
 	MappingContext = NewObject<UInputMappingContext>(this, TEXT("IMC_Leafline"));
 	UInputMappingContext* Ctx = MappingContext;
@@ -83,6 +86,7 @@ void ALeaflinePlayerController::CreateInput()
 	Ctx->MapKey(CycleAction, EKeys::Tab);
 	Ctx->MapKey(CycleAction, EKeys::Gamepad_LeftShoulder);
 	Ctx->MapKey(PauseAction, EKeys::Escape);
+	Ctx->MapKey(PauseAction, EKeys::P);
 	Ctx->MapKey(PauseAction, EKeys::Gamepad_Special_Right);
 }
 
@@ -155,6 +159,17 @@ void ALeaflinePlayerController::PlayerTick(float DeltaTime)
 	ButtonsPressed = Held & ~ButtonsHeld;
 	ButtonsHeld = Held;
 
+	if (!Director.IsValid()) Director = ADayDirector::Get(this);
+	const bool bMenu = (Director.IsValid() && Director->IsMenuPhase()) || IsPaused();
+	if (bMenu)
+	{
+		// Menus: the stick or W/S moves the selection; the ant stands still.
+		const int32 Nav = Move.Y > 0.5 ? -1 : (Move.Y < -0.5 ? 1 : 0);
+		if (Nav != 0 && Nav != SpareInt && Director.IsValid()) Director->MenuNavigate(Nav);
+		SpareInt = Nav;
+		Move = FVector2D::ZeroVector;
+		Held &= ~(LeafButtons::Sprint | LeafButtons::Follow | LeafButtons::Grip);
+	}
 	if (AAntPawn* Ant = GetAnt())
 	{
 		if (UAntMovementComponent* M = Ant->GetAntMovement())
@@ -162,19 +177,30 @@ void ALeaflinePlayerController::PlayerTick(float DeltaTime)
 			M->SetMoveInput(Move, AntCamera->GetViewForward(), AntCamera->GetViewUp());
 			M->SetSprintInput((Held & LeafButtons::Sprint) != 0);
 		}
-		Ant->SetActionInput((Held & LeafButtons::Cut) != 0, (Held & LeafButtons::Follow) != 0, (Held & LeafButtons::Grip) != 0);
+		Ant->SetActionInput(!bMenu && (Held & LeafButtons::Cut) != 0, (Held & LeafButtons::Follow) != 0, (Held & LeafButtons::Grip) != 0);
 	}
 	if (ButtonsPressed) HandleButtons(ButtonsPressed);
 }
 
 void ALeaflinePlayerController::HandleButtons(uint32 Pressed)
 {
+	if (Pressed & LeafButtons::Pause)
+	{
+		SetPause(!IsPaused());
+		return;
+	}
+	if (IsPaused())
+	{
+		if (Pressed & LeafButtons::SendHome) ConsoleCommand(TEXT("quit"));
+		return;
+	}
 	if (!Director.IsValid()) Director = ADayDirector::Get(this);
 	ADayDirector* D = Director.Get();
 	if (!D) return;
-	if (D->GetPhase() == EDayPhase::Recap)
+	if (D->IsMenuPhase())
 	{
-		if (Pressed & (LeafButtons::Cut | LeafButtons::Grip)) D->ConfirmRecap();
+		if (Pressed & (LeafButtons::Cut | LeafButtons::Grip)) D->MenuConfirm();
+		if (Pressed & LeafButtons::SendHome) D->MenuBack();
 		return;
 	}
 	if (Pressed & LeafButtons::SendHome) D->SendHome(GetAnt());

@@ -5,6 +5,7 @@
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
 #include "Engine/Font.h"
+#include "GameFramework/PlayerController.h"
 #include "Game/LeaflineGameInstance.h"
 #include "World/WindSystem.h"
 #include "Colony/TrailNetwork.h"
@@ -19,10 +20,21 @@ void ALeaflineHUD::DrawHUD()
 	const AAntPawn* Ant = Cast<AAntPawn>(GetOwningPawn());
 	const ADayDirector* D = ADayDirector::Get(this);
 
-	if (D && D->GetPhase() == EDayPhase::Recap)
+	if (GetOwningPlayerController() && GetOwningPlayerController()->IsPaused())
 	{
-		DrawRecap(D, Scale);
+		DrawPause(Scale);
 		return;
+	}
+	if (D)
+	{
+		switch (D->GetPhase())
+		{
+		case EDayPhase::Title: DrawTitle(D, Scale); return;
+		case EDayPhase::Recap: DrawRecap(D, Scale); return;
+		case EDayPhase::EndCard: DrawEndCard(D, Scale); return;
+		case EDayPhase::Nest: DrawNest(D, Scale); return;
+		default: break;
+		}
 	}
 	if (D) DrawDayInfo(D, Scale);
 	if (Ant)
@@ -211,13 +223,130 @@ void ALeaflineHUD::DrawRecap(const ADayDirector* D, float Scale)
 		DrawTextCentered(L, CX, Y, TextColor, 1.3f * Scale, Medium);
 		Y += 44.f * Scale;
 	}
-	if (const ULeaflineGameInstance* GI = Cast<ULeaflineGameInstance>(GetGameInstance()))
+	Y += 24.f * Scale;
+	DrawColonyMeter(CX, Y, 520.f * Scale, Scale);
+	Y += 90.f * Scale;
+	DrawTextCentered(TEXT("Press E / Space / A to go into the nest"), CX, Y, AccentColor, 1.2f * Scale, Medium);
+}
+
+void ALeaflineHUD::DrawColonyMeter(float CX, float Y, float W, float Scale)
+{
+	const ULeaflineGameInstance* GI = Cast<ULeaflineGameInstance>(GetGameInstance());
+	if (!GI) return;
+	UFont* Medium = GEngine->GetMediumFont();
+	const float Top = LeaflineUpgrades::GetMilestoneThreshold(LeaflineUpgrades::MilestoneCount - 1);
+	const float H = 12.f * Scale, X = CX - W * 0.5f;
+	DrawTextCentered(FString::Printf(TEXT("Colony: %.1f hauled in all"), GI->GetTotalHauled()), CX, Y, TextColor, 1.1f * Scale, Medium);
+	const float BarY = Y + 34.f * Scale;
+	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.5f), X - 2.f * Scale, BarY - 2.f * Scale, W + 4.f * Scale, H + 4.f * Scale);
+	DrawRect(FLinearColor(0.4f, 0.75f, 0.3f, 0.95f), X, BarY, W * FMath::Clamp(GI->GetTotalHauled() / Top, 0.f, 1.f), H);
+	for (int32 m = 0; m < LeaflineUpgrades::MilestoneCount; ++m)
 	{
-		Y += 16.f * Scale;
-		DrawTextCentered(FString::Printf(TEXT("Colony: %.1f hauled in all, %.1f to spend, milestone %d of %d"),
-			GI->GetTotalHauled(), GI->GetLeafMass(), GI->GetReachedMilestoneCount(), LeaflineUpgrades::MilestoneCount), CX, Y, AccentColor, 1.1f * Scale, Medium);
-		Y += 40.f * Scale;
+		const float T = LeaflineUpgrades::GetMilestoneThreshold(m);
+		const float MX = X + W * T / Top;
+		const bool bReached = GI->HasReachedMilestone(m);
+		DrawRect(bReached ? AccentColor : TextColor, MX - 1.5f * Scale, BarY - 6.f * Scale, 3.f * Scale, H + 12.f * Scale);
+		DrawTextCentered(FString::Printf(TEXT("%.0f"), T), MX, BarY + H + 8.f * Scale, bReached ? AccentColor : TextColor, 0.9f * Scale, Medium);
 	}
+}
+
+void ALeaflineHUD::DrawTitle(const ADayDirector* D, float Scale)
+{
+	DrawRect(FLinearColor(0.02f, 0.03f, 0.02f, 0.55f), 0.f, 0.f, Canvas->ClipX, Canvas->ClipY);
+	UFont* Large = GEngine->GetLargeFont();
+	UFont* Medium = GEngine->GetMediumFont();
+	const float CX = Canvas->ClipX * 0.5f;
+	float Y = Canvas->ClipY * 0.22f;
+	DrawTextCentered(TEXT("Leafline"), CX, Y, AccentColor, 3.6f * Scale, Large);
+	Y += 120.f * Scale;
+	DrawTextCentered(TEXT("You are a leafcutter ant on an enormous tree."), CX, Y, TextColor, 1.3f * Scale, Medium);
 	Y += 40.f * Scale;
-	DrawTextCentered(FString::Printf(TEXT("Press E / Space / X for day %d: a new tree"), S.Day + 1), CX, Y, AccentColor, 1.2f * Scale, Medium);
+	DrawTextCentered(TEXT("Cut a piece of leaf, send the worker home along your scent trail, and take over the next one."), CX, Y, TextColor, 1.1f * Scale, Medium);
+	Y += 70.f * Scale;
+	const TArray<FString> Controls = {
+		TEXT("Move: WASD / left stick      Look: mouse / right stick      Sprint: Shift / LT"),
+		TEXT("Cut (hold): E or left mouse / X      Send home: Q / Y      Follow a trail (hold): F / RB"),
+		TEXT("Grip in a gust (hold): Space / A      Switch ant: Tab / LB      Pause: Esc or P / Start"),
+	};
+	for (const FString& C : Controls)
+	{
+		DrawTextCentered(C, CX, Y, FLinearColor(0.85f, 0.85f, 0.8f, 1.f), 1.0f * Scale, Medium);
+		Y += 34.f * Scale;
+	}
+	Y += 50.f * Scale;
+	DrawTextCentered(D->GetDay() > 1 ? FString::Printf(TEXT("Press E / Space / A to continue: day %d"), D->GetDay()) : FString(TEXT("Press E / Space / A to begin")),
+		CX, Y, AccentColor, 1.4f * Scale, Medium);
+}
+
+void ALeaflineHUD::DrawNest(const ADayDirector* D, float Scale)
+{
+	DrawRect(FLinearColor(0.03f, 0.025f, 0.015f, 0.78f), 0.f, 0.f, Canvas->ClipX, Canvas->ClipY);
+	const ULeaflineGameInstance* GI = Cast<ULeaflineGameInstance>(GetGameInstance());
+	UFont* Large = GEngine->GetLargeFont();
+	UFont* Medium = GEngine->GetMediumFont();
+	const float CX = Canvas->ClipX * 0.5f;
+	float Y = Canvas->ClipY * 0.12f;
+	DrawTextCentered(TEXT("The nest"), CX, Y, AccentColor, 2.2f * Scale, Large);
+	Y += 80.f * Scale;
+	if (GI)
+	{
+		DrawTextCentered(FString::Printf(TEXT("Leaf to spend: %.1f"), GI->GetLeafMass()), CX, Y, TextColor, 1.3f * Scale, Medium);
+		Y += 50.f * Scale;
+	}
+	const float RowW = 760.f * Scale, RowH = 56.f * Scale, X = CX - RowW * 0.5f;
+	for (int32 i = 0; i <= LeaflineUpgrades::Count; ++i)
+	{
+		const bool bSel = D->GetNestSelection() == i;
+		DrawRect(bSel ? FLinearColor(0.3f, 0.55f, 0.6f, 0.45f) : FLinearColor(0.f, 0.f, 0.f, 0.35f), X, Y, RowW, RowH - 6.f * Scale);
+		if (i < LeaflineUpgrades::Count)
+		{
+			const FLeaflineUpgradeInfo* Info = LeaflineUpgrades::Get(i);
+			const int32 Level = GI ? GI->GetUpgradeLevel(i) : 0;
+			const int32 Cost = GI ? GI->GetUpgradeCost(i) : 0;
+			const bool bAfford = GI && GI->CanAfford(i);
+			DrawText(Info->Name, TextColor, X + 18.f * Scale, Y + 6.f * Scale, Medium, 1.25f * Scale);
+			DrawText(Info->Description, FLinearColor(0.8f, 0.8f, 0.75f, 1.f), X + 18.f * Scale, Y + 30.f * Scale, Medium, 0.9f * Scale);
+			for (int32 l = 0; l < LeaflineUpgrades::MaxLevel; ++l)
+			{
+				DrawRect(l < Level ? AccentColor : FLinearColor(0.25f, 0.25f, 0.22f, 1.f), X + RowW * 0.55f + l * 26.f * Scale, Y + 18.f * Scale, 18.f * Scale, 14.f * Scale);
+			}
+			const FString CostText = Cost > 0 ? FString::Printf(TEXT("%d"), Cost) : FString(TEXT("max"));
+			DrawText(CostText, Cost > 0 ? (bAfford ? FLinearColor(0.6f, 0.95f, 0.5f, 1.f) : StaminaLockedColor) : TextColor, X + RowW - 90.f * Scale, Y + 12.f * Scale, Medium, 1.2f * Scale);
+		}
+		else
+		{
+			DrawText(FString::Printf(TEXT("Start day %d: a new tree"), D->GetDay() + 1), AccentColor, X + 18.f * Scale, Y + 14.f * Scale, Medium, 1.25f * Scale);
+		}
+		Y += RowH;
+	}
+	Y += 30.f * Scale;
+	DrawColonyMeter(CX, Y, 520.f * Scale, Scale);
+	Y += 100.f * Scale;
+	DrawTextCentered(TEXT("W / S or stick: choose      E / Space / A: buy or start      Q / Y: start the next day"), CX, Y, FLinearColor(0.8f, 0.8f, 0.75f, 1.f), 1.0f * Scale, Medium);
+}
+
+void ALeaflineHUD::DrawEndCard(const ADayDirector* D, float Scale)
+{
+	DrawRect(FLinearColor(0.02f, 0.04f, 0.03f, 0.82f), 0.f, 0.f, Canvas->ClipX, Canvas->ClipY);
+	UFont* Large = GEngine->GetLargeFont();
+	UFont* Medium = GEngine->GetMediumFont();
+	const float CX = Canvas->ClipX * 0.5f;
+	float Y = Canvas->ClipY * 0.3f;
+	DrawTextCentered(TEXT("The colony thrives"), CX, Y, AccentColor, 2.4f * Scale, Large);
+	Y += 100.f * Scale;
+	DrawTextCentered(TEXT("Enough leaf has come home to feed the fungus garden for a season."), CX, Y, TextColor, 1.25f * Scale, Medium);
+	Y += 42.f * Scale;
+	DrawTextCentered(TEXT("Thank you for playing Leafline. The trees keep growing, and so can the colony."), CX, Y, TextColor, 1.25f * Scale, Medium);
+	Y += 90.f * Scale;
+	DrawTextCentered(TEXT("Press E / Space / A to keep playing"), CX, Y, AccentColor, 1.3f * Scale, Medium);
+}
+
+void ALeaflineHUD::DrawPause(float Scale)
+{
+	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.6f), 0.f, 0.f, Canvas->ClipX, Canvas->ClipY);
+	UFont* Large = GEngine->GetLargeFont();
+	UFont* Medium = GEngine->GetMediumFont();
+	const float CX = Canvas->ClipX * 0.5f;
+	DrawTextCentered(TEXT("Paused"), CX, Canvas->ClipY * 0.38f, AccentColor, 2.4f * Scale, Large);
+	DrawTextCentered(TEXT("Esc, P or Start: resume      Q / Y: quit"), CX, Canvas->ClipY * 0.38f + 100.f * Scale, TextColor, 1.2f * Scale, Medium);
 }

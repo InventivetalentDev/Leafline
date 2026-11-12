@@ -35,6 +35,11 @@ private:
 	void DrawCutArc(const AAntPawn* Ant, float Scale);
 	void DrawPrompt(const AAntPawn* Ant, const ADayDirector* D, float Scale);
 	void DrawRecap(const ADayDirector* D, float Scale);
+	void DrawTitle(const ADayDirector* D, float Scale);
+	void DrawNest(const ADayDirector* D, float Scale);
+	void DrawEndCard(const ADayDirector* D, float Scale);
+	void DrawPause(float Scale);
+	void DrawColonyMeter(float CenterX, float Y, float Width, float Scale);
 	void DrawTextCentered(const FString& Text, float CenterX, float Y, const FLinearColor& Color, float TextScale, UFont* Font);
 	void DrawArc(float CX, float CY, float Radius, float From01, float To01, const FLinearColor& Color, float Thickness);
 

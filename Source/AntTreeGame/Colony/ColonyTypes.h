@@ -17,9 +17,12 @@ UENUM(BlueprintType)
 enum class EDayPhase : uint8
 {
 	Starting,
+	Title,   // title screen over the first worker at the nest
 	Shift,
 	AllHome,
-	Recap
+	Recap,
+	EndCard, // shown once, after the day the colony reaches its third milestone
+	Nest     // upgrade screen between days
 };
 
 /** One recorded point of a worker's path. */

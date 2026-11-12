@@ -48,7 +48,17 @@ public:
 	/** Switch the camera between ants that are out or returning. */
 	void CycleWorker();
 	/** Leave the recap screen for the next day. */
-	void ConfirmRecap();
+	void ConfirmRecap() { MenuConfirm(); }
+
+	/** Show the title over the first worker; play starts on confirm. */
+	void ShowTitle();
+	/** Menu input for the title, recap, end card and nest screens. */
+	void MenuConfirm();
+	void MenuNavigate(int32 Direction);
+	void MenuBack();
+	bool IsMenuPhase() const { return Phase == EDayPhase::Title || Phase == EDayPhase::Recap || Phase == EDayPhase::EndCard || Phase == EDayPhase::Nest; }
+	/** Selected row on the nest screen: 0..4 upgrades, 5 = start the next day. */
+	int32 GetNestSelection() const { return NestSelection; }
 
 	bool IsNearNest(const FVector& P) const;
 
@@ -101,4 +111,6 @@ private:
 	float SpareFloat = 0.f;
 	int32 SpareInt = 0;
 	float PendingPossess = 0.f;
+	int32 NestSelection = 0;
+	bool bEndCardPending = false;
 };

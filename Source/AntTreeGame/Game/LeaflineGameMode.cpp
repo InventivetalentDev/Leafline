@@ -51,6 +51,7 @@ void ALeaflineGameMode::RestartPlayer(AController* NewPlayer)
 		bDayStarted = true;
 		const ULeaflineGameInstance* GI = Cast<ULeaflineGameInstance>(GetGameInstance());
 		Director->StartDay(GI ? GI->GetDay() : 1);
+		Director->ShowTitle();
 	}
 }
 

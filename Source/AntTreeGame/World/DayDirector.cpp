@@ -207,6 +207,7 @@ void ADayDirector::OnAntReachedNest(AAntPawn* Ant)
 			GI->AddHaul(Mass);
 			if (GI->GetReachedMilestoneCount() > Before)
 			{
+				if (GI->GetReachedMilestoneCount() >= LeaflineUpgrades::MilestoneCount) bEndCardPending = true;
 				LeafSound::Play(this, TEXT("milestone"), 0.8f);
 				UE_LOG(LogLeafline, Log, TEXT("Colony milestone %d reached (%.1f hauled in all)"), GI->GetReachedMilestoneCount(), GI->GetTotalHauled());
 			}
@@ -265,11 +266,68 @@ void ADayDirector::CycleWorker()
 	}
 }
 
-void ADayDirector::ConfirmRecap()
+void ADayDirector::ShowTitle()
 {
-	if (Phase != EDayPhase::Recap) return;
-	LeafSound::Play(this, TEXT("ui_confirm"), 0.6f);
-	StartDay(Day + 1);
+	Phase = EDayPhase::Title;
+}
+
+void ADayDirector::MenuConfirm()
+{
+	switch (Phase)
+	{
+	case EDayPhase::Title:
+		Phase = EDayPhase::Shift;
+		LeafSound::Play(this, TEXT("ui_confirm"), 0.6f);
+		UE_LOG(LogLeafline, Log, TEXT("Title: play starts on day %d"), Day);
+		break;
+	case EDayPhase::Recap:
+		Phase = bEndCardPending ? EDayPhase::EndCard : EDayPhase::Nest;
+		bEndCardPending = false;
+		NestSelection = LeaflineUpgrades::Count; // start on "next day", so a quick double press never spends
+		LeafSound::Play(this, TEXT("ui_confirm"), 0.6f);
+		break;
+	case EDayPhase::EndCard:
+		Phase = EDayPhase::Nest;
+		LeafSound::Play(this, TEXT("ui_confirm"), 0.6f);
+		break;
+	case EDayPhase::Nest:
+		if (NestSelection >= LeaflineUpgrades::Count)
+		{
+			LeafSound::Play(this, TEXT("ui_confirm"), 0.6f);
+			StartDay(Day + 1);
+		}
+		else if (ULeaflineGameInstance* GI = Colony(this))
+		{
+			if (GI->Buy(NestSelection))
+			{
+				LeafSound::Play(this, TEXT("upgrade"), 0.75f);
+				UE_LOG(LogLeafline, Log, TEXT("Nest: bought %s level %d"), LeaflineUpgrades::Get(NestSelection)->Name, GI->GetUpgradeLevel(NestSelection));
+			}
+			else
+			{
+				LeafSound::Play(this, TEXT("ui_deny"), 0.6f);
+			}
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+void ADayDirector::MenuNavigate(int32 Direction)
+{
+	if (Phase != EDayPhase::Nest || Direction == 0) return;
+	NestSelection = FMath::Clamp(NestSelection + (Direction > 0 ? 1 : -1), 0, LeaflineUpgrades::Count);
+	LeafSound::Play(this, TEXT("ui_move"), 0.5f);
+}
+
+void ADayDirector::MenuBack()
+{
+	if (Phase == EDayPhase::Nest)
+	{
+		LeafSound::Play(this, TEXT("ui_confirm"), 0.6f);
+		StartDay(Day + 1);
+	}
 }
 
 bool ADayDirector::IsNearNest(const FVector& P) const

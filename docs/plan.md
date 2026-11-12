@@ -89,10 +89,10 @@ Rules for parallel work:
 ## M4: Progression
 
 - [x] `LeaflineGameInstance`, `LeaflineSaveGame`, the five upgrades and their effects. (Good Codex branch task once the interfaces in M2 exist.)
-- [ ] Nest upgrade screen between days.
-- [ ] Colony meter, three milestones, end card, continue.
-- [ ] Day scaling: leafy height, gust strength and frequency.
-- [ ] Title and pause screens.
+- [x] Nest upgrade screen between days.
+- [x] Colony meter, three milestones, end card, continue.
+- [x] Day scaling: leafy height, gust strength and frequency.
+- [x] Title and pause screens.
 - [ ] Codex code review of M1–M4; fix what it finds.
 
 **Done when:** a fresh save can be played to the end card in about 15 minutes, and quitting and relaunching keeps the colony.
