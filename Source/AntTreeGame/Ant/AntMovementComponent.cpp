@@ -246,7 +246,12 @@ void UAntMovementComponent::TickWalking(float Dt)
 		FVector Wish = State == EAntState::WalkingHome ? HomeWish(N) : ComputeWish(N);
 		if (ThinBlend > 0.f && bWantsMove && State == EAntState::Walking)
 		{
-			const FVector A = ProjectOnPlane(Axis, N).GetSafeNormal();
+			// At a branch tip the axis turns into the surface normal; fade the push there so the ant comes to rest at
+			// the tip instead of overshooting the apex back and forth.
+			const FVector AP = ProjectOnPlane(Axis, N);
+			const double APLen = AP.Size();
+			const FVector A = APLen > 1e-3 ? AP / APLen : FVector::ZeroVector;
+			const double TipFade = FMath::Clamp(APLen / 0.6, 0.0, 1.0);
 			if (!A.IsNearlyZero())
 			{
 				const double InputMag = FMath::Min(MoveInput.Size(), 1.0);
@@ -259,7 +264,7 @@ void UAntMovementComponent::TickWalking(float Dt)
 				{
 					SpareInt = FVector::DotProduct(Forward, A) >= 0.0 ? 1 : -1;
 				}
-				Wish = FMath::Lerp(Wish, A * (SpareInt * InputMag), (double)ThinBlend);
+				Wish = FMath::Lerp(Wish, A * (SpareInt * InputMag * TipFade), (double)ThinBlend);
 			}
 		}
 
