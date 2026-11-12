@@ -13,4 +13,8 @@ namespace LeafDebug
 	extern bool bAutoWander;
 	/** Draw normals and log projection error. */
 	extern bool bDebugField;
+	/** Seconds left for buttons held by Leaf.Hold (cut, grip, follow). */
+	extern float HoldCut;
+	extern float HoldGrip;
+	extern float HoldFollow;
 }

@@ -171,7 +171,8 @@ void ADayDirector::SendHome(AAntPawn* Ant)
 	if (Ant->Cut.bSendHomeNeedsFragment && !Ant->IsCarrying())
 	{
 		// An empty worker can always end its trip at the nest, so a day without cuts can still finish.
-		if (Ant->GetAntMovement() && IsNearNest(Ant->GetAntMovement()->GetSurfacePosition()))
+		const bool bRealTrip = Trails && Ant->GetPathIndex() != INDEX_NONE && Trails->GetPoints(Ant->GetPathIndex()).Num() > 30;
+		if (bRealTrip && Ant->GetAntMovement() && IsNearNest(Ant->GetAntMovement()->GetSurfacePosition()))
 		{
 			UE_LOG(LogLeafline, Log, TEXT("Worker %d ends its trip at the nest empty-handed"), i);
 			OnAntReachedNest(Ant);

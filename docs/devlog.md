@@ -11,7 +11,7 @@ Leafline is made by one person directing AI agents. Claude (Anthropic) does plan
 
 **Earlier prototype.** On 1–2 November I made a quick prototype of a tree-climbing ant game in a separate project (`TreeAntGame`). No files from it are used here: no code, assets, materials or models. This project was created on 12 November and all game content in it was made from that day on. What did carry over is knowledge: my idea notes (`concept-main.md`), and workflow and engine lessons from that prototype's notes, which the planning agent read (its `CLAUDE.md` and to-do list, not its source code) and used when writing the plan.
 
-**Pre-jam tooling.** Two helper scripts come from another of my projects and predate the jam, as the rules allow for tooling: `Scripts/unreal-lock.sh` (keeps one Unreal process running on the machine at a time) and `Scripts/RunGame.bat` (starts the game standalone). They were adapted to this project; they contain no game content.
+**Pre-jam tooling.** Two helper scripts come from another of my projects and predate the jam, as the rules allow for tooling: `Scripts/unreal-lock.sh` (keeps one Unreal process running on the machine at a time) and `Scripts/RunGame.bat` (starts the game standalone). They were adapted to this project; they contain no game content. The level `L_Main` started as a copy of the engine's own default template map (sky, sun, sky light, fog, clouds); its floor and props were removed.
 
 ## 2026-11-12 (Thu): planning
 

@@ -16,6 +16,8 @@ ALeaflinePlayerController::ALeaflinePlayerController()
 {
 	bAutoManageActiveCameraTarget = false;
 	bShowMouseCursor = false;
+	// While paused the engine only calls Tick, not PlayerTick, unless this is set; pause and resume live in PlayerTick.
+	bShouldPerformFullTickWhenPaused = true;
 }
 
 AAntPawn* ALeaflinePlayerController::GetAnt() const
@@ -156,6 +158,10 @@ void ALeaflinePlayerController::PlayerTick(float DeltaTime)
 	if (Input->GetActionValue(FollowAction).Get<bool>()) Held |= LeafButtons::Follow;
 	if (Input->GetActionValue(CycleAction).Get<bool>()) Held |= LeafButtons::Cycle;
 	if (Input->GetActionValue(PauseAction).Get<bool>()) Held |= LeafButtons::Pause;
+	// Debug: buttons held by Leaf.Hold.
+	if (LeafDebug::HoldCut > 0.f) { Held |= LeafButtons::Cut; LeafDebug::HoldCut -= DeltaTime; }
+	if (LeafDebug::HoldGrip > 0.f) { Held |= LeafButtons::Grip; LeafDebug::HoldGrip -= DeltaTime; }
+	if (LeafDebug::HoldFollow > 0.f) { Held |= LeafButtons::Follow; LeafDebug::HoldFollow -= DeltaTime; }
 	ButtonsPressed = Held & ~ButtonsHeld;
 	ButtonsHeld = Held;
 

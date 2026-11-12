@@ -21,6 +21,9 @@ namespace LeafDebug
 	float AutoTurn = 0.f;
 	bool bAutoWander = false;
 	bool bDebugField = false;
+	float HoldCut = 0.f;
+	float HoldGrip = 0.f;
+	float HoldFollow = 0.f;
 }
 
 namespace
@@ -173,6 +176,19 @@ namespace
 		{
 			ADayDirector* D = ADayDirector::Get(World);
 			if (D) D->SendHome(PlayerAnt(World));
+		}));
+
+	FAutoConsoleCommandWithWorldAndArgs CmdHold(
+		TEXT("Leaf.Hold"),
+		TEXT("Leaf.Hold <cut|grip|follow> <seconds>: hold that button for a while, as if pressed (tests hold-to-cut, grip and riding)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld*)
+		{
+			if (Args.Num() < 1) return;
+			const float Seconds = Args.Num() > 1 ? FCString::Atof(*Args[1]) : 2.f;
+			if (Args[0].Equals(TEXT("cut"), ESearchCase::IgnoreCase)) LeafDebug::HoldCut = Seconds;
+			else if (Args[0].Equals(TEXT("grip"), ESearchCase::IgnoreCase)) LeafDebug::HoldGrip = Seconds;
+			else if (Args[0].Equals(TEXT("follow"), ESearchCase::IgnoreCase)) LeafDebug::HoldFollow = Seconds;
+			UE_LOG(LogLeafline, Log, TEXT("Leaf.Hold %s %.1f s"), *Args[0], Seconds);
 		}));
 
 	FAutoConsoleCommandWithWorldAndArgs CmdQuitAfter(
