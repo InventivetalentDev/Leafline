@@ -38,6 +38,12 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UMaterialInterface> BasicMaterial;
 
+	UPROPERTY()
+	TObjectPtr<UMaterialInterface> SoilMaterial;
+
+	UPROPERTY()
+	TObjectPtr<UMaterialInterface> DarkMaterial;
+
 	float Pulse = 0.f;
 	FVector MoundScale = FVector(2.4f, 2.4f, 0.14f);
 };

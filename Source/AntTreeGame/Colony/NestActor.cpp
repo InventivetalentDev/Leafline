@@ -14,6 +14,10 @@ ANestActor::ANestActor()
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> CylinderMesh(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> BasicMat(TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
 	if (BasicMat.Succeeded()) BasicMaterial = BasicMat.Object;
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> SoilMat(TEXT("/Game/Leafline/Materials/M_Ground.M_Ground"));
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> DarkMat(TEXT("/Game/Leafline/Materials/M_Dark.M_Dark"));
+	if (SoilMat.Succeeded()) SoilMaterial = SoilMat.Object;
+	if (DarkMat.Succeeded()) DarkMaterial = DarkMat.Object;
 
 	// Placeholder: a low soil mound (a flattened sphere) around a dark entrance.
 	Mound = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mound"));
@@ -33,7 +37,12 @@ ANestActor::ANestActor()
 void ANestActor::BeginPlay()
 {
 	Super::BeginPlay();
-	if (BasicMaterial)
+	if (SoilMaterial && DarkMaterial)
+	{
+		Mound->SetMaterial(0, SoilMaterial);
+		Hole->SetMaterial(0, DarkMaterial);
+	}
+	else if (BasicMaterial)
 	{
 		UMaterialInstanceDynamic* MoundMID = UMaterialInstanceDynamic::Create(BasicMaterial, this);
 		MoundMID->SetVectorParameterValue(TEXT("Color"), MoundColor);

@@ -213,7 +213,7 @@ void AWindSystem::UpdateStreaks(float Dt)
 		const float Fade = FMath::Sin(PI * FMath::Clamp(S.Life / S.MaxLife, 0.f, 1.f));
 		const FVector A = S.Pos, B = S.Pos + Direction * S.Length * Fade;
 		const FVector ToCam = (CamPos - A).GetSafeNormal();
-		const FVector Side = FVector::CrossProduct(Direction, ToCam).GetSafeNormal() * (2.2f + 1.8f * Fade);
+		const FVector Side = FVector::CrossProduct(Direction, ToCam).GetSafeNormal() * (1.0f + 0.9f * Fade);
 		const int32 Base = V.Num();
 		V.Append({ A - Side, A + Side, B - Side, B + Side });
 		N.Append({ ToCam, ToCam, ToCam, ToCam });

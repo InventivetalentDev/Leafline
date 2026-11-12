@@ -86,6 +86,8 @@ Things that are known to bite:
 - Expect toolsets for materials, actors, scene, assets, Blueprints, static meshes, object properties, logs, starting and stopping Play In Editor, viewport capture, and driving the editor UI.
 - A scripting tool can batch several tool calls in one request. Use it for material graphs: build the whole graph in one script, and rebuild it from scratch rather than patching nodes.
 - Ask a node for its input pin names instead of guessing them.
+- Never delete and recreate an asset under the same name in one editor session: the asset registry then reports it missing (`save_assets`, `exists`) although the file is on disk. Change nodes in place, or rebuild under a new name. `save_assets` with an empty list saves all dirty assets and sidesteps the lookup.
+- `StaticMeshTools.import_file` imports FBX meshes. There is no audio import tool; sounds play at runtime from `Content/Leafline/AudioRaw/*.wavraw` (see `docs/tech.md`).
 - Viewport captures come back as large base64 images; read them from the saved tool-result file.
 - For in-game screenshots, run `HighResShot 1` in the console during play; files land in `Saved/Screenshots/WindowsEditor/`.
 - Do not start or stop Play In Editor while the owner says they are playing.
