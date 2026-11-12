@@ -7,6 +7,7 @@
 #include "World/WindSystem.h"
 #include "Colony/NestActor.h"
 #include "Game/LeaflineGameInstance.h"
+#include "Audio/LeafSound.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -143,6 +144,7 @@ void AAntPawn::UnPossessed()
 	bCutHeld = false;
 	bFollowHeld = false;
 	bGripHeld = false;
+	LeafSound::Stop(GripLoop);
 	if (Movement)
 	{
 		Movement->SetMoveInput(FVector2D::ZeroVector, FVector::ForwardVector, FVector::UpVector);
@@ -173,6 +175,7 @@ void AAntPawn::Tick(float DeltaSeconds)
 	UpdateGrip();
 	UpdateRecording();
 	UpdateWind(DeltaSeconds);
+	UpdateSounds();
 
 	ADayDirector* Director = GetDirector();
 	if (!Director) return;
@@ -219,6 +222,7 @@ void AAntPawn::UpdateCutting(float Dt)
 			CutSize = 0.f;
 			CutCap = Tree->LeafSizeCap(CuttingLeaf, Cut.LeafUsePerCut);
 			Movement->SetState(EAntState::Cutting);
+			CutLoop = LeafSound::Loop(this, TEXT("cut_loop"), 0.5f);
 			UE_LOG(LogLeafline, Log, TEXT("%s: cutting leaf %d (size cap %.2f)"), *GetName(), CuttingLeaf, CutCap);
 		}
 	}
@@ -231,6 +235,8 @@ void AAntPawn::UpdateCutting(float Dt)
 		if (CutSize >= Cut.MinSize && Tree->BiteLeaf(CuttingLeaf, CutSize, DiameterForSize(CutSize), Cut.LeafUsePerCut))
 		{
 			SetFragment(CutSize);
+			LeafSound::Play(this, TEXT("cut_done"), 0.7f);
+			LeafSound::Play(this, TEXT("pickup"), 0.45f, 1.1f - 0.2f * CutSize);
 			UE_LOG(LogLeafline, Log, TEXT("%s: cut a fragment of size %.2f (mass %.1f, %.0f cm) from leaf %d"),
 				*GetName(), CutSize, CarriedMass, DiameterForSize(CutSize), CuttingLeaf);
 		}
@@ -240,6 +246,7 @@ void AAntPawn::UpdateCutting(float Dt)
 		}
 		CuttingLeaf = INDEX_NONE;
 		CutSize = 0.f;
+		LeafSound::Stop(CutLoop);
 		if (Movement->GetState() == EAntState::Cutting) Movement->SetState(EAntState::Walking);
 	}
 	bPrevCutHeld = bCutHeld;
@@ -357,6 +364,8 @@ void AAntPawn::UpdateWind(float Dt)
 
 void AAntPawn::BlowOff(float Force, float Hold, float Exposure)
 {
+	LeafSound::Play(this, TEXT("blown_off"), 0.8f);
+	LeafSound::Stop(CutLoop);
 	UE_LOG(LogLeafline, Log, TEXT("%s: blown off (force %.2f > hold %.2f, exposure %.2f, fragment %.1f, state %s)"),
 		*GetName(), Force, Hold, Exposure, CarriedMass, *UEnum::GetValueAsString(Movement->GetState()));
 	if (IsCutting())
@@ -377,6 +386,38 @@ void AAntPawn::BlowOff(float Force, float Hold, float Exposure)
 	}
 	Movement->StartFall(Wind ? Wind->GetDirection() : FVector::ForwardVector);
 	if (ADayDirector* D = GetDirector()) D->OnBlownOff(this);
+}
+
+void AAntPawn::UpdateSounds()
+{
+	const bool bControlled = IsPlayerControlled();
+	const EAntState State = Movement->GetState();
+	// Grip creak while holding on.
+	if (bControlled && State == EAntState::Gripping)
+	{
+		if (!GripLoop) GripLoop = LeafSound::Loop(this, TEXT("grip"), 0.35f);
+	}
+	else if (GripLoop)
+	{
+		LeafSound::Stop(GripLoop);
+	}
+	if (!bControlled) return;
+	// Tiny footsteps from distance walked.
+	const FVector P = Movement->GetSurfacePosition();
+	if (State == EAntState::Walking || State == EAntState::Riding || State == EAntState::WalkingHome)
+	{
+		StepDistance += (float)FVector::Dist(P, LastStepPos);
+		if (StepDistance > 18.f)
+		{
+			StepDistance = 0.f;
+			static const TCHAR* Steps[] = { TEXT("step_01"), TEXT("step_02"), TEXT("step_03"), TEXT("step_04"), TEXT("step_05"), TEXT("step_06") };
+			LeafSound::Play(this, Steps[FMath::RandRange(0, 5)], 0.18f, FMath::FRandRange(0.9f, 1.1f));
+		}
+	}
+	LastStepPos = P;
+	const bool bLocked = Movement->IsSprintLocked();
+	if (bLocked && !bWasSprintLocked) LeafSound::Play(this, TEXT("stamina_low"), 0.45f);
+	bWasSprintLocked = bLocked;
 }
 
 void AAntPawn::UpdateRecording()

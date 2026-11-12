@@ -14,6 +14,7 @@ class UProceduralMeshComponent;
 class ATreeActor;
 class ATrailNetwork;
 class ADayDirector;
+class ULeaflineAudioLoop;
 
 /** A worker ant. The same class is used for the controlled ant and unattended ones. */
 UCLASS()
@@ -121,6 +122,9 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UMaterialInterface> BasicMaterial;
 
+	UPROPERTY(Transient) TObjectPtr<ULeaflineAudioLoop> CutLoop;
+	UPROPERTY(Transient) TObjectPtr<ULeaflineAudioLoop> GripLoop;
+
 private:
 	void UpdateCutting(float Dt);
 	void UpdateRiding(float Dt);
@@ -149,6 +153,10 @@ private:
 	float GustMaxExposure = 0.f;
 	bool bGustSeen = false;
 	bool bGustGripped = false;
+	float StepDistance = 0.f;
+	FVector LastStepPos = FVector::ZeroVector;
+	bool bWasSprintLocked = false;
+	void UpdateSounds();
 	int32 CuttingLeaf = INDEX_NONE;
 	float CutSize = 0.f;
 	float CutCap = 0.f;

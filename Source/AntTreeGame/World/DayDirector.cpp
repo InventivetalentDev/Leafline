@@ -6,6 +6,7 @@
 #include "Colony/TrailNetwork.h"
 #include "Colony/NestActor.h"
 #include "World/WindSystem.h"
+#include "Audio/LeafSound.h"
 #include "Engine/DirectionalLight.h"
 #include "Components/LightComponent.h"
 #include "GameFramework/PlayerController.h"
@@ -132,6 +133,7 @@ void ADayDirector::PossessNext()
 		Roster[i].State = EWorkerState::Out;
 		Current = i;
 		++ShiftsStarted;
+		if (ShiftsStarted > 1) LeafSound::Play(this, TEXT("shift_whoosh"), 0.5f);
 		if (PC) PC->Possess(Ant);
 		UE_LOG(LogLeafline, Log, TEXT("Shift %d of %d: worker %d leaves the nest"), ShiftsStarted, Roster.Num(), i);
 		return;
@@ -168,6 +170,7 @@ void ADayDirector::SendHome(AAntPawn* Ant)
 	}
 	Roster[i].State = EWorkerState::Returning;
 	Ant->StartReturn();
+	LeafSound::Play(this, TEXT("send_home"), 0.6f);
 	UE_LOG(LogLeafline, Log, TEXT("Worker %d sent home carrying %.1f"), i, Ant->GetCarriedMass());
 	PossessNext();
 }
@@ -197,7 +200,17 @@ void ADayDirector::OnAntReachedNest(AAntPawn* Ant)
 		Stats.Fragments += 1;
 		Stats.LargestFragment = FMath::Max(Stats.LargestFragment, Mass);
 		if (Nest) Nest->PlayDeposit(Mass);
-		if (ULeaflineGameInstance* GI = Colony(this)) GI->AddHaul(Mass);
+		LeafSound::Play(this, TEXT("deposit"), 0.7f, FMath::Clamp(1.15f - 0.06f * Mass, 0.8f, 1.2f));
+		if (ULeaflineGameInstance* GI = Colony(this))
+		{
+			const int32 Before = GI->GetReachedMilestoneCount();
+			GI->AddHaul(Mass);
+			if (GI->GetReachedMilestoneCount() > Before)
+			{
+				LeafSound::Play(this, TEXT("milestone"), 0.8f);
+				UE_LOG(LogLeafline, Log, TEXT("Colony milestone %d reached (%.1f hauled in all)"), GI->GetReachedMilestoneCount(), GI->GetTotalHauled());
+			}
+		}
 		UE_LOG(LogLeafline, Log, TEXT("Worker %d home with %.1f (today %.1f from %d fragments)"), i, Mass, Stats.MassHauled, Stats.Fragments);
 		Ant->ClearFragment();
 	}
@@ -255,6 +268,7 @@ void ADayDirector::CycleWorker()
 void ADayDirector::ConfirmRecap()
 {
 	if (Phase != EDayPhase::Recap) return;
+	LeafSound::Play(this, TEXT("ui_confirm"), 0.6f);
 	StartDay(Day + 1);
 }
 
@@ -279,6 +293,7 @@ void ADayDirector::Tick(float DeltaTime)
 		if (PhaseTimer <= 0.f)
 		{
 			Phase = EDayPhase::Recap;
+			LeafSound::Play(this, TEXT("day_end"), 0.7f);
 			UE_LOG(LogLeafline, Log, TEXT("Recap, day %d: hauled %.1f from %d fragments, %d blown off, %.0f m of trail"),
 				Day, Stats.MassHauled, Stats.Fragments, Stats.BlownOff, Stats.TrailLaid / 100.f);
 		}

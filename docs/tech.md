@@ -219,9 +219,13 @@ Enhanced Input, with `UInputAction` and `UInputMappingContext` objects created i
 
 ## Audio
 
-- Sources are synthesised by script (`docs/briefs/audio.md`) and imported as sound waves.
+- Sources are synthesised by script (`docs/briefs/audio.md`) and loaded from WAV data at runtime (the editor MCP has no audio import).
 - A wind loop whose volume and filter follow `Strength`; footsteps triggered from the gait phase; cut crunch; fragment tear; deposit chime; shift whoosh; an ambient pad; UI ticks.
 - Plain audio components and attenuation are enough. No middleware.
+
+### Runtime WAV playback (written by Codex)
+
+`Art/Audio/*.wav` are copied to `Content/Leafline/AudioRaw/` with the extension `.wavraw`, so the editor never auto-imports them, and staged into the pak with `+DirectoriesToAlwaysStageAsUFS=(Path="Leafline/AudioRaw")` in `DefaultGame.ini`. `ULeaflineAudioSubsystem` (a world subsystem) loads and caches 48 kHz 16-bit PCM, mono or stereo, and plays 2D sounds through `USoundWaveProcedural`: `PlayOneShot(Name, Volume, Pitch)` and `StartLoop(Name, Volume)` returning a `ULeaflineAudioLoop` with `SetVolume`, `SetPitch` and `Stop`. Loops refill on underflow without a gap. Test with `Leaf.Sound deposit 1 1.2`. After regenerating the audio, copy the files again.
 
 ## Debug tools
 

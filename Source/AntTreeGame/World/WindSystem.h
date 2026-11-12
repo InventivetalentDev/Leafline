@@ -8,6 +8,7 @@ class ATreeActor;
 class UProceduralMeshComponent;
 class UMaterialInterface;
 class UMaterialInstanceDynamic;
+class ULeaflineAudioLoop;
 
 UENUM(BlueprintType)
 enum class EWindPhase : uint8
@@ -124,6 +125,11 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UMaterialInterface> FallbackMaterial;
+
+	UPROPERTY(Transient) TObjectPtr<ULeaflineAudioLoop> CalmLoop;
+	UPROPERTY(Transient) TObjectPtr<ULeaflineAudioLoop> GustLoop;
+	UPROPERTY(Transient) TObjectPtr<ULeaflineAudioLoop> RustleLoop;
+	UPROPERTY(Transient) TObjectPtr<ULeaflineAudioLoop> PadLoop;
 
 	TWeakObjectPtr<ATreeActor> Tree;
 	FRandomStream Rand;

@@ -7,6 +7,7 @@
 #include "Camera/PlayerCameraManager.h"
 #include "UObject/ConstructorHelpers.h"
 #include "EngineUtils.h"
+#include "Audio/LeafSound.h"
 
 AWindSystem::AWindSystem()
 {
@@ -42,6 +43,11 @@ void AWindSystem::BeginPlay()
 		MID->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.85f, 0.88f, 0.9f));
 		StreakMaterialInUse = MID;
 	}
+	// Ambience: the wind beds crossfade with strength; a soft pad sits under everything.
+	CalmLoop = LeafSound::Loop(this, TEXT("wind_calm_loop"), 0.3f);
+	GustLoop = LeafSound::Loop(this, TEXT("wind_gust_loop"), 0.f);
+	RustleLoop = LeafSound::Loop(this, TEXT("leaves_rustle_loop"), 0.15f);
+	PadLoop = LeafSound::Loop(this, TEXT("ambient_pad_loop"), 0.22f);
 }
 
 void AWindSystem::StartDay(int32 InDay, int32 Seed)
@@ -69,7 +75,10 @@ void AWindSystem::EnterPhase(EWindPhase NewPhase)
 		PhaseDuration = FMath::Max(Tuning.CalmFloor, Rand.FRandRange(Tuning.CalmMin, Tuning.CalmMax) - Tuning.CalmShrinkPerDay * (Day - 1));
 		GustPeak = 1.f;
 		break;
-	case EWindPhase::Warning: PhaseDuration = Tuning.Warning; break;
+	case EWindPhase::Warning:
+		PhaseDuration = Tuning.Warning;
+		LeafSound::Play(this, TEXT("gust_warning"), 0.55f);
+		break;
 	case EWindPhase::Rising: PhaseDuration = Tuning.Rising; break;
 	case EWindPhase::Holding: PhaseDuration = Rand.FRandRange(Tuning.HoldMin, Tuning.HoldMax) + Tuning.HoldGrowPerDay * (Day - 1); break;
 	case EWindPhase::Falling: PhaseDuration = Tuning.Falling; break;
@@ -115,6 +124,10 @@ void AWindSystem::Tick(float DeltaTime)
 	case EWindPhase::Holding: Strength = GustPeak * (0.97f + 0.03f * FMath::Sin(Clock * 9.f)); break;
 	case EWindPhase::Falling: Strength = FMath::Lerp(GustPeak, Calm, FMath::SmoothStep(0.f, 1.f, T)); break;
 	}
+
+	if (CalmLoop) CalmLoop->SetVolume(FMath::Lerp(0.32f, 0.12f, Strength));
+	if (GustLoop) GustLoop->SetVolume(0.9f * FMath::SmoothStep(0.25f, 1.f, Strength));
+	if (RustleLoop) RustleLoop->SetVolume(0.12f + 0.35f * Strength);
 
 	const float Yaw = BaseYaw + Tuning.DirectionWanderDeg * FMath::Sin(Clock * 0.11f);
 	Direction = FRotator(0.f, Yaw, 0.f).Vector();
