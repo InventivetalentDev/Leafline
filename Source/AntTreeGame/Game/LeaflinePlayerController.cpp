@@ -51,6 +51,8 @@ void ALeaflinePlayerController::CreateInput()
 	// Resume and quit must still work while the game is paused.
 	PauseAction->bTriggerWhenPaused = true;
 	SendHomeAction->bTriggerWhenPaused = true;
+	// Mouse movement shows the cursor on the pause screen (mouse look itself is ignored in menus).
+	LookMouseAction->bTriggerWhenPaused = true;
 
 	MappingContext = NewObject<UInputMappingContext>(this, TEXT("IMC_Leafline"));
 	UInputMappingContext* Ctx = MappingContext;
