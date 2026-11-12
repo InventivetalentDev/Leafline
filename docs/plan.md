@@ -131,7 +131,7 @@ Spec: `docs/briefs/the-line.md`; work split and interfaces: `docs/briefs/line-co
 - [x] Recruits (`ALineSystem`): one pool from Brood, three trips each, leave 1.5 s apart, same wind test as scouts, blown-off recruits lose the trip, stripped patches send them home without using one.
 - [x] Fixed-step sim: recruits, the wind clock and (in the harvest) returning scouts step in 1/120 s steps, so a skipped harvest is the same simulation.
 - [x] Day end: every ant home; harvest phase at 5×, skippable; camera at the nest looking up the trunk, Tab hops to the patches.
-- [ ] Richer leaves (1× to 3×, paler green), patch read-out and outline before cutting.
+- [x] Richer leaves (1× to 3×, paler green), patch read-out and outline before cutting.
 - [x] Trail brightness by patch (replaces the age fade).
 - [x] Six-level ladders, Brood as the recruit pool, two milestone sets, save version 2 with v1 migration, best day; `-LeafSlot` test slot.
 - [x] Number-go-up: "+N" at the nest with a rising chime, colony counter, one row per line, recap counting up line by line.
@@ -147,7 +147,7 @@ Spec: `docs/briefs/the-line.md`; work split and interfaces: `docs/briefs/line-co
   7. Twenty unattended days (`Leaf.AutoPlay`), twice: every day ended. Recruit cuts that missed their leaf (fallback): 144 of 341 before followers stepped onto their route when pinned, 0 of 358 after. Pass.
   8. Editor-binary standalone, 1280x720: two lines with pool 0 game thread 1.9 ms, pool 10 at work 2.5 ms, pool 10 in the 5× harvest 5.6 ms; 60 fps throughout. Pass.
   - Seen in the runs: from about day 6 the gusts (peak +15 % a day, lines over 100 m) blow off nearly every laden recruit unless Grip is high. That is the existing difficulty curve; the owner should decide whether to cap it.
-- [ ] Leaf colour by richness in `M_Leaf` (vertex alpha is written; the material does not use it yet).
+- [x] Leaf colour by richness in `M_Leaf`: base colour blends toward pale young green (0.32, 0.56, 0.11) by vertex alpha × 0.9 (`Constant3Vector_4`, `Multiply_12`, `LinearInterpolate_2`). Subtle in a first look from the trunk; the owner may want it stronger.
 
 ## M6: Stretch (only if M0–M5b are complete before the freeze; the bird waits for the owner to keep the line)
 
