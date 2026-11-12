@@ -27,7 +27,7 @@
 - [x] got stuck on the bottom of the tree on day 4
   - Fixed: the walking surface had a thin vertical strip (up to 20 cm tall) on the outer side of every slight bend in a branch, left over from my earlier fix; the ant bounced off it. Replayed day 4's tree (seed 208038): the climb from the nest now goes straight up. Not in the packaged build yet.
 - [x] leaf animation seems to play without actually moving the leaf, only the shadow moves?
-  - The sway was tiny: at most 7 cm at the tip of a 2 m leaf in a full gust, under 1 cm when calm; a low sun stretched that in the shadow. Now about 5 cm calm and 40 cm at the tip in a full gust. Not in the packaged build yet.
+  - Real cause: every leaf was built twice (a front and a back face with opposite normals, on a two-sided material). The two copies z-fought, and the sway, which moves vertices along their normals, pushed them apart in opposite directions: two leaves cutting through each other, and doubled shadows. Leaves are one face now (half the leaf geometry). Sway is a little larger than before (about 2 cm calm, 20 cm at the tip in a full gust). Not in the packaged build yet.
 
 ## To revisit: thin-branch controls (2026-11-12)
 

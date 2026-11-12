@@ -201,10 +201,12 @@ void FLeafSet::BuildChunkMesh(int32 Chunk, FTreeMeshData& Out) const
 		}
 		auto Edge = [&](int32 SideStart, int32 k) { return (k == 0 || k == K) ? MidStart + k : SideStart + k - 1; };
 
-		// Two faces: front (normal +N) and back (normal -N), each with its own vertices for correct lighting.
-		for (int32 Face = 0; Face < 2; ++Face)
+		// One face: the leaf material is two-sided foliage and lights the back itself. (A second, back-facing copy
+		// z-fought with this one, and the wind sway, which moves vertices along their normals, pushed the two copies
+		// apart in opposite directions: two leaves cutting through each other, and doubled shadows.)
+		for (int32 Face = 0; Face < 1; ++Face)
 		{
-			const FVector N = Face == 0 ? L.Normal : -L.Normal;
+			const FVector N = L.Normal;
 			const int32 V0 = Out.Vertices.Num();
 			for (int32 i = 0; i < Pts.Num(); ++i)
 			{
