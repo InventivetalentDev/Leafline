@@ -135,6 +135,18 @@ int32 ULeaflineGameInstance::GetReachedMilestoneCount() const
 	return Count;
 }
 
+bool ULeaflineGameInstance::IsEndCardDue() const
+{
+	return Colony && !Colony->bEndCardSeen && GetReachedMilestoneCount() >= LeaflineUpgrades::MilestoneCount;
+}
+
+void ULeaflineGameInstance::MarkEndCardSeen()
+{
+	if (!Colony || Colony->bEndCardSeen) return;
+	Colony->bEndCardSeen = true;
+	SaveNow();
+}
+
 void ULeaflineGameInstance::ApplyUpgradesToAnt(AAntPawn* Ant)
 {
 	if (!IsValid(Ant) || !IsValid(Ant->GetAntMovement())) return;

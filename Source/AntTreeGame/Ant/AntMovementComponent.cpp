@@ -252,24 +252,55 @@ void UAntMovementComponent::TickWalking(float Dt)
 			// the tip instead of overshooting the apex back and forth.
 			const FVector AP = ProjectOnPlane(Axis, N);
 			const double APLen = AP.Size();
-			const FVector A = APLen > 1e-3 ? AP / APLen : FVector::ZeroVector;
+			// Exactly on the apex the axis has no direction along the surface; use the body's facing, which points the
+			// way the ant came up, so reversing still leads back down.
+			const FVector A = APLen > 1e-3 ? AP / APLen : ProjectOnPlane(Forward, N).GetSafeNormal();
 			const double TipFade = FMath::Clamp(APLen / 0.6, 0.0, 1.0);
 			if (!A.IsNearlyZero())
 			{
 				const double InputMag = FMath::Min(MoveInput.Size(), 1.0);
-				const double Along = FVector::DotProduct(Wish, A);
-				if (FMath::Abs(Along) > 0.25 * InputMag)
+				// Tip latch, in spare members: SpareVector = (stick direction when the ant settled at the apex, 1) or
+				// zero; SpareFloat = 1 while leaving the apex. Both clear once the ant is off the rounded tip.
+				const FVector2D Stick = MoveInput.GetSafeNormal();
+				if (TipFade >= 1.0)
 				{
-					SpareInt = Along >= 0.0 ? 1 : -1;
+					SpareVector = FVector::ZeroVector;
+					SpareFloat = 0.f;
 				}
-				else if (SpareInt == 0)
+				if (SpareVector.Z > 0.5)
 				{
-					SpareInt = FVector::DotProduct(Forward, A) >= 0.0 ? 1 : -1;
+					// Settled at the apex: hold until the stick turns round, then leave at full push. (There the faded
+					// push is near zero in both directions, so without this the ant could never get off again.)
+					if (FVector2D::DotProduct(Stick, FVector2D(SpareVector.X, SpareVector.Y)) < 0.0)
+					{
+						SpareVector = FVector::ZeroVector;
+						SpareFloat = 1.f;
+					}
+					SpareInt = SpareFloat > 0.f ? -1 : 1;
+				}
+				else if (SpareFloat > 0.f)
+				{
+					SpareInt = -1;
+				}
+				else
+				{
+					const double Along = FVector::DotProduct(Wish, A);
+					if (FMath::Abs(Along) > 0.25 * InputMag)
+					{
+						SpareInt = Along >= 0.0 ? 1 : -1;
+					}
+					else if (SpareInt == 0)
+					{
+						SpareInt = FVector::DotProduct(Forward, A) >= 0.0 ? 1 : -1;
+					}
+					if (SpareInt > 0 && TipFade < 0.3) SpareVector = FVector(Stick.X, Stick.Y, 1.0);
 				}
 				// Heading for the free end of a thin branch: slow down over the last half metre so the rounded tip
-				// (only a few cm of curve) is reached at a crawl.
+				// (only a few cm of curve) is reached at a crawl, and fade the push over the cap so the ant comes to rest
+				// at the apex instead of overshooting it back and forth.
 				const double TipSlow = SpareInt > 0 ? FMath::Clamp(DistToEnd / 50.0, 0.15, 1.0) : 1.0;
-				Wish = FMath::Lerp(Wish, A * (SpareInt * InputMag * TipFade * TipSlow), (double)ThinBlend);
+				const double Fade = SpareFloat > 0.f ? 1.0 : TipFade;
+				Wish = FMath::Lerp(Wish, A * (SpareInt * InputMag * Fade * TipSlow), (double)ThinBlend);
 			}
 		}
 

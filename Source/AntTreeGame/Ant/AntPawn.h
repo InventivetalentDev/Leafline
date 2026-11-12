@@ -28,6 +28,7 @@ public:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void UnPossessed() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	UAntMovementComponent* GetAntMovement() const { return Movement; }
 

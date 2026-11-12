@@ -21,6 +21,8 @@ public:
 	UPROPERTY(SaveGame) TArray<int32> UpgradeLevels;
 	UPROPERTY(SaveGame) int32 Day = 1;
 	UPROPERTY(SaveGame) int32 BaseSeed = 1112;
+	/** Set once the end card has been shown. Until then, a colony past the last milestone shows it at the next recap. */
+	UPROPERTY(SaveGame) bool bEndCardSeen = false;
 
 	/** Repairs malformed values after loading the supported version. */
 	void Sanitize();

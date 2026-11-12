@@ -238,6 +238,7 @@ Console commands pay for themselves, because verification is done by driving Pla
 | `Leaf.Teleport <branch> <t>` / `Leaf.Teleport L<level> [t]` | Put the ant on a given branch, or a random branch of a level (0 trunk, 1 limb, 2 bough, 3 twig, -1 root) |
 | `Leaf.FieldBench [n]` | Time n field evaluations near the surface |
 | `Leaf.SurfaceGap [maxZ]` | Project points around the trunk and roots (below maxZ, default 1500 cm) onto the walking field and log how far they float above the visible bark: mean, worst and where |
+| `Leaf.MeshGap` | Evaluate the walking field at every visible bark mesh vertex: mean, worst and how many float more than 1 or 3 cm (the honest check; `SurfaceGap` compares the field with its own frustum model) |
 | `Leaf.GapAt <x> <y> <z>` | At one point: the field distance, and each nearby branch's distance to its visible bark |
 | `Leaf.GoLeaf` / `Leaf.Cut [size]` / `Leaf.SendHome` | Drive the loop from the console: go beside a random cuttable leaf, cut it at once, send the ant home |
 | `Leaf.Hold <cut\|grip\|follow> <seconds>` | Hold a button for a while, as if pressed (hold-to-cut, grip, riding) |

@@ -104,6 +104,28 @@ double FTreeField::BranchDistance(int32 Branch, const FVector& P) const
 			continue;
 		}
 
+		// On the outer side of a bend, past this segment's end plane and before the next one's start plane, neither
+		// frustum covers the joint and the surface would have a shallow notch. Round the joint there, and only there,
+		// with a sphere of the joint radius (the mesh ring sits in the bisector plane and bridges it the same way).
+		if (TRaw > 1.0)
+		{
+			const FSeg* Next = S + 1;
+			if (FVector::DotProduct(P - Next->A, Next->BA) < 0.0)
+			{
+				Best = FMath::Min(Best, (P - Next->A).Size() - S->RB);
+				continue;
+			}
+		}
+		else if (TRaw < 0.0)
+		{
+			const FSeg* Prev = S - 1;
+			if (FVector::DotProduct(P - Prev->A, Prev->BA) * Prev->InvLenSq > 1.0)
+			{
+				Best = FMath::Min(Best, AxisDist - S->RA);
+				continue;
+			}
+		}
+
 		// Every point of the frustum lies within its larger radius of the axis segment, so this bounds D from below.
 		const double MaxR = FMath::Max(S->RA, S->RB);
 		if (AxisDist - MaxR >= Best) continue;

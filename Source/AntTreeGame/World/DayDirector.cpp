@@ -298,13 +298,21 @@ void ADayDirector::MenuConfirm()
 		Phase = EDayPhase::Shift;
 		LeafSound::Play(this, TEXT("ui_confirm"), 0.6f);
 		UE_LOG(LogLeafline, Log, TEXT("Title: play starts on day %d"), Day);
+		// The world keeps running behind the title: workers may have been blown off and walked home meanwhile.
+		if (!Player.IsValid() || !Player->GetPawn()) PossessNext();
+		CheckAllHome();
 		break;
 	case EDayPhase::Recap:
-		Phase = bEndCardPending ? EDayPhase::EndCard : EDayPhase::Nest;
+	{
+		ULeaflineGameInstance* GI = Colony(this);
+		const bool bEndCard = bEndCardPending || (GI && GI->IsEndCardDue());
+		Phase = bEndCard ? EDayPhase::EndCard : EDayPhase::Nest;
 		bEndCardPending = false;
+		if (bEndCard && GI) GI->MarkEndCardSeen();
 		NestSelection = LeaflineUpgrades::Count; // start on "next day", so a quick double press never spends
 		LeafSound::Play(this, TEXT("ui_confirm"), 0.6f);
 		break;
+	}
 	case EDayPhase::EndCard:
 		Phase = EDayPhase::Nest;
 		LeafSound::Play(this, TEXT("ui_confirm"), 0.6f);

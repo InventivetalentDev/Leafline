@@ -47,6 +47,10 @@ public:
 	/** Milestone indices 0..2 correspond to 15/40/80 lifetime haul. Spending cannot undo them. */
 	bool HasReachedMilestone(int32 Index) const;
 	int32 GetReachedMilestoneCount() const;
+	/** Past the last milestone and the end card not yet shown (survives quitting at the recap). */
+	bool IsEndCardDue() const;
+	/** Records that the end card was shown, and saves. */
+	void MarkEndCardSeen();
 
 	/** Call after configuring a spawned ant. Captures its original tuning once; repeat calls never stack. */
 	void ApplyUpgradesToAnt(AAntPawn* Ant);

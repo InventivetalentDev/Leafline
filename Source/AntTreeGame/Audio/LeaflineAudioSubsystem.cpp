@@ -198,6 +198,8 @@ ULeaflineAudioLoop* ULeaflineAudioSubsystem::CreateVoice(FName Sound, float Volu
 		UE_LOG(LogLeafline, Warning, TEXT("Cannot create 2D playback for '%s' in this world."), *Sound.ToString());
 		return nullptr;
 	}
+	// CreateSound2D marks every voice as a UI sound, which keeps playing through pause. Only menu sounds should.
+	Component->bIsUISound = Sound.ToString().StartsWith(TEXT("ui_"));
 	ULeaflineAudioLoop* Voice = NewObject<ULeaflineAudioLoop>(this);
 	Voice->Owner = this;
 	Voice->Component = Component;

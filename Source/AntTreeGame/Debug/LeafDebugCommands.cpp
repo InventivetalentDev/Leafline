@@ -3,6 +3,7 @@
 #include "Ant/AntPawn.h"
 #include "Ant/AntMovementComponent.h"
 #include "Tree/TreeActor.h"
+#include "Tree/TreeMeshBuilder.h"
 #include "Game/LeaflineGameMode.h"
 #include "Game/LeaflinePlayerController.h"
 #include "Ant/AntCamera.h"
@@ -406,6 +407,42 @@ namespace
 			ATreeActor* Tree = ATreeActor::Get(World);
 			if (!Tree || Args.Num() < 3) return;
 			GapDetail(Tree, FVector(FCString::Atod(*Args[0]), FCString::Atod(*Args[1]), FCString::Atod(*Args[2])));
+		}));
+
+	/** Field distance at every bark mesh vertex: positive means the walking surface floats above the visible bark there. */
+	void MeshGapReport(ATreeActor* Tree)
+	{
+		const FTreeField& Field = Tree->GetField();
+		FTreeMeshData Data;
+		TreeMeshBuilder::Build(Tree->GetSkeleton(), Data);
+		int32 Count = 0, Over1 = 0, Over3 = 0;
+		double Sum = 0.0, Worst = -1e12;
+		FVector WorstP = FVector::ZeroVector;
+		for (const FVector& V : Data.Vertices)
+		{
+			if (V.Z < Field.GroundZ + 20.0) continue; // the ground blend lifts the field there
+			const double D = Field.Distance(V);
+			if (D < -0.5) continue; // inside another branch: hidden
+			++Count;
+			Sum += D;
+			if (D > 1.0) ++Over1;
+			if (D > 3.0) ++Over3;
+			if (D > Worst)
+			{
+				Worst = D;
+				WorstP = V;
+			}
+		}
+		UE_LOG(LogLeafline, Log, TEXT("Leaf.MeshGap: %d visible bark vertices, mean field %.3f cm, worst %.2f cm at %s, %d over 1 cm, %d over 3 cm"),
+			Count, Count ? Sum / Count : 0.0, Worst, *WorstP.ToCompactString(), Over1, Over3);
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs CmdMeshGap(
+		TEXT("Leaf.MeshGap"),
+		TEXT("Leaf.MeshGap: evaluate the walking field at every visible bark mesh vertex and log how far it floats above them."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>&, UWorld* World)
+		{
+			if (ATreeActor* Tree = ATreeActor::Get(World)) MeshGapReport(Tree);
 		}));
 
 	FAutoConsoleCommandWithWorldAndArgs CmdSurfaceGap(

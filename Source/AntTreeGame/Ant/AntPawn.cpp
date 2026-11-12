@@ -143,6 +143,14 @@ void AAntPawn::SetActionInput(bool bInCutHeld, bool bInFollowHeld, bool bInGripH
 	bGripHeld = bInGripHeld;
 }
 
+void AAntPawn::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	// Loops belong to the world's audio subsystem and would outlive the pawn (a new day destroys ants mid-cut).
+	LeafSound::Stop(CutLoop);
+	LeafSound::Stop(GripLoop);
+	Super::EndPlay(EndPlayReason);
+}
+
 void AAntPawn::UnPossessed()
 {
 	Super::UnPossessed();
