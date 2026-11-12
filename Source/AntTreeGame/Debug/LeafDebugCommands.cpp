@@ -1,4 +1,5 @@
 #include "Debug/LeafDebug.h"
+#include "Containers/Ticker.h"
 #include "AntTreeGame.h"
 #include "Ant/AntPawn.h"
 #include "Ant/AntMovementComponent.h"
@@ -228,12 +229,13 @@ namespace
 				return;
 			}
 			const float Seconds = Args.Num() > 0 ? FMath::Max(1.f, FCString::Atof(*Args[0])) : 30.f;
-			FTimerHandle Handle;
-			World->GetTimerManager().SetTimer(Handle, FTimerDelegate::CreateLambda([]()
+			// The core ticker, not a world timer: it keeps counting while the game is paused.
+			FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([](float)
 			{
 				UE_LOG(LogLeafline, Log, TEXT("Leaf.QuitAfter: exiting"));
 				FPlatformMisc::RequestExit(false);
-			}), Seconds, false);
+				return false;
+			}), Seconds);
 			UE_LOG(LogLeafline, Log, TEXT("Leaf.QuitAfter: exiting in %.0f s"), Seconds);
 		}));
 

@@ -242,7 +242,7 @@ Console commands pay for themselves, because verification is done by driving Pla
 | `Leaf.GapAt <x> <y> <z>` | At one point: the field distance, and each nearby branch's distance to its visible bark |
 | `Leaf.GoLeaf` / `Leaf.Cut [size]` / `Leaf.SendHome [delay]` | Drive the loop from the console: go beside a random cuttable leaf, cut it at once, send the ant home |
 | `Leaf.Hold <cut\|grip\|follow> <seconds>` | Hold a button for a while, as if pressed (hold-to-cut, grip, riding) |
-| `Leaf.QuitAfter <seconds>` | Exit a standalone game after a delay (unattended runs; ignored in the editor) |
+| `Leaf.QuitAfter <seconds>` | Exit a standalone game after a delay, also while paused (unattended runs; ignored in the editor) |
 | `Leaf.Tune <cam\|move\|input> [Field] [Value]` | List, read or set a tuning value while playing (shown on screen and logged), e.g. `Leaf.Tune cam SurfaceFollow 0` |
 | `Leaf.NewDay [seed]` | Regrow |
 | `Leaf.Gust [0-1]` | Trigger a gust (warning, rise, hold, fall) with that peak |

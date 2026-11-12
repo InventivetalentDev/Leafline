@@ -5,6 +5,8 @@
 #include "Ant/AntCamera.h"
 #include "Ant/AntMovementComponent.h"
 #include "Debug/LeafDebug.h"
+#include "Game/Upgrades.h"
+#include "UI/LeaflineHUD.h"
 #include "World/DayDirector.h"
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedPlayerInput.h"
@@ -149,12 +151,16 @@ void ALeaflinePlayerController::PlayerTick(float DeltaTime)
 	Move.Y = FMath::Clamp(Move.Y + LeafDebug::AutoMove, -1.0, 1.0);
 	Move.X = FMath::Clamp(Move.X + LeafDebug::AutoStrafe, -1.0, 1.0);
 
+	if (!Director.IsValid()) Director = ADayDirector::Get(this);
+	const bool bMenu = (Director.IsValid() && Director->IsMenuPhase()) || IsPaused();
+
 	const FVector2D Mouse = bHasFocus ? Input->GetActionValue(LookMouseAction).Get<FVector2D>() : FVector2D::ZeroVector;
 	FVector2D Stick = bHasFocus ? Input->GetActionValue(LookStickAction).Get<FVector2D>() : FVector2D::ZeroVector;
 	// The owner's preference (2026-11-12): the right stick looks inverted (push up to look down); the mouse does not.
 	// bInvertPitch below still flips both.
 	Stick.Y = -Stick.Y;
-	FVector2D Look = Mouse * MouseSensitivity + Stick * (StickLookRate * DeltaTime);
+	// In menus the mouse moves the cursor, not the camera.
+	FVector2D Look = (bMenu ? FVector2D::ZeroVector : Mouse * MouseSensitivity) + Stick * (StickLookRate * DeltaTime);
 	if (bInvertPitch) Look.Y = -Look.Y;
 	AntCamera->AddLookInput(Look);
 
@@ -170,19 +176,31 @@ void ALeaflinePlayerController::PlayerTick(float DeltaTime)
 	if (LeafDebug::HoldCut > 0.f) { Held |= LeafButtons::Cut; LeafDebug::HoldCut -= DeltaTime; }
 	if (LeafDebug::HoldGrip > 0.f) { Held |= LeafButtons::Grip; LeafDebug::HoldGrip -= DeltaTime; }
 	if (LeafDebug::HoldFollow > 0.f) { Held |= LeafButtons::Follow; LeafDebug::HoldFollow -= DeltaTime; }
+	if (bSwallowClick)
+	{
+		if (IsInputKeyDown(EKeys::LeftMouseButton)) Held &= ~LeafButtons::Cut;
+		else bSwallowClick = false;
+	}
 	ButtonsPressed = Held & ~ButtonsHeld;
 	ButtonsHeld = Held;
 
-	if (!Director.IsValid()) Director = ADayDirector::Get(this);
-	const bool bMenu = (Director.IsValid() && Director->IsMenuPhase()) || IsPaused();
+	int32 Nav = 0;
 	if (bMenu)
 	{
 		// Menus: the stick or W/S moves the selection; the ant stands still.
-		const int32 Nav = Move.Y > 0.5 ? -1 : (Move.Y < -0.5 ? 1 : 0);
+		Nav = Move.Y > 0.5 ? -1 : (Move.Y < -0.5 ? 1 : 0);
 		if (Nav != 0 && Nav != SpareInt && Director.IsValid()) Director->MenuNavigate(Nav);
 		SpareInt = Nav;
 		Move = FVector2D::ZeroVector;
 		Held &= ~(LeafButtons::Sprint | LeafButtons::Follow | LeafButtons::Grip);
+	}
+	UpdateMenuCursor(bMenu, Mouse, Nav);
+	if (bMenu && bCursorShown && WasInputKeyJustPressed(EKeys::LeftMouseButton))
+	{
+		// The click picks what is under the cursor; it must not also count as the confirm button.
+		ButtonsPressed &= ~LeafButtons::Cut;
+		bSwallowClick = true;
+		HandleMenuClick();
 	}
 	if (AAntPawn* Ant = GetAnt())
 	{
@@ -194,6 +212,66 @@ void ALeaflinePlayerController::PlayerTick(float DeltaTime)
 		Ant->SetActionInput(!bMenu && (Held & LeafButtons::Cut) != 0, (Held & LeafButtons::Follow) != 0, (Held & LeafButtons::Grip) != 0);
 	}
 	if (ButtonsPressed) HandleButtons(ButtonsPressed);
+}
+
+void ALeaflinePlayerController::UpdateMenuCursor(bool bMenu, const FVector2D& MouseDelta, int32 Nav)
+{
+	if (!bMenu || Nav != 0) bMenuCursor = false;
+	else if (MouseDelta.SizeSquared() > 1.0) bMenuCursor = true;
+
+	const bool bWant = bMenu && bMenuCursor;
+	if (bWant != bCursorShown)
+	{
+		bCursorShown = bWant;
+		bShowMouseCursor = bWant;
+		if (bWant)
+		{
+			FInputModeGameAndUI Mode;
+			Mode.SetHideCursorDuringCapture(false);
+			Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+			SetInputMode(Mode);
+		}
+		else
+		{
+			SetInputMode(FInputModeGameOnly());
+		}
+		LastCursor = FVector2D(-1.0, -1.0);
+	}
+	HoverItem = INDEX_NONE;
+	float X = 0.f, Y = 0.f;
+	if (!bCursorShown || !GetMousePosition(X, Y)) return;
+	const FVector2D Cursor(X, Y);
+	const ALeaflineHUD* Hud = Cast<ALeaflineHUD>(GetHUD());
+	HoverItem = Hud ? Hud->MenuItemAt(Cursor) : INDEX_NONE;
+	// Only a moving cursor takes the nest selection, so a resting mouse does not fight W/S.
+	if (Cursor != LastCursor && HoverItem >= 0 && HoverItem <= LeaflineUpgrades::Count && Director.IsValid())
+	{
+		Director->SetNestSelection(HoverItem);
+	}
+	LastCursor = Cursor;
+}
+
+void ALeaflinePlayerController::HandleMenuClick()
+{
+	if (IsPaused())
+	{
+		if (HoverItem == ALeaflineHUD::MenuResume) SetPause(false);
+		else if (HoverItem == ALeaflineHUD::MenuQuit) ConsoleCommand(TEXT("quit"));
+		return;
+	}
+	ADayDirector* D = Director.Get();
+	if (!D || !D->IsMenuPhase()) return;
+	if (D->GetPhase() == EDayPhase::Nest)
+	{
+		// Only a click on a row buys or starts; a stray click beside the list does nothing.
+		if (HoverItem >= 0 && HoverItem <= LeaflineUpgrades::Count)
+		{
+			D->SetNestSelection(HoverItem);
+			D->MenuConfirm();
+		}
+		return;
+	}
+	D->MenuConfirm(); // title, recap and end card: a click anywhere continues
 }
 
 void ALeaflinePlayerController::HandleButtons(uint32 Pressed)

@@ -13,22 +13,23 @@
 - [x] ant starts inside the nest mesh at the start (no colission?)
   - Fixed: the nest mound is part of the walking surface, so ants start on top of the entrance and walk over the mound. In the editor build.
 - [x] can't walk around around branches anymore? all of WASD just seem to walk up and down the branch; also makes it hard to navigate to even smaller branches
-  - Fixed: on thin branches, clearly sideways input (A/D, or the stick well off the branch) walks the ant round the branch again; small sideways parts are still ignored so walking along a twig doesn't spiral. At the silhouette edge, turn the camera to keep going round. Not in the packaged build yet.
+  - Fixed: on thin branches, clearly sideways input (A/D, or the stick well off the branch) walks the ant round the branch again; small sideways parts are still ignored so walking along a twig doesn't spiral. At the silhouette edge, turn the camera to keep going round. In the package of 12 Nov 18:28.
 - [ ] aiming to pick leafes is a bit difficult
-  - The leaf the ant would cut now has a pulsing outline, so you can see the target before pressing cut. Picking still takes the leaf nearest the ant's mouth; tell me if it should follow the camera instead. Not in the packaged build yet.
+  - The leaf the ant would cut now has a pulsing outline, so you can see the target before pressing cut. Picking still takes the leaf nearest the ant's mouth; tell me if it should follow the camera instead. In the package of 12 Nov 18:28.
 - [ ] eventually make selection outlines for leaves etc, instead of just showing an UI overlay
   - Leaves done (outline on the targeted leaf). Trails not yet.
 - [ ] low priority: leaf cutting animation would be nice
 - [x] low priority: if you're already halfway back down the tree and you engage the auto-return, ideally it should just follow the scent line if you're close to it from that location, instead of walking strictly back (and going back up the tree etc.)
-  - Done: a worker sent home now starts from the scent line point within 1 m that is nearest the nest (its own line or another worker's), then follows it home and skips its loops (where the line comes back within 35 cm of itself it cuts across). It only cuts across where the straight line stays on the bark, never through the air to another branch. Test: an ant that wandered on the trunk for 45 s went home along 61 m instead of retracing 105 m (both include a 40 m jump from the test's teleport), and reached the nest. Not in the packaged build yet.
+  - Done: a worker sent home now starts from the scent line point within 1 m that is nearest the nest (its own line or another worker's), then follows it home and skips its loops (where the line comes back within 35 cm of itself it cuts across). It only cuts across where the straight line stays on the bark, never through the air to another branch. Test: an ant that wandered on the trunk for 45 s went home along 61 m instead of retracing 105 m (both include a 40 m jump from the test's teleport), and reached the nest. In the package of 12 Nov 18:28.
 - [ ] add key/controller icons (https://thoseawesomeguys.com/prompts/)
 - [x] add controller support
-  - Xbox pads worked already (XInput). PS5 and PS4 pads now work through Microsoft GameInput, mapped per SDL_GameControllerDB and checked with your DualSense. Right stick looks inverted, as you asked. Not in the packaged build yet.
-- [ ] mouse cursor controls in the UI would be nice
+  - Xbox pads worked already (XInput). PS5 and PS4 pads now work through Microsoft GameInput, mapped per SDL_GameControllerDB and checked with your DualSense. Right stick looks inverted, as you asked. In the package of 12 Nov 18:28.
+- [x] mouse cursor controls in the UI would be nice
+  - Done: in the title, recap, end card, nest and pause screens the cursor appears as soon as you move the mouse (W/S or the stick hide it again). In the nest, hovering picks a row and clicking buys or starts; a click beside the list does nothing. The pause screen has Resume and Quit buttons. Elsewhere a click continues. The camera no longer turns with the mouse behind a menu. I checked the pause screen layout in a screenshot but could not move a real mouse here, so the clicking itself is untested.
 - [x] got stuck on the bottom of the tree on day 4
-  - Fixed: the walking surface had a thin vertical strip (up to 20 cm tall) on the outer side of every slight bend in a branch, left over from my earlier fix; the ant bounced off it. Replayed day 4's tree (seed 208038): the climb from the nest now goes straight up. Not in the packaged build yet.
+  - Fixed: the walking surface had a thin vertical strip (up to 20 cm tall) on the outer side of every slight bend in a branch, left over from my earlier fix; the ant bounced off it. Replayed day 4's tree (seed 208038): the climb from the nest now goes straight up. In the package of 12 Nov 18:28.
 - [x] leaf animation seems to play without actually moving the leaf, only the shadow moves?
-  - Real cause: every leaf was built twice (a front and a back face with opposite normals, on a two-sided material). The two copies z-fought, and the sway, which moves vertices along their normals, pushed them apart in opposite directions: two leaves cutting through each other, and doubled shadows. Leaves are one face now (half the leaf geometry). Sway is a little larger than before (about 2 cm calm, 20 cm at the tip in a full gust). Not in the packaged build yet.
+  - Real cause: every leaf was built twice (a front and a back face with opposite normals, on a two-sided material). The two copies z-fought, and the sway, which moves vertices along their normals, pushed them apart in opposite directions: two leaves cutting through each other, and doubled shadows. Leaves are one face now (half the leaf geometry). Sway is a little larger than before (about 2 cm calm, 20 cm at the tip in a full gust). In the package of 12 Nov 18:28.
 
 ## To revisit: thin-branch controls (2026-11-12)
 

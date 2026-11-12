@@ -44,9 +44,26 @@ namespace
 	}
 }
 
+int32 ALeaflineHUD::MenuItemAt(const FVector2D& P) const
+{
+	for (const FMenuHit& H : MenuHits)
+	{
+		if (H.Box.IsInside(P)) return H.Id;
+	}
+	return INDEX_NONE;
+}
+
+bool ALeaflineHUD::IsHovered(int32 Id) const
+{
+	const APlayerController* PC = GetOwningPlayerController();
+	float X = 0.f, Y = 0.f;
+	return PC && PC->bShowMouseCursor && PC->GetMousePosition(X, Y) && MenuItemAt(FVector2D(X, Y)) == Id;
+}
+
 void ALeaflineHUD::DrawHUD()
 {
 	Super::DrawHUD();
+	MenuHits.Reset();
 	if (!Canvas) return;
 
 	const float Scale = Canvas->ClipY / 1080.f;
@@ -317,7 +334,7 @@ void ALeaflineHUD::DrawRecap(const ADayDirector* D, float Scale)
 	Y += 24.f * Scale;
 	DrawColonyMeter(CX, Y, 520.f * Scale, Scale);
 	Y += 90.f * Scale;
-	DrawTextCentered(TEXT("Press E / Space / A to go into the nest"), CX, Y, AccentColor, 1.2f * Scale, Medium);
+	DrawTextCentered(TEXT("Press E / Space / A or click to go into the nest"), CX, Y, AccentColor, 1.2f * Scale, Medium);
 }
 
 void ALeaflineHUD::DrawColonyMeter(float CX, float Y, float W, float Scale)
@@ -365,7 +382,7 @@ void ALeaflineHUD::DrawTitle(const ADayDirector* D, float Scale)
 		Y += 34.f * Scale;
 	}
 	Y += 50.f * Scale;
-	DrawTextCentered(D->GetDay() > 1 ? FString::Printf(TEXT("Press E / Space / A to continue: day %d"), D->GetDay()) : FString(TEXT("Press E / Space / A to begin")),
+	DrawTextCentered(D->GetDay() > 1 ? FString::Printf(TEXT("Press E / Space / A or click to continue: day %d"), D->GetDay()) : FString(TEXT("Press E / Space / A or click to begin")),
 		CX, Y, AccentColor, 1.4f * Scale, Medium);
 }
 
@@ -389,6 +406,7 @@ void ALeaflineHUD::DrawNest(const ADayDirector* D, float Scale)
 	{
 		const bool bSel = D->GetNestSelection() == i;
 		DrawRect(bSel ? FLinearColor(0.3f, 0.55f, 0.6f, 0.45f) : FLinearColor(0.f, 0.f, 0.f, 0.35f), X, Y, RowW, RowH - 6.f * Scale);
+		AddMenuHit(X, Y, RowW, RowH - 6.f * Scale, i);
 		if (i < LeaflineUpgrades::Count)
 		{
 			const FLeaflineUpgradeInfo* Info = LeaflineUpgrades::Get(i);
@@ -413,7 +431,7 @@ void ALeaflineHUD::DrawNest(const ADayDirector* D, float Scale)
 	Y += 30.f * Scale;
 	DrawColonyMeter(CX, Y, 520.f * Scale, Scale);
 	Y += 100.f * Scale;
-	DrawTextCentered(TEXT("W / S or stick: choose      E / Space / A: buy or start      Q / Y: start the next day"), CX, Y, FLinearColor(0.8f, 0.8f, 0.75f, 1.f), 1.0f * Scale, Medium);
+	DrawTextCentered(TEXT("W / S, stick or mouse: choose      E / Space / A or click: buy or start      Q / Y: start the next day"), CX, Y, FLinearColor(0.8f, 0.8f, 0.75f, 1.f), 1.0f * Scale, Medium);
 }
 
 void ALeaflineHUD::DrawEndCard(const ADayDirector* D, float Scale)
@@ -429,7 +447,7 @@ void ALeaflineHUD::DrawEndCard(const ADayDirector* D, float Scale)
 	Y += 42.f * Scale;
 	DrawTextCentered(TEXT("Thank you for playing Leafline. The trees keep growing, and so can the colony."), CX, Y, TextColor, 1.25f * Scale, Medium);
 	Y += 90.f * Scale;
-	DrawTextCentered(TEXT("Press E / Space / A to keep playing"), CX, Y, AccentColor, 1.3f * Scale, Medium);
+	DrawTextCentered(TEXT("Press E / Space / A or click to keep playing"), CX, Y, AccentColor, 1.3f * Scale, Medium);
 }
 
 void ALeaflineHUD::DrawPause(float Scale)
@@ -438,6 +456,19 @@ void ALeaflineHUD::DrawPause(float Scale)
 	UFont* Large = GEngine->GetLargeFont();
 	UFont* Medium = GEngine->GetMediumFont();
 	const float CX = Canvas->ClipX * 0.5f;
-	DrawTextCentered(TEXT("Paused"), CX, Canvas->ClipY * 0.38f, AccentColor, 2.4f * Scale, Large);
-	DrawTextCentered(TEXT("Esc, P or Start: resume      Q / Y: quit"), CX, Canvas->ClipY * 0.38f + 100.f * Scale, TextColor, 1.2f * Scale, Medium);
+	const float Top = Canvas->ClipY * 0.38f;
+	DrawTextCentered(TEXT("Paused"), CX, Top, AccentColor, 2.4f * Scale, Large);
+	// Buttons for the mouse; keys and pad work as before.
+	const float BW = 220.f * Scale, BH = 54.f * Scale, Gap = 30.f * Scale, BY = Top + 95.f * Scale;
+	const TCHAR* Labels[2] = { TEXT("Resume"), TEXT("Quit") };
+	const int32 Ids[2] = { MenuResume, MenuQuit };
+	for (int32 b = 0; b < 2; ++b)
+	{
+		const float BX = CX - BW - Gap * 0.5f + b * (BW + Gap);
+		const bool bHover = IsHovered(Ids[b]);
+		DrawRect(bHover ? FLinearColor(0.3f, 0.55f, 0.6f, 0.6f) : FLinearColor(0.f, 0.f, 0.f, 0.45f), BX, BY, BW, BH);
+		DrawTextCentered(Labels[b], BX + BW * 0.5f, BY + 12.f * Scale, bHover ? AccentColor : TextColor, 1.3f * Scale, Medium);
+		AddMenuHit(BX, BY, BW, BH, Ids[b]);
+	}
+	DrawTextCentered(TEXT("Esc, P or Start: resume      Q / Y: quit"), CX, BY + BH + 30.f * Scale, TextColor, 1.1f * Scale, Medium);
 }

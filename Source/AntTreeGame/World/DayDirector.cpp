@@ -348,6 +348,15 @@ void ADayDirector::MenuNavigate(int32 Direction)
 	LeafSound::Play(this, TEXT("ui_move"), 0.5f);
 }
 
+void ADayDirector::SetNestSelection(int32 Index)
+{
+	if (Phase != EDayPhase::Nest) return;
+	Index = FMath::Clamp(Index, 0, LeaflineUpgrades::Count);
+	if (Index == NestSelection) return;
+	NestSelection = Index;
+	LeafSound::Play(this, TEXT("ui_move"), 0.5f);
+}
+
 void ADayDirector::MenuBack()
 {
 	if (Phase == EDayPhase::Nest)

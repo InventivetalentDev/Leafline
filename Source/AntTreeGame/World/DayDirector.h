@@ -59,6 +59,8 @@ public:
 	bool IsMenuPhase() const { return Phase == EDayPhase::Title || Phase == EDayPhase::Recap || Phase == EDayPhase::EndCard || Phase == EDayPhase::Nest; }
 	/** Selected row on the nest screen: 0..4 upgrades, 5 = start the next day. */
 	int32 GetNestSelection() const { return NestSelection; }
+	/** The mouse moved onto a nest row (0..upgrade count, the last is "next day"). */
+	void SetNestSelection(int32 Index);
 
 	bool IsNearNest(const FVector& P) const;
 

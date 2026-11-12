@@ -59,6 +59,10 @@ private:
 	void CreateInput();
 	void EnsureCamera();
 	void HandleButtons(uint32 Pressed);
+	/** Shows the cursor in menus once the mouse moves (hidden again by keys or stick) and tracks the item under it. */
+	void UpdateMenuCursor(bool bMenu, const FVector2D& MouseDelta, int32 Nav);
+	/** Left click in a menu: the item under the cursor (nest row, pause button), or "continue" on the other screens. */
+	void HandleMenuClick();
 
 	UPROPERTY(Transient) TObjectPtr<AAntCamera> AntCamera;
 	UPROPERTY(Transient) TObjectPtr<UInputMappingContext> MappingContext;
@@ -79,4 +83,9 @@ private:
 	TWeakObjectPtr<class ADayDirector> Director;
 	float SpareFloat = 0.f;
 	int32 SpareInt = 0;
+	bool bMenuCursor = false;
+	bool bCursorShown = false;
+	bool bSwallowClick = false; // a menu click: the held mouse button is not "cut" until released
+	int32 HoverItem = INDEX_NONE;
+	FVector2D LastCursor = FVector2D(-1.0, -1.0);
 };
