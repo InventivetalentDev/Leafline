@@ -232,6 +232,7 @@ Console commands pay for themselves, because verification is done by driving Pla
 | `Leaf.AutoMove <x>` / `Leaf.AutoTurn <deg/s> [wander]` | Constant input for unattended movement tests; `wander` flips the turn direction at random. While active, a line every 5 s logs distance, max projection error, stalls and branch levels visited |
 | `Leaf.Teleport <branch> <t>` / `Leaf.Teleport L<level> [t]` | Put the ant on a given branch, or a random branch of a level (0 trunk, 1 limb, 2 bough, 3 twig, -1 root) |
 | `Leaf.FieldBench [n]` | Time n field evaluations near the surface |
+| `Leaf.Tune <cam\|move\|input> [Field] [Value]` | List, read or set a tuning value while playing (shown on screen and logged), e.g. `Leaf.Tune cam SurfaceFollow 0` |
 | `Leaf.NewDay [seed]` | Regrow |
 | `Leaf.Gust [0-1]` | Trigger a gust |
 | `Leaf.Give <mass>` / `Leaf.Buy <index>` | Economy |

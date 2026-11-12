@@ -16,8 +16,16 @@ struct FAntCameraTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float MinBoomLength = 35.f;
 	/** Look-at point above the ant along its up (cm). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float TargetHeight = 25.f;
-	/** Time constant with which the camera's up eases toward the ant's up (s). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float UpTimeConstant = 0.6f;
+	/** Time constant with which the camera's up eases toward its target up (s). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float UpTimeConstant = 0.8f;
+	/** Fastest the camera's up may turn (degrees per second). Caps roll, the main cause of motion sickness. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float MaxUpTurnRate = 45.f;
+	/** How far the camera's up follows the surface on big branches: 0 keeps the horizon level everywhere, 1 follows fully. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float SurfaceFollow = 1.f;
+	/** Branch radius (cm) below which the camera keeps world up, so circling a twig never rolls the view. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float SurfaceUpRadiusMin = 40.f;
+	/** Branch radius (cm) above which the camera follows the surface by SurfaceFollow. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float SurfaceUpRadiusMax = 250.f;
 	/** Angular frequency of the critically damped follow spring (1/s). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float FollowFrequency = 8.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float GlideFrequency = 3.f;
@@ -80,4 +88,7 @@ private:
 	float WanderTimer = 0.f;
 	float WanderSign = 1.f;
 	bool bHasSnapped = false;
+	float SmoothedRadius = 1000.f;
+	float SpareFloat = 0.f;
+	FVector SpareVector = FVector::ZeroVector;
 };

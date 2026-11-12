@@ -4,6 +4,10 @@
 #include "Ant/AntMovementComponent.h"
 #include "Tree/TreeActor.h"
 #include "Game/LeaflineGameMode.h"
+#include "Game/LeaflinePlayerController.h"
+#include "Ant/AntCamera.h"
+#include "Engine/Engine.h"
+#include "UObject/UnrealType.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
@@ -101,6 +105,74 @@ namespace
 			}
 			const int32 Seed = Args.Num() > 0 ? FCString::Atoi(*Args[0]) : FMath::RandRange(1, 1000000);
 			GM->NewDay(Seed);
+		}));
+
+	void TuneMessage(const FString& Text)
+	{
+		UE_LOG(LogLeafline, Log, TEXT("%s"), *Text);
+		if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 8.f, FColor::Yellow, Text);
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs CmdTune(
+		TEXT("Leaf.Tune"),
+		TEXT("Leaf.Tune <cam|move|input> [Field] [Value]: list, read or set a tuning value while playing, e.g. Leaf.Tune cam SurfaceFollow 0."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			ALeaflinePlayerController* PC = World ? Cast<ALeaflinePlayerController>(World->GetFirstPlayerController()) : nullptr;
+			if (!PC || Args.Num() < 1)
+			{
+				TuneMessage(TEXT("Leaf.Tune <cam|move|input> [Field] [Value] (needs a running game)"));
+				return;
+			}
+			const FString Which = Args[0].ToLower();
+			const UStruct* Type = nullptr;
+			void* Data = nullptr;
+			auto UseTuning = [&](UObject* Owner)
+			{
+				if (!Owner) return;
+				if (FStructProperty* SP = FindFProperty<FStructProperty>(Owner->GetClass(), TEXT("Tuning")))
+				{
+					Type = SP->Struct;
+					Data = SP->ContainerPtrToValuePtr<void>(Owner);
+				}
+			};
+			if (Which == TEXT("cam")) UseTuning(PC->GetAntCamera());
+			else if (Which == TEXT("move")) UseTuning(PC->GetAnt() ? PC->GetAnt()->GetAntMovement() : nullptr);
+			else if (Which == TEXT("input"))
+			{
+				Type = ALeaflinePlayerController::StaticClass();
+				Data = PC;
+			}
+			if (!Type || !Data)
+			{
+				TuneMessage(FString::Printf(TEXT("Leaf.Tune: nothing to tune for '%s' (use cam, move or input)"), *Args[0]));
+				return;
+			}
+			auto Print = [&](const FProperty* P)
+			{
+				FString Value;
+				P->ExportTextItem_Direct(Value, P->ContainerPtrToValuePtr<void>(Data), nullptr, nullptr, PPF_None);
+				TuneMessage(FString::Printf(TEXT("%s.%s = %s"), *Which, *P->GetName(), *Value));
+			};
+			if (Args.Num() == 1)
+			{
+				for (TFieldIterator<FProperty> It(Type, EFieldIteratorFlags::ExcludeSuper); It; ++It)
+				{
+					if (It->HasAnyPropertyFlags(CPF_Edit)) Print(*It);
+				}
+				return;
+			}
+			FProperty* P = FindFProperty<FProperty>(Type, FName(*Args[1]));
+			if (!P || !P->HasAnyPropertyFlags(CPF_Edit))
+			{
+				TuneMessage(FString::Printf(TEXT("Leaf.Tune: %s has no field %s"), *Which, *Args[1]));
+				return;
+			}
+			if (Args.Num() >= 3)
+			{
+				P->ImportText_Direct(*Args[2], P->ContainerPtrToValuePtr<void>(Data), nullptr, PPF_None);
+			}
+			Print(P);
 		}));
 
 	FAutoConsoleCommandWithWorldAndArgs CmdFieldBench(

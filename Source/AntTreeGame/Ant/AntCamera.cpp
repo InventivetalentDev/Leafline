@@ -65,7 +65,8 @@ void AAntCamera::Snap()
 	AAntPawn* T = Target.Get();
 	if (!T || !T->GetAntMovement()) return;
 	const UAntMovementComponent* M = T->GetAntMovement();
-	CamUp = M->GetBodyUp();
+	CamUp = FVector::UpVector;
+	SmoothedRadius = 1000.f;
 	RefForward = ProjectOnPlane(M->GetBodyForward(), CamUp).GetSafeNormal();
 	if (RefForward.IsNearlyZero()) RefForward = AnyPerpendicular(CamUp);
 	Pitch = Tuning.DefaultPitch;
@@ -89,9 +90,43 @@ void AAntCamera::Tick(float DeltaTime)
 	const FVector AntUp = M->GetBodyUp();
 	const FVector AntPos = M->GetSurfacePosition();
 
-	// 1. Lazy up: ease toward the ant's up and carry the view direction along, so the view does not swing.
+	// 1. Lazy up. The target is world up on thin branches (circling a twig must never roll the view) and the surface
+	//    up on big ones (so the camera stays on the ant's side of a limb's underside). Ease toward it with a capped
+	//    turn rate, and carry the view direction along so the view does not swing.
+	float Radius = 100000.f; // ground and unknown: treat as flat
+	if (Tree.IsValid())
+	{
+		const TArray<FTreeBranch>& Branches = Tree->GetSkeleton().Branches;
+		const int32 B = M->GetCurrentBranch();
+		if (Branches.IsValidIndex(B))
+		{
+			double Best = TNumericLimits<double>::Max();
+			for (int32 i = 0; i < Branches[B].Samples.Num(); ++i)
+			{
+				const double D2 = FVector::DistSquared(AntPos, Branches[B].Samples[i]);
+				if (D2 < Best)
+				{
+					Best = D2;
+					Radius = Branches[B].SampleRadius[i];
+				}
+			}
+		}
+	}
+	SmoothedRadius = FMath::FInterpTo(SmoothedRadius, FMath::Min(Radius, 5000.f), (float)Dt, 3.f);
+	const float Follow = FMath::Clamp(Tuning.SurfaceFollow, 0.f, 1.f) *
+		FMath::SmoothStep(Tuning.SurfaceUpRadiusMin, FMath::Max(Tuning.SurfaceUpRadiusMax, Tuning.SurfaceUpRadiusMin + 1.f), SmoothedRadius);
+	const FVector TargetUp = FQuat::Slerp(FQuat::Identity, FQuat::FindBetweenNormals(FVector::UpVector, AntUp), Follow)
+		.RotateVector(FVector::UpVector).GetSafeNormal();
+
 	const double UpAlpha = 1.0 - FMath::Exp(-Dt / FMath::Max(Tuning.UpTimeConstant, 0.01f));
-	const FQuat UpDelta = FQuat::Slerp(FQuat::Identity, FQuat::FindBetweenNormals(CamUp, AntUp), UpAlpha);
+	FQuat UpDelta = FQuat::Slerp(FQuat::Identity, FQuat::FindBetweenNormals(CamUp, TargetUp), UpAlpha);
+	{
+		FVector Axis;
+		double Angle;
+		UpDelta.ToAxisAndAngle(Axis, Angle);
+		const double MaxAngle = FMath::DegreesToRadians(Tuning.MaxUpTurnRate) * Dt;
+		if (Angle > MaxAngle) UpDelta = FQuat(Axis, MaxAngle);
+	}
 	CamUp = UpDelta.RotateVector(CamUp).GetSafeNormal();
 	RefForward = ProjectOnPlane(UpDelta.RotateVector(RefForward), CamUp).GetSafeNormal();
 	if (RefForward.IsNearlyZero()) RefForward = AnyPerpendicular(CamUp);
@@ -167,4 +202,5 @@ void AAntCamera::Tick(float DeltaTime)
 
 	const FVector CamPos = Focus - View * CurrentBoom;
 	SetActorLocationAndRotation(CamPos, FRotationMatrix::MakeFromXZ(View, CamUp).ToQuat());
+	Camera->SetFieldOfView(Tuning.FieldOfView);
 }
