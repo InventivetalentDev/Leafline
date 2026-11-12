@@ -79,6 +79,10 @@ public:
 	/** Yaw (X) and pitch (Y) in degrees, applied on the next tick. */
 	void AddLookInput(const FVector2D& DeltaDegrees) { PendingLook += DeltaDegrees; }
 
+	/** Debug: aim the orbit toward a world heading (degrees, 0 = +X) at a pitch, for repeatable screenshots. */
+	void DebugAim(float WorldYawDeg, float NewPitch) { DebugAimDirection(FRotator(0.f, WorldYawDeg, 0.f).Vector(), NewPitch); }
+	void DebugAimDirection(const FVector& WorldDir, float NewPitch);
+
 	FVector GetViewForward() const { return GetActorForwardVector(); }
 	FVector GetViewUp() const { return GetActorUpVector(); }
 

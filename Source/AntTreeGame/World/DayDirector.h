@@ -14,6 +14,54 @@ class ADirectionalLight;
 class AWindSystem;
 
 /**
+ * The look of the day: sun warmth through the shifts, sky haze, height fog and light shafts. Applied to the level's
+ * sun, sky light, sky atmosphere and height fog when the game starts and whenever Leaf.Tune look changes a value.
+ */
+USTRUCT(BlueprintType)
+struct FLookTuning
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sun") float SunIntensity = 8.f;
+	/** Colour temperature (K) at the first, middle and last shift; lower is warmer. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sun") float SunTemperatureMorning = 4600.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sun") float SunTemperatureNoon = 5600.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sun") float SunTemperatureEvening = 3800.f;
+	/** Apparent size of the sun (degrees): larger gives softer shadow edges. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sun") float SunSourceAngle = 1.f;
+	/** Screen-space rays around the sun when it is in view (cheap, works without ray tracing). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sun") float ShaftBloomScale = 0.6f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sun") float ShaftBloomThreshold = 4.f;
+	/** How strongly the sun lights the volumetric fog (light shafts through the leaves). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sun") float SunVolumetricScattering = 3.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sky") float SkyLightIntensity = 1.f;
+	/** Aerial perspective distance scale: above 1 hazes distant things sooner (the world is at ant scale). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sky") float AerialPerspectiveScale = 4.f;
+	/** Haze in the sky (Mie scattering) and how tightly it glows around the sun. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sky") float MieScatteringScale = 0.003996f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sky") float MieAnisotropy = 0.8f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fog") float FogDensity = 0.06f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fog") float FogHeightFalloff = 0.25f;
+	/** Height of the fog's base (cm); below -100000 leaves the level's value. With the falloff, the fog thins upward:
+	 *  the ground far below hazes over while the canopy keeps enough for light shafts. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fog") float FogBaseHeight = 0.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fog") float FogStartDistance = 0.f;
+	/** Sun-coloured glow in the fog looking toward the sun; black turns it off. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fog") FLinearColor FogSunGlowColor = FLinearColor(0.6f, 0.42f, 0.22f, 1.f);
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fog") float FogSunGlowExponent = 6.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fog") bool bVolumetricFog = true;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fog") float VolumetricFogExtinction = 0.6f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fog") float VolumetricFogDistance = 9000.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fog") float VolumetricFogScattering = 0.7f;
+	/** A second, lower fog layer: ground haze. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fog") float GroundHazeDensity = 0.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fog") float GroundHazeFalloff = 0.2f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fog") float GroundHazeHeightOffset = 0.f;
+};
+
+/**
  * Runs a day: grows the tree, sends workers out one shift at a time, brings them home, shows the recap and starts
  * the next day. Owns the worker roster.
  */
@@ -29,6 +77,12 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day")
 	FDayTuning Tuning;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day")
+	FLookTuning Look;
+
+	/** Push Look to the level's sun, sky light, atmosphere and fog. */
+	void ApplyLook();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day")
 	TSubclassOf<AAntPawn> WorkerClass;
@@ -110,6 +164,8 @@ private:
 	float PhaseTimer = 0.f;
 	float SunPitch = -30.f;
 	float SunYaw = -40.f;
+	float SunTemperatureApplied = 0.f;
+	float SpareFloat2 = 6500.f;
 	float SpareFloat = 0.f;
 	int32 SpareInt = 0;
 	float PendingPossess = 0.f;

@@ -9,6 +9,11 @@
 #include "Audio/LeafSound.h"
 #include "Engine/DirectionalLight.h"
 #include "Components/LightComponent.h"
+#include "Components/DirectionalLightComponent.h"
+#include "Components/SkyLightComponent.h"
+#include "Components/SkyAtmosphereComponent.h"
+#include "Components/ExponentialHeightFogComponent.h"
+#include "Engine/ExponentialHeightFog.h"
 #include "GameFramework/PlayerController.h"
 #include "EngineUtils.h"
 #include "Game/LeaflineGameInstance.h"
@@ -54,6 +59,66 @@ void ADayDirector::Init(ATreeActor* InTree, ATrailNetwork* InTrails, ANestActor*
 	{
 		SunYaw = Sun->GetActorRotation().Yaw;
 		if (ULightComponent* Light = Sun->GetLightComponent()) Light->SetMobility(EComponentMobility::Movable);
+	}
+	ApplyLook();
+}
+
+void ADayDirector::ApplyLook()
+{
+	UWorld* World = GetWorld();
+	if (!World) return;
+	const FLookTuning& L = Look;
+	if (Sun.IsValid())
+	{
+		if (UDirectionalLightComponent* S = Cast<UDirectionalLightComponent>(Sun->GetLightComponent()))
+		{
+			S->SetIntensity(L.SunIntensity);
+			S->bUseTemperature = true;
+			S->SetLightSourceAngle(L.SunSourceAngle);
+			S->SetEnableLightShaftBloom(L.ShaftBloomScale > 0.f);
+			S->SetBloomScale(L.ShaftBloomScale);
+			S->SetBloomThreshold(L.ShaftBloomThreshold);
+			S->SetVolumetricScatteringIntensity(L.SunVolumetricScattering);
+			SunTemperatureApplied = 0.f; // UpdateSun sets it for the current shift
+		}
+	}
+	for (TActorIterator<AActor> It(World); It; ++It)
+	{
+		for (UActorComponent* C : It->GetComponents())
+		{
+			if (USkyLightComponent* Sky = Cast<USkyLightComponent>(C))
+			{
+				Sky->SetIntensity(L.SkyLightIntensity);
+			}
+			else if (USkyAtmosphereComponent* Atmo = Cast<USkyAtmosphereComponent>(C))
+			{
+				Atmo->SetAerialPespectiveViewDistanceScale(L.AerialPerspectiveScale);
+				Atmo->SetMieScatteringScale(L.MieScatteringScale);
+				Atmo->SetMieAnisotropy(L.MieAnisotropy);
+			}
+			else if (UExponentialHeightFogComponent* Fog = Cast<UExponentialHeightFogComponent>(C))
+			{
+				Fog->SetFogDensity(L.FogDensity);
+				Fog->SetFogHeightFalloff(L.FogHeightFalloff);
+				Fog->SetStartDistance(L.FogStartDistance);
+				Fog->SetDirectionalInscatteringColor(L.FogSunGlowColor);
+				Fog->SetDirectionalInscatteringExponent(L.FogSunGlowExponent);
+				Fog->SetVolumetricFog(L.bVolumetricFog);
+				Fog->SetVolumetricFogExtinctionScale(L.VolumetricFogExtinction);
+				Fog->SetVolumetricFogDistance(L.VolumetricFogDistance);
+				Fog->SetVolumetricFogScatteringDistribution(L.VolumetricFogScattering);
+				Fog->SetSecondFogDensity(L.GroundHazeDensity);
+				Fog->SetSecondFogHeightFalloff(L.GroundHazeFalloff);
+				Fog->SetSecondFogHeightOffset(L.GroundHazeHeightOffset);
+				if (L.FogBaseHeight > -100000.f)
+				{
+					FVector P = It->GetActorLocation();
+					P.Z = L.FogBaseHeight;
+					Fog->SetMobility(EComponentMobility::Movable);
+					It->SetActorLocation(P);
+				}
+			}
+		}
 	}
 }
 
@@ -410,4 +475,14 @@ void ADayDirector::UpdateSun(float Dt, bool bSnap)
 	float& YawOffset = SpareFloat;
 	YawOffset = bSnap ? T * 70.f : FMath::FInterpTo(YawOffset, T * 70.f, Dt, 0.6f);
 	Sun->SetActorRotation(FRotator(SunPitch, SunYaw + YawOffset, 0.f));
+	// Warmth follows the same morning-noon-evening curve; only touch the light when it changes noticeably.
+	const float Temp = T < 0.5f ? FMath::Lerp(Look.SunTemperatureMorning, Look.SunTemperatureNoon, T * 2.f)
+	                            : FMath::Lerp(Look.SunTemperatureNoon, Look.SunTemperatureEvening, (T - 0.5f) * 2.f);
+	float& TempShown = SpareFloat2;
+	TempShown = bSnap ? Temp : FMath::FInterpTo(TempShown, Temp, Dt, 0.6f);
+	if (FMath::Abs(TempShown - SunTemperatureApplied) > 5.f)
+	{
+		if (ULightComponent* Light = Sun->GetLightComponent()) Light->SetTemperature(TempShown);
+		SunTemperatureApplied = TempShown;
+	}
 }

@@ -82,8 +82,8 @@ struct FTreeParams
 
 	// Leaves
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Leaves") float LowestLeafyHeight = 4000.f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Leaves") float LeafSpacingTwig = 70.f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Leaves") float LeafSpacingBough = 160.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Leaves") float LeafSpacingTwig = 50.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Leaves") float LeafSpacingBough = 115.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Leaves") float LeafLengthMin = 170.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Leaves") float LeafLengthMax = 230.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Leaves") float LeafWidthRatio = 0.46f;
@@ -109,6 +109,10 @@ struct FTreeParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grove") int32 GroveCount = 14;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grove") float GroveMinDistance = 22000.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grove") float GroveMaxDistance = 70000.f;
+	/** Leaf clumps per grove crown (around the top and at the limb ends); 0 leaves the trunks bare. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grove") int32 GroveCrownClumps = 9;
+	/** Leaves per clump; each is about half the clump radius long, so this sets how closed the crown looks. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grove") int32 GroveLeavesPerClump = 70;
 	/** Radius of the ground disk (cm). Far enough that the height fog swallows its edge. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grove") float GroundRadius = 500000.f;
 

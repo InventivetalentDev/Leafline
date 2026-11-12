@@ -77,3 +77,7 @@ Scripts/unreal-lock.sh --no-wait|--timeout <min>|--break-stale ...
 ## RunGame.bat
 
 `Scripts/RunGame.bat <logname> "<execcmds>"` starts the game standalone from the editor binaries, without packaging. Run it through `unreal-lock.sh`.
+
+## Reference screenshots (`Tools/ref_shots.sh`)
+
+`Tools/ref_shots.sh <label>` takes three fixed views on seed 517192 from the editor binaries (no packaging): up the trunk into the crown (framed like concept image 01), in the canopy, and from the nest at the trunk base. Each runs with hardware ray tracing and with `-noraytracing`. Files land in `Saved/RefShots/<label>-<view>-<rt|nort>.png`. `ONLY=<view>` takes one view, `NO_NORT=1` skips the runs without ray tracing; `TRUNK_T`, `TRUNK_PITCH`, `CANOPY_BRANCH`, `CANOPY_HEADING`, `BASE_HEADING` move the views. The editor must be closed (it goes through the Unreal lock). About 25 s per shot.

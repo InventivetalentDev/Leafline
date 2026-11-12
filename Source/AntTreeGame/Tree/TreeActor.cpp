@@ -78,6 +78,23 @@ void ATreeActor::Grow(int32 Seed)
 	}
 	for (int32 c = 0; c < Leaves.NumChunks(); ++c) BuildLeafChunk(c);
 
+	// Grove crowns (leaves made in BuildGrove), drawn with the same leaf material.
+	if (!GroveLeafMesh)
+	{
+		GroveLeafMesh = MakeMeshComponent(this, RootComponent, TEXT("GroveLeafMesh"));
+		GroveLeafMesh->SetCastShadow(false);
+	}
+	GroveLeafMesh->ClearAllMeshSections();
+	if (GroveLeaves.Num() > 0)
+	{
+		FTreeMeshData Crowns;
+		GroveLeaves.BuildChunkMesh(0, Crowns);
+		GroveLeafMesh->CreateMeshSection_LinearColor(0, Crowns.Vertices, Crowns.Triangles, Crowns.Normals, Crowns.UV0, {}, {}, {},
+			Crowns.Colors, Crowns.Tangents, false, false);
+		if (LeafMaterialInUse) GroveLeafMesh->SetMaterial(0, LeafMaterialInUse);
+		UE_LOG(LogLeafline, Log, TEXT("Grove crowns: %d leaves, %d triangles"), GroveLeaves.Num(), Crowns.Triangles.Num() / 3);
+	}
+
 	UE_LOG(LogLeafline, Log, TEXT("Tree grown: seed %d in %.0f ms"), Seed, (FPlatformTime::Seconds() - StartTime) * 1000.0);
 }
 
@@ -110,6 +127,8 @@ void ATreeActor::BuildGrove()
 	FRandomStream R(Skeleton.Seed * 7919 + 17);
 	const FVector C(Skeleton.TrunkBase.X, Skeleton.TrunkBase.Y, Field.GroundZ);
 	const int32 Count = FMath::Max(0, Params.GroveCount);
+	struct FClump { FVector Center; double Radius; };
+	TArray<FClump> Clumps;
 	for (int32 k = 0; k < Count; ++k)
 	{
 		const float Az = 2.f * PI * k / FMath::Max(Count, 1) + R.FRandRange(-0.18f, 0.18f);
@@ -135,6 +154,20 @@ void ATreeActor::BuildGrove()
 		TreeSkeleton::BuildSamples(T, Grove.Params);
 		Grove.Branches.Add(MoveTemp(T));
 
+		// Crown: a clump over the top and others spread down the upper part of the trunk, like the main tree, whose
+		// leaves start low (at 40 m of 300); from the canopy the grove then shows leaves at eye level, not bare poles.
+		if (Params.GroveCrownClumps > 0)
+		{
+			Clumps.Add({ Base + Lean * H + FVector(0.f, 0.f, H * 0.95f), H * R.FRandRange(0.11f, 0.14f) });
+			for (int32 k2 = 1; k2 < Params.GroveCrownClumps; ++k2)
+			{
+				const float Z2 = H * FMath::Lerp(0.38f, 0.92f, (k2 - 0.5f + R.FRandRange(-0.4f, 0.4f)) / (Params.GroveCrownClumps - 1));
+				const float A2 = R.FRandRange(0.f, 2.f * PI);
+				const float Out = H * R.FRandRange(0.05f, 0.14f);
+				Clumps.Add({ Base + Lean * Z2 + FVector(FMath::Cos(A2) * Out, FMath::Sin(A2) * Out, Z2), H * R.FRandRange(0.06f, 0.10f) });
+			}
+		}
+
 		const int32 Limbs = R.RandRange(3, 5);
 		for (int32 l = 0; l < Limbs; ++l)
 		{
@@ -156,6 +189,31 @@ void ATreeActor::BuildGrove()
 			}
 			TreeSkeleton::BuildSamples(B, Grove.Params);
 			Grove.Branches.Add(MoveTemp(B));
+			if (Params.GroveCrownClumps > 0) Clumps.Add({ P, H * R.FRandRange(0.05f, 0.08f) });
+		}
+	}
+
+	// Leaves on the surface of each clump, facing out and drooping a little; far enough away that they are scenery.
+	GroveLeaves.Reset();
+	for (const FClump& Cl : Clumps)
+	{
+		for (int32 i = 0; i < Params.GroveLeavesPerClump; ++i)
+		{
+			FVector Out = R.VRand();
+			Out.Z = Out.Z * 0.7f + 0.2f; // flatter underneath, fuller on top
+			Out.Normalize();
+			FTreeLeaf L;
+			L.Length = Cl.Radius * R.FRandRange(0.5f, 0.75f);
+			L.Width = L.Length * Params.LeafWidthRatio;
+			const FVector Tan = FVector::CrossProduct(Out, R.VRand()).GetSafeNormal();
+			L.Dir = (Tan + Out * 0.35f + FVector(0.f, 0.f, -0.3f)).GetSafeNormal();
+			L.Side = FVector::CrossProduct(L.Dir, Out).GetSafeNormal();
+			if (L.Side.IsNearlyZero()) continue;
+			L.Normal = FVector::CrossProduct(L.Side, L.Dir).GetSafeNormal(); // points outward
+			L.Base = Cl.Center + Out * Cl.Radius * R.FRandRange(0.7f, 1.f) - L.Dir * L.Length * 0.3f;
+			L.Origin = L.Base;
+			L.Chunk = 0;
+			GroveLeaves.AddDecorLeaf(L);
 		}
 	}
 

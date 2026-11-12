@@ -22,6 +22,12 @@ void FLeafSet::Reset()
 	Grid.Reset();
 }
 
+void FLeafSet::AddDecorLeaf(const FTreeLeaf& Leaf)
+{
+	if (ChunkLeaves.Num() <= Leaf.Chunk) ChunkLeaves.SetNum(Leaf.Chunk + 1);
+	ChunkLeaves[Leaf.Chunk].Add(Leaves.Add(Leaf));
+}
+
 FIntVector FLeafSet::Cell(const FVector& P) const
 {
 	return FIntVector(FMath::FloorToInt(P.X / CellSize), FMath::FloorToInt(P.Y / CellSize), FMath::FloorToInt(P.Z / CellSize));
@@ -49,7 +55,7 @@ void FLeafSet::Build(const FTreeSkeleton& S, const FTreeField& Field)
 		const float Len = B.Length();
 		const float Spacing = B.Level >= 3 ? P.LeafSpacingTwig : P.LeafSpacingBough;
 		float Az = R.FRandRange(0.f, 2.f * PI);
-		for (float D = Len * (B.Level >= 3 ? 0.25f : 0.5f); D <= Len - 5.f; D += Spacing * R.FRandRange(0.8f, 1.2f))
+		for (float D = Len * (B.Level >= 3 ? 0.15f : 0.5f); D <= Len - 5.f; D += Spacing * R.FRandRange(0.8f, 1.2f))
 		{
 			Az += 2.39996f;
 			float Rad;

@@ -265,3 +265,10 @@ void AAntCamera::Tick(float DeltaTime)
 	PP.bOverride_AutoExposureBias = true;
 	PP.AutoExposureBias = Tuning.ExposureBias;
 }
+
+void AAntCamera::DebugAimDirection(const FVector& WorldDir, float NewPitch)
+{
+	const FVector F = CamProjectOnPlane(WorldDir, CamUp).GetSafeNormal();
+	if (!F.IsNearlyZero()) RefForward = F;
+	Pitch = FMath::Clamp(NewPitch, Tuning.PitchMin, Tuning.PitchMax);
+}

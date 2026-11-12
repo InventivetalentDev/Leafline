@@ -84,6 +84,10 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UProceduralMeshComponent> GroveMesh;
 
+	/** Their crowns: big leaf clumps in the leaf material, scenery only. */
+	UPROPERTY(Transient)
+	TObjectPtr<UProceduralMeshComponent> GroveLeafMesh;
+
 	UPROPERTY()
 	TObjectPtr<UMaterialInterface> FallbackMaterial;
 
@@ -94,4 +98,5 @@ private:
 	FTreeSkeleton Skeleton;
 	FTreeField Field;
 	FLeafSet Leaves;
+	FLeafSet GroveLeaves;
 };

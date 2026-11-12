@@ -30,6 +30,8 @@
   - Fixed: the walking surface had a thin vertical strip (up to 20 cm tall) on the outer side of every slight bend in a branch, left over from my earlier fix; the ant bounced off it. Replayed day 4's tree (seed 208038): the climb from the nest now goes straight up. In the package of 12 Nov 18:28.
 - [x] leaf animation seems to play without actually moving the leaf, only the shadow moves?
   - Real cause: every leaf was built twice (a front and a back face with opposite normals, on a two-sided material). The two copies z-fought, and the sway, which moves vertices along their normals, pushed them apart in opposite directions: two leaves cutting through each other, and doubled shadows. Leaves are one face now (half the leaf geometry). Sway is a little larger than before (about 2 cm calm, 20 cm at the tip in a full gust). In the package of 12 Nov 18:28.
+- [ ] glow around the ant looks weird
+- [ ] nanite warning text visible in packaged build
 
 ## To revisit: thin-branch controls (2026-11-12)
 

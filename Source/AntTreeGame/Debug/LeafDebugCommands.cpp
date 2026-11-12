@@ -1,5 +1,7 @@
 #include "Debug/LeafDebug.h"
 #include "Containers/Ticker.h"
+#include "Engine/PostProcessVolume.h"
+#include "EngineUtils.h"
 #include "AntTreeGame.h"
 #include "Ant/AntPawn.h"
 #include "Ant/AntMovementComponent.h"
@@ -35,6 +37,38 @@ namespace
 	{
 		APlayerController* PC = World ? World->GetFirstPlayerController() : nullptr;
 		return PC ? Cast<AAntPawn>(PC->GetPawn()) : nullptr;
+	}
+
+	/** Log the listed properties of an object that exist (dotted paths reach into structs), by reflection. */
+	FString DescribeProps(const UObject* Obj, std::initializer_list<const TCHAR*> Paths)
+	{
+		FString Out;
+		for (const TCHAR* Path : Paths)
+		{
+			TArray<FString> Parts;
+			FString(Path).ParseIntoArray(Parts, TEXT("."));
+			const UStruct* Type = Obj->GetClass();
+			const void* Container = Obj;
+			const FProperty* Prop = nullptr;
+			for (int32 k = 0; k < Parts.Num() && Type; ++k)
+			{
+				Prop = FindFProperty<FProperty>(Type, *Parts[k]);
+				if (!Prop) break;
+				const void* Value = Prop->ContainerPtrToValuePtr<void>(Container);
+				if (k + 1 < Parts.Num())
+				{
+					const FStructProperty* SP = CastField<FStructProperty>(Prop);
+					Type = SP ? SP->Struct : nullptr;
+					Container = Value;
+					if (!SP) Prop = nullptr;
+				}
+			}
+			if (!Prop) continue;
+			FString Text;
+			Prop->ExportTextItem_Direct(Text, Prop->ContainerPtrToValuePtr<void>(Container), nullptr, nullptr, PPF_None);
+			Out += FString::Printf(TEXT(" %s=%s"), Path, *Text);
+		}
+		return Out;
 	}
 
 	/** After a debug teleport, put the camera behind the ant again so camera-relative input means what it should. */
@@ -278,7 +312,7 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs CmdTune(
 		TEXT("Leaf.Tune"),
-		TEXT("Leaf.Tune <cam|move|input> [Field] [Value]: list, read or set a tuning value while playing, e.g. Leaf.Tune cam SurfaceFollow 0."),
+		TEXT("Leaf.Tune <cam|move|input|look> [Field] [Value]: list, read or set a tuning value while playing, e.g. Leaf.Tune cam SurfaceFollow 0. In colours ';' may stand for ','."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 		{
 			ALeaflinePlayerController* PC = World ? Cast<ALeaflinePlayerController>(World->GetFirstPlayerController()) : nullptr;
@@ -299,7 +333,17 @@ namespace
 					Data = SP->ContainerPtrToValuePtr<void>(Owner);
 				}
 			};
+			ADayDirector* LookOwner = nullptr;
 			if (Which == TEXT("cam")) UseTuning(PC->GetAntCamera());
+			else if (Which == TEXT("look"))
+			{
+				LookOwner = ADayDirector::Get(World);
+				if (LookOwner)
+				{
+					Type = FLookTuning::StaticStruct();
+					Data = &LookOwner->Look;
+				}
+			}
 			else if (Which == TEXT("move")) UseTuning(PC->GetAnt() ? PC->GetAnt()->GetAntMovement() : nullptr);
 			else if (Which == TEXT("input"))
 			{
@@ -333,7 +377,9 @@ namespace
 			}
 			if (Args.Num() >= 3)
 			{
-				P->ImportText_Direct(*Args[2], P->ContainerPtrToValuePtr<void>(Data), nullptr, PPF_None);
+				// ';' stands for ',' so colours can be given in -ExecCmds, which splits on commas: (R=1;G=0.8;B=0.6;A=1)
+				P->ImportText_Direct(*Args[2].Replace(TEXT(";"), TEXT(",")), P->ContainerPtrToValuePtr<void>(Data), nullptr, PPF_None);
+				if (LookOwner) LookOwner->ApplyLook();
 			}
 			Print(P);
 		}));
@@ -522,5 +568,82 @@ namespace
 			UE_LOG(LogLeafline, Log, TEXT("Leaf.SurfaceGap: %d points below z %.0f, mean gap %.2f cm, worst %.1f cm at %s, %d over 5 cm, %d failed projections"),
 				Count, MaxZ, Count ? Sum / Count : 0.0, Worst, *WorstP.ToCompactString(), Over5, Failed);
 			GapDetail(Tree, WorstP);
+		}));
+
+	FAutoConsoleCommandWithWorldAndArgs CmdAim(
+		TEXT("Leaf.Aim"),
+		TEXT("Leaf.Aim <heading deg|up> <pitch deg>: aim the camera toward a world heading (0 = +X), or up the trunk, at a pitch, for repeatable screenshots."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			ALeaflinePlayerController* PC = World ? Cast<ALeaflinePlayerController>(World->GetFirstPlayerController()) : nullptr;
+			if (!PC || !PC->GetAntCamera() || Args.Num() < 2) return;
+			if (Args[0].Equals(TEXT("up"), ESearchCase::IgnoreCase)) PC->GetAntCamera()->DebugAimDirection(FVector::UpVector, FCString::Atof(*Args[1]));
+			else PC->GetAntCamera()->DebugAim(FCString::Atof(*Args[0]), FCString::Atof(*Args[1]));
+			UE_LOG(LogLeafline, Log, TEXT("Leaf.Aim heading %s pitch %s"), *Args[0], *Args[1]);
+		}));
+
+	FAutoConsoleCommandWithWorldAndArgs CmdDelay(
+		TEXT("Leaf.Delay"),
+		TEXT("Leaf.Delay <seconds> <command...>: run a console command later, also while paused (unattended screenshot runs)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			if (Args.Num() < 2 || !World) return;
+			const float Seconds = FMath::Max(0.f, FCString::Atof(*Args[0]));
+			FString Cmd;
+			for (int32 k = 1; k < Args.Num(); ++k) Cmd += (k > 1 ? TEXT(" ") : TEXT("")) + Args[k];
+			TWeakObjectPtr<UWorld> Weak(World);
+			FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([Weak, Cmd](float)
+			{
+				UWorld* W = Weak.Get();
+				APlayerController* PC = W ? W->GetFirstPlayerController() : nullptr;
+				UE_LOG(LogLeafline, Log, TEXT("Leaf.Delay: %s"), *Cmd);
+				if (PC) PC->ConsoleCommand(Cmd);
+				return false;
+			}), Seconds);
+		}));
+
+	FAutoConsoleCommandWithWorldAndArgs CmdLightInfo(
+		TEXT("Leaf.LightInfo"),
+		TEXT("Leaf.LightInfo: log the lights, sky, fog and post-process volumes in the level with their main settings."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>&, UWorld* World)
+		{
+			if (!World) return;
+			for (TActorIterator<AActor> It(World); It; ++It)
+			{
+				const AActor* A = *It;
+				for (const UActorComponent* C : A->GetComponents())
+				{
+					if (!C) continue;
+					const FString Cls = C->GetClass()->GetName();
+					FString Props;
+					if (Cls.Contains(TEXT("DirectionalLight")))
+						Props = DescribeProps(C, { TEXT("Intensity"), TEXT("LightColor"), TEXT("bUseTemperature"), TEXT("Temperature"), TEXT("LightSourceAngle"),
+							TEXT("bEnableLightShaftBloom"), TEXT("BloomScale"), TEXT("CastShadows"), TEXT("DynamicShadowDistanceMovableLight"), TEXT("bAtmosphereSunLight"),
+							TEXT("bCastVolumetricShadow"), TEXT("VolumetricScatteringIntensity"), TEXT("Mobility") });
+					else if (Cls.Contains(TEXT("SkyLight")))
+						Props = DescribeProps(C, { TEXT("Intensity"), TEXT("LightColor"), TEXT("bRealTimeCapture"), TEXT("SourceType"), TEXT("LowerHemisphereColor"), TEXT("bLowerHemisphereIsBlack"), TEXT("Mobility") });
+					else if (Cls.Contains(TEXT("ExponentialHeightFog")))
+						Props = DescribeProps(C, { TEXT("FogDensity"), TEXT("FogHeightFalloff"), TEXT("FogInscatteringLuminance"), TEXT("FogInscatteringColor"), TEXT("StartDistance"),
+							TEXT("FogMaxOpacity"), TEXT("bEnableVolumetricFog"), TEXT("VolumetricFogScatteringDistribution"), TEXT("VolumetricFogExtinctionScale"), TEXT("VolumetricFogDistance"),
+							TEXT("SecondFogData.FogDensity"), TEXT("DirectionalInscatteringExponent"), TEXT("DirectionalInscatteringLuminance") });
+					else if (Cls.Contains(TEXT("SkyAtmosphere")))
+						Props = DescribeProps(C, { TEXT("BottomRadius"), TEXT("AtmosphereHeight"), TEXT("RayleighScatteringScale"), TEXT("MieScatteringScale"), TEXT("MultiScatteringFactor"), TEXT("TransformMode") });
+					else if (Cls.Contains(TEXT("VolumetricCloud")))
+						Props = TEXT(" (present)");
+					else if (Cls.Contains(TEXT("PostProcess")) || Cls.Contains(TEXT("Camera")))
+						Props = DescribeProps(C, { TEXT("Settings.AutoExposureMethod"), TEXT("Settings.AutoExposureBias"), TEXT("Settings.AutoExposureMinBrightness"),
+							TEXT("Settings.AutoExposureMaxBrightness"), TEXT("Settings.BloomIntensity"), TEXT("PostProcessSettings.AutoExposureBias"), TEXT("PostProcessSettings.DepthOfFieldFstop") });
+					else
+						continue;
+					UE_LOG(LogLeafline, Log, TEXT("LightInfo: %s / %s at %s rot=%s%s"), *A->GetName(), *Cls, *A->GetActorLocation().ToCompactString(), *A->GetActorRotation().ToCompactString(), *Props);
+				}
+				if (const APostProcessVolume* V = Cast<APostProcessVolume>(A))
+				{
+					UE_LOG(LogLeafline, Log, TEXT("LightInfo: %s unbound=%d%s"), *A->GetName(), V->bUnbound ? 1 : 0,
+						*DescribeProps(V, { TEXT("Settings.bOverride_AutoExposureMethod"), TEXT("Settings.AutoExposureMethod"), TEXT("Settings.bOverride_AutoExposureBias"), TEXT("Settings.AutoExposureBias"),
+							TEXT("Settings.bOverride_AutoExposureMinBrightness"), TEXT("Settings.AutoExposureMinBrightness"), TEXT("Settings.AutoExposureMaxBrightness"),
+							TEXT("Settings.BloomIntensity"), TEXT("Settings.DynamicGlobalIlluminationMethod"), TEXT("Settings.ReflectionMethod") }));
+				}
+			}
 		}));
 }

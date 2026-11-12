@@ -50,6 +50,9 @@ public:
 	/** Largest fragment size (0..1) the leaf still allows. */
 	float SizeCap(int32 Index, float UsePerCut) const;
 
+	/** A leaf for scenery only (distant grove crowns): no grid entry, so it can never be found or cut. */
+	void AddDecorLeaf(const FTreeLeaf& Leaf);
+
 	/** Two-sided blades for one chunk. */
 	void BuildChunkMesh(int32 Chunk, FTreeMeshData& Out) const;
 
