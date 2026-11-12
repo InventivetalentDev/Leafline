@@ -146,7 +146,10 @@ void ALeaflinePlayerController::PlayerTick(float DeltaTime)
 	Move.X = FMath::Clamp(Move.X + LeafDebug::AutoStrafe, -1.0, 1.0);
 
 	const FVector2D Mouse = Input->GetActionValue(LookMouseAction).Get<FVector2D>();
-	const FVector2D Stick = Input->GetActionValue(LookStickAction).Get<FVector2D>();
+	FVector2D Stick = Input->GetActionValue(LookStickAction).Get<FVector2D>();
+	// The owner's preference (2026-11-12): the right stick looks inverted (push up to look down); the mouse does not.
+	// bInvertPitch below still flips both.
+	Stick.Y = -Stick.Y;
 	FVector2D Look = Mouse * MouseSensitivity + Stick * (StickLookRate * DeltaTime);
 	if (bInvertPitch) Look.Y = -Look.Y;
 	AntCamera->AddLookInput(Look);
