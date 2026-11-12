@@ -43,7 +43,7 @@ public:
 
 	/** Where the carried fragment attaches, relative to the actor (cm). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ant")
-	FVector MandibleOffset = FVector(11.f, 0.f, 4.f);
+	FVector MandibleOffset = FVector(9.1f, 0.f, 4.f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ant")
 	FCutTuning Cut;
@@ -122,6 +122,9 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UMaterialInterface> BasicMaterial;
 
+	/** Body material instance carrying the gait phase for the shader-driven legs. */
+	UPROPERTY(Transient) TObjectPtr<UMaterialInstanceDynamic> BodyMID;
+
 	UPROPERTY(Transient) TObjectPtr<ULeaflineAudioLoop> CutLoop;
 	UPROPERTY(Transient) TObjectPtr<ULeaflineAudioLoop> GripLoop;
 
@@ -156,6 +159,8 @@ private:
 	float StepDistance = 0.f;
 	FVector LastStepPos = FVector::ZeroVector;
 	bool bWasSprintLocked = false;
+	float GaitPhase = 0.f;
+	float GaitAmount = 0.f;
 	void UpdateSounds();
 	int32 CuttingLeaf = INDEX_NONE;
 	float CutSize = 0.f;
