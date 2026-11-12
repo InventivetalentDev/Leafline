@@ -81,7 +81,7 @@ Rules for parallel work:
 - [x] Exposure and the blow-off test; `Falling` and the walk home.
 - [x] Grip action.
 - [x] Risk colour on the cutting arc.
-- [ ] Leaf sway, streaks, wind audio hooked to strength. (Streaks done; sway comes with the leaf material, audio with the runtime WAV loader Codex is writing.)
+- [x] Leaf sway, streaks, wind audio hooked to strength.
 - [x] `Leaf.Gust`.
 
 **Done when:** a large fragment on the exposed side is blown off in a full gust; the same fragment on the sheltered side, or with grip held, survives; and both outcomes are visible in the log.
@@ -93,7 +93,7 @@ Rules for parallel work:
 - [x] Colony meter, three milestones, end card, continue.
 - [x] Day scaling: leafy height, gust strength and frequency.
 - [x] Title and pause screens.
-- [ ] Codex code review of M1–M4; fix what it finds.
+- [x] Codex code review of M1–M3; fixed (docs/reviews). M4 screens not yet reviewed.
 
 **Done when:** a fresh save can be played to the end card in about 15 minutes, and quitting and relaunching keeps the colony.
 
@@ -101,14 +101,14 @@ Rules for parallel work:
 
 Order by visible impact per hour:
 
-- [ ] Bark material (plates, fissures, moss) and bark relief in field and mesh.
-- [ ] Leaf material: shape, veins, backlight, bite edges.
+- [x] Bark material (plates, fissures, moss). Bark relief in field and mesh not done (cut list item 3).
+- [x] Leaf material: shape, veins, backlight, bite edges, wind sway.
 - [ ] Lighting pass against concept image 01: sun angle per shift, volumetric shafts, fog, mild depth of field, exposure.
-- [ ] Final ant mesh with shader gait; carried fragment mesh.
-- [ ] Trail shader.
-- [ ] Ground material; optional distant trunks.
-- [ ] Audio import and mix, checked with `earshot`.
-- [ ] Onboarding prompts for the first day; recap screen titled as the day's cut.
+- [x] Final ant mesh with shader gait; carried fragment mesh (placeholder disc).
+- [x] Trail shader (soft-edged translucent cyan; no flow yet).
+- [x] Ground material. Distant trunks not done.
+- [x] Audio: runtime WAV loader (no import tool), all sounds hooked up. Mix not yet checked by ear.
+- [x] Onboarding prompts for the first day; recap screen titled as the day's cut.
 - [ ] Screens moved to Slate if time allows.
 
 **Done when:** a screenshot from play, set beside concept image 01, clearly shows the same game, and a new player reaches their first cut without being told the controls.

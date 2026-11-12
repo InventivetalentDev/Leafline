@@ -41,3 +41,12 @@ Leafline is made by one person directing AI agents. Claude (Anthropic) does plan
 - Codex also wrote the save game and the five upgrades on a separate branch in its own worktree; I reviewed and merged it.
 - M3: one prevailing wind per day with a gust cycle. Exposure comes from which way the surface faces and whether the tree shelters it upwind. In a full gust, a large fragment on the windward side of the trunk is blown off (force 1.16 against a grip of 1.00); the same fragment on the lee side rides it out. A blown-off ant falls, lands and walks home empty-handed. The cutting arc is coloured by the predicted risk of each size.
 - Fixed the ant floating at the base of the trunk: the distance field blended the trunk into the ground with an 80 cm fillet the mesh doesn't have. The blends are now small enough not to show.
+
+## 2026-11-12 (Thu): screens, sound and looks
+
+- M4: a title screen, the nest between days where leaf mass buys the five upgrades, a colony meter with three milestones, an end card, pause.
+- Sound: the editor's MCP has no way to import audio, so Codex wrote a small runtime loader that plays the synthesised WAV files straight from the game's data. Wind beds now swell with the gusts; cutting, footsteps, deposits and the rest are hooked up.
+- The ant from the Blender script is in, with its legs animated in the material: two tripods half a cycle apart, swinging and lifting with walking speed.
+- First procedural materials, built node by node through the MCP: plated bark with fissures and moss, two-sided leaves with veins and backlight that sway with the wind, soil with leaf litter, a soft cyan trail. No textures anywhere.
+- Codex's second review (M2 and M3) found nine more problems, including two ways a day could fail to end. All fixed (`docs/reviews/codex-m2m3.md`).
+- Fog with light shafts, depth of field focused on the ant, and a slightly darker exposure.
