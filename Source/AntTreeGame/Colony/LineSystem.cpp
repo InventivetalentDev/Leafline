@@ -461,6 +461,8 @@ AAntPawn* ALineSystem::SpawnRecruitPawn()
 	if (!Ant) return nullptr;
 	if (ULeaflineGameInstance* GI = Cast<ULeaflineGameInstance>(GetGameInstance())) GI->ApplyUpgradesToAnt(Ant);
 	Ant->MakeRecruit(this);
+	Ant->AddTickPrerequisiteActor(this);
+	if (Ant->GetAntMovement()) Ant->GetAntMovement()->AddTickPrerequisiteActor(this);
 	return Ant;
 }
 

@@ -57,6 +57,7 @@ void AWindSystem::BeginPlay()
 void AWindSystem::StartDay(int32 InDay, int32 Seed)
 {
 	Day = FMath::Max(1, InDay);
+	Clock = 0.f; // the day's wind must not depend on how long the menus before it were open
 	Rand.Initialize(Seed * 31 + 7);
 	StreakRand.Initialize(Seed * 17 + 3); // looks only: gust timing must not depend on how many frames drew streaks
 	BaseYaw = Rand.FRandRange(0.f, 360.f);

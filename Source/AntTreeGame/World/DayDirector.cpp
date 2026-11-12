@@ -241,6 +241,13 @@ AAntPawn* ADayDirector::SpawnWorker(int32 Index)
 	AAntPawn* Ant = GetWorld()->SpawnActor<AAntPawn>(WorkerClass ? *WorkerClass : AAntPawn::StaticClass(), SpawnXf, Params);
 	if (!Ant) return nullptr;
 	Ant->SetWorker(Index, Trails->StartPath(NestXf.GetLocation(), FVector::UpVector));
+	// Ants tick after the line system, so one handed over to its fixed clock in a frame was not also moved by its
+	// own tick earlier in that frame.
+	if (Lines)
+	{
+		Ant->AddTickPrerequisiteActor(Lines);
+		if (Ant->GetAntMovement()) Ant->GetAntMovement()->AddTickPrerequisiteActor(Lines);
+	}
 	if (ULeaflineGameInstance* GI = Colony(this)) GI->ApplyUpgradesToAnt(Ant);
 	Roster[Index].Pawn = Ant;
 	return Ant;
@@ -437,7 +444,8 @@ void ADayDirector::UpdateDayFlow()
 
 void ADayDirector::RescueStalledScouts()
 {
-	const double Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+	// Sim time: fallen scouts walk on the line system's fixed clock, so the waits mean the same at any harvest speed.
+	const double Now = Lines ? Lines->GetSimTime() : (GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0);
 	// When each blown-off scout fell: however it moves, it is counted home after two minutes, so the day always ends.
 	static TMap<TWeakObjectPtr<AAntPawn>, double> FellAt;
 	for (auto It = FellAt.CreateIterator(); It; ++It)
@@ -454,9 +462,11 @@ void ADayDirector::RescueStalledScouts()
 		if (Now - Fell > 120.0)
 		{
 			UE_LOG(LogLeafline, Log, TEXT("Worker %d still not home two minutes after its fall (at %s); counted home"), i, *M->GetSurfacePosition().ToCompactString());
-			if (Ant->IsPlayerControlled() && Player.IsValid()) Player->UnPossess();
+			const bool bWasControlled = Ant->IsPlayerControlled();
+			if (bWasControlled && Player.IsValid()) Player->UnPossess();
 			Ant->Destroy();
 			W.State = EWorkerState::Home;
+			if (bWasControlled) PossessNext();
 			continue;
 		}
 		if (M->GetState() == EAntState::Falling)
@@ -473,9 +483,11 @@ void ADayDirector::RescueStalledScouts()
 		else if (Now - W.ProgressTime > 8.0)
 		{
 			UE_LOG(LogLeafline, Log, TEXT("Worker %d stalled on its walk home after a fall (at %s); counted home"), i, *M->GetSurfacePosition().ToCompactString());
-			if (Ant->IsPlayerControlled() && Player.IsValid()) Player->UnPossess();
+			const bool bWasControlled = Ant->IsPlayerControlled();
+			if (bWasControlled && Player.IsValid()) Player->UnPossess();
 			Ant->Destroy();
 			W.State = EWorkerState::Home;
+			if (bWasControlled) PossessNext();
 		}
 	}
 }
@@ -778,6 +790,13 @@ void ADayDirector::Tick(float DeltaTime)
 		if (PendingPossess <= 0.f && Phase == EDayPhase::Shift && (!Watched || Watched == PendingFrom.Get())) PossessNext();
 	}
 	RescueStalledScouts();
+	// Never leave the player without an ant while scouts still wait in the nest (e.g. the pending hand-off was lost
+	// because the player switched away, and the ant they switched to was then counted home).
+	if (Phase == EDayPhase::Shift && PendingPossess <= 0.f && Player.IsValid() && !Player->GetPawn() && NumWaiting() > 0)
+	{
+		UE_LOG(LogLeafline, Log, TEXT("No ant under control with scouts waiting: the next one comes out"));
+		PossessNext();
+	}
 	UpdateDayFlow();
 	UpdateHarvestCamera(DeltaTime);
 	if (Phase == EDayPhase::AllHome)

@@ -136,7 +136,7 @@ Spec: `docs/briefs/the-line.md`; work split and interfaces: `docs/briefs/line-co
 - [x] Six-level ladders, Brood as the recruit pool, two milestone sets, save version 2 with v1 migration, best day; `-LeafSlot` test slot.
 - [x] Number-go-up: "+N" at the nest with a rising chime, colony counter, one row per line, recap counting up line by line.
 - [x] Off switch `Leaf.Recruits 0|1`.
-- [x] Codex review of the day-end state machine (7 findings, all fixed).
+- [x] Codex review of the day-end state machine (7 findings, all fixed). Second pass over the later changes: 3 findings (a rescued, possessed scout could leave the player with no ant; an ant handed to the sim clock could move twice in one frame; scout rescue and the wind clock ran on real time), all fixed.
 - [ ] Acceptance tests (`Tools/line_test.sh`, seed 517192, day 1, pool 4 unless noted; Thu night):
   1. One line 27.3, three lines 45.5. Pass.
   2. Pool 6: the first patch ran dry with two scouts still waiting ("6 idle"), and all six recruits moved to the second line. Pass.
