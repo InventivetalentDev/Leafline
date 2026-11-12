@@ -8,6 +8,8 @@
 #include "Ant/AntCamera.h"
 #include "Engine/Engine.h"
 #include "UObject/UnrealType.h"
+#include "World/DayDirector.h"
+#include "TimerManager.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
@@ -118,6 +120,66 @@ namespace
 			if (Size <= 0.f) Ant->ClearFragment();
 			else Ant->GiveFragment(Size);
 			UE_LOG(LogLeafline, Log, TEXT("Leaf.Carry %.2f (mass %.1f)"), Size, Ant->GetCarriedMass());
+		}));
+
+	FAutoConsoleCommandWithWorldAndArgs CmdGoLeaf(
+		TEXT("Leaf.GoLeaf"),
+		TEXT("Leaf.GoLeaf: put the controlled ant on a twig beside a random cuttable leaf."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>&, UWorld* World)
+		{
+			AAntPawn* Ant = PlayerAnt(World);
+			ATreeActor* Tree = ATreeActor::Get(World);
+			if (!Ant || !Tree || Tree->GetLeaves().Num() == 0) return;
+			const FLeafSet& Leaves = Tree->GetLeaves();
+			for (int32 Try = 0; Try < 50; ++Try)
+			{
+				const int32 i = FMath::RandRange(0, Leaves.Num() - 1);
+				const FTreeLeaf& L = Leaves.Get(i);
+				if (!L.CanCut()) continue;
+				Ant->GetAntMovement()->TeleportTo(L.Base - L.Dir * 15.0, L.Dir);
+				UE_LOG(LogLeafline, Log, TEXT("Leaf.GoLeaf: beside leaf %d on branch %d at z %.0f"), i, L.Branch, L.Base.Z);
+				return;
+			}
+		}));
+
+	FAutoConsoleCommandWithWorldAndArgs CmdCut(
+		TEXT("Leaf.Cut"),
+		TEXT("Leaf.Cut [0-1]: cut the leaf in reach at once with that fragment size."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			AAntPawn* Ant = PlayerAnt(World);
+			if (!Ant) return;
+			const float Size = Args.Num() > 0 ? FCString::Atof(*Args[0]) : 0.6f;
+			if (!Ant->DebugCutNow(Size)) UE_LOG(LogLeafline, Warning, TEXT("Leaf.Cut: no cuttable leaf in reach (or already carrying)"));
+		}));
+
+	FAutoConsoleCommandWithWorldAndArgs CmdSendHome(
+		TEXT("Leaf.SendHome"),
+		TEXT("Leaf.SendHome: send the controlled ant home, as if Q were pressed."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>&, UWorld* World)
+		{
+			ADayDirector* D = ADayDirector::Get(World);
+			if (D) D->SendHome(PlayerAnt(World));
+		}));
+
+	FAutoConsoleCommandWithWorldAndArgs CmdQuitAfter(
+		TEXT("Leaf.QuitAfter"),
+		TEXT("Leaf.QuitAfter <seconds>: exit the game after a delay, for unattended standalone runs (ignored in the editor)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			if (GIsEditor || !World)
+			{
+				UE_LOG(LogLeafline, Warning, TEXT("Leaf.QuitAfter is ignored in the editor"));
+				return;
+			}
+			const float Seconds = Args.Num() > 0 ? FMath::Max(1.f, FCString::Atof(*Args[0])) : 30.f;
+			FTimerHandle Handle;
+			World->GetTimerManager().SetTimer(Handle, FTimerDelegate::CreateLambda([]()
+			{
+				UE_LOG(LogLeafline, Log, TEXT("Leaf.QuitAfter: exiting"));
+				FPlatformMisc::RequestExit(false);
+			}), Seconds, false);
+			UE_LOG(LogLeafline, Log, TEXT("Leaf.QuitAfter: exiting in %.0f s"), Seconds);
 		}));
 
 	void TuneMessage(const FString& Text)

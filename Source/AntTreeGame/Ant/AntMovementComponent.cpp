@@ -68,7 +68,16 @@ void UAntMovementComponent::SnapToSurface()
 	if (!F || !F->IsValid()) return;
 	FVector N;
 	double Err = 0.0;
-	F->Project(Pos, N, Tuning.RideHeight, &Err);
+	if (!F->Project(Pos, N, Tuning.RideHeight, &Err))
+	{
+		// A symmetric spot can have no gradient: nudge off it and try again.
+		Pos += FVector(0.7, 0.3, 1.1);
+		if (!F->Project(Pos, N, Tuning.RideHeight, &Err))
+		{
+			UE_LOG(LogLeafline, Warning, TEXT("%s: could not place the ant on the surface at %s (error %.2f cm)"),
+				*GetOwner()->GetName(), *Pos.ToString(), Err);
+		}
+	}
 	SurfaceNormal = N;
 	Up = N;
 	Forward = ProjectOnPlane(Forward, N).GetSafeNormal();
@@ -125,7 +134,8 @@ void UAntMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType, 
 	if (!F || !F->IsValid()) return;
 	if (!bPlaced) SnapToSurface();
 
-	const float Dt = FMath::Min(DeltaTime, 0.05f);
+	// Substeps keep long frames safe, so only clamp hitches (below 10 fps) instead of slowing the game below 20.
+	const float Dt = FMath::Min(DeltaTime, 0.1f);
 	switch (State)
 	{
 	case EAntState::Walking:
@@ -160,8 +170,12 @@ FVector UAntMovementComponent::ComputeWish(const FVector& N) const
 	// Screen-forward on the surface: away from the camera plus screen-up, both projected onto the tangent plane.
 	// Where that projection vanishes (one spot on every thin branch), normalising it would flip its direction from
 	// step to step and the ant would vibrate in place. Fade the forward input out there instead.
-	const FVector RawFwd = ProjectOnPlane(CamForward, N) + ProjectOnPlane(CamUp, N);
+	// Screen-up only helps when the camera looks at the surface from its front side; seen from behind the surface
+	// plane (camera below a branch looking up) it points back toward the camera and would reverse the controls.
+	const double Facing = FMath::Clamp(-FVector::DotProduct(CamForward, N) * 2.0, 0.0, 1.0);
+	const FVector RawFwd = ProjectOnPlane(CamForward, N) + ProjectOnPlane(CamUp, N) * Facing;
 	const double FwdLen = RawFwd.Size();
+	const FVector CamRight = FVector::CrossProduct(CamUp, CamForward);
 	FVector Fwd, Right;
 	if (FwdLen > 0.1)
 	{
@@ -170,10 +184,12 @@ FVector UAntMovementComponent::ComputeWish(const FVector& N) const
 	}
 	else
 	{
-		Right = ProjectOnPlane(FVector::CrossProduct(CamUp, CamForward), N).GetSafeNormal();
+		Right = ProjectOnPlane(CamRight, N).GetSafeNormal();
 		if (Right.IsNearlyZero()) Right = FVector::CrossProduct(N, ProjectOnPlane(Forward, N).GetSafeNormal());
 		Fwd = FVector::CrossProduct(Right, N);
 	}
+	// D must always move toward screen right.
+	if (FVector::DotProduct(Right, CamRight) < 0.0) Right = -Right;
 	const double FwdGain = FMath::Clamp(FwdLen / 0.35, 0.0, 1.0);
 	return (Fwd * (MoveInput.Y * FwdGain) + Right * MoveInput.X).GetClampedToMaxSize(1.0);
 }
@@ -263,11 +279,19 @@ void UAntMovementComponent::TickWalking(float Dt)
 		const FVector Target = Wish * Speed;
 		const float Rate = Wish.IsNearlyZero() ? Tuning.Deceleration : Tuning.Acceleration;
 		Velocity = ProjectOnPlane(MoveTowards(Velocity, Target, Rate * H), N);
+		const FVector Prev = Pos;
 		Pos += Velocity * H;
 
 		FVector NewN;
 		double Err = 0.0;
-		if (!F->Project(Pos, NewN, Tuning.RideHeight, &Err)) ++ProjFailCount;
+		if (!F->Project(Pos, NewN, Tuning.RideHeight, &Err))
+		{
+			// Never commit a failed projection: stay on the last good pose and lose speed.
+			++ProjFailCount;
+			Pos = Prev;
+			Velocity *= 0.5;
+			continue;
+		}
 		MaxErr = FMath::Max(MaxErr, Err);
 		// Carry the velocity over the curve into the new tangent plane without losing speed.
 		Velocity = ProjectOnPlane(FQuat::FindBetweenNormals(N, NewN).RotateVector(Velocity), NewN);

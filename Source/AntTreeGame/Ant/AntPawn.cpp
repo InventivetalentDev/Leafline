@@ -212,6 +212,19 @@ void AAntPawn::UpdateCutting(float Dt)
 	bPrevCutHeld = bCutHeld;
 }
 
+bool AAntPawn::DebugCutNow(float Size01)
+{
+	ATreeActor* Tree = GetTree();
+	if (!Tree || IsCarrying()) return false;
+	const int32 Leaf = Tree->FindLeafNear(GetActorTransform().TransformPosition(MandibleOffset), Cut.Reach);
+	if (Leaf == INDEX_NONE) return false;
+	const float Size = FMath::Min(Size01, Tree->LeafSizeCap(Leaf, Cut.LeafUsePerCut));
+	if (!Tree->BiteLeaf(Leaf, Size, DiameterForSize(Size), Cut.LeafUsePerCut)) return false;
+	SetFragment(Size);
+	UE_LOG(LogLeafline, Log, TEXT("%s: cut a fragment of size %.2f (mass %.1f) from leaf %d"), *GetName(), Size, CarriedMass, Leaf);
+	return true;
+}
+
 void AAntPawn::UpdateRiding(float Dt)
 {
 	ATrailNetwork* Trails = GetTrails();

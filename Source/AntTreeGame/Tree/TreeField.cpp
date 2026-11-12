@@ -218,7 +218,7 @@ bool FTreeField::March(const FVector& From, const FVector& To, double Radius, do
 	if (L < 1e-3) return false;
 	const FVector Dir = Delta / L;
 	double T = 0.0;
-	for (int32 i = 0; i < 64; ++i)
+	for (int32 i = 0; i < 96; ++i)
 	{
 		const double D = Distance(From + Dir * T) - Radius;
 		if (D < 0.5)
@@ -226,8 +226,11 @@ bool FTreeField::March(const FVector& From, const FVector& To, double Radius, do
 			OutT = T / L;
 			return true;
 		}
-		T += D * 0.9;
+		// The distance overestimates clearance on steep tapers (the root flare), so step conservatively.
+		T += D * 0.6;
 		if (T >= L) return false;
 	}
-	return false;
+	// Out of steps while still grazing a surface: report a hit where we stopped rather than a clear path.
+	OutT = FMath::Clamp(T / L, 0.0, 1.0);
+	return true;
 }

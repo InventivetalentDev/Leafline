@@ -86,7 +86,7 @@ void AAntCamera::Tick(float DeltaTime)
 	if (!Tree.IsValid()) Tree = ATreeActor::Get(this);
 
 	const UAntMovementComponent* M = T->GetAntMovement();
-	const double Dt = FMath::Min(DeltaTime, 0.05f);
+	const double Dt = FMath::Min(DeltaTime, 0.1f);
 	const FVector AntUp = M->GetBodyUp();
 	const FVector AntPos = M->GetSurfacePosition();
 
@@ -175,6 +175,14 @@ void AAntCamera::Tick(float DeltaTime)
 	const double MinClear = Tuning.TargetHeight * 0.5;
 	if (Field && Field->IsValid())
 	{
+		// If wood lies between the ant and the focus (after a teleport or a switch across the trunk), bring the
+		// focus to the ant's side; otherwise spring and push-out can balance on the wrong side of the branch.
+		double BlockT;
+		if (Field->March(Goal, Focus, 2.0, BlockT) && BlockT < 1.0)
+		{
+			Focus = Goal + (Focus - Goal) * (BlockT * 0.8);
+			FocusVelocity = FVector::ZeroVector;
+		}
 		double D;
 		const FVector G = Field->RawGradient(Focus, &D);
 		if (D < MinClear && G.SizeSquared() > 1e-8)

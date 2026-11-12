@@ -76,6 +76,8 @@ public:
 	void ClearFragment();
 	/** Hands the ant a fragment without cutting (debug). */
 	void GiveFragment(float Size01) { SetFragment(Size01); }
+	/** Cuts the leaf in reach at once with the given size (debug). Returns false if no leaf is in reach. */
+	bool DebugCutNow(float Size01);
 
 	/** Replay the recorded path back to the nest, unattended. */
 	void StartReturn();
