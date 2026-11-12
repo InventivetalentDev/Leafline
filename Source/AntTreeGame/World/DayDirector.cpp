@@ -156,7 +156,14 @@ void ADayDirector::SendHome(AAntPawn* Ant)
 	if (i == INDEX_NONE || Roster[i].State != EWorkerState::Out || Ant->IsCutting()) return;
 	if (Ant->Cut.bSendHomeNeedsFragment && !Ant->IsCarrying())
 	{
-		UE_LOG(LogLeafline, Log, TEXT("Send home ignored: worker %d carries nothing"), i);
+		// An empty worker can always end its trip at the nest, so a day without cuts can still finish.
+		if (Ant->GetAntMovement() && IsNearNest(Ant->GetAntMovement()->GetSurfacePosition()))
+		{
+			UE_LOG(LogLeafline, Log, TEXT("Worker %d ends its trip at the nest empty-handed"), i);
+			OnAntReachedNest(Ant);
+			return;
+		}
+		UE_LOG(LogLeafline, Log, TEXT("Send home ignored: worker %d carries nothing (walk to the nest and press it there)"), i);
 		return;
 	}
 	Roster[i].State = EWorkerState::Returning;

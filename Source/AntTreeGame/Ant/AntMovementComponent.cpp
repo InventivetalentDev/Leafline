@@ -236,7 +236,7 @@ void UAntMovementComponent::TickWalking(float Dt)
 			}
 			const int32 Lo = FMath::Max(Nearest - 1, 0), Hi = FMath::Min(Nearest + 1, B.Samples.Num() - 1);
 			Axis = (B.Samples[Hi] - B.Samples[Lo]).GetSafeNormal();
-			ThinBlend = 1.f - FMath::SmoothStep(12.f, 45.f, B.SampleRadius[Nearest]);
+			ThinBlend = 1.f - FMath::SmoothStep(15.f, 70.f, B.SampleRadius[Nearest]);
 		}
 	}
 	if (ThinBlend <= 0.f) SpareInt = 0;

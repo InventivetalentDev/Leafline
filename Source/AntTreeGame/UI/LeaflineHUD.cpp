@@ -7,6 +7,7 @@
 #include "Engine/Font.h"
 #include "Game/LeaflineGameInstance.h"
 #include "World/WindSystem.h"
+#include "Colony/TrailNetwork.h"
 
 void ALeaflineHUD::DrawHUD()
 {
@@ -170,6 +171,8 @@ void ALeaflineHUD::DrawPrompt(const AAntPawn* Ant, const ADayDirector* D, float 
 		else if (Ant->IsCutting()) Prompt = TEXT("Release to finish the cut");
 		else if (Ant->IsCarrying()) Prompt = TEXT("Q / Y: send home      or carry it to the nest yourself");
 		else if (Ant->GetLeafInReach() != INDEX_NONE) Prompt = TEXT("Hold E / LMB / X: cut");
+		else if (D && S == EAntState::Walking && M && D->IsNearNest(M->GetSurfacePosition()) && D->GetWorkerState(Ant->GetWorkerIndex()) == EWorkerState::Out && Ant->GetPathIndex() != INDEX_NONE && D->GetTrails() && D->GetTrails()->GetPoints(Ant->GetPathIndex()).Num() > 30)
+			Prompt = TEXT("Q / Y: end this worker's trip");
 		else if (S == EAntState::Riding) Prompt = TEXT("Riding the trail.   Move to step off");
 		else if (Ant->IsTrailInReach()) Prompt = TEXT("Hold F / RB: follow the trail");
 	}
