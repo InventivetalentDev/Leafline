@@ -5,6 +5,7 @@
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
 #include "Engine/Font.h"
+#include "Game/LeaflineGameInstance.h"
 
 void ALeaflineHUD::DrawHUD()
 {
@@ -166,6 +167,13 @@ void ALeaflineHUD::DrawRecap(const ADayDirector* D, float Scale)
 	{
 		DrawTextCentered(L, CX, Y, TextColor, 1.3f * Scale, Medium);
 		Y += 44.f * Scale;
+	}
+	if (const ULeaflineGameInstance* GI = Cast<ULeaflineGameInstance>(GetGameInstance()))
+	{
+		Y += 16.f * Scale;
+		DrawTextCentered(FString::Printf(TEXT("Colony: %.1f hauled in all, %.1f to spend, milestone %d of %d"),
+			GI->GetTotalHauled(), GI->GetLeafMass(), GI->GetReachedMilestoneCount(), LeaflineUpgrades::MilestoneCount), CX, Y, AccentColor, 1.1f * Scale, Medium);
+		Y += 40.f * Scale;
 	}
 	Y += 40.f * Scale;
 	DrawTextCentered(FString::Printf(TEXT("Press E / Space / X for day %d: a new tree"), S.Day + 1), CX, Y, AccentColor, 1.2f * Scale, Medium);

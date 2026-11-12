@@ -135,7 +135,7 @@ void ATrailNetwork::RebuildSection(int32 PathIndex)
 	if (MaterialInUse) Mesh->SetMaterial(PathIndex, MaterialInUse);
 }
 
-bool ATrailNetwork::FindRideStart(const FVector& P, float Reach, const FVector& PreferredDir, int32& OutPath, int32& OutIndex) const
+bool ATrailNetwork::FindRideStart(const FVector& P, float Reach, const FVector& PreferredDir, int32& OutPath, int32& OutIndex, int32 ExcludePath) const
 {
 	const int32 R = FMath::CeilToInt(Reach / CellSize);
 	const FIntVector C = Cell(P);
@@ -151,7 +151,7 @@ bool ATrailNetwork::FindRideStart(const FVector& P, float Reach, const FVector& 
 				{
 					const TArray<FTrailPoint>& Pts = Paths[Ref.X].Points;
 					const double D2 = FVector::DistSquared(Pts[Ref.Y].Pos, P);
-					if (D2 > Reach2 || Ref.Y + 1 >= Pts.Num()) continue;
+					if (Ref.X == ExcludePath || D2 > Reach2 || Ref.Y + 1 >= Pts.Num()) continue;
 					const FVector Out = (Pts[FMath::Min(Ref.Y + 2, Pts.Num() - 1)].Pos - Pts[FMath::Max(Ref.Y - 1, 0)].Pos).GetSafeNormal();
 					const double Score = FVector::DotProduct(Out, PreferredDir) - FMath::Sqrt(D2) / Reach * 0.5 + Ref.X * 0.01;
 					if (Score > BestScore)
@@ -172,7 +172,8 @@ float ATrailNetwork::DrawnLength() const
 	{
 		for (int32 i = 0; i + 1 < Path.Points.Num(); ++i)
 		{
-			if (Path.Drawn[i] && Path.Drawn[i + 1]) Total += FVector::Dist(Path.Points[i].Pos, Path.Points[i + 1].Pos);
+			const double Seg = FVector::Dist(Path.Points[i].Pos, Path.Points[i + 1].Pos);
+			if (Path.Drawn[i] && Path.Drawn[i + 1] && Seg <= 60.0) Total += Seg; // same rule as the ribbon: skip jumps
 		}
 	}
 	return (float)Total;

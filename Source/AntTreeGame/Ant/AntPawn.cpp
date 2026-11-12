@@ -240,13 +240,13 @@ void AAntPawn::UpdateRiding(float Dt)
 		TrailCheckTimer = 0.2f;
 		int32 P, I;
 		ADayDirector* D = GetDirector();
-		bTrailInReach = Trails->FindRideStart(Movement->GetSurfacePosition(), D ? D->Tuning.RideReach : 60.f, Movement->GetBodyForward(), P, I);
+		bTrailInReach = Trails->FindRideStart(Movement->GetSurfacePosition(), D ? D->Tuning.RideReach : 60.f, Movement->GetBodyForward(), P, I, PathIndex);
 	}
 	if (bFollowHeld && State == EAntState::Walking)
 	{
 		int32 Path, Index;
 		ADayDirector* D = GetDirector();
-		if (Trails->FindRideStart(Movement->GetSurfacePosition(), D ? D->Tuning.RideReach : 60.f, Movement->GetBodyForward(), Path, Index))
+		if (Trails->FindRideStart(Movement->GetSurfacePosition(), D ? D->Tuning.RideReach : 60.f, Movement->GetBodyForward(), Path, Index, PathIndex))
 		{
 			Movement->StartFollow(Trails->GetPoints(Path), Index, 1, EAntState::Riding);
 			UE_LOG(LogLeafline, Log, TEXT("%s: riding trail %d from point %d of %d"), *GetName(), Path, Index, Trails->GetPoints(Path).Num());
@@ -342,7 +342,7 @@ void AAntPawn::BuildFragmentMesh(float Diameter)
 		}
 	}
 	FragmentMesh->CreateMeshSection_LinearColor(0, V, Tri, N, UV, {}, {}, {}, Col, Tan, false, false);
-	FragmentMesh->SetRelativeRotation(FRotator(12.f, 0.f, 0.f)); // leans back slightly over the body (positive pitch tilts +Z toward -X)
+	FragmentMesh->SetRelativeRotation(FRotator(12.f, 35.f, 0.f)); // yawed so the camera behind sees its face, not its edge; // leans back slightly over the body (positive pitch tilts +Z toward -X)
 	if (BasicMaterial)
 	{
 		if (!FragmentMID) FragmentMID = UMaterialInstanceDynamic::Create(BasicMaterial, this);

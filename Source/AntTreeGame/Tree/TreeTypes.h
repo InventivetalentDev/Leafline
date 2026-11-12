@@ -96,7 +96,7 @@ struct FTreeParams
 	// Field
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field") float BlendFrac = 0.3f;   // k as fraction of child radius
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field") float BlendMax = 30.f;    // cap on k (1.5 AL)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field") float GroundBlend = 80.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field") float GroundBlend = 12.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field") float SampleSpacingFrac = 0.6f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field") float SampleSpacingMin = 20.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field") float SampleSpacingMax = 300.f;

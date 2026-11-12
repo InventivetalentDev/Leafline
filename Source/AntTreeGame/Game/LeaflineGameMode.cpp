@@ -8,6 +8,7 @@
 #include "Game/LeaflinePlayerController.h"
 #include "UI/LeaflineHUD.h"
 #include "GameFramework/PlayerController.h"
+#include "Game/LeaflineGameInstance.h"
 
 ALeaflineGameMode::ALeaflineGameMode()
 {
@@ -46,7 +47,8 @@ void ALeaflineGameMode::RestartPlayer(AController* NewPlayer)
 	if (!bDayStarted)
 	{
 		bDayStarted = true;
-		Director->StartDay(1);
+		const ULeaflineGameInstance* GI = Cast<ULeaflineGameInstance>(GetGameInstance());
+		Director->StartDay(GI ? GI->GetDay() : 1);
 	}
 }
 

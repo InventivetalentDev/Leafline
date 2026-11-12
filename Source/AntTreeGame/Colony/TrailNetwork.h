@@ -51,7 +51,7 @@ public:
 	 * Nearest point of any path within Reach of P, preferring the path whose outward direction (away from the nest)
 	 * best matches PreferredDir. Returns false if there is none.
 	 */
-	bool FindRideStart(const FVector& P, float Reach, const FVector& PreferredDir, int32& OutPath, int32& OutIndex) const;
+	bool FindRideStart(const FVector& P, float Reach, const FVector& PreferredDir, int32& OutPath, int32& OutIndex, int32 ExcludePath = INDEX_NONE) const;
 
 	/** Total drawn trail length (cm). */
 	float DrawnLength() const;

@@ -9,6 +9,15 @@
 #include "Components/LightComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "EngineUtils.h"
+#include "Game/LeaflineGameInstance.h"
+
+namespace
+{
+	ULeaflineGameInstance* Colony(const AActor* A)
+	{
+		return A ? Cast<ULeaflineGameInstance>(A->GetGameInstance()) : nullptr;
+	}
+}
 
 ADayDirector::ADayDirector()
 {
@@ -72,7 +81,9 @@ void ADayDirector::StartDay(int32 InDay, int32 SeedOverride)
 		if (W.Pawn.IsValid()) W.Pawn->Destroy();
 	}
 	Roster.Reset();
-	Roster.SetNum(FMath::Max(1, Tuning.WorkersPerDay));
+	ULeaflineGameInstance* GI = Colony(this);
+	Roster.SetNum(FMath::Max(1, GI ? GI->GetWorkersPerDay(Tuning.WorkersPerDay) : Tuning.WorkersPerDay));
+	if (GI) GI->SetDay(Day);
 	Trails->ClearAll();
 
 	Tree->Params.LowestLeafyHeight = Tuning.LeafyHeightDay1 + (Day - 1) * Tuning.LeafyHeightPerDay;
@@ -101,6 +112,7 @@ AAntPawn* ADayDirector::SpawnWorker(int32 Index)
 	AAntPawn* Ant = GetWorld()->SpawnActor<AAntPawn>(WorkerClass ? *WorkerClass : AAntPawn::StaticClass(), SpawnXf, Params);
 	if (!Ant) return nullptr;
 	Ant->SetWorker(Index, Trails->StartPath(NestXf.GetLocation(), FVector::UpVector));
+	if (ULeaflineGameInstance* GI = Colony(this)) GI->ApplyUpgradesToAnt(Ant);
 	Roster[Index].Pawn = Ant;
 	return Ant;
 }
@@ -160,6 +172,7 @@ void ADayDirector::OnAntReachedNest(AAntPawn* Ant)
 		Stats.Fragments += 1;
 		Stats.LargestFragment = FMath::Max(Stats.LargestFragment, Mass);
 		if (Nest) Nest->PlayDeposit(Mass);
+		if (ULeaflineGameInstance* GI = Colony(this)) GI->AddHaul(Mass);
 		UE_LOG(LogLeafline, Log, TEXT("Worker %d home with %.1f (today %.1f from %d fragments)"), i, Mass, Stats.MassHauled, Stats.Fragments);
 		Ant->ClearFragment();
 	}
@@ -189,6 +202,11 @@ void ADayDirector::CheckAllHome()
 	if (Phase != EDayPhase::Shift) return;
 	Phase = EDayPhase::AllHome;
 	PhaseTimer = 1.5f;
+	if (ULeaflineGameInstance* GI = Colony(this))
+	{
+		GI->SetDay(Day + 1);
+		GI->SaveNow();
+	}
 	UE_LOG(LogLeafline, Log, TEXT("Day %d: all workers home"), Day);
 }
 

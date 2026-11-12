@@ -126,7 +126,7 @@ namespace
 			}
 			if (B.Nodes.Num() < 3) return INDEX_NONE;
 
-			B.BlendK = Level < 0 ? FMath::Min(0.3f * BaseR, 2.f * P.BlendMax) : FMath::Min(P.BlendFrac * BaseR, P.BlendMax);
+			B.BlendK = FMath::Min(P.BlendFrac * BaseR, P.BlendMax); // small: the mesh has no fillets, so a big blend lifts the ant off the visible surface
 			B.bLeafy = Level >= 2 && Start.Z >= P.LowestLeafyHeight;
 			TreeSkeleton::BuildSamples(B, P);
 			return S.Branches.Add(MoveTemp(B));
