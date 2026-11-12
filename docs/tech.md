@@ -245,6 +245,7 @@ Console commands pay for themselves, because verification is done by driving Pla
 | `Leaf.Hold <cut\|grip\|follow> <seconds>` | Hold a button for a while, as if pressed (hold-to-cut, grip, riding) |
 | `Leaf.Aim <heading\|up> <pitch>` | Aim the camera toward a world heading (0 = +X) or up the trunk, at a pitch (repeatable screenshots) |
 | `Leaf.Delay <seconds> <command...>` | Run a console command later, also while paused (unattended screenshot runs) |
+| `Leaf.PauseMenu <0\|1> [row]` | Pause and show the pause menu (0) or the options page (1) with a row selected (screenshots) |
 | `Leaf.LightInfo` | Log the sun, sky light, atmosphere, fog, clouds and post-process settings found in the level |
 | `Leaf.QuitAfter <seconds>` | Exit a standalone game after a delay, also while paused (unattended runs; ignored in the editor) |
 | `Leaf.Tune <cam\|move\|input> [Field] [Value]` | List, read or set a tuning value while playing (shown on screen and logged), e.g. `Leaf.Tune cam SurfaceFollow 0` |

@@ -20,6 +20,10 @@ public:
 	int32 MenuItemAt(const FVector2D& P) const;
 	static constexpr int32 MenuResume = 1000;
 	static constexpr int32 MenuQuit = 1001;
+	static constexpr int32 MenuOptions = 1002;
+	static constexpr int32 MenuOptRow = 1100;   // + row: the whole options row (hover selects)
+	static constexpr int32 MenuOptMinus = 1200; // + row: the "<" on a value row
+	static constexpr int32 MenuOptPlus = 1300;  // + row: the ">" on a value row
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD")
 	FLinearColor StaminaColor = FLinearColor(0.78f, 0.86f, 0.45f, 0.9f);
@@ -61,6 +65,10 @@ private:
 	void AddMenuHit(float X, float Y, float W, float H, int32 Id) { MenuHits.Add({ FBox2D(FVector2D(X, Y), FVector2D(X + W, Y + H)), Id }); }
 	/** The mouse cursor is showing and over this item. */
 	bool IsHovered(int32 Id) const;
+
+	// Wind exposure of the ant's spot, sampled a few times a second (it marches the field).
+	float ExposureShown = -1.f;
+	float ExposureTimer = 0.f;
 
 	float StaminaShown = 1.f;
 	float StaminaAlpha = 0.f;

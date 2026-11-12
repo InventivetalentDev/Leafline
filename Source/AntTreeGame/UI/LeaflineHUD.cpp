@@ -1,4 +1,5 @@
 #include "UI/LeaflineHUD.h"
+#include "Game/LeaflinePlayerController.h"
 #include "Ant/AntPawn.h"
 #include "Ant/AntMovementComponent.h"
 #include "World/DayDirector.h"
@@ -190,6 +191,48 @@ void ALeaflineHUD::DrawDayInfo(const ADayDirector* D, float Scale)
 		DrawCrisp(Canvas, Label, C, GX, GY - 26.f * Scale, Font, 1.0f * Scale);
 		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.45f), GX - 2.f * Scale, GY - 2.f * Scale, GW + 4.f * Scale, GH + 4.f * Scale);
 		DrawRect(C, GX, GY, GW * FMath::Clamp(Wind->GetStrength(), 0.f, 1.f), GH);
+
+		// Which way it blows, as seen from the camera: up on screen is away from you.
+		const APlayerController* PC = GetOwningPlayerController();
+		if (PC && PC->PlayerCameraManager)
+		{
+			FVector F = PC->PlayerCameraManager->GetCameraRotation().Vector();
+			F.Z = 0.0;
+			F = F.GetSafeNormal();
+			const FVector R(-F.Y, F.X, 0.0);
+			const FVector W = Wind->GetDirection().GetSafeNormal2D();
+			FVector2D V(FVector::DotProduct(W, R), -FVector::DotProduct(W, F));
+			if (!F.IsNearlyZero() && !V.IsNearlyZero())
+			{
+				V.Normalize();
+				const float AR = 13.f * Scale;
+				const FVector2D Ctr(GX - 30.f * Scale, GY - 6.f * Scale);
+				const FVector2D Tip = Ctr + V * AR, Tail = Ctr - V * AR;
+				const FVector2D Side(-V.Y, V.X);
+				const float T = 2.f * Scale;
+				DrawLine(Tail.X, Tail.Y, Tip.X, Tip.Y, C, T);
+				const FVector2D H1 = Tip - V * (AR * 0.6f) + Side * (AR * 0.45f), H2 = Tip - V * (AR * 0.6f) - Side * (AR * 0.45f);
+				DrawLine(Tip.X, Tip.Y, H1.X, H1.Y, C, T);
+				DrawLine(Tip.X, Tip.Y, H2.X, H2.Y, C, T);
+			}
+		}
+
+		// How exposed the ant's spot is: the lee side of the trunk or a limb shelters it.
+		const AAntPawn* Ant = PC ? Cast<AAntPawn>(PC->GetPawn()) : nullptr;
+		const UAntMovementComponent* M = Ant ? Ant->GetAntMovement() : nullptr;
+		ExposureTimer -= GetWorld() ? GetWorld()->GetDeltaSeconds() : 0.016f;
+		if (M && ExposureTimer <= 0.f)
+		{
+			ExposureTimer = 0.2f;
+			ExposureShown = Wind->GetExposure(M->GetSurfacePosition(), M->GetSurfaceNormal());
+		}
+		if (M && ExposureShown >= 0.f)
+		{
+			const bool bSheltered = ExposureShown < 0.25f, bPartly = ExposureShown < 0.6f;
+			const FLinearColor EC = bSheltered ? FLinearColor(0.6f, 0.95f, 0.5f) : (bPartly ? FLinearColor(1.f, 0.8f, 0.35f) : StaminaLockedColor);
+			const TCHAR* EL = bSheltered ? TEXT("Here: sheltered") : (bPartly ? TEXT("Here: partly exposed") : TEXT("Here: exposed"));
+			DrawCrisp(Canvas, EL, EC, GX, GY + GH + 10.f * Scale, Font, 1.0f * Scale);
+		}
 	}
 }
 
@@ -328,7 +371,13 @@ void ALeaflineHUD::DrawPrompt(const AAntPawn* Ant, const ADayDirector* D, float 
 		if (S == EAntState::Falling) Prompt = TEXT("Blown off! The fragment is lost");
 		else if (S == EAntState::WalkingHome) Prompt = TEXT("Walking home empty-handed.   Tab: switch ant");
 		else if (S == EAntState::Gripping) Prompt = TEXT("Gripping. Release Space / A when the gust passes");
-		else if (bGustSoon && (S == EAntState::Walking || S == EAntState::Riding || S == EAntState::Cutting)) Prompt = TEXT("Gust! Hold Space / A to grip");
+		else if (bGustSoon && (S == EAntState::Walking || S == EAntState::Riding || S == EAntState::Cutting))
+		{
+			// Sheltered spots need no grip; elsewhere say what helps: grip, or the side away from the arrow.
+			Prompt = ExposureShown >= 0.f && ExposureShown < 0.25f ? TEXT("Gust! You are sheltered here")
+				: (Wind->GetPhase() == EWindPhase::Warning ? TEXT("Gust coming: hold Space / A to grip, or get to the side away from the wind arrow")
+				                                           : TEXT("Gust! Hold Space / A to grip"));
+		}
 		else if (S == EAntState::Returning) Prompt = TEXT("Heading home on the trail.   Tab: switch ant");
 		else if (Ant->IsCutting()) Prompt = TEXT("Release to finish the cut");
 		else if (Ant->IsCarrying()) Prompt = TEXT("Q / Y: send home      or carry it to the nest yourself");
@@ -498,19 +547,61 @@ void ALeaflineHUD::DrawPause(float Scale)
 	UFont* Large = GEngine->GetLargeFont();
 	UFont* Medium = GEngine->GetMediumFont();
 	const float CX = Canvas->ClipX * 0.5f;
-	const float Top = Canvas->ClipY * 0.38f;
-	DrawTextCentered(TEXT("Paused"), CX, Top, AccentColor, 2.4f * Scale, Large);
-	// Buttons for the mouse; keys and pad work as before.
-	const float BW = 220.f * Scale, BH = 54.f * Scale, Gap = 30.f * Scale, BY = Top + 95.f * Scale;
-	const TCHAR* Labels[2] = { TEXT("Resume"), TEXT("Quit") };
-	const int32 Ids[2] = { MenuResume, MenuQuit };
-	for (int32 b = 0; b < 2; ++b)
+	const ALeaflinePlayerController* PC = Cast<ALeaflinePlayerController>(GetOwningPlayerController());
+	const int32 Page = PC ? PC->GetPausePage() : 0;
+	const int32 Sel = PC ? PC->GetPauseRow() : 0;
+	float Y = Canvas->ClipY * (Page == 0 ? 0.32f : 0.24f);
+	DrawTextCentered(Page == 0 ? TEXT("Paused") : TEXT("Options"), CX, Y, AccentColor, 2.4f * Scale, Large);
+	Y += 100.f * Scale;
+	const FLinearColor RowSel(0.3f, 0.55f, 0.6f, 0.6f), RowIdle(0.f, 0.f, 0.f, 0.45f);
+	const float RowH = 54.f * Scale, Gap = 10.f * Scale;
+
+	if (Page == 0)
 	{
-		const float BX = CX - BW - Gap * 0.5f + b * (BW + Gap);
-		const bool bHover = IsHovered(Ids[b]);
-		DrawRect(bHover ? FLinearColor(0.3f, 0.55f, 0.6f, 0.6f) : FLinearColor(0.f, 0.f, 0.f, 0.45f), BX, BY, BW, BH);
-		DrawTextCentered(Labels[b], BX + BW * 0.5f, BY + 12.f * Scale, bHover ? AccentColor : TextColor, 1.3f * Scale, Medium);
-		AddMenuHit(BX, BY, BW, BH, Ids[b]);
+		// Resume / Options / Quit, for keys, pad and mouse.
+		const float BW = 300.f * Scale;
+		const TCHAR* Labels[3] = { TEXT("Resume"), TEXT("Options"), TEXT("Quit") };
+		const int32 Ids[3] = { MenuResume, MenuOptions, MenuQuit };
+		for (int32 b = 0; b < 3; ++b)
+		{
+			const bool bOn = Sel == b || IsHovered(Ids[b]);
+			DrawRect(bOn ? RowSel : RowIdle, CX - BW * 0.5f, Y, BW, RowH);
+			DrawTextCentered(Labels[b], CX, Y + 12.f * Scale, bOn ? AccentColor : TextColor, 1.3f * Scale, Medium);
+			AddMenuHit(CX - BW * 0.5f, Y, BW, RowH, Ids[b]);
+			Y += RowH + Gap;
+		}
+		Y += 20.f * Scale;
+		DrawTextCentered(TEXT("W / S or stick: choose      E / Space / A or click: select      Esc, P or Start: resume      Q / Y: quit"), CX, Y, TextColor, 1.0f * Scale, Medium);
+		return;
 	}
-	DrawTextCentered(TEXT("Esc, P or Start: resume      Q / Y: quit"), CX, BY + BH + 30.f * Scale, TextColor, 1.1f * Scale, Medium);
+
+	// Options: label on the left, "<  value  >" on the right; the last row goes back.
+	const float RW = 640.f * Scale, X = CX - RW * 0.5f;
+	const TCHAR* Labels[ALeaflinePlayerController::NumOptionRows] = { TEXT("Mouse sensitivity"), TEXT("Invert look"), TEXT("Volume"), TEXT("Graphics"), TEXT("Back") };
+	for (int32 r = 0; r < ALeaflinePlayerController::NumOptionRows; ++r)
+	{
+		const bool bBack = r == ALeaflinePlayerController::NumOptionRows - 1;
+		const bool bOn = Sel == r;
+		DrawRect(bOn ? RowSel : RowIdle, X, Y, RW, RowH);
+		AddMenuHit(X, Y, RW, RowH, MenuOptRow + r);
+		if (bBack)
+		{
+			DrawTextCentered(Labels[r], CX, Y + 12.f * Scale, bOn ? AccentColor : TextColor, 1.25f * Scale, Medium);
+		}
+		else
+		{
+			DrawCrisp(Canvas, Labels[r], bOn ? AccentColor : TextColor, X + 22.f * Scale, Y + 12.f * Scale, Medium, 1.25f * Scale);
+			const float VX = X + RW * 0.72f, Arrow = 34.f * Scale;
+			const bool bMinus = IsHovered(MenuOptMinus + r), bPlus = IsHovered(MenuOptPlus + r);
+			DrawTextCentered(TEXT("<"), VX - 90.f * Scale, Y + 12.f * Scale, bMinus ? AccentColor : TextColor, 1.3f * Scale, Medium);
+			DrawTextCentered(PC ? PC->GetOptionValueText(r) : FString(), VX, Y + 12.f * Scale, TextColor, 1.25f * Scale, Medium);
+			DrawTextCentered(TEXT(">"), VX + 90.f * Scale, Y + 12.f * Scale, bPlus ? AccentColor : TextColor, 1.3f * Scale, Medium);
+			// The arrow hit boxes come after the row's, so they win (MenuItemAt returns the first match: check them first).
+			MenuHits.Insert({ FBox2D(FVector2D(VX - 90.f * Scale - Arrow * 0.5f, Y), FVector2D(VX - 90.f * Scale + Arrow * 0.5f, Y + RowH)), MenuOptMinus + r }, 0);
+			MenuHits.Insert({ FBox2D(FVector2D(VX + 90.f * Scale - Arrow * 0.5f, Y), FVector2D(VX + 90.f * Scale + Arrow * 0.5f, Y + RowH)), MenuOptPlus + r }, 0);
+		}
+		Y += RowH + Gap;
+	}
+	Y += 20.f * Scale;
+	DrawTextCentered(TEXT("W / S: choose      A / D or click < >: change      E / Space / A: change or back      Q / Y: back"), CX, Y, TextColor, 1.0f * Scale, Medium);
 }

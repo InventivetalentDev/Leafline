@@ -55,6 +55,16 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	bool bInvertPitch = false;
 
+	// Pause menu: page 0 is Resume / Options / Quit, page 1 the options (sensitivity, invert, volume, graphics, back).
+	static constexpr int32 NumPauseRows = 3;
+	static constexpr int32 NumOptionRows = 5;
+	int32 GetPausePage() const { return PausePage; }
+	int32 GetPauseRow() const { return PauseRow; }
+	/** The value shown on an options row ("0.25", "On", "80%", "High"). */
+	FString GetOptionValueText(int32 Row) const;
+	/** Debug (Leaf.PauseMenu): pause and show a page and row of the pause menu. */
+	void DebugShowPauseMenu(int32 Page, int32 Row);
+
 private:
 	void CreateInput();
 	void EnsureCamera();
@@ -63,6 +73,11 @@ private:
 	void UpdateMenuCursor(bool bMenu, const FVector2D& MouseDelta, int32 Nav);
 	/** Left click in a menu: the item under the cursor (nest row, pause button), or "continue" on the other screens. */
 	void HandleMenuClick();
+	void ActivatePauseRow();
+	/** Step an options row up or down (Dir +1 / -1), apply and save it. */
+	void ChangeOption(int32 Row, int32 Dir);
+	void LoadOptions();
+	void SaveOptions() const;
 
 	UPROPERTY(Transient) TObjectPtr<AAntCamera> AntCamera;
 	UPROPERTY(Transient) TObjectPtr<UInputMappingContext> MappingContext;
@@ -86,6 +101,11 @@ private:
 	bool bMenuCursor = false;
 	bool bCursorShown = false;
 	bool bSwallowClick = false; // a menu click: the held mouse button is not "cut" until released
+	bool bSwallowConfirm = false;
+	int32 PausePage = 0;
+	int32 PauseRow = 0;
+	int32 PrevNavX = 0;
+	float MasterVolume = 1.f;
 	int32 HoverItem = INDEX_NONE;
 	FVector2D LastCursor = FVector2D(-1.0, -1.0);
 };

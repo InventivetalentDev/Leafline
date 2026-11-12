@@ -111,6 +111,9 @@ Order by visible impact per hour:
 - [x] Audio: runtime WAV loader (no import tool), all sounds hooked up. Mix not yet checked by ear.
 - [x] Onboarding prompts for the first day; recap screen titled as the day's cut.
 - [ ] Screens moved to Slate if time allows.
+- [x] Options in the pause menu (Thu evening): mouse sensitivity, invert look, volume, graphics quality (Low to Epic; Low turns Lumen off). Keys, pad and mouse; saved in GameUserSettings.ini.
+- [x] Wind readability, first pass: an arrow by the wind gauge shows which way it blows relative to the view, "Here: sheltered / partly exposed / exposed" under it, and the gust warning says to grip or get to the side away from the arrow (or that you are sheltered).
+- [x] Cut sequence, first pass: sawing, a tear line on the leaf, the piece swinging onto the back.
 - [x] Owner playtest 1 (Thu): all seven notes fixed (`docs/playtest-notes.md`). Bark look and the camera cutaway await the owner's verdict; leaves are not dithered yet.
 
 **Done when:** a screenshot from play, set beside concept image 01, clearly shows the same game, and a new player reaches their first cut without being told the controls.

@@ -14,6 +14,11 @@
 #include "InputMappingContext.h"
 #include "InputModifiers.h"
 #include "Engine/LocalPlayer.h"
+#include "GameFramework/GameUserSettings.h"
+#include "AudioDevice.h"
+#include "Audio/LeafSound.h"
+#include "Engine/Engine.h"
+#include "Misc/ConfigCacheIni.h"
 
 ALeaflinePlayerController::ALeaflinePlayerController()
 {
@@ -51,6 +56,10 @@ void ALeaflinePlayerController::CreateInput()
 	// Resume and quit must still work while the game is paused.
 	PauseAction->bTriggerWhenPaused = true;
 	SendHomeAction->bTriggerWhenPaused = true;
+	// The pause menu is driven by the stick / WASD and confirmed with cut or grip.
+	MoveAction->bTriggerWhenPaused = true;
+	CutAction->bTriggerWhenPaused = true;
+	GripAction->bTriggerWhenPaused = true;
 	// Mouse movement shows the cursor on the pause screen (mouse look itself is ignored in menus).
 	LookMouseAction->bTriggerWhenPaused = true;
 
@@ -112,6 +121,7 @@ void ALeaflinePlayerController::BeginPlay()
 	if (!IsLocalController()) return;
 
 	CreateInput();
+	LoadOptions();
 	if (UEnhancedInputLocalPlayerSubsystem* Sub = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
 	{
 		Sub->AddMappingContext(MappingContext, 0);
@@ -183,6 +193,13 @@ void ALeaflinePlayerController::PlayerTick(float DeltaTime)
 		if (IsInputKeyDown(EKeys::LeftMouseButton)) Held &= ~LeafButtons::Cut;
 		else bSwallowClick = false;
 	}
+	// After a menu choice with cut or grip (say Resume), those buttons count again only once released, so the ant does
+	// not start a cut or a grip the moment the game continues.
+	if (bSwallowConfirm)
+	{
+		if (Held & (LeafButtons::Cut | LeafButtons::Grip)) Held &= ~(LeafButtons::Cut | LeafButtons::Grip);
+		else bSwallowConfirm = false;
+	}
 	ButtonsPressed = Held & ~ButtonsHeld;
 	ButtonsHeld = Held;
 
@@ -191,8 +208,23 @@ void ALeaflinePlayerController::PlayerTick(float DeltaTime)
 	{
 		// Menus: the stick or W/S moves the selection; the ant stands still.
 		Nav = Move.Y > 0.5 ? -1 : (Move.Y < -0.5 ? 1 : 0);
-		if (Nav != 0 && Nav != SpareInt && Director.IsValid()) Director->MenuNavigate(Nav);
+		const int32 NavX = Move.X > 0.5 ? 1 : (Move.X < -0.5 ? -1 : 0);
+		if (IsPaused())
+		{
+			const int32 Rows = PausePage == 0 ? NumPauseRows : NumOptionRows;
+			if (Nav != 0 && Nav != SpareInt)
+			{
+				PauseRow = (PauseRow + Nav + Rows) % Rows;
+				LeafSound::Play(this, TEXT("ui_move"), 0.5f);
+			}
+			if (PausePage == 1 && NavX != 0 && NavX != PrevNavX && PauseRow < NumOptionRows - 1) ChangeOption(PauseRow, NavX);
+		}
+		else if (Nav != 0 && Nav != SpareInt && Director.IsValid())
+		{
+			Director->MenuNavigate(Nav);
+		}
 		SpareInt = Nav;
+		PrevNavX = NavX;
 		Move = FVector2D::ZeroVector;
 		Held &= ~(LeafButtons::Sprint | LeafButtons::Follow | LeafButtons::Grip);
 	}
@@ -245,8 +277,21 @@ void ALeaflinePlayerController::UpdateMenuCursor(bool bMenu, const FVector2D& Mo
 	const FVector2D Cursor(X, Y);
 	const ALeaflineHUD* Hud = Cast<ALeaflineHUD>(GetHUD());
 	HoverItem = Hud ? Hud->MenuItemAt(Cursor) : INDEX_NONE;
-	// Only a moving cursor takes the nest selection, so a resting mouse does not fight W/S.
-	if (Cursor != LastCursor && HoverItem >= 0 && HoverItem <= LeaflineUpgrades::Count && Director.IsValid())
+	// Only a moving cursor takes the selection, so a resting mouse does not fight W/S.
+	if (Cursor != LastCursor && IsPaused())
+	{
+		if (PausePage == 0)
+		{
+			if (HoverItem == ALeaflineHUD::MenuResume) PauseRow = 0;
+			else if (HoverItem == ALeaflineHUD::MenuOptions) PauseRow = 1;
+			else if (HoverItem == ALeaflineHUD::MenuQuit) PauseRow = 2;
+		}
+		else if (HoverItem >= ALeaflineHUD::MenuOptRow && HoverItem < ALeaflineHUD::MenuOptRow + NumOptionRows)
+		{
+			PauseRow = HoverItem - ALeaflineHUD::MenuOptRow;
+		}
+	}
+	else if (Cursor != LastCursor && HoverItem >= 0 && HoverItem <= LeaflineUpgrades::Count && Director.IsValid())
 	{
 		Director->SetNestSelection(HoverItem);
 	}
@@ -259,6 +304,18 @@ void ALeaflinePlayerController::HandleMenuClick()
 	{
 		if (HoverItem == ALeaflineHUD::MenuResume) SetPause(false);
 		else if (HoverItem == ALeaflineHUD::MenuQuit) ConsoleCommand(TEXT("quit"));
+		else if (HoverItem == ALeaflineHUD::MenuOptions)
+		{
+			PausePage = 1;
+			PauseRow = 0;
+		}
+		else if (HoverItem >= ALeaflineHUD::MenuOptMinus && HoverItem < ALeaflineHUD::MenuOptMinus + NumOptionRows) ChangeOption(HoverItem - ALeaflineHUD::MenuOptMinus, -1);
+		else if (HoverItem >= ALeaflineHUD::MenuOptPlus && HoverItem < ALeaflineHUD::MenuOptPlus + NumOptionRows) ChangeOption(HoverItem - ALeaflineHUD::MenuOptPlus, 1);
+		else if (HoverItem >= ALeaflineHUD::MenuOptRow && HoverItem < ALeaflineHUD::MenuOptRow + NumOptionRows)
+		{
+			PauseRow = HoverItem - ALeaflineHUD::MenuOptRow;
+			ActivatePauseRow();
+		}
 		return;
 	}
 	ADayDirector* D = Director.Get();
@@ -276,16 +333,147 @@ void ALeaflinePlayerController::HandleMenuClick()
 	D->MenuConfirm(); // title, recap and end card: a click anywhere continues
 }
 
+void ALeaflinePlayerController::DebugShowPauseMenu(int32 Page, int32 Row)
+{
+	if (!IsPaused()) SetPause(true);
+	PausePage = FMath::Clamp(Page, 0, 1);
+	PauseRow = FMath::Clamp(Row, 0, (PausePage == 0 ? NumPauseRows : NumOptionRows) - 1);
+}
+
+void ALeaflinePlayerController::ActivatePauseRow()
+{
+	LeafSound::Play(this, TEXT("ui_confirm"), 0.6f);
+	bSwallowConfirm = true;
+	if (PausePage == 0)
+	{
+		if (PauseRow == 0) SetPause(false);
+		else if (PauseRow == 1)
+		{
+			PausePage = 1;
+			PauseRow = 0;
+		}
+		else ConsoleCommand(TEXT("quit"));
+		return;
+	}
+	if (PauseRow >= NumOptionRows - 1)
+	{
+		PausePage = 0;
+		PauseRow = 1;
+		return;
+	}
+	ChangeOption(PauseRow, 1);
+}
+
+namespace
+{
+	const TCHAR* OptionsSection = TEXT("Leafline.Options");
+	int32 QualityLevel()
+	{
+		const UGameUserSettings* S = GEngine ? GEngine->GetGameUserSettings() : nullptr;
+		const int32 Q = S ? S->GetOverallScalabilityLevel() : 3;
+		return Q < 0 ? 3 : FMath::Min(Q, 3); // custom or cinematic reads as Epic
+	}
+}
+
+FString ALeaflinePlayerController::GetOptionValueText(int32 Row) const
+{
+	switch (Row)
+	{
+	case 0: return FString::Printf(TEXT("%.2f"), MouseSensitivity);
+	case 1: return bInvertPitch ? TEXT("On") : TEXT("Off");
+	case 2: return FString::Printf(TEXT("%d%%"), FMath::RoundToInt(MasterVolume * 100.f));
+	case 3:
+	{
+		static const TCHAR* Names[4] = { TEXT("Low"), TEXT("Medium"), TEXT("High"), TEXT("Epic") };
+		return Names[QualityLevel()];
+	}
+	default: return FString();
+	}
+}
+
+void ALeaflinePlayerController::ChangeOption(int32 Row, int32 Dir)
+{
+	switch (Row)
+	{
+	case 0:
+		MouseSensitivity = FMath::Clamp(FMath::RoundToFloat((MouseSensitivity + 0.05f * Dir) / 0.05f) * 0.05f, 0.05f, 1.f);
+		break;
+	case 1:
+		bInvertPitch = !bInvertPitch;
+		break;
+	case 2:
+		MasterVolume = FMath::Clamp(FMath::RoundToFloat((MasterVolume + 0.1f * Dir) * 10.f) / 10.f, 0.f, 1.f);
+		if (UWorld* World = GetWorld())
+		{
+			if (FAudioDeviceHandle Device = World->GetAudioDevice()) Device->SetTransientPrimaryVolume(MasterVolume);
+		}
+		break;
+	case 3:
+		if (UGameUserSettings* S = GEngine ? GEngine->GetGameUserSettings() : nullptr)
+		{
+			// Low turns off Lumen and most shadows, for weaker machines.
+			S->SetOverallScalabilityLevel((QualityLevel() + Dir + 4) % 4);
+			S->ApplySettings(false);
+		}
+		break;
+	default:
+		return;
+	}
+	LeafSound::Play(this, TEXT("ui_move"), 0.5f);
+	UE_LOG(LogLeafline, Log, TEXT("Options: row %d set to %s"), Row, *GetOptionValueText(Row));
+	SaveOptions();
+}
+
+void ALeaflinePlayerController::LoadOptions()
+{
+	if (!GConfig) return;
+	float F = 0.f;
+	bool B = false;
+	if (GConfig->GetFloat(OptionsSection, TEXT("MouseSensitivity"), F, GGameUserSettingsIni)) MouseSensitivity = FMath::Clamp(F, 0.05f, 1.f);
+	if (GConfig->GetBool(OptionsSection, TEXT("InvertPitch"), B, GGameUserSettingsIni)) bInvertPitch = B;
+	if (GConfig->GetFloat(OptionsSection, TEXT("Volume"), F, GGameUserSettingsIni)) MasterVolume = FMath::Clamp(F, 0.f, 1.f);
+	if (UWorld* World = GetWorld())
+	{
+		if (FAudioDeviceHandle Device = World->GetAudioDevice()) Device->SetTransientPrimaryVolume(MasterVolume);
+	}
+}
+
+void ALeaflinePlayerController::SaveOptions() const
+{
+	if (GConfig)
+	{
+		GConfig->SetFloat(OptionsSection, TEXT("MouseSensitivity"), MouseSensitivity, GGameUserSettingsIni);
+		GConfig->SetBool(OptionsSection, TEXT("InvertPitch"), bInvertPitch, GGameUserSettingsIni);
+		GConfig->SetFloat(OptionsSection, TEXT("Volume"), MasterVolume, GGameUserSettingsIni);
+		GConfig->Flush(false, GGameUserSettingsIni);
+	}
+	if (UGameUserSettings* S = GEngine ? GEngine->GetGameUserSettings() : nullptr) S->SaveSettings();
+}
+
 void ALeaflinePlayerController::HandleButtons(uint32 Pressed)
 {
 	if (Pressed & LeafButtons::Pause)
 	{
 		SetPause(!IsPaused());
+		PausePage = 0;
+		PauseRow = 0;
 		return;
 	}
 	if (IsPaused())
 	{
-		if (Pressed & LeafButtons::SendHome) ConsoleCommand(TEXT("quit"));
+		if (Pressed & LeafButtons::SendHome)
+		{
+			if (PausePage == 0) ConsoleCommand(TEXT("quit"));
+			else
+			{
+				PausePage = 0;
+				PauseRow = 1;
+			}
+		}
+		else if (Pressed & (LeafButtons::Cut | LeafButtons::Grip))
+		{
+			ActivatePauseRow();
+		}
 		return;
 	}
 	if (!Director.IsValid()) Director = ADayDirector::Get(this);

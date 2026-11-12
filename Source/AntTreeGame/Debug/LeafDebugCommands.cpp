@@ -646,4 +646,14 @@ namespace
 				}
 			}
 		}));
+
+	FAutoConsoleCommandWithWorldAndArgs CmdPauseMenu(
+		TEXT("Leaf.PauseMenu"),
+		TEXT("Leaf.PauseMenu <page 0|1> [row]: pause and show the pause menu (0) or the options (1) with a row selected (screenshots)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			ALeaflinePlayerController* PC = World ? Cast<ALeaflinePlayerController>(World->GetFirstPlayerController()) : nullptr;
+			if (!PC) return;
+			PC->DebugShowPauseMenu(Args.Num() > 0 ? FCString::Atoi(*Args[0]) : 0, Args.Num() > 1 ? FCString::Atoi(*Args[1]) : 0);
+		}));
 }
