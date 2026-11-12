@@ -55,6 +55,10 @@ struct FAntMoveTuning
 	 * it is let go, so the camera's slow roll cannot change it mid-move. Off: camera-relative with the sideways snap.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Thin branches") bool bSteeringWheel = true;
+	/** The wheel applies fully on branches up to this radius and fades out by WheelFadeRadius (cm); thicker wood
+	 *  (the trunk) stays camera-relative. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Thin branches") float WheelFullRadius = 90.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Thin branches") float WheelFadeRadius = 200.f;
 };
 
 /**

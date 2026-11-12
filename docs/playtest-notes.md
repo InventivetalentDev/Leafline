@@ -38,15 +38,21 @@
 - [x] make it a bit clearer that an ant is returning to the nest
   - Done: after Q the camera stays with the worker for 1.4 s as it turns for home, with "Worker 1 heads home with its piece" on screen, then the next worker comes out. At the nest the ant now walks into the entrance and sinks out of sight while its piece drops in. Not in a package yet.
 - [ ] walking around branches still doesn't seem to work quite right sometimes, still occasionally get stuck at the tangent point
+  - Likely cause: the steering wheel (A/D round the branch) only applied on branches under about 70 cm radius. On mid-size limbs camera-relative "right" still decided, and at the silhouette it points into the wood, so the ant stalled at the tangent point. The wheel now applies fully up to 90 cm radius and fades out by 2 m, so only the trunk stays camera-relative (`WheelFullRadius`, `WheelFadeRadius` in `Leaf.Tune move`). Not yet tested on a limb by hand; please tell me where it still sticks. Not in a package yet.
 - [x] background tree leaves are way too big
   - Fixed: the distant crowns had leaves half to three quarters of their clump size (8 to 20 m). Now about a quarter (a few metres), almost four times as many, drawn with fewer segments so the triangle count stays about the same. Not in a package yet.
-- [ ] gripping needs more of a visual indicator, like a new gripping pose on the model or some indicator color or something
+- [x] gripping needs more of a visual indicator, like a new gripping pose on the model or some indicator color or something
+  - Done: while gripping the ant presses flat to the bark (lower, wider, flatter) and trembles with the wind. Not in a package yet.
 - [ ] when plugging in a ps5 controller, sounds seems to cut off (getting routed to the controller speaker maybe?)
+  - Probably yes: the DualSense is also an audio device, Windows often makes a newly plugged one the default, and the engine follows default-device changes. It now stays on the device it started with (`au.DisableDeviceSwap=1`). I could not test this without the pad; please check in the next package (plug the pad in while the game runs).
 - [ ] scent lines should maybe fade after a while? or at least be more faint for older ones so it doesn't get confusing
-- [ ] wind could maybe wiggle the leaf you're carrying a bit more to make wind more obvious
+  - First step: earlier workers' lines are thinner (each older line a step thinner, down to about half width). Making them truly fainter needs one change in the trail material (read the vertex alpha the lines now carry); that needs the editor, next time it is open. Not in a package yet.
+- [x] wind could maybe wiggle the leaf you're carrying a bit more to make wind more obvious
+  - Done: the carried piece shakes with the wind the ant feels on its spot (gust strength times exposure): barely in shelter, hard on an exposed face in a gust. Not in a package yet.
 - [x] can probably move the leaves start down to the lower branches
   - Done: on day 1 every bough and twig is leafy, so leaves start on the lowest limbs (about 26 m). Later days raise it 7 m a day (was 15: day 4 now starts at 41 m instead of 85). The first goal text says the real height. Not in a package yet.
 - [ ] overall, try to move as much of what's currently UI text (like "gust, you're sheltered here") to have an in-world visual indicator (can still keep the UI text as well, but needs some proper in-world feedback imo)
+  - Started: the carried piece shakes and the ant leans away from the wind and shivers in proportion to how exposed its spot is, so a sheltered spot is visibly calm; gripping has its own pose; at the nest the ant visibly goes in. More to do (for example the gust warning itself). Not in a package yet.
 - [x] when the sprint expires, keep it expired until the next explicit press of the sprint button
   - Fixed: after the bar runs dry, sprint stays off (bar red) until you let go of the button and press it again. Not in a package yet.
 - [x] the see-through stem "hole" is often offset from where the ant would be

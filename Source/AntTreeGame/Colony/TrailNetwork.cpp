@@ -36,6 +36,8 @@ void ATrailNetwork::ClearAll()
 int32 ATrailNetwork::StartPath(const FVector& Pos, const FVector& Normal)
 {
 	const int32 Index = Paths.AddDefaulted();
+	// Every older line gets one step fainter: rebuild them all.
+	for (int32 p = 0; p < Index; ++p) Paths[p].DirtyFromChunk = 0;
 	AddPoint(Index, Pos, Normal);
 	return Index;
 }
@@ -97,6 +99,12 @@ void ATrailNetwork::Tick(float DeltaTime)
 void ATrailNetwork::RebuildChunk(int32 PathIndex, int32 Chunk)
 {
 	FPath& Path = Paths[PathIndex];
+	// Older lines (earlier workers today) are thinner and carry a lower vertex alpha, so the newest reads first and the
+	// tangle of a busy day does not confuse (owner note). M_Trail ignores vertex colour until it is wired to opacity.
+	const int32 Age = Paths.Num() - 1 - PathIndex;
+	const float Fade = FMath::Max(0.35f, 1.f - 0.3f * Age);
+	const float W = Width * FMath::Lerp(0.55f, 1.f, Fade);
+	const FLinearColor Tint(1.f, 1.f, 1.f, Fade);
 	TArray<FVector> V, N;
 	TArray<FVector2D> UV;
 	TArray<FLinearColor> Col;
@@ -117,13 +125,13 @@ void ATrailNetwork::RebuildChunk(int32 PathIndex, int32 Chunk)
 			continue;
 		}
 		const FVector Dir = (B.Pos - A.Pos) / FMath::Max(SegLen, 0.01f);
-		const FVector SideA = FVector::CrossProduct(A.Normal, Dir).GetSafeNormal() * (Width * 0.5f);
-		const FVector SideB = FVector::CrossProduct(B.Normal, Dir).GetSafeNormal() * (Width * 0.5f);
+		const FVector SideA = FVector::CrossProduct(A.Normal, Dir).GetSafeNormal() * (W * 0.5f);
+		const FVector SideB = FVector::CrossProduct(B.Normal, Dir).GetSafeNormal() * (W * 0.5f);
 		const int32 Base = V.Num();
 		V.Append({ A.Pos + A.Normal * Lift - SideA, A.Pos + A.Normal * Lift + SideA, B.Pos + B.Normal * Lift - SideB, B.Pos + B.Normal * Lift + SideB });
 		N.Append({ A.Normal, A.Normal, B.Normal, B.Normal });
 		UV.Append({ FVector2D(0.0, Along), FVector2D(1.0, Along), FVector2D(0.0, Along + SegLen), FVector2D(1.0, Along + SegLen) });
-		Col.Append({ FLinearColor::White, FLinearColor::White, FLinearColor::White, FLinearColor::White });
+		Col.Append({ Tint, Tint, Tint, Tint });
 		Tan.Append({ FProcMeshTangent(Dir, false), FProcMeshTangent(Dir, false), FProcMeshTangent(Dir, false), FProcMeshTangent(Dir, false) });
 		// UE front faces: (b - a) x (c - a) points away from the viewer, who looks down the normal.
 		auto AddTri = [&](int32 I0, int32 I1, int32 I2)

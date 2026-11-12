@@ -196,6 +196,10 @@ private:
 	FTransform VanishPieceFrom;
 	bool bVanishPiece = false;
 	float FlutterTime = -1.f;
+	float VisTime = 0.f;
+	float FeltTimer = 0.f;
+	float FeltExposure = 0.f;
+	float WindFeel = 0.f;
 	FVector FlutterVelocity = FVector::ZeroVector;
 	FVector FlutterSpinAxis = FVector::UpVector;
 	FTransform SwingFrom;

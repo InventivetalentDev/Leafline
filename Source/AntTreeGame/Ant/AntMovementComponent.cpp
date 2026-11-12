@@ -244,14 +244,17 @@ void UAntMovementComponent::TickWalking(float Dt)
 			DistToEnd = B.Length() - B.SampleDist[Nearest];
 		}
 	}
-	if (ThinBlend <= 0.f)
+	// The steering wheel reaches further than the old thin-branch rules: on mid-size limbs (up to about 2 m radius)
+	// camera-relative "right" still pointed into the wood at the silhouette and the ant stalled at the tangent point.
+	const float WheelBlend = Tuning.bSteeringWheel ? FMath::Max(ThinBlend, 1.f - FMath::SmoothStep(Tuning.WheelFullRadius, FMath::Max(Tuning.WheelFadeRadius, Tuning.WheelFullRadius + 1.f), RadiusHere)) : 0.f;
+	if (ThinBlend <= 0.f && WheelBlend <= 0.f)
 	{
 		SpareInt = 0;
 		AroundSign = 0;
 	}
 	// Steering wheel: fix which way along the branch W means when the stick is first held on a thin branch and keep it
 	// until the stick is let go. Onto the next branch it carries over by continuity.
-	if (Tuning.bSteeringWheel && ThinBlend > 0.f && MoveInput.SizeSquared() > 0.04 && !Axis.IsNearlyZero())
+	if (Tuning.bSteeringWheel && WheelBlend > 0.f && MoveInput.SizeSquared() > 0.04 && !Axis.IsNearlyZero())
 	{
 		if (WheelAway.IsNearlyZero())
 		{
@@ -273,7 +276,7 @@ void UAntMovementComponent::TickWalking(float Dt)
 	for (int32 s = 0; s < Steps; ++s)
 	{
 		FVector Wish = State == EAntState::WalkingHome ? HomeWish(N) : ComputeWish(N);
-		if (ThinBlend > 0.f && bWantsMove && State == EAntState::Walking)
+		if ((ThinBlend > 0.f || bWheel) && bWantsMove && State == EAntState::Walking)
 		{
 			// At a branch tip the axis turns into the surface normal; fade the push there so the ant comes to rest at
 			// the tip instead of overshooting the apex back and forth.
@@ -379,7 +382,7 @@ void UAntMovementComponent::TickWalking(float Dt)
 					if (FMath::Abs(Y) < 0.35 * FMath::Abs(MoveInput.X)) Y = 0.0;
 					// UE is left-handed (X forward, Y right, Z up): up x forward = right, so on top of the branch D goes right.
 					const FVector Clockwise = FVector::CrossProduct(N, WheelAway).GetSafeNormal();
-					Wish = FMath::Lerp(Wish, A * (SpareInt * FMath::Abs(Y) * Fade * TipSlow) + Clockwise * (X * AroundRate * TipFade), (double)ThinBlend);
+					Wish = FMath::Lerp(Wish, A * (SpareInt * FMath::Abs(Y) * Fade * TipSlow) + Clockwise * (X * AroundRate * TipFade), (double)WheelBlend);
 				}
 				else
 				{

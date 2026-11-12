@@ -377,23 +377,63 @@ void AAntPawn::UpdateFlutter(float Dt)
 
 void AAntPawn::UpdateCutVisuals(float Dt)
 {
-	// Sawing: while cutting, the body nods quickly and sweeps slowly from side to side, as if working along the arc.
+	// Wind as the ant feels it on this spot (gust strength times the spot's exposure), sampled a few times a second.
+	// It drives in-world cues: the carried piece shakes, the body leans and shivers; sheltered spots stay calm.
+	const AWindSystem* Wind = AWindSystem::Get(this);
+	VisTime += Dt;
+	FeltTimer -= Dt;
+	if (FeltTimer <= 0.f && Wind && Movement)
+	{
+		FeltTimer = 0.2f;
+		FeltExposure = Wind->GetExposure(Movement->GetSurfacePosition(), Movement->GetSurfaceNormal());
+	}
+	const float Feel = Wind ? FMath::Clamp(Wind->GetStrength(), 0.f, 1.f) * FeltExposure : 0.f;
+	WindFeel = FMath::FInterpTo(WindFeel, Feel, Dt, 3.f);
+	const EAntState VisState = Movement ? Movement->GetState() : EAntState::Walking;
+
 	if (Body)
 	{
+		FRotator Rot = FRotator::ZeroRotator;
+		FVector Loc = FVector::ZeroVector;
+		FVector Scale = FVector::OneVector;
+		// Sawing: while cutting, the body nods quickly and sweeps slowly from side to side, as if working along the arc.
 		if (IsCutting())
 		{
 			SawTime += Dt;
-			const float Nod = 4.f * FMath::Sin(SawTime * 2.f * PI * 4.5f);
-			const float Sweep = 9.f * FMath::Sin(SawTime * 2.f * PI * 0.9f);
-			Body->SetRelativeRotation(FRotator(Nod, Sweep, 0.f));
-			Body->SetRelativeLocation(FVector(0.6f * FMath::Sin(SawTime * 2.f * PI * 4.5f), 0.f, 0.f));
+			Rot.Pitch += 4.f * FMath::Sin(SawTime * 2.f * PI * 4.5f);
+			Rot.Yaw += 9.f * FMath::Sin(SawTime * 2.f * PI * 0.9f);
+			Loc.X += 0.6f * FMath::Sin(SawTime * 2.f * PI * 4.5f);
 		}
-		else if (SawTime > 0.f)
+		else
 		{
 			SawTime = 0.f;
-			Body->SetRelativeRotation(FRotator::ZeroRotator);
-			Body->SetRelativeLocation(FVector::ZeroVector);
 		}
+		// Gripping: pressed flat to the bark with the legs spread, trembling with the wind.
+		if (VisState == EAntState::Gripping)
+		{
+			Loc.Z -= 1.2f;
+			Scale = FVector(1.06f, 1.14f, 0.78f);
+			Rot.Roll += (0.6f + 2.f * WindFeel) * FMath::Sin(VisTime * 2.f * PI * 9.f);
+		}
+		// Leaning away from the wind where it reaches the ant.
+		else if (Wind && WindFeel > 0.02f && (VisState == EAntState::Walking || VisState == EAntState::Cutting || VisState == EAntState::Riding))
+		{
+			const FVector Local = GetActorTransform().InverseTransformVectorNoScale(Wind->GetDirection());
+			Rot.Roll += 9.f * WindFeel * (float)Local.Y + 1.5f * WindFeel * FMath::Sin(VisTime * 2.f * PI * 6.f);
+			Rot.Pitch -= 6.f * WindFeel * (float)Local.X;
+		}
+		Body->SetRelativeLocationAndRotation(Loc, Rot);
+		Body->SetRelativeScale3D(Scale);
+	}
+
+	// The carried piece shakes in the wind like a small sail: barely in shelter, hard on an exposed face in a gust.
+	if (IsCarrying() && SwingTime < 0.f && FlutterTime < 0.f && VanishTime < 0.f && FragmentMesh)
+	{
+		const float A = 2.f + 28.f * WindFeel;
+		const float F = 2.5f + 4.f * WindFeel;
+		const FRotator Shake(A * 0.6f * FMath::Sin(VisTime * 2.f * PI * F), A * 0.35f * FMath::Sin(VisTime * 2.f * PI * F * 0.73f + 1.3f),
+			A * FMath::Sin(VisTime * 2.f * PI * F * 1.21f + 0.4f));
+		FragmentMesh->SetRelativeRotation(FragmentRestRotation + Shake);
 	}
 
 	// The torn piece swings up from the leaf over the ant onto its back.
