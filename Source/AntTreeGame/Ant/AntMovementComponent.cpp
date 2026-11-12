@@ -217,6 +217,7 @@ void UAntMovementComponent::TickWalking(float Dt)
 	// direction; when it points across the branch the last direction is kept (SpareInt holds the sign).
 	FVector Axis = FVector::ZeroVector;
 	float ThinBlend = 0.f;
+	float DistToEnd = 1.0e6f;
 	if (Tree.IsValid())
 	{
 		const TArray<FTreeBranch>& Branches = Tree->GetSkeleton().Branches;
@@ -237,6 +238,7 @@ void UAntMovementComponent::TickWalking(float Dt)
 			const int32 Lo = FMath::Max(Nearest - 1, 0), Hi = FMath::Min(Nearest + 1, B.Samples.Num() - 1);
 			Axis = (B.Samples[Hi] - B.Samples[Lo]).GetSafeNormal();
 			ThinBlend = 1.f - FMath::SmoothStep(15.f, 70.f, B.SampleRadius[Nearest]);
+			DistToEnd = B.Length() - B.SampleDist[Nearest];
 		}
 	}
 	if (ThinBlend <= 0.f) SpareInt = 0;
@@ -264,7 +266,10 @@ void UAntMovementComponent::TickWalking(float Dt)
 				{
 					SpareInt = FVector::DotProduct(Forward, A) >= 0.0 ? 1 : -1;
 				}
-				Wish = FMath::Lerp(Wish, A * (SpareInt * InputMag * TipFade), (double)ThinBlend);
+				// Heading for the free end of a thin branch: slow down over the last half metre so the rounded tip
+				// (only a few cm of curve) is reached at a crawl.
+				const double TipSlow = SpareInt > 0 ? FMath::Clamp(DistToEnd / 50.0, 0.15, 1.0) : 1.0;
+				Wish = FMath::Lerp(Wish, A * (SpareInt * InputMag * TipFade * TipSlow), (double)ThinBlend);
 			}
 		}
 
@@ -285,8 +290,12 @@ void UAntMovementComponent::TickWalking(float Dt)
 			}
 		}
 
+		// A faded-out wish (at a tip, or where the camera direction vanishes) means "stay": stop cleanly.
+		if (Wish.SizeSquared() < 0.01) Wish = FVector::ZeroVector;
 		const FVector Target = Wish * Speed;
-		const float Rate = Wish.IsNearlyZero() ? Tuning.Deceleration : Tuning.Acceleration;
+		float Rate = Wish.IsNearlyZero() ? Tuning.Deceleration : Tuning.Acceleration;
+		// Brake hard when the wish turns against the motion, so the ant never swings back and forth over a point.
+		if (FVector::DotProduct(Target, Velocity) < 0.0) Rate = Tuning.Deceleration * 2.5f;
 		Velocity = ProjectOnPlane(MoveTowards(Velocity, Target, Rate * H), N);
 		const FVector Prev = Pos;
 		Pos += Velocity * H;
