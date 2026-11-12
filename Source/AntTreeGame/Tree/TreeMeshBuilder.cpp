@@ -47,6 +47,7 @@ namespace
 				Out.Vertices.Add(V);
 				Out.Normals.Add((Dir * FMath::Cos(NormalTilt) + Tan * FMath::Sin(NormalTilt)).GetSafeNormal());
 				Out.UV0.Add(FVector2D(Theta * FMath::Max(Radius, 1.f), Along));
+				Out.UV1.Add(FVector2D(C * Radius, S * Radius));
 				FLinearColor Col = BaseColor;
 				Col.B = FMath::Clamp((float)V.Z / TreeH, 0.f, 1.f);
 				Out.Colors.Add(Col);
@@ -93,6 +94,7 @@ namespace
 		Out.Vertices.Add(TipC + TipT * TipR);
 		Out.Normals.Add(TipT);
 		Out.UV0.Add(FVector2D(0.0, TipAlong + TipR * 0.5f * PI));
+		Out.UV1.Add(FVector2D::ZeroVector);
 		FLinearColor TipCol = BaseColor;
 		TipCol.B = FMath::Clamp((float)(TipC.Z / TreeH), 0.f, 1.f);
 		Out.Colors.Add(TipCol);

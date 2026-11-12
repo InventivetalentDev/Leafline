@@ -23,6 +23,7 @@ namespace
 
 void FTreeField::Reset()
 {
+	MoundRadii = FVector::ZeroVector;
 	Segs.Reset();
 	Branches.Reset();
 	Groups.Reset();
@@ -32,6 +33,11 @@ void FTreeField::Build(const FTreeSkeleton& S)
 {
 	Reset();
 	GroundK = S.Params.GroundBlend;
+	if (S.NestSpots.Num() > 0 && S.Params.NestMoundRadius > 0.f && S.Params.NestMoundHeight > 0.f)
+	{
+		MoundCenter = FVector(S.NestSpots[0].X, S.NestSpots[0].Y, GroundZ);
+		MoundRadii = FVector(S.Params.NestMoundRadius, S.Params.NestMoundRadius, S.Params.NestMoundHeight);
+	}
 
 	double MaxK = GroundK;
 	for (const FTreeBranch& B : S.Branches)
@@ -86,17 +92,57 @@ double FTreeField::BranchDistance(int32 Branch, const FVector& P) const
 	for (int32 i = 0; i < R.Num; ++i, ++S)
 	{
 		const FVector PA = P - S->A;
-		const double T = FMath::Clamp(FVector::DotProduct(PA, S->BA) * S->InvLenSq, 0.0, 1.0);
-		const double D = (PA - S->BA * T).Size() - (S->RA + (S->RB - S->RA) * T);
+		const double Dot = FVector::DotProduct(PA, S->BA);
+		const double TRaw = Dot * S->InvLenSq;
+		const double T = FMath::Clamp(TRaw, 0.0, 1.0);
+		const double AxisDist = (PA - S->BA * T).Size();
+
+		// The branch's true ends are rounded caps of the end radius, like the mesh's tip (the start is buried in the parent).
+		if ((TRaw > 1.0 && i == R.Num - 1) || (TRaw < 0.0 && i == 0))
+		{
+			Best = FMath::Min(Best, AxisDist - (TRaw > 1.0 ? S->RB : S->RA));
+			continue;
+		}
+
+		// Every point of the frustum lies within its larger radius of the axis segment, so this bounds D from below.
+		const double MaxR = FMath::Max(S->RA, S->RB);
+		if (AxisDist - MaxR >= Best) continue;
+
+		// Exact distance to the frustum's side: the mesh draws exactly these cones, and interior joints get no caps (a
+		// cap of the joint radius bulges out of a steep taper by metres at the root flare; the neighbour covers it).
+		// Work in the plane through the axis: X along it, Rho away from it; the side runs from (0, RA) to (L, RB).
+		if (S->InvLenSq <= 0.0) continue;
+		const double InvLen = FMath::Sqrt(S->InvLenSq);
+		const double X = Dot * InvLen;
+		const double Rho = FMath::Sqrt(FMath::Max(PA.SizeSquared() - X * X, 0.0));
+		const double L = 1.0 / InvLen;
+		const double EY = S->RB - S->RA;
+		const double QY = Rho - S->RA;
+		const double U = FMath::Clamp((X * L + QY * EY) / (L * L + EY * EY), 0.0, 1.0);
+		double D = FMath::Sqrt(FMath::Square(X - L * U) + FMath::Square(QY - EY * U));
+		if (TRaw >= 0.0 && TRaw <= 1.0 && QY < EY * TRaw) D = -D;
 		Best = FMath::Min(Best, D);
 	}
 	return Best;
 }
 
+double FTreeField::GroundDistance(const FVector& P) const
+{
+	const double Plane = P.Z - GroundZ;
+	if (MoundRadii.Z <= 0.0) return Plane;
+	// Ellipsoid bound (k0 (k0 - 1) / k1): exact on the surface, which is all the walker needs.
+	const FVector Q = P - MoundCenter;
+	if (FVector::DistSquared2D(Q, FVector::ZeroVector) > FMath::Square(MoundRadii.X + 50.0)) return Plane;
+	const double K0 = (Q / MoundRadii).Size();
+	const double K1 = (Q / (MoundRadii * MoundRadii)).Size();
+	const double Mound = K1 > 1e-9 ? K0 * (K0 - 1.0) / K1 : -MoundRadii.Z;
+	return SMin(Plane, Mound, 4.0);
+}
+
 double FTreeField::Distance(const FVector& P, int32* OutBranch) const
 {
 	++EvalCount;
-	const double Ground = P.Z - GroundZ;
+	const double Ground = GroundDistance(P);
 	if (Groups.Num() == 0)
 	{
 		if (OutBranch) *OutBranch = INDEX_NONE;

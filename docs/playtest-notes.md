@@ -1,0 +1,14 @@
+- [x] I'm still climbing through the air at the trunk base
+  - Fixed: the walking surface now matches the visible bark (mean gap 0.12 cm around the trunk base and roots, was 52 cm; worst 7.5 cm in the small blend where roots meet the trunk). In the editor build.
+- [x] "safe" text when cutting leaves transitions to weird informational text about it being dangerous in wind which just seems confusing
+  - Fixed: the label under the cut arc now reads "Safe in a gust", "Risky in a gust" or "Too big for a gust". In the editor build.
+- [x] pretty blurry UI text
+  - Fixed: all HUD text is rasterised at its on-screen size instead of being stretched. In the editor build.
+- [x] tree texture has some UV issues; weird lines and stretched textures in places
+  - Fixed: new bark material without UV seams; fissures run along each branch. The root flare reads more like plates than fissures. In the editor build.
+- [x] stuck in pause screen, none of the supposed resume buttons did anything (neither did the quit buttons)
+  - Fixed: the HUD now ticks while the game is paused, so the buttons respond. In the current packaged build.
+- [x] potentially allow the camera to clip through the tree so moving around e.g. branches is less jarring, but make it seem a bit more intentional by dithering the material when the camera gets close
+  - Done: the camera no longer pulls in for wood; bark between the camera and the ant (and right in front of the camera) dithers away. Leaves are not dithered yet. The old behaviour is the camera setting `bAvoidThickOcclusion`. In the editor build.
+- [x] ant starts inside the nest mesh at the start (no colission?)
+  - Fixed: the nest mound is part of the walking surface, so ants start on top of the entrance and walk over the mound. In the editor build.

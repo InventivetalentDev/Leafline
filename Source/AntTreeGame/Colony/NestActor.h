@@ -22,6 +22,9 @@ public:
 	/** A fragment arrived: a small pulse so the deposit reads on screen. */
 	void PlayDeposit(float Mass);
 
+	/** Match the mound to the walking field's (cm): a flattened sphere half in the ground. */
+	void SetMoundSize(float Radius, float Height);
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nest")
 	FLinearColor MoundColor = FLinearColor(0.07f, 0.055f, 0.035f);
 

@@ -335,4 +335,128 @@ namespace
 			const double Elapsed = FPlatformTime::Seconds() - Start;
 			UE_LOG(LogLeafline, Log, TEXT("Leaf.FieldBench: %d evaluations, %.2f us each (checksum %.1f)"), N, Elapsed * 1e6 / N, Sum);
 		}));
+
+	/** Signed distance from P to the visible bark: the union of the mesh's cone frusta (lateral faces only). */
+	double MeshDistance(const TArray<FTreeBranch>& Branches, const FVector& P)
+	{
+		double Best = 1e12;
+		for (const FTreeBranch& B : Branches)
+		{
+			if (!B.Bounds.ExpandBy(50.0).IsInsideOrOn(P)) continue;
+			for (int32 i = 0; i + 1 < B.Samples.Num(); ++i)
+			{
+				const FVector A = B.Samples[i];
+				const FVector AB = B.Samples[i + 1] - A;
+				const double L = AB.Size();
+				if (L < 1e-3) continue;
+				const FVector Dir = AB / L;
+				const FVector AP = P - A;
+				const double X = FVector::DotProduct(AP, Dir);
+				const double Rho = (AP - Dir * X).Size();
+				// Distance in the (axial, radial) plane to the side line from (0, RA) to (L, RB).
+				const FVector2D S0(0.0, B.SampleRadius[i]), S1(L, B.SampleRadius[i + 1]), Q(X, Rho);
+				const FVector2D E = S1 - S0;
+				const double T = FMath::Clamp(FVector2D::DotProduct(Q - S0, E) / E.SizeSquared(), 0.0, 1.0);
+				double D = (Q - (S0 + E * T)).Size();
+				if (X >= 0.0 && X <= L && Rho < S0.Y + E.Y * (X / L)) D = -D;
+				Best = FMath::Min(Best, D);
+			}
+		}
+		return Best;
+	}
+
+	/** Logs, for a point, the field distance and each nearby branch's distance to the visible bark. */
+	void GapDetail(ATreeActor* Tree, const FVector& WorstP)
+	{
+		const FTreeField& Field = Tree->GetField();
+		const TArray<FTreeBranch>& Branches = Tree->GetSkeleton().Branches;
+		int32 NearB = INDEX_NONE;
+		const double FD = Field.Distance(WorstP, &NearB);
+		UE_LOG(LogLeafline, Log, TEXT("Leaf.GapAt %s: field %.2f, nearest branch %d"), *WorstP.ToCompactString(), FD, NearB);
+		for (int32 b = 0; b < Branches.Num(); ++b)
+		{
+			const TArray<FTreeBranch> One = { Branches[b] };
+			const double MD = MeshDistance(One, WorstP);
+			if (MD > 400.0) continue;
+			int32 BestI = 0;
+			double BestS = 1e12;
+			for (int32 i = 0; i < Branches[b].Samples.Num(); ++i)
+			{
+				const double DS = FVector::Dist(Branches[b].Samples[i], WorstP);
+				if (DS < BestS) { BestS = DS; BestI = i; }
+			}
+			const FTreeBranch& B = Branches[b];
+			UE_LOG(LogLeafline, Log, TEXT("  branch %d level %d: bark %.1f, nearest sample %d/%d at %s r %.1f dist %.1f"),
+				b, B.Level, MD, BestI, B.Samples.Num(), *B.Samples[BestI].ToCompactString(), B.SampleRadius[BestI], BestS);
+		}
+		const FTreeBranch& Trunk = Branches[0];
+		FString Line;
+		for (int32 i = 0; i < Trunk.Samples.Num() && Trunk.Samples[i].Z < 2000.0; ++i)
+		{
+			Line += FString::Printf(TEXT(" [%d z%.0f r%.0f]"), i, Trunk.Samples[i].Z, Trunk.SampleRadius[i]);
+		}
+		UE_LOG(LogLeafline, Log, TEXT("  trunk samples:%s"), *Line);
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs CmdGapAt(
+		TEXT("Leaf.GapAt"),
+		TEXT("Leaf.GapAt <x> <y> <z>: log the walking field and each nearby branch's bark distance at a point."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			ATreeActor* Tree = ATreeActor::Get(World);
+			if (!Tree || Args.Num() < 3) return;
+			GapDetail(Tree, FVector(FCString::Atod(*Args[0]), FCString::Atod(*Args[1]), FCString::Atod(*Args[2])));
+		}));
+
+	FAutoConsoleCommandWithWorldAndArgs CmdSurfaceGap(
+		TEXT("Leaf.SurfaceGap"),
+		TEXT("Leaf.SurfaceGap [maxZ]: project points around the trunk and roots onto the walking field and log how far they float above the visible bark (only points below maxZ cm, default 1500)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			ATreeActor* Tree = ATreeActor::Get(World);
+			if (!Tree) return;
+			const FTreeField& Field = Tree->GetField();
+			const TArray<FTreeBranch>& Branches = Tree->GetSkeleton().Branches;
+			const double MaxZ = Args.Num() > 0 ? FCString::Atod(*Args[0]) : 1500.0;
+			int32 Count = 0, Over5 = 0, Failed = 0;
+			double Sum = 0.0, Worst = -1e12;
+			FVector WorstP = FVector::ZeroVector;
+			for (int32 b = 0; b < Branches.Num(); ++b)
+			{
+				const FTreeBranch& B = Branches[b];
+				if (B.Level > 0) continue;
+				for (int32 i = 0; i < B.Samples.Num(); ++i)
+				{
+					if (B.Samples[i].Z > MaxZ) continue;
+					const FVector Tan = (B.Samples[FMath::Min(i + 1, B.Samples.Num() - 1)] - B.Samples[FMath::Max(i - 1, 0)]).GetSafeNormal();
+					const FVector N0 = FVector::CrossProduct(Tan, FMath::Abs(Tan.Z) < 0.9 ? FVector::UpVector : FVector::ForwardVector).GetSafeNormal();
+					const FVector N1 = FVector::CrossProduct(Tan, N0);
+					for (int32 a = 0; a < 16; ++a)
+					{
+						const double Th = 2.0 * PI * a / 16;
+						FVector P = B.Samples[i] + (N0 * FMath::Cos(Th) + N1 * FMath::Sin(Th)) * (B.SampleRadius[i] + 30.0);
+						if (P.Z < Field.GroundZ + 5.0) continue;
+						FVector Nrm;
+						if (!Field.Project(P, Nrm, 0.0))
+						{
+							++Failed;
+							continue;
+						}
+						if (P.Z < Field.GroundZ + 5.0) continue; // landed on the ground plane
+						const double Gap = MeshDistance(Branches, P);
+						++Count;
+						Sum += Gap;
+						if (Gap > 5.0) ++Over5;
+						if (Gap > Worst)
+						{
+							Worst = Gap;
+							WorstP = P;
+						}
+					}
+				}
+			}
+			UE_LOG(LogLeafline, Log, TEXT("Leaf.SurfaceGap: %d points below z %.0f, mean gap %.2f cm, worst %.1f cm at %s, %d over 5 cm, %d failed projections"),
+				Count, MaxZ, Count ? Sum / Count : 0.0, Worst, *WorstP.ToCompactString(), Over5, Failed);
+			GapDetail(Tree, WorstP);
+		}));
 }

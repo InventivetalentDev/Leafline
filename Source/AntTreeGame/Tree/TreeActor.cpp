@@ -29,10 +29,13 @@ ATreeActor::ATreeActor()
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> BasicMat(TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
 	if (BasicMat.Succeeded()) FallbackMaterial = BasicMat.Object;
 	// Procedural materials built over MCP (maths only, no textures).
-	static ConstructorHelpers::FObjectFinder<UMaterialInterface> BarkMat(TEXT("/Game/Leafline/Materials/M_Bark.M_Bark"));
+	// M_TreeBark: world-space bark with the camera cutaway. M_Bark is the older UV-based version.
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> BarkMat(TEXT("/Game/Leafline/Materials/M_TreeBark.M_TreeBark"));
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> OldBarkMat(TEXT("/Game/Leafline/Materials/M_Bark.M_Bark"));
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> LeafMat(TEXT("/Game/Leafline/Materials/M_Leaf.M_Leaf"));
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> GroundMat(TEXT("/Game/Leafline/Materials/M_Ground.M_Ground"));
 	if (BarkMat.Succeeded()) BarkMaterial = BarkMat.Object;
+	else if (OldBarkMat.Succeeded()) BarkMaterial = OldBarkMat.Object;
 	if (LeafMat.Succeeded()) LeafMaterial = LeafMat.Object;
 	if (GroundMat.Succeeded()) GroundMaterial = GroundMat.Object;
 }
@@ -48,7 +51,7 @@ void ATreeActor::Grow(int32 Seed)
 
 	if (!WoodMesh) WoodMesh = MakeMeshComponent(this, RootComponent, TEXT("WoodMesh"));
 	WoodMesh->ClearAllMeshSections();
-	WoodMesh->CreateMeshSection_LinearColor(0, Data.Vertices, Data.Triangles, Data.Normals, Data.UV0, {}, {}, {},
+	WoodMesh->CreateMeshSection_LinearColor(0, Data.Vertices, Data.Triangles, Data.Normals, Data.UV0, Data.UV1, {}, {},
 		Data.Colors, Data.Tangents, false, false);
 
 	UMaterialInterface* Mat = BarkMaterial;

@@ -79,7 +79,8 @@ bool    Project(FVector& P, FVector& OutNormal, float Height) const;
 bool    March(const FVector& From, const FVector& To, float Radius, float& OutT) const;
 ```
 
-- Per branch: distance to the centreline curve minus the interpolated radius, with rounded ends.
+- Per branch: exact distance to the cone frusta between centreline samples, the same shapes the mesh draws. Interior joints have no caps (a cap of the joint radius bulged metres out of the root flare and made the ant climb through the air); only the branch's two ends are rounded. `Leaf.SurfaceGap` measures how far the walking surface floats above the bark.
+- The ground plane carries the nest mound, a half-buried ellipsoid sized by `FTreeParams::NestMoundRadius`/`NestMoundHeight`; `ANestActor::SetMoundSize` scales the visible mound to match.
 - Combine all branches **and the ground** with a polynomial smooth minimum. The blend radius `k` gives a small fillet at every junction and at the root flare. Start with `k` = 30% of the child's radius, capped at 1.5 AL. **Tune.**
 - `Gradient` by central differences is fine (six extra evaluations).
 - `Project` moves a point to the level set `D = Height` with three Newton steps: `P -= Gradient(P) * (D(P) - Height)`.
@@ -92,7 +93,7 @@ Known compromise: the visible mesh is separate tubes that intersect, while the f
 
 - Tubes around each centreline, rings of vertices, closed ends, built into a `UProceduralMeshComponent`. One section for wood. No collision on it.
 - The component is transient and created on demand, never saved into the level. The actor's root is a plain scene component.
-- Vertex data for the bark shader: UV0 = (arc length around, distance along the branch, both in cm), vertex colour = (branch level, random per branch, height on tree, unused).
+- Vertex data for the bark shader: UV0 = (arc length around, distance along the branch, both in cm), UV1 = (R cos θ, R sin θ) in cm, vertex colour = (branch level, random per branch, height on tree, unused). `M_TreeBark` evaluates 3D noise at (UV1, 0.15 × along + 5000 × random): a cylinder around each branch, so there is no seam around, features keep their physical size, tips close to a point, and fissures run along the branch. On the steep root flare the stretch is lost (the radius changes faster than 0.15 per cm), so the flare reads as plates. UVs are half precision, a few cm of step high on the trunk, which the long fissures hide. `M_Bark` is the older UV-based version, kept as a fallback.
 - **Bark relief (presentation milestone, after the loop works).** Add one analytic ridge function `R(angle, along)` to both the field (`D -= R`) and the mesh vertices, so the fissures in the concept art are real geometry the ant walks over. Keep it gentle: height up to 0.5 AL, wavelength at least 3 AL. Ring density on the trunk must resolve it (about 8 vertices per ridge). Finer detail is shader normals only. Build the smooth version first.
 - **Verify**: lighting on a procedural mesh. It has no distance field, so Lumen software tracing ignores it. The project has hardware ray tracing and virtual shadow maps enabled. Check early with a screenshot that the tree casts and receives shadows and is not flat-lit; fall back to screen traces plus a strong sky light if hardware tracing misbehaves.
 
@@ -140,7 +141,7 @@ A separate actor that follows the controlled ant. It is never attached.
 - Keeps its own reference up `CamUp`, which eases toward the ant's `Up` with a time constant of about 0.6 s. **Tune.**
 - Yaw and pitch orbit around `CamUp`. When `CamUp` changes, keep the view direction as steady as possible and re-orthogonalise.
 - The desired position is behind and above the ant at a boom length; the actual position follows with a critically damped spring.
-- Avoidance: `Field.March` from the ant to the desired position with a probe radius; shorten the boom smoothly when blocked. Leaves do not block.
+- Wood does not push the camera in (`bAvoidThickOcclusion` restores the old boom shortening). The camera passes through branches; `M_TreeBark` dithers away the bark within `CutawayRadius` of the line from the camera to the ant, narrowing to nothing at the ant, and anything within 35 cm of the camera. The camera publishes its position and look-at point to `MPC_View` (`CamPos`, `AntFocus`, `CutawayOn`, `CutawayRadius`) every frame. Shadows ignore the cutaway (`ShadowReplace`). Leaves are not dithered yet. The camera never goes below `GroundClearance` above the ground.
 - Shifting ants is a deliberate one-second glide to the new ant, not a cut.
 - Shallow depth of field focused on the ant sells the macro scale. Keep it mild enough that the route ahead stays readable.
 
@@ -236,6 +237,8 @@ Console commands pay for themselves, because verification is done by driving Pla
 | `Leaf.AutoMove <x>` / `Leaf.AutoTurn <deg/s> [wander]` | Constant input for unattended movement tests; `wander` flips the turn direction at random. While active, a line every 5 s logs distance, max projection error, stalls and branch levels visited |
 | `Leaf.Teleport <branch> <t>` / `Leaf.Teleport L<level> [t]` | Put the ant on a given branch, or a random branch of a level (0 trunk, 1 limb, 2 bough, 3 twig, -1 root) |
 | `Leaf.FieldBench [n]` | Time n field evaluations near the surface |
+| `Leaf.SurfaceGap [maxZ]` | Project points around the trunk and roots (below maxZ, default 1500 cm) onto the walking field and log how far they float above the visible bark: mean, worst and where |
+| `Leaf.GapAt <x> <y> <z>` | At one point: the field distance, and each nearby branch's distance to its visible bark |
 | `Leaf.GoLeaf` / `Leaf.Cut [size]` / `Leaf.SendHome` | Drive the loop from the console: go beside a random cuttable leaf, cut it at once, send the ant home |
 | `Leaf.Hold <cut\|grip\|follow> <seconds>` | Hold a button for a while, as if pressed (hold-to-cut, grip, riding) |
 | `Leaf.QuitAfter <seconds>` | Exit a standalone game after a delay (unattended runs; ignored in the editor) |

@@ -53,6 +53,14 @@ void ANestActor::BeginPlay()
 	}
 }
 
+void ANestActor::SetMoundSize(float Radius, float Height)
+{
+	// The engine sphere has a 50 cm radius.
+	MoundScale = FVector(Radius / 50.f, Radius / 50.f, Height / 50.f);
+	Mound->SetRelativeScale3D(MoundScale);
+	Hole->SetRelativeLocation(FVector(0.f, 0.f, Height + 0.2f));
+}
+
 void ANestActor::PlayDeposit(float Mass)
 {
 	Pulse = FMath::Clamp(0.4f + Mass * 0.12f, 0.f, 1.f);

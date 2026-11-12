@@ -57,10 +57,15 @@ private:
 	};
 
 	double BranchDistance(int32 Branch, const FVector& P) const;
+	/** The ground plane with the nest mound on it. */
+	double GroundDistance(const FVector& P) const;
 
 	TArray<FSeg> Segs;
 	TArray<FBranchRange> Branches;
 	TArray<FGroup> Groups;
 	double GroundK = 60.0;
+	/** Nest mound: a half-buried ellipsoid on the ground (radii zero when there is no nest). */
+	FVector MoundCenter = FVector::ZeroVector;
+	FVector MoundRadii = FVector::ZeroVector;
 	double CullMargin = 200.0;
 };

@@ -4,6 +4,9 @@
 #include "Tree/TreeActor.h"
 #include "Debug/LeafDebug.h"
 #include "Camera/CameraComponent.h"
+#include "Kismet/KismetMaterialLibrary.h"
+#include "Materials/MaterialParameterCollection.h"
+#include "UObject/ConstructorHelpers.h"
 
 namespace
 {
@@ -44,6 +47,17 @@ AAntCamera::AAntCamera()
 	RootComponent = Camera;
 	Camera->SetFieldOfView(Tuning.FieldOfView);
 	Camera->bConstrainAspectRatio = false;
+	static ConstructorHelpers::FObjectFinder<UMaterialParameterCollection> ViewMPC(TEXT("/Game/Leafline/Materials/MPC_View.MPC_View"));
+	if (ViewMPC.Succeeded()) ViewCollection = ViewMPC.Object;
+}
+
+void AAntCamera::PublishView(const FVector& CamPos, const FVector& AntFocus, bool bCutaway)
+{
+	if (!ViewCollection) return;
+	UKismetMaterialLibrary::SetVectorParameterValue(this, ViewCollection, TEXT("CamPos"), FLinearColor(CamPos));
+	UKismetMaterialLibrary::SetVectorParameterValue(this, ViewCollection, TEXT("AntFocus"), FLinearColor(AntFocus));
+	UKismetMaterialLibrary::SetScalarParameterValue(this, ViewCollection, TEXT("CutawayOn"), bCutaway && Tuning.CutawayRadius > 0.f ? 1.f : 0.f);
+	UKismetMaterialLibrary::SetScalarParameterValue(this, ViewCollection, TEXT("CutawayRadius"), Tuning.CutawayRadius);
 }
 
 void AAntCamera::SetTarget(AAntPawn* NewTarget, bool bGlide)
@@ -81,7 +95,11 @@ void AAntCamera::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 	AAntPawn* T = Target.Get();
-	if (!T || !T->GetAntMovement()) return;
+	if (!T || !T->GetAntMovement())
+	{
+		PublishView(GetActorLocation(), GetActorLocation(), false);
+		return;
+	}
 	if (!bHasSnapped) Snap();
 	if (!Tree.IsValid()) Tree = ATreeActor::Get(this);
 
@@ -194,13 +212,13 @@ void AAntCamera::Tick(float DeltaTime)
 	// 4. Boom, shortened smoothly when the tree is in the way.
 	const double PitchRad = FMath::DegreesToRadians(Pitch);
 	const FVector View = (RefForward * FMath::Cos(PitchRad) + CamUp * FMath::Sin(PitchRad)).GetSafeNormal();
-	// Branches passing between camera and ant must not make the camera jump. The tree's faces are one-sided, so a
-	// camera briefly behind or even inside a branch simply sees through it. Thin occluders are ignored; a thick one
-	// (trunk, big limb) pulls the boom in smoothly after it has blocked the view for a moment.
+	// Wood between camera and ant must not make the camera jump. The tree's faces are one-sided, so a camera behind or
+	// inside a branch sees through it, and the bark material dithers away whatever lies along the line to the ant.
+	// Optionally (bAvoidThickOcclusion) a thick occluder pulls the boom in after it has blocked the view for a moment.
 	double Want = Tuning.BoomLength;
 	float& OccludedTime = SpareFloat;
 	bool bThickOcclusion = false;
-	if (Field && Field->IsValid())
+	if (Tuning.bAvoidThickOcclusion && Field && Field->IsValid())
 	{
 		double HitT;
 		if (Field->March(Focus, Focus - View * Tuning.BoomLength, Tuning.ProbeRadius, HitT))
@@ -225,9 +243,17 @@ void AAntCamera::Tick(float DeltaTime)
 	}
 	OccludedTime = bThickOcclusion ? OccludedTime + (float)Dt : 0.f;
 	CurrentBoom = FMath::FInterpTo(CurrentBoom, (float)Want, (float)Dt, Want < CurrentBoom ? Tuning.BoomShrinkRate : Tuning.BoomGrowRate);
+	// Never below the ground: looking up from low down, the boom shortens at once so the camera stays above it.
+	if (View.Z > 0.01)
+	{
+		const double GroundZ = Field ? Field->GroundZ : 0.0;
+		const double MaxBoom = (Focus.Z - GroundZ - Tuning.GroundClearance) / View.Z;
+		CurrentBoom = FMath::Min(CurrentBoom, (float)FMath::Max(MaxBoom, (double)Tuning.MinBoomLength));
+	}
 
 	const FVector CamPos = Focus - View * CurrentBoom;
 	SetActorLocationAndRotation(CamPos, FRotationMatrix::MakeFromXZ(View, CamUp).ToQuat());
+	PublishView(CamPos, Focus, true);
 	Camera->SetFieldOfView(Tuning.FieldOfView);
 	FPostProcessSettings& PP = Camera->PostProcessSettings;
 	PP.bOverride_DepthOfFieldFocalDistance = Tuning.DepthOfFieldFstop > 0.f;

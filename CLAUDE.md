@@ -75,6 +75,7 @@ Things that are known to bite:
 - Live Coding patches live only in the running process. Do a full build before the next editor launch or old behaviour returns.
 - Do not add or remove class members through Live Coding. Keep temporary debug state in file-local statics.
 - UnrealBuildTool refuses to build while the editor's Live Coding session is active.
+- Adding or removing a console command in a file and Live Coding it can scramble that file's command lambdas: each `Leaf.*` command then runs another one's body until the next full build (2026-11-12: `Leaf.Teleport 0` started a new day). Put debug logic in named functions and register new commands only before a full build.
 - A linker error saying the module DLL cannot be opened means a process still holds it. Wait and retry.
 - There are no automated tests. Verification is Play In Editor driven over MCP plus the log.
 
@@ -86,6 +87,7 @@ Things that are known to bite:
 - Expect toolsets for materials, actors, scene, assets, Blueprints, static meshes, object properties, logs, starting and stopping Play In Editor, viewport capture, and driving the editor UI.
 - A scripting tool can batch several tool calls in one request. Use it for material graphs: build the whole graph in one script, and rebuild it from scratch rather than patching nodes.
 - Ask a node for its input pin names instead of guessing them.
+- Deleting a material's expressions with `delete_expression` from a script crashed the editor (assertion `!IsRooted()`, 2026-11-12). Build a changed material under a new name instead.
 - Never delete and recreate an asset under the same name in one editor session: the asset registry then reports it missing (`save_assets`, `exists`) although the file is on disk. Change nodes in place, or rebuild under a new name. `save_assets` with an empty list saves all dirty assets and sidesteps the lookup.
 - `StaticMeshTools.import_file` imports FBX meshes. There is no audio import tool; sounds play at runtime from `Content/Leafline/AudioRaw/*.wavraw` (see `docs/tech.md`).
 - Viewport captures come back as large base64 images; read them from the saved tool-result file.

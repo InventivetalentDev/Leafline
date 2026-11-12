@@ -92,6 +92,7 @@ void ADayDirector::StartDay(int32 InDay, int32 SeedOverride)
 	Tree->Params.LowestLeafyHeight = Tuning.LeafyHeightDay1 + (Day - 1) * Tuning.LeafyHeightPerDay;
 	Tree->Grow(Seed);
 	Nest->SetActorTransform(Tree->GetNestTransform(0));
+	Nest->SetMoundSize(Tree->Params.NestMoundRadius, Tree->Params.NestMoundHeight);
 	if (Wind) Wind->StartDay(Day, Seed);
 	PendingPossess = 0.f;
 

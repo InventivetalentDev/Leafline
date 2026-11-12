@@ -10,6 +10,38 @@
 #include "World/WindSystem.h"
 #include "Tree/TreeActor.h"
 #include "Colony/TrailNetwork.h"
+#include "CanvasItem.h"
+#include "Fonts/FontMeasure.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Rendering/SlateRenderer.h"
+
+namespace
+{
+	/**
+	 * The engine font rasterised at the size it is shown. Canvas text drawn with a TextScale is rasterised at the font's
+	 * own size and stretched, which blurs it on large screens.
+	 */
+	FSlateFontInfo CrispFont(const UFont* Font, float TextScale)
+	{
+		FSlateFontInfo Info = Font->GetLegacySlateFontInfo();
+		Info.Size = FMath::Max(1.f, FMath::RoundToFloat(Info.Size * TextScale));
+		return Info;
+	}
+
+	FVector2D MeasureCrisp(const FString& Text, const UFont* Font, float TextScale)
+	{
+		if (!Font || !FSlateApplication::IsInitialized()) return FVector2D::ZeroVector;
+		return FSlateApplication::Get().GetRenderer()->GetFontMeasureService()->Measure(Text, CrispFont(Font, TextScale));
+	}
+
+	void DrawCrisp(UCanvas* Canvas, const FString& Text, const FLinearColor& Color, float X, float Y, const UFont* Font, float TextScale)
+	{
+		if (!Canvas || !Font) return;
+		FCanvasTextItem Item(FVector2D(X, Y), FText::FromString(Text), CrispFont(Font, TextScale), Color);
+		Item.EnableShadow(FLinearColor(0.f, 0.f, 0.f, 0.5f * Color.A), FVector2D(1.f, 1.f));
+		Canvas->DrawItem(Item);
+	}
+}
 
 void ALeaflineHUD::DrawHUD()
 {
@@ -68,9 +100,8 @@ void ALeaflineHUD::DrawHUD()
 
 void ALeaflineHUD::DrawTextCentered(const FString& Text, float CenterX, float Y, const FLinearColor& Color, float TextScale, UFont* Font)
 {
-	float W = 0.f, H = 0.f;
-	GetTextSize(Text, W, H, Font, TextScale);
-	DrawText(Text, Color, CenterX - W * 0.5f, Y, Font, TextScale);
+	const FVector2D Size = MeasureCrisp(Text, Font, TextScale);
+	DrawCrisp(Canvas, Text, Color, CenterX - Size.X * 0.5f, Y, Font, TextScale);
 }
 
 void ALeaflineHUD::DrawArc(float CX, float CY, float Radius, float From01, float To01, const FLinearColor& Color, float Thickness)
@@ -108,7 +139,7 @@ void ALeaflineHUD::DrawDayInfo(const ADayDirector* D, float Scale)
 {
 	UFont* Font = GEngine->GetMediumFont();
 	const float X = 40.f * Scale, Y = 34.f * Scale;
-	DrawText(FString::Printf(TEXT("Day %d"), D->GetDay()), TextColor, X, Y, Font, 1.3f * Scale);
+	DrawCrisp(Canvas, FString::Printf(TEXT("Day %d"), D->GetDay()), TextColor, X, Y, Font, 1.3f * Scale);
 
 	// Worker pips: filled = waiting in the nest, ring = out or returning, dim = home.
 	const float Pip = 14.f * Scale, Gap = 8.f * Scale;
@@ -125,7 +156,7 @@ void ALeaflineHUD::DrawDayInfo(const ADayDirector* D, float Scale)
 		const float Inset = (S == EWorkerState::Returning) ? 4.f * Scale : 0.f;
 		DrawRect(C, PX + Inset, PY + Inset, Pip - 2.f * Inset, Pip - 2.f * Inset);
 	}
-	DrawText(FString::Printf(TEXT("Hauled %.1f"), D->GetStats().MassHauled), TextColor, X, PY + Pip + 10.f * Scale, Font, 1.0f * Scale);
+	DrawCrisp(Canvas, FString::Printf(TEXT("Hauled %.1f"), D->GetStats().MassHauled), TextColor, X, PY + Pip + 10.f * Scale, Font, 1.0f * Scale);
 
 	// Wind gauge, top right.
 	if (const AWindSystem* Wind = D->GetWind())
@@ -136,7 +167,7 @@ void ALeaflineHUD::DrawDayInfo(const ADayDirector* D, float Scale)
 		const TCHAR* Label = Ph == EWindPhase::Calm ? TEXT("Wind: calm") : Ph == EWindPhase::Warning ? TEXT("Wind: gust coming")
 			: Ph == EWindPhase::Falling ? TEXT("Wind: easing") : TEXT("Wind: GUST");
 		const FLinearColor C = Wind->IsGustActive() ? StaminaLockedColor : (Ph == EWindPhase::Warning ? FLinearColor(1.f, 0.72f, 0.2f) : TextColor);
-		DrawText(Label, C, GX, GY - 26.f * Scale, Font, 1.0f * Scale);
+		DrawCrisp(Canvas, Label, C, GX, GY - 26.f * Scale, Font, 1.0f * Scale);
 		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.45f), GX - 2.f * Scale, GY - 2.f * Scale, GW + 4.f * Scale, GH + 4.f * Scale);
 		DrawRect(C, GX, GY, GW * FMath::Clamp(Wind->GetStrength(), 0.f, 1.f), GH);
 	}
@@ -147,7 +178,7 @@ void ALeaflineHUD::DrawCarry(const AAntPawn* Ant, float Scale)
 	if (!Ant->IsCarrying()) return;
 	UFont* Font = GEngine->GetMediumFont();
 	const float X = 40.f * Scale, Y = Canvas->ClipY - 110.f * Scale;
-	DrawText(FString::Printf(TEXT("Carrying %.1f"), Ant->GetCarriedMass()), TextColor, X, Y, Font, 1.2f * Scale);
+	DrawCrisp(Canvas, FString::Printf(TEXT("Carrying %.1f"), Ant->GetCarriedMass()), TextColor, X, Y, Font, 1.2f * Scale);
 	const float W = 160.f * Scale, H = 8.f * Scale;
 	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.45f), X - 2.f * Scale, Y + 30.f * Scale, W + 4.f * Scale, H + 4.f * Scale);
 	DrawRect(FLinearColor(0.35f, 0.75f, 0.25f, 0.95f), X, Y + 32.f * Scale, W * Ant->GetCarriedSize(), H);
@@ -182,7 +213,7 @@ void ALeaflineHUD::DrawCutArc(const AAntPawn* Ant, float Scale)
 	const FLinearColor Now = RiskColor(Size, Ratio);
 	UFont* Font = GEngine->GetMediumFont();
 	DrawTextCentered(FString::Printf(TEXT("%.1f"), Ant->MassForSize(Size)), CX, CY - 12.f * Scale, TextColor, 1.2f * Scale, Font);
-	const TCHAR* Label = Ratio >= 1.f ? TEXT("a full gust will blow it off on an exposed route") : (Wind && Ratio >= Wind->Tuning.RiskyRatio ? TEXT("risky in a gust") : TEXT("safe"));
+	const TCHAR* Label = Ratio >= 1.f ? TEXT("Too big for a gust") : (Wind && Ratio >= Wind->Tuning.RiskyRatio ? TEXT("Risky in a gust") : TEXT("Safe in a gust"));
 	DrawTextCentered(Label, CX, CY + R + 14.f * Scale, Now, 1.0f * Scale, Font);
 }
 
@@ -215,8 +246,8 @@ void ALeaflineHUD::DrawPrompt(const AAntPawn* Ant, const ADayDirector* D, float 
 	if (Prompt.IsEmpty()) return;
 	UFont* Font = GEngine->GetMediumFont();
 	const float Y = Canvas->ClipY - 130.f * Scale;
-	float W = 0.f, H = 0.f;
-	GetTextSize(Prompt, W, H, Font, 1.15f * Scale);
+	const FVector2D Size = MeasureCrisp(Prompt, Font, 1.15f * Scale);
+	const float W = Size.X, H = Size.Y;
 	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.4f), (Canvas->ClipX - W) * 0.5f - 14.f * Scale, Y - 6.f * Scale, W + 28.f * Scale, H + 12.f * Scale);
 	DrawTextCentered(Prompt, Canvas->ClipX * 0.5f, Y, TextColor, 1.15f * Scale, Font);
 }
@@ -324,18 +355,18 @@ void ALeaflineHUD::DrawNest(const ADayDirector* D, float Scale)
 			const int32 Level = GI ? GI->GetUpgradeLevel(i) : 0;
 			const int32 Cost = GI ? GI->GetUpgradeCost(i) : 0;
 			const bool bAfford = GI && GI->CanAfford(i);
-			DrawText(Info->Name, TextColor, X + 18.f * Scale, Y + 6.f * Scale, Medium, 1.25f * Scale);
-			DrawText(Info->Description, FLinearColor(0.8f, 0.8f, 0.75f, 1.f), X + 18.f * Scale, Y + 30.f * Scale, Medium, 0.9f * Scale);
+			DrawCrisp(Canvas, Info->Name, TextColor, X + 18.f * Scale, Y + 6.f * Scale, Medium, 1.25f * Scale);
+			DrawCrisp(Canvas, Info->Description, FLinearColor(0.8f, 0.8f, 0.75f, 1.f), X + 18.f * Scale, Y + 30.f * Scale, Medium, 0.9f * Scale);
 			for (int32 l = 0; l < LeaflineUpgrades::MaxLevel; ++l)
 			{
 				DrawRect(l < Level ? AccentColor : FLinearColor(0.25f, 0.25f, 0.22f, 1.f), X + RowW * 0.55f + l * 26.f * Scale, Y + 18.f * Scale, 18.f * Scale, 14.f * Scale);
 			}
 			const FString CostText = Cost > 0 ? FString::Printf(TEXT("%d"), Cost) : FString(TEXT("max"));
-			DrawText(CostText, Cost > 0 ? (bAfford ? FLinearColor(0.6f, 0.95f, 0.5f, 1.f) : StaminaLockedColor) : TextColor, X + RowW - 90.f * Scale, Y + 12.f * Scale, Medium, 1.2f * Scale);
+			DrawCrisp(Canvas, CostText, Cost > 0 ? (bAfford ? FLinearColor(0.6f, 0.95f, 0.5f, 1.f) : StaminaLockedColor) : TextColor, X + RowW - 90.f * Scale, Y + 12.f * Scale, Medium, 1.2f * Scale);
 		}
 		else
 		{
-			DrawText(FString::Printf(TEXT("Start day %d: a new tree"), D->GetDay() + 1), AccentColor, X + 18.f * Scale, Y + 14.f * Scale, Medium, 1.25f * Scale);
+			DrawCrisp(Canvas, FString::Printf(TEXT("Start day %d: a new tree"), D->GetDay() + 1), AccentColor, X + 18.f * Scale, Y + 14.f * Scale, Medium, 1.25f * Scale);
 		}
 		Y += RowH;
 	}

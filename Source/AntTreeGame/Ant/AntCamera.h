@@ -6,6 +6,7 @@
 
 class UCameraComponent;
 class AAntPawn;
+class UMaterialParameterCollection;
 
 USTRUCT(BlueprintType)
 struct FAntCameraTuning
@@ -33,6 +34,15 @@ struct FAntCameraTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float PitchMin = -80.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float PitchMax = 60.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float DefaultPitch = -20.f;
+	/**
+	 * Pull the boom in when the trunk or a big limb blocks the view. Off by default: the camera passes through wood
+	 * and the bark between camera and ant dithers away instead (CutawayRadius), which is less jarring.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") bool bAvoidThickOcclusion = false;
+	/** Radius (cm) of the dithered cutaway along the line from the camera to the ant, narrowing to nothing at the ant. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float CutawayRadius = 55.f;
+	/** The camera never goes lower than this above the ground (cm). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float GroundClearance = 15.f;
 	/** Probe radius for keeping the camera out of the tree (cm). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float ProbeRadius = 12.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float BoomShrinkRate = 5.f;
@@ -77,6 +87,12 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "Camera")
 	TObjectPtr<UCameraComponent> Camera;
+
+	/** Camera and ant positions for the bark's cutaway dither. */
+	UPROPERTY()
+	TObjectPtr<UMaterialParameterCollection> ViewCollection;
+
+	void PublishView(const FVector& CamPos, const FVector& AntFocus, bool bCutaway);
 
 	TWeakObjectPtr<AAntPawn> Target;
 	TWeakObjectPtr<class ATreeActor> Tree;

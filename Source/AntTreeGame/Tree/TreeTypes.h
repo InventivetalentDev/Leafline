@@ -101,6 +101,10 @@ struct FTreeParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field") float SampleSpacingMin = 20.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field") float SampleSpacingMax = 300.f;
 
+	// Nest: a low soil mound around the entrance. Part of the walking field, so ants walk over it instead of through it.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nest") float NestMoundRadius = 120.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nest") float NestMoundHeight = 7.f;
+
 	// Mesh
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh") float AroundSpacing = 30.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh") int32 MaxAroundVerts = 128;
