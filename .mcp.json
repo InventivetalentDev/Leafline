@@ -1,0 +1,36 @@
+{
+	"mcpServers":
+	{
+		"unreal-mcp":
+		{
+			"type": "http",
+			"url": "http://127.0.0.1:8000/mcp"
+		},
+		"blender-mcp":
+		{
+			"type": "stdio",
+			"command": "uvx",
+			"args": [
+				"--from",
+				"git+https://projects.blender.org/lab/blender_mcp.git@v1.0.3#subdirectory=mcp",
+				"blender-mcp"
+			],
+			"env":
+			{
+				"BLENDER_MCP_HOST": "127.0.0.1",
+				"BLENDER_MCP_PORT": "9876",
+				"BLENDER_PATH": "/mnt/c/Program Files/Blender Foundation/Blender 5.1/blender.exe"
+			}
+		},
+		"earshot":
+		{
+			"type": "stdio",
+			"command": "earshot",
+			"args": ["mcp"],
+			"env":
+			{
+				"EARSHOT_THREADS": "3"
+			}
+		}
+	}
+}

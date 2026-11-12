@@ -1,0 +1,193 @@
+# Leafline: game design
+
+Working title **Leafline**. Unreal project name stays `AntTreeGame`. Team name `inventivetalent` (solo).
+
+This file records every design decision from the planning session on 2026-11-12. The original idea notes are in `concept-main.md` and are kept unchanged. How it is built is in `tech.md`; the order of work is in `plan.md`.
+
+## One-paragraph pitch
+
+You are a leafcutter ant on an enormous tree. You climb, lay a scent trail, and cut a piece out of a leaf: a bigger piece is worth more but is slower to carry and catches the wind like a sail. When you send the loaded ant home it retraces your trail by itself and you shift to the next worker at the nest, who can ride the trails already laid. Each day is a handful of worker shifts on one tree. Leaves feed the colony and buy upgrades. Tomorrow the tree is new.
+
+## Jam constraints
+
+| | Epic AI MegaJam | Game Off 2026 |
+|---|---|---|
+| Deadline (CET) | **Mon 2026-11-16 02:59** | Tue 2026-12-01 22:37 |
+| Our internal deadline | **Sun 2026-11-15 22:00** | to be set after the MegaJam |
+| Theme | Director's Cut | SHIFT |
+| Deliverable | Packaged Windows development build, zip `inventivetalent_Leafline.zip` under 1 GB; 30–60 s gameplay video at 1920x1080 or higher; English text; link to dev log (optional) | itch page plus **public GitHub repo** with the source |
+| Judging | Panel, 1–5 each: ambition and innovation, theme, fun, gameplay, visuals, level design and progression, audio | Participant votes: overall, gameplay, graphics, audio, innovation, theme interpretation |
+
+Rules that shape the work (MegaJam Official Rules, read in full on 2026-11-12):
+
+- **§7(h), clean room.** AI tools, agent and MCP configuration, prompt libraries and tooling scripts may predate the jam. "All other game content, including gameplay, levels, and art assets (other than noted sourced assets), must be created during the Contest Period", which began 2026-11-12 06:00 CET. Epic may ask for version-control history. An earlier prototype exists at `D:\UnrealProjects\TreeAntGame` (1–2 Nov). **Nothing is copied from it:** no code, materials, meshes, Blender files or levels. Do not open its source to "check how it was done". It is disclosed in the dev log and the submission. For the record: the planning session read that project's `CLAUDE.md`, `TODO.md`, commit list and file listing (not its source), and some workflow and engine lessons in `tech.md` and `CLAUDE.md` come from those notes.
+- **§7(g).** The entry must demonstrate the theme. A nod in the title is not enough.
+- **§7(e).** Gameplay must go beyond Epic's starter templates. The Third Person template content is deleted.
+- **§7(f).** No extra software needed to run.
+- **§8.** Teen-appropriate, and no depiction of animal cruelty at Epic's sole discretion. This is why the rocket launchers from the concept notes are dropped.
+- **§15(c), sourced assets** (anything not made by us, such as CC0 sounds) are allowed with the right licence and must be listed in the submission. Content we generate with AI tools does not count as sourced. Nothing Fab-licensed may enter the repo, because the repo goes public.
+- **§15(d).** No trademarks or logos in the game, the video or the page art, other than the Unreal Engine logo used per Epic's branding guidelines.
+- **§17.** The entry must be submitted by the entrant in person, "not by an AI agent or other automated means". Agents prepare everything; the owner presses submit.
+- **§7(c), §7(i).** The video is 1920x1080 or higher, and all game text, audio and the video are in English.
+- No exclusivity or "not previously published" clause anywhere in the rules: the same game may go to both jams. Ownership stays with the author; Epic gets a non-exclusive licence for publicising the contest.
+- Winners are contacted around 29 Jan 2027 at the submission email and have 72 hours to reply.
+
+The MegaJam theme as announced by Unreal Engine on X (full post, supplied by the owner):
+
+> This year's MegaJam Theme is... DIRECTOR'S CUT!
+>
+> Your vision, your specific edits and ultimately: your final cut - your Director's Cut.
+>
+> Every developer has that one feature that didn't quite make it, the mechanic scoped out while sleep deprived at 2 AM or that idea you've had shelved and never quite found a place for it yet. Well, now's your chance to finally build it all in this year's Epic MegaJam.
+>
+> If you're utilizing AI agents in your workflows, you're directing those too! Set the vision, delegate your tasks and decide what goes in and what doesn't. Aim for ambition and direct your path accordingly!
+
+## Strategy
+
+- One game, two milestones. The MegaJam build is a vertical slice. The same build goes to Game Off on Sunday, and the Game Off page keeps receiving updates until 1 Dec.
+- **Two itch pages**: one frozen for the MegaJam, one for Game Off.
+- The repo is **private until Sunday**, then made public (owner confirms before the switch).
+- The owner is not chasing specific prizes. A short dev log is kept anyway.
+
+## Pillar
+
+**A tiny ant on an enormous tree that feels great to move on.** Surface-walking in any orientation, a floaty camera that never spins the view, and a real sense of scale. Any other feature is cut before this is compromised.
+
+## How the themes are used
+
+**Director's Cut (MegaJam)**
+- *The cut*: you choose how much to cut from a leaf. Size is the central trade-off of every trip.
+- *The director*: your scent trail is the direction you give the colony. Workers follow it without you. Where you lay it (sheltered side or exposed side) decides whether they get home.
+- The end-of-day recap is titled as the day's cut.
+- This maps onto the theme post's last paragraph almost word for word: "set the vision" is the route you lay, "delegate your tasks" is sending workers along it unattended, "decide what goes in and what doesn't" is the size of each cut, and "direct your path" is the trail itself. Use that framing on the itch page and in the video.
+- The post's "shelved idea" reading also applies honestly: this game is an idea from the owner's notes that had not found a home. Say so on the page, without overstating it.
+
+**SHIFT (Game Off)**
+- You shift between ants: sending one home hands you the next.
+- Each worker trip is a shift, and a day is a set of shifts.
+- The ant shifts between surfaces and orientations constantly.
+
+## Core loop
+
+1. **Leave the nest** at the base of the trunk. The ant lays a scent trail wherever it walks.
+2. **Climb** to a leafy branch. Sprint is available while stamina lasts.
+3. **Cut**: at a leaf, hold the cut button. A growing arc on the leaf shows the fragment size. Release to finish. The fragment is carried physically in the mandibles, held overhead.
+4. **Send home**: the loaded ant retraces its own recorded path in reverse, unattended. Control shifts to a fresh worker at the nest. Walking home yourself is also allowed.
+5. **Next shift**: the new worker can hold a key to ride an existing trail at boosted speed, then branch off toward other leaves.
+6. **Day ends** when every worker is home or has been blown off. A recap shows leaf mass hauled, ants blown off and trail laid.
+7. **Nest**: spend leaf mass on upgrades.
+8. **New day**: a new tree is grown from a new seed and yesterday's trails are gone. Days get harder.
+
+A day should take 4–6 minutes: three trips of roughly 90 seconds.
+
+## Rules in detail
+
+**Workers and days**
+- The colony starts with 3 workers per day. Each worker makes one trip.
+- There is no real-time clock. The sun steps from morning to evening with each shift, as a visual cue only.
+- Within a day the tree and all trails persist, so later workers benefit from earlier routes.
+
+**Stamina**
+- Stamina only gates sprinting. It drains while sprinting, drains faster under a large fragment, and refills while walking or standing.
+- Eating to recharge is parked.
+
+**Cutting and carrying**
+- One fragment at a time, attached to the ant, never an inventory.
+- Fragment size grows with hold time, up to a cap set by the leaf's remaining area. Leaves show bite marks and run out after about three cuts.
+- A bigger fragment is worth more leaf mass, slows the ant, drains sprint faster and presents more area to the wind.
+- While cutting, the arc's colour shows the predicted wind risk for that size (safe, risky, will be blown off in a full gust on an exposed route).
+- For Sunday the ant cuts from the twig at the leaf's base. Walking on leaf blades is parked.
+
+**Scent trails**
+- Every worker records its path from the nest. The visible trail is the union of all paths walked today.
+- Riding: hold the follow key near a trail to be carried along it at boosted speed toward its far end. Any movement input leaves the trail.
+- A returning ant replays its own path backwards. No pathfinding is involved.
+
+**Wind (the Sunday hazard)**
+- Wind has one prevailing direction per day, so "the sheltered side" is consistent and can be planned around.
+- Gusts cycle: calm, warning (sound rises, streaks appear, leaves sway), gust, fade.
+- Exposure at a point depends on which way the surface faces relative to the wind and on whether the tree blocks the wind there.
+- An ant is blown off when gust force times exposure times its sail area exceeds its grip. This is deterministic, so the player can learn it.
+- The controlled ant can stop and **grip** to ride a gust out. Unattended ants never grip; their safety depends on the cut size and the route chosen for them.
+
+**Losing an ant**
+- A blown-off ant falls, loses its fragment and walks home empty-handed. Nobody dies. The trip is wasted, which matters when there are only a few per day.
+
+**Upgrades** (five, three levels each, bought with leaf mass on a list screen at the nest between days, saved between sessions)
+
+| Upgrade | Effect |
+|---|---|
+| Mandibles | Cut faster |
+| Strength | Carry bigger fragments without slowing |
+| Grip | Withstand stronger gusts |
+| Stamina | Sprint longer |
+| Brood | One more worker per day |
+
+**Goal and progression**
+- A colony-growth meter fills with total leaf mass hauled and has three milestones.
+- Reaching the third milestone (target: day 4 or 5, about 15 minutes of play) shows an end card, then play continues.
+- Each new day raises the lowest leafy branch and strengthens the gusts.
+
+Starting numbers, to be tuned by play:
+
+| Item | Value |
+|---|---|
+| Fragment mass | 1 to 5 |
+| Upgrade cost, levels 1 / 2 / 3 | 6 / 14 / 24 |
+| Milestones (total hauled) | 15 / 40 / 80 |
+
+## Scale and pacing
+
+- The tree is enormous relative to the ant, and that must be felt. Circling the trunk takes about 20–25 seconds at a walk and about half that at a sprint.
+- The first cut of day one must be reachable within about 90 seconds, so the lowest leafy branch is low on early days. The tree is far taller than early days need, which leaves room for later days.
+- The owner's photos in `Art/Reference/Photos` are scale reference: the view up a trunk from close to the bark. An ant's view is tighter still.
+
+## Camera and controls
+
+- Movement is relative to the camera, projected onto the surface the ant is on.
+- The mouse (or right stick) orbits freely.
+- The camera has its own "up" that drifts slowly toward the ant's, so a sharp turn onto a branch does not swing the view. The ant turns; the camera barely moves.
+- This is a first version. The owner tunes it by feel.
+
+| Action | Keyboard and mouse | Gamepad |
+|---|---|---|
+| Move | WASD | Left stick |
+| Look | Mouse | Right stick |
+| Sprint | Left Shift | Left trigger |
+| Cut (hold) | Left mouse or E | X |
+| Grip (hold) | Space | A |
+| Send home | Q | Y |
+| Follow trail (hold) | F | Right bumper |
+| Cycle ants | Tab | Left bumper |
+| Pause | Esc | Start |
+
+## Look and sound
+
+- **Target**: `Art/Concept/Codex/2026-11-12/initial/01-tree-ascent.png`. Summer canopy, warm plated bark with deep fissures and moss, dappled sunlight and light shafts, backlit green leaves, a restrained translucent cyan scent trail lying on the bark. Images 02–04 show carrying, the nest and the wind.
+- **Math only**: tree, bark, leaves, ground, sky, trail and wind effects are procedural geometry and shaders. No textures and no hand-made tree models.
+- **Exception**: the ant is a mesh generated by a Blender Python script, with leg motion driven by the shader.
+- **Audio** is synthesised by script: wind, footsteps, leaf-cut crunch, deposit chime, a soft ambient pad. CC0 samples from freesound.org may be added later and must then be listed as sourced assets.
+- **HUD**: stamina, carried load, workers left, colony meter, and contextual key prompts in place of a tutorial. All text in English.
+- **Nest**: an entrance among the roots plus the upgrade screen. No interior.
+
+## Out of the MegaJam build
+
+| Item | Status |
+|---|---|
+| Bird predator, distracted by dropped food | **Stretch for Sunday** if everything else is done; otherwise Game Off |
+| Taking over an ant that is already returning | Stretch |
+| Walking on leaf blades | Stretch |
+| Skill tree and a visible, growing fungus garden | Game Off |
+| Several trees around the nest, rotating daily | Game Off |
+| Controlling several ants at once, automation, defenders | Game Off, undecided whether it fits |
+| Other predators (for example the parasitic flies that real leafcutters guard against) | Game Off |
+| Food as a second resource | Arrives with the bird |
+| Eating to restore stamina | Parked |
+| Rocket launchers | Dropped |
+
+## Open items for the owner
+
+- Join both jams on itch: <https://itch.io/jam/2026-epic-ai-megajam> and <https://itch.io/jam/game-off-2026>. The MegaJam entry needs your full name and the email on your Epic account.
+- Record the 30–60 s gameplay video at 1080p or higher on Sunday.
+- Choose a licence for the public repo before Sunday.
+- Confirm the final title (alternatives considered: "Cutting Shift", "Canopy Crew").
