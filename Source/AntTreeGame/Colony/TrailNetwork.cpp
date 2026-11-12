@@ -14,6 +14,8 @@ ATrailNetwork::ATrailNetwork()
 	Mesh->SetCastShadow(false);
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> BasicMat(TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
 	if (BasicMat.Succeeded()) FallbackMaterial = BasicMat.Object;
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> TrailMat(TEXT("/Game/Leafline/Materials/M_Trail.M_Trail"));
+	if (TrailMat.Succeeded()) TrailMaterial = TrailMat.Object;
 }
 
 FIntVector ATrailNetwork::Cell(const FVector& P) const

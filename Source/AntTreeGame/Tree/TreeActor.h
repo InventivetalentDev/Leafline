@@ -40,6 +40,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tree")
 	FLinearColor GroundColor = FLinearColor(0.09f, 0.075f, 0.05f);
 
+	/** Procedural soil material. If empty, the basic shape material tinted with GroundColor is used. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tree")
+	TObjectPtr<UMaterialInterface> GroundMaterial;
+
 	const FLeafSet& GetLeaves() const { return Leaves; }
 	int32 FindLeafNear(const FVector& P, float Reach) const { return Leaves.FindNearest(P, Reach); }
 	float LeafSizeCap(int32 Leaf, float UsePerCut) const { return Leaves.SizeCap(Leaf, UsePerCut); }

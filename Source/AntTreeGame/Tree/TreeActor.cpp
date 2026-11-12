@@ -28,6 +28,13 @@ ATreeActor::ATreeActor()
 
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> BasicMat(TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
 	if (BasicMat.Succeeded()) FallbackMaterial = BasicMat.Object;
+	// Procedural materials built over MCP (maths only, no textures).
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> BarkMat(TEXT("/Game/Leafline/Materials/M_Bark.M_Bark"));
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> LeafMat(TEXT("/Game/Leafline/Materials/M_Leaf.M_Leaf"));
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> GroundMat(TEXT("/Game/Leafline/Materials/M_Ground.M_Ground"));
+	if (BarkMat.Succeeded()) BarkMaterial = BarkMat.Object;
+	if (LeafMat.Succeeded()) LeafMaterial = LeafMat.Object;
+	if (GroundMat.Succeeded()) GroundMaterial = GroundMat.Object;
 }
 
 void ATreeActor::Grow(int32 Seed)
@@ -135,7 +142,11 @@ void ATreeActor::BuildGround()
 		}
 	}
 	WoodMesh->CreateMeshSection_LinearColor(1, V, Tri, N, UV, {}, {}, {}, Col, Tan, false, false);
-	if (FallbackMaterial)
+	if (GroundMaterial)
+	{
+		WoodMesh->SetMaterial(1, GroundMaterial);
+	}
+	else if (FallbackMaterial)
 	{
 		if (!GroundMID) GroundMID = UMaterialInstanceDynamic::Create(FallbackMaterial, this);
 		GroundMID->SetVectorParameterValue(TEXT("Color"), GroundColor);
