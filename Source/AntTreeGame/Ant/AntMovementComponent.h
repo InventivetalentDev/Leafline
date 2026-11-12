@@ -100,6 +100,18 @@ public:
 	 */
 	void StartFollow(const TArray<FTrailPoint>& Points, int32 StartIndex, int32 Direction, EAntState FollowState);
 	void StopFollow();
+	/** Recruits: Riding at this speed instead of RideSpeed (0 = RideSpeed), and Returning at the laden walking speed
+	 *  times ReturnScale. */
+	void SetFollowSpeed(float RideOverride, float ReturnScale) { FollowRideOverride = RideOverride; FollowReturnScale = ReturnScale; }
+	int32 GetFollowIndex() const { return FollowIndex; }
+	int32 GetFollowCount() const { return FollowPoints.Num(); }
+	bool IsFollowFinished() const { return bFollowFinished; }
+
+	/** One movement step of Dt seconds. Ticking calls it with the frame time unless the owner steps it itself. */
+	void Step(float Dt, bool bApplyTransform = true);
+	/** The owner calls Step (fixed sim steps) instead of the component ticking. */
+	void SetExternalStep(bool bExternal) { bExternalStep = bExternal; }
+	void ApplyTransformNow() { ApplyTransform(); }
 	/** Blown off: a ballistic drop to the ground, then WalkingHome. */
 	void StartFall(const FVector& WindDirection);
 	/** Where WalkingHome heads, and the trunk to walk around on the way. */
@@ -206,4 +218,10 @@ private:
 
 	// Steering wheel: the world direction along the branch that W means while the stick is held; zero when released.
 	FVector WheelAway = FVector::ZeroVector;
+
+	float FollowWait = 0.f;
+	double FollowLag = 0.0;
+	float FollowRideOverride = 0.f;
+	float FollowReturnScale = 1.f;
+	bool bExternalStep = false;
 };

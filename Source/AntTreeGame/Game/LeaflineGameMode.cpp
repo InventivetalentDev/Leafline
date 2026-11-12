@@ -6,6 +6,7 @@
 #include "Colony/NestActor.h"
 #include "World/DayDirector.h"
 #include "World/WindSystem.h"
+#include "Colony/LineSystem.h"
 #include "Game/LeaflinePlayerController.h"
 #include "UI/LeaflineHUD.h"
 #include "GameFramework/PlayerController.h"
@@ -34,11 +35,13 @@ void ALeaflineGameMode::InitGame(const FString& MapName, const FString& Options,
 	Nest = World->SpawnActor<ANestActor>(ANestActor::StaticClass(), FTransform::Identity, Params);
 	Wind = World->SpawnActor<AWindSystem>(AWindSystem::StaticClass(), FTransform::Identity, Params);
 	Director = World->SpawnActor<ADayDirector>(DirectorClass ? *DirectorClass : ADayDirector::StaticClass(), FTransform::Identity, Params);
+	Lines = World->SpawnActor<ALineSystem>(ALineSystem::StaticClass(), FTransform::Identity, Params);
 	if (Director)
 	{
 		if (DefaultPawnClass && DefaultPawnClass->IsChildOf(AAntPawn::StaticClass())) Director->WorkerClass = *DefaultPawnClass;
-		Director->Init(Tree, Trails, Nest, Wind);
+		Director->Init(Tree, Trails, Nest, Wind, Lines);
 	}
+	if (Lines) Lines->Init(Tree, Trails, Nest, Wind, Director);
 	UE_LOG(LogLeafline, Log, TEXT("LeaflineGameMode: InitGame on %s"), *MapName);
 }
 

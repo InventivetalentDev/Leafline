@@ -485,6 +485,13 @@ void ALeaflinePlayerController::HandleButtons(uint32 Pressed)
 		if (Pressed & LeafButtons::SendHome) D->MenuBack();
 		return;
 	}
+	if (D->IsHarvest())
+	{
+		// The harvest plays by itself: confirm skips it, cycle hops between the nest and the lines' patches.
+		if (Pressed & (LeafButtons::Cut | LeafButtons::Grip)) D->SkipHarvest();
+		if (Pressed & LeafButtons::Cycle) D->CycleHarvestView();
+		return;
+	}
 	if (Pressed & LeafButtons::SendHome) D->SendHome(GetAnt());
 	if (Pressed & LeafButtons::Cycle) D->CycleWorker();
 }

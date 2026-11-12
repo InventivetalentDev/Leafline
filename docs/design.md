@@ -57,7 +57,7 @@ The MegaJam theme as announced by Unreal Engine on X (full post, supplied by the
 
 **Director's Cut (MegaJam)**
 - *The cut*: you choose how much to cut from a leaf. Size is the central trade-off of every trip.
-- *The director*: your scent trail is the direction you give the colony. Workers follow it without you. Where you lay it (sheltered side or exposed side) decides whether they get home.
+- *The director*: your scent trail is the direction you give the colony. Recruits follow it without you and strip the leaves around your cut. Where you lay it (sheltered side or exposed side) and how big you cut decide how many of them get home with their piece.
 - The end-of-day recap is titled as the day's cut.
 - This maps onto the theme post's last paragraph almost word for word: "set the vision" is the route you lay, "delegate your tasks" is sending workers along it unattended, "decide what goes in and what doesn't" is the size of each cut, and "direct your path" is the trail itself. Use that framing on the itch page and in the video.
 - The post's "shelved idea" reading also applies honestly: this game is an idea from the owner's notes that had not found a home. Say so on the page, without overstating it.
@@ -73,17 +73,19 @@ The MegaJam theme as announced by Unreal Engine on X (full post, supplied by the
 2. **Climb** to a leafy branch. Sprint is available while stamina lasts.
 3. **Cut**: at a leaf, hold the cut button. A growing arc on the leaf shows the fragment size. Release to finish. The fragment is carried physically in the mandibles, held overhead.
 4. **Send home**: the loaded ant retraces its own recorded path in reverse, unattended. Control shifts to a fresh worker at the nest. Walking home yourself is also allowed.
-5. **Next shift**: the new worker can hold a key to ride an existing trail at boosted speed, then branch off toward other leaves.
-6. **Day ends** when every worker is home or has been blown off. A recap shows leaf mass hauled, ants blown off and trail laid.
-7. **Nest**: spend leaf mass on upgrades.
-8. **New day**: a new tree is grown from a new seed and yesterday's trails are gone. Days get harder.
+5. **The line**: a piece on its way home turns the scout's route into a *line*. Recruits from the colony's pool walk it out, cut the same size of piece from the leaves around the scout's cut (the *patch*) and carry them home, while you scout on. Patches run dry, so idle recruits wait for you to lay a new line.
+6. **Next shift**: the new worker can hold a key to ride an existing trail at boosted speed, then branch off toward other leaves.
+7. **Harvest**: when the last scout is home or on its way, the recruits finish their trips at five times speed (skippable). The camera watches the file of ants come down the trunk to the nest.
+8. **Day ends** when every ant is home. A recap counts up line by line: pieces home, pieces lost to the wind, what is left on each patch, and whether it was the best day yet.
+9. **Nest**: spend leaf mass on upgrades.
+10. **New day**: a new tree is grown from a new seed and yesterday's trails and lines are gone. Days get harder.
 
 A day should take 4–6 minutes: three trips of roughly 90 seconds.
 
 ## Rules in detail
 
 **Workers and days**
-- The colony starts with 3 workers per day. Each worker makes one trip.
+- Three scouts a day at every level, each making one trip. Recruits (the Brood upgrade) are the automation: one shared pool, a fixed number of trips each per day, never controlled.
 - There is no real-time clock. The sun steps from morning to evening with each shift, as a visual cue only.
 - Within a day the tree and all trails persist, so later workers benefit from earlier routes.
 
@@ -110,22 +112,35 @@ A day should take 4–6 minutes: three trips of roughly 90 seconds.
 - An ant is blown off when gust force times exposure times its sail area exceeds its grip. This is deterministic, so the player can learn it.
 - The controlled ant can stop and **grip** to ride a gust out. Unattended ants never grip; their safety depends on the cut size and the route chosen for them.
 
+**Lines, patches and recruits** (spec: `docs/briefs/the-line.md`)
+- A line starts when a scout's piece is on its way home (sent home with it, or carried into the nest). A scout blown off or returning empty leaves a trail but no line.
+- The patch is the cuttable leaves nearest the scout's leaf along the bark: the same twig first, then neighbouring twigs of the same bough, up to four leaves and ten pieces. The scout's own piece counts as the first.
+- Recruits leave the nest a second and a half apart, so several on one line read as a file. Each picks the live line with the most remaining pieces per recruit already on it. A trip is out, one piece of the line's size, home.
+- Recruits face the same wind test as scouts and never grip. A blown-off recruit loses its piece and that trip; one that finds its patch stripped turns round without using a trip.
+- The trail's brightness shows its patch: bright is full, faint is nearly stripped or no line at all.
+- Before committing, the patch around the leaf in reach is outlined, with what it is worth ("about 8 pieces, rich ×2.1").
+
+**Richer leaves**
+- Each leaf has a value multiplier from 1× at the lowest leafy branches to about 3× at high outer tips, from the tree's shape alone. Rich leaves are paler, younger green. A piece's value is its size-based mass times the multiplier; the carried weight that slows the ant is the size-based mass only.
+
 **Losing an ant**
 - A blown-off ant falls, loses its fragment and walks home empty-handed. Nobody dies. The trip is wasted, which matters when there are only a few per day.
 
-**Upgrades** (five, three levels each, bought with leaf mass on a list screen at the nest between days, saved between sessions)
+**Upgrades** (five, six levels each with steeply rising costs, bought with leaf mass on a list screen at the nest between days, saved between sessions)
 
 | Upgrade | Effect |
 |---|---|
-| Mandibles | Cut faster |
+| Mandibles | Cut faster (scouts and recruits) |
 | Strength | Carry bigger fragments without slowing |
-| Grip | Withstand stronger gusts |
+| Grip | Withstand stronger gusts (scouts and recruits) |
 | Stamina | Sprint longer |
-| Brood | One more worker per day |
+| Brood | Recruit pool: 0 / 2 / 3 / 4 / 6 / 8 / 10 |
+
+**The off switch.** One flag (`FDayTuning::bRecruits`, `Leaf.Recruits 0|1`) turns the line's automation off: no recruits, no harvest, no Brood row, and a smaller "by hand" milestone set. Richer leaves, the patch read-out, the longer ladders and the number-go-up interface stay either way.
 
 **Goal and progression**
 - A colony-growth meter fills with total leaf mass hauled and has three milestones.
-- Reaching the third milestone (target: day 4 or 5, about 15 minutes of play) shows an end card, then play continues.
+- Reaching the third milestone (target: 15 to 20 minutes into a fresh save, with the line on or off) shows an end card, then play continues. With the line on, day hauls should grow about tenfold from day 1 to the end card.
 - Each new day raises the lowest leafy branch and strengthens the gusts.
 
 Starting numbers, to be tuned by play:
@@ -133,8 +148,9 @@ Starting numbers, to be tuned by play:
 | Item | Value |
 |---|---|
 | Fragment mass | 1 to 5 |
-| Upgrade cost, levels 1 / 2 / 3 | 6 / 14 / 24 |
-| Milestones (total hauled) | 15 / 40 / 80 |
+| Upgrade cost, levels 1 to 6 | see `Game/Upgrades.cpp` and `docs/economy.md` |
+| Milestones (total hauled) | with the line and by hand: see `docs/economy.md` |
+| Recruit trips per day | 3 each |
 
 ## Scale and pacing
 
@@ -179,7 +195,10 @@ Starting numbers, to be tuned by play:
 | Walking on leaf blades | Stretch |
 | Skill tree and a visible, growing fungus garden | Game Off |
 | Several trees around the nest, rotating daily | Game Off |
-| Controlling several ants at once, automation, defenders | Game Off, undecided whether it fits |
+| Controlling several ants at once, defenders | Game Off, undecided whether it fits (automation arrived with the line) |
+| Orders to recruits ("hold here in gusts") | Dropped: too fiddly |
+| Trails that fade with time or slow ants down; anything that persists on the tree across days | Not planned |
+| Drop cutting, relay caches, castes | Game Off ideas |
 | Other predators (for example the parasitic flies that real leafcutters guard against) | Game Off |
 | Food as a second resource | Arrives with the bird |
 | Eating to restore stamina | Parked |

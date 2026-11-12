@@ -36,8 +36,6 @@ void ATrailNetwork::ClearAll()
 int32 ATrailNetwork::StartPath(const FVector& Pos, const FVector& Normal)
 {
 	const int32 Index = Paths.AddDefaulted();
-	// Every older line gets one step fainter: rebuild them all.
-	for (int32 p = 0; p < Index; ++p) Paths[p].DirtyFromChunk = 0;
 	AddPoint(Index, Pos, Normal);
 	return Index;
 }
@@ -74,6 +72,7 @@ void ATrailNetwork::AddPoint(int32 PathIndex, const FVector& Pos, const FVector&
 	const int32 Index = Path.Points.Add({ Pos, Normal });
 	Path.Drawn.Add(bNearOther ? 0 : 1);
 	Path.Dist.Add(PrevDist + Step);
+	Path.Glow.Add(NoLineGlow);
 	Grid.FindOrAdd(C).Add(FIntPoint(PathIndex, Index));
 	// The segment ending at this point belongs to the chunk of the point before it.
 	const int32 Chunk = FMath::Max(Index - 1, 0) / ChunkSize;
@@ -91,20 +90,72 @@ void ATrailNetwork::Tick(float DeltaTime)
 		FPath& Path = Paths[p];
 		if (Path.DirtyFromChunk == INDEX_NONE) continue;
 		const int32 LastChunk = FMath::Max(Path.Points.Num() - 2, 0) / ChunkSize;
-		for (int32 c = Path.DirtyFromChunk; c <= LastChunk; ++c) RebuildChunk(p, c);
+		for (int32 c = Path.DirtyFromChunk; c <= LastChunk; ++c)
+		{
+			RebuildChunk(p, c);
+			Path.GlowDirtyChunks.Remove(c);
+		}
 		Path.DirtyFromChunk = INDEX_NONE;
+	}
+	for (int32 p = 0; p < Paths.Num(); ++p)
+	{
+		FPath& Path = Paths[p];
+		for (int32 c : Path.GlowDirtyChunks) RebuildChunk(p, c);
+		Path.GlowDirtyChunks.Reset();
+	}
+}
+
+void ATrailNetwork::SetLineGlow(const TArray<const TArray<FTrailPoint>*>& Routes, const TArray<float>& Glow, float NoLine)
+{
+	NoLineGlow = NoLine;
+	TArray<TArray<float>> NewGlow;
+	NewGlow.SetNum(Paths.Num());
+	for (int32 p = 0; p < Paths.Num(); ++p) NewGlow[p].Init(NoLine, Paths[p].Points.Num());
+	const double Merge2 = MergeDistance * MergeDistance;
+	for (int32 r = 0; r < Routes.Num() && r < Glow.Num(); ++r)
+	{
+		if (!Routes[r]) continue;
+		const float G = Glow[r];
+		for (const FTrailPoint& RP : *Routes[r])
+		{
+			const FIntVector C = Cell(RP.Pos);
+			for (int32 X = -1; X <= 1; ++X)
+				for (int32 Y = -1; Y <= 1; ++Y)
+					for (int32 Z = -1; Z <= 1; ++Z)
+					{
+						const TArray<FIntPoint>* List = Grid.Find(C + FIntVector(X, Y, Z));
+						if (!List) continue;
+						for (const FIntPoint& Ref : *List)
+						{
+							if (FVector::DistSquared(Paths[Ref.X].Points[Ref.Y].Pos, RP.Pos) < Merge2)
+							{
+								float& Slot = NewGlow[Ref.X][Ref.Y];
+								Slot = FMath::Max(Slot, G);
+							}
+						}
+					}
+		}
+	}
+	for (int32 p = 0; p < Paths.Num(); ++p)
+	{
+		FPath& Path = Paths[p];
+		Path.Glow.SetNum(Path.Points.Num());
+		for (int32 i = 0; i < Path.Points.Num(); ++i)
+		{
+			if (FMath::Abs(Path.Glow[i] - NewGlow[p][i]) < 0.02f) continue;
+			Path.Glow[i] = NewGlow[p][i];
+			Path.GlowDirtyChunks.Add(FMath::Max(i - 1, 0) / ChunkSize);
+			Path.GlowDirtyChunks.Add(i / ChunkSize);
+		}
 	}
 }
 
 void ATrailNetwork::RebuildChunk(int32 PathIndex, int32 Chunk)
 {
 	FPath& Path = Paths[PathIndex];
-	// Older lines (earlier workers today) are thinner and carry a lower vertex alpha, so the newest reads first and the
-	// tangle of a busy day does not confuse (owner note). M_Trail ignores vertex colour until it is wired to opacity.
-	const int32 Age = Paths.Num() - 1 - PathIndex;
-	const float Fade = FMath::Max(0.35f, 1.f - 0.3f * Age);
-	const float W = Width * FMath::Lerp(0.55f, 1.f, Fade);
-	const FLinearColor Tint(1.f, 1.f, 1.f, Fade);
+	// Brightness shows each line's patch (SetLineGlow): bright is a full patch, faint is nearly stripped or no line at
+	// all. Faint stretches are also a little thinner, so the tangle of a busy day reads (vertex alpha in M_Trail).
+	if (Path.Glow.Num() != Path.Points.Num()) Path.Glow.Init(NoLineGlow, Path.Points.Num());
 	TArray<FVector> V, N;
 	TArray<FVector2D> UV;
 	TArray<FLinearColor> Col;
@@ -124,6 +175,9 @@ void ATrailNetwork::RebuildChunk(int32 PathIndex, int32 Chunk)
 			Along += SegLen;
 			continue;
 		}
+		const float Fade = FMath::Clamp(0.5f * (Path.Glow[i] + Path.Glow[i + 1]), 0.f, 1.f);
+		const float W = Width * FMath::Lerp(0.6f, 1.f, Fade);
+		const FLinearColor Tint(1.f, 1.f, 1.f, Fade);
 		const FVector Dir = (B.Pos - A.Pos) / FMath::Max(SegLen, 0.01f);
 		const FVector SideA = FVector::CrossProduct(A.Normal, Dir).GetSafeNormal() * (W * 0.5f);
 		const FVector SideB = FVector::CrossProduct(B.Normal, Dir).GetSafeNormal() * (W * 0.5f);

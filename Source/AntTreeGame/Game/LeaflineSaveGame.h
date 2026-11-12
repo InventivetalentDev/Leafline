@@ -4,7 +4,7 @@
 #include "GameFramework/SaveGame.h"
 #include "LeaflineSaveGame.generated.h"
 
-/** One colony, saved in the Leafline slot at user index zero. */
+/** One colony, saved at user index zero; -LeafSlot selects a test slot. */
 UCLASS()
 class ANTTREEGAME_API ULeaflineSaveGame : public USaveGame
 {
@@ -12,12 +12,13 @@ class ANTTREEGAME_API ULeaflineSaveGame : public USaveGame
 
 public:
 	ULeaflineSaveGame();
-	static constexpr int32 CurrentVersion = 1;
+	static constexpr int32 CurrentVersion = 2;
 
 	UPROPERTY(SaveGame) int32 Version = CurrentVersion;
 	UPROPERTY(SaveGame) float LeafMass = 0.f;
 	UPROPERTY(SaveGame) float TotalHauled = 0.f;
-	/** ELeaflineUpgrade order, levels 0..3. */
+	UPROPERTY(SaveGame) float BestDayHaul = 0.f;
+	/** ELeaflineUpgrade order, levels 0..6. */
 	UPROPERTY(SaveGame) TArray<int32> UpgradeLevels;
 	UPROPERTY(SaveGame) int32 Day = 1;
 	UPROPERTY(SaveGame) int32 BaseSeed = 1112;

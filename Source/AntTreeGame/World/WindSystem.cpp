@@ -81,7 +81,7 @@ void AWindSystem::EnterPhase(EWindPhase NewPhase)
 		break;
 	case EWindPhase::Warning:
 		PhaseDuration = Tuning.Warning;
-		LeafSound::Play(this, TEXT("gust_warning"), 0.55f);
+		if (!bMuteCues) LeafSound::Play(this, TEXT("gust_warning"), 0.55f);
 		break;
 	case EWindPhase::Rising: PhaseDuration = Tuning.Rising; break;
 	case EWindPhase::Holding: PhaseDuration = Rand.FRandRange(Tuning.HoldMin, Tuning.HoldMax) + Tuning.HoldGrowPerDay * (Day - 1); break;
@@ -102,6 +102,21 @@ void AWindSystem::TriggerGust(float Peak)
 void AWindSystem::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	if (!bExternalClock) Advance(DeltaTime);
+
+	if (CalmLoop) CalmLoop->SetVolume(FMath::Lerp(0.32f, 0.12f, Strength));
+	if (GustLoop) GustLoop->SetVolume(0.9f * FMath::SmoothStep(0.25f, 1.f, Strength));
+	if (RustleLoop) RustleLoop->SetVolume(0.12f + 0.35f * Strength);
+	if (WindCollection)
+	{
+		UKismetMaterialLibrary::SetScalarParameterValue(this, WindCollection, TEXT("WindStrength"), Strength);
+		UKismetMaterialLibrary::SetVectorParameterValue(this, WindCollection, TEXT("WindDirection"), FLinearColor(Direction));
+	}
+	UpdateStreaks(DeltaTime);
+}
+
+void AWindSystem::Advance(float DeltaTime)
+{
 	Clock += DeltaTime;
 
 	PhaseTimeLeft -= DeltaTime;
@@ -129,18 +144,8 @@ void AWindSystem::Tick(float DeltaTime)
 	case EWindPhase::Falling: Strength = FMath::Lerp(GustPeak, Calm, FMath::SmoothStep(0.f, 1.f, T)); break;
 	}
 
-	if (CalmLoop) CalmLoop->SetVolume(FMath::Lerp(0.32f, 0.12f, Strength));
-	if (GustLoop) GustLoop->SetVolume(0.9f * FMath::SmoothStep(0.25f, 1.f, Strength));
-	if (RustleLoop) RustleLoop->SetVolume(0.12f + 0.35f * Strength);
-
 	const float Yaw = BaseYaw + Tuning.DirectionWanderDeg * FMath::Sin(Clock * 0.11f);
 	Direction = FRotator(0.f, Yaw, 0.f).Vector();
-	if (WindCollection)
-	{
-		UKismetMaterialLibrary::SetScalarParameterValue(this, WindCollection, TEXT("WindStrength"), Strength);
-		UKismetMaterialLibrary::SetVectorParameterValue(this, WindCollection, TEXT("WindDirection"), FLinearColor(Direction));
-	}
-	UpdateStreaks(DeltaTime);
 }
 
 float AWindSystem::GetExposure(const FVector& P, const FVector& Normal) const

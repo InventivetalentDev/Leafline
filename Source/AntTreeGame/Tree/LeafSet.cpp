@@ -20,12 +20,15 @@ void FLeafSet::Reset()
 	Leaves.Reset();
 	ChunkLeaves.Reset();
 	Grid.Reset();
+	BranchLeaves.Reset();
 }
 
 void FLeafSet::AddDecorLeaf(const FTreeLeaf& Leaf)
 {
 	if (ChunkLeaves.Num() <= Leaf.Chunk) ChunkLeaves.SetNum(Leaf.Chunk + 1);
-	ChunkLeaves[Leaf.Chunk].Add(Leaves.Add(Leaf));
+	FTreeLeaf Decor = Leaf;
+	Decor.Richness = 1.f; // vertex alpha 0: never shown as a rich leaf
+	ChunkLeaves[Leaf.Chunk].Add(Leaves.Add(Decor));
 }
 
 FIntVector FLeafSet::Cell(const FVector& P) const
@@ -69,6 +72,7 @@ void FLeafSet::Build(const FTreeSkeleton& S, const FTreeField& Field)
 			FTreeLeaf L;
 			L.Branch = b;
 			L.Chunk = Chunk;
+			L.BranchS = D;
 			L.Base = C + Perp * Rad;
 			L.Length = R.FRandRange(P.LeafLengthMin, P.LeafLengthMax);
 			L.Width = L.Length * P.LeafWidthRatio * R.FRandRange(0.9f, 1.1f);
@@ -94,7 +98,68 @@ void FLeafSet::Build(const FTreeSkeleton& S, const FTreeField& Field)
 			const int32 Idx = Leaves.Add(L);
 			ChunkLeaves[Chunk].Add(Idx);
 			Grid.FindOrAdd(Cell(L.Origin)).Add(Idx);
+			BranchLeaves.FindOrAdd(b).Add(Idx);
 		}
+	}
+
+	// Richness: 1x at the lowest leafy branches up to about 3x at high outer tips, from the tree's shape alone. Height in
+	// the crown counts most; how far out along its limb a leaf sits (distance from the trunk axis, relative to the limb's
+	// other leaves) counts more the higher it is.
+	if (Leaves.Num() > 0)
+	{
+		double ZMin = TNumericLimits<double>::Max(), ZMax = -TNumericLimits<double>::Max();
+		for (const FTreeLeaf& L : Leaves)
+		{
+			ZMin = FMath::Min(ZMin, L.Base.Z);
+			ZMax = FMath::Max(ZMax, L.Base.Z);
+		}
+		const FTreeBranch* Trunk = S.Branches.Num() > 0 && S.Branches[0].Level == 0 && S.Branches[0].Samples.Num() > 1 ? &S.Branches[0] : nullptr;
+		auto AxisAt = [Trunk, &S](double Z)
+		{
+			if (!Trunk) return FVector2D(S.TrunkBase.X, S.TrunkBase.Y);
+			// The trunk is close to vertical, so its samples rise monotonically.
+			const TArray<FVector>& Smp = Trunk->Samples;
+			int32 Lo = 0, Hi = Smp.Num() - 1;
+			if (Z <= Smp[Lo].Z) return FVector2D(Smp[Lo].X, Smp[Lo].Y);
+			if (Z >= Smp[Hi].Z) return FVector2D(Smp[Hi].X, Smp[Hi].Y);
+			while (Hi - Lo > 1)
+			{
+				const int32 Mid = (Lo + Hi) / 2;
+				if (Smp[Mid].Z < Z) Lo = Mid; else Hi = Mid;
+			}
+			const double Span = Smp[Hi].Z - Smp[Lo].Z;
+			const FVector A = FMath::Lerp(Smp[Lo], Smp[Hi], Span > UE_SMALL_NUMBER ? (Z - Smp[Lo].Z) / Span : 0.0);
+			return FVector2D(A.X, A.Y);
+		};
+		TArray<float> Out;
+		Out.SetNumUninitialized(Leaves.Num());
+		TArray<FVector2f> ChunkOut; // min, max distance from the trunk axis per limb
+		ChunkOut.Init(FVector2f(TNumericLimits<float>::Max(), 0.f), ChunkLeaves.Num());
+		for (int32 i = 0; i < Leaves.Num(); ++i)
+		{
+			const FTreeLeaf& L = Leaves[i];
+			Out[i] = (float)FVector2D::Distance(FVector2D(L.Base.X, L.Base.Y), AxisAt(L.Base.Z));
+			FVector2f& CO = ChunkOut[L.Chunk];
+			CO.X = FMath::Min(CO.X, Out[i]);
+			CO.Y = FMath::Max(CO.Y, Out[i]);
+		}
+		const double ZSpan = FMath::Max(ZMax - ZMin, 100.0);
+		TArray<float> Sorted;
+		Sorted.Reserve(Leaves.Num());
+		double Sum = 0.0;
+		for (int32 i = 0; i < Leaves.Num(); ++i)
+		{
+			FTreeLeaf& L = Leaves[i];
+			const FVector2f& CO = ChunkOut[L.Chunk];
+			const float H01 = FMath::Clamp((float)((L.Base.Z - ZMin) / ZSpan), 0.f, 1.f);
+			const float Out01 = FMath::Clamp((Out[i] - CO.X) / FMath::Max(CO.Y - CO.X, 100.f), 0.f, 1.f);
+			L.Richness = 1.f + 2.f * H01 * (0.4f + 0.6f * Out01);
+			Sorted.Add(L.Richness);
+			Sum += L.Richness;
+		}
+		Sorted.Sort();
+		UE_LOG(LogLeafline, Log, TEXT("LeafSet: richness min %.2f, median %.2f, max %.2f, mean %.2f (leaves from %.0f to %.0f m)"),
+			Sorted[0], Sorted[Sorted.Num() / 2], Sorted.Last(), Sum / Sorted.Num(), ZMin / 100.0, ZMax / 100.0);
 	}
 	UE_LOG(LogLeafline, Log, TEXT("LeafSet: %d leaves in %d chunks, %.1f ms"), Leaves.Num(), ChunkLeaves.Num(),
 		(FPlatformTime::Seconds() - StartTime) * 1000.0);
@@ -135,6 +200,26 @@ float FLeafSet::SizeCap(int32 Index, float UsePerCut) const
 	if (!Leaves.IsValidIndex(Index) || !Leaves[Index].CanCut()) return 0.f;
 	// A cut of size s uses UsePerCut * (0.35 + 0.65 s); never allow more than what is left.
 	return FMath::Clamp((Leaves[Index].Remaining / FMath::Max(UsePerCut, 0.01f) - 0.35f) / 0.65f, 0.f, 1.f);
+}
+
+int32 FLeafSet::PiecesLeft(int32 Index, float Size01, float UsePerCut) const
+{
+	if (!Leaves.IsValidIndex(Index)) return 0;
+	// Replays ApplyBite on a copy: a cut needs CanCut (fewer than 3 bites, more than 0.16 left) and SizeCap >= the size.
+	const float Use = FMath::Max(UsePerCut, 0.01f);
+	const float Size = FMath::Clamp(Size01, 0.f, 1.f);
+	float Remaining = Leaves[Index].Remaining;
+	int32 Bites = Leaves[Index].Bites;
+	int32 Pieces = 0;
+	while (Bites < 3 && Remaining > 0.16f)
+	{
+		const float Cap = FMath::Clamp((Remaining / Use - 0.35f) / 0.65f, 0.f, 1.f);
+		if (Cap < Size - 0.001f) break;
+		Remaining = FMath::Max(0.f, Remaining - Use * (0.35f + 0.65f * Size));
+		++Bites;
+		++Pieces;
+	}
+	return Pieces;
 }
 
 void FLeafSet::PlanBite(int32 Index, float DiameterCm, FVector2f& OutCenter, float& OutRadius) const
@@ -229,7 +314,9 @@ void FLeafSet::BuildChunkMesh(int32 Chunk, FTreeMeshData& Out, int32 Segments) c
 				Out.Vertices.Add(Pts[i]);
 				Out.Normals.Add(N);
 				Out.UV0.Add(UVs[i]);
-				Out.Colors.Add(FLinearColor(1.f, (Idx % 97) / 97.f, FMath::Clamp((float)(Pts[i].Z / 30000.0), 0.f, 1.f), 0.f));
+				// Alpha: richness, 0 (1x) .. 1 (3x); M_Leaf turns it pale young green.
+				Out.Colors.Add(FLinearColor(1.f, (Idx % 97) / 97.f, FMath::Clamp((float)(Pts[i].Z / 30000.0), 0.f, 1.f),
+					FMath::Clamp((L.Richness - 1.f) * 0.5f, 0.f, 1.f)));
 				Out.Tangents.Add(FProcMeshTangent(L.Dir, false));
 			}
 			auto AddTri = [&](int32 A, int32 B, int32 C)

@@ -22,6 +22,11 @@ struct FTreeLeaf
 	uint8 Bites = 0;
 	FVector2f BiteCenter[3]; // leaf-local (along, across) in cm
 	float BiteRadius[3] = { 0.f, 0.f, 0.f };
+	/** Value multiplier of pieces cut from this leaf: 1 at the lowest leafy branches, about 3 at high outer tips. Set by
+	 *  FLeafSet::Build from the tree's shape alone; decor leaves keep 1. */
+	float Richness = 1.f;
+	/** Arc length along Branch (cm) where the stalk joins it. */
+	float BranchS = 0.f;
 
 	bool CanCut() const { return Bites < 3 && Remaining > 0.16f; }
 	/** Half width of the untouched blade at a distance along the midrib. */
@@ -53,6 +58,12 @@ public:
 	/** Largest fragment size (0..1) the leaf still allows. */
 	float SizeCap(int32 Index, float UsePerCut) const;
 
+	/** How many more pieces of size Size01 the leaf gives under the bite limits (CanCut, SizeCap); 0 if none. */
+	int32 PiecesLeft(int32 Index, float Size01, float UsePerCut) const;
+
+	/** Leaves growing on a skeleton branch, in order along it; null if none. */
+	const TArray<int32>* LeavesOnBranch(int32 Branch) const { return BranchLeaves.Find(Branch); }
+
 	/** A leaf for scenery only (distant grove crowns): no grid entry, so it can never be found or cut. */
 	void AddDecorLeaf(const FTreeLeaf& Leaf);
 
@@ -66,5 +77,6 @@ private:
 
 	TArray<TArray<int32>> ChunkLeaves;
 	TMap<FIntVector, TArray<int32>> Grid;
+	TMap<int32, TArray<int32>> BranchLeaves;
 	float CellSize = 300.f;
 };

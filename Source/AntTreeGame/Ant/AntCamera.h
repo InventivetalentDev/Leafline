@@ -88,6 +88,10 @@ public:
 	void DebugAim(float WorldYawDeg, float NewPitch) { DebugAimDirection(FRotator(0.f, WorldYawDeg, 0.f).Vector(), NewPitch); }
 	void DebugAimDirection(const FVector& WorldDir, float NewPitch);
 
+	/** Harvest view: glide to a fixed spot looking at a point, ignoring the ant. Off: back to the ant. */
+	void SetOverview(bool bOn, const FVector& Location = FVector::ZeroVector, const FVector& LookAt = FVector::ZeroVector);
+	bool IsOverview() const { return bOverview; }
+
 	FVector GetViewForward() const { return GetActorForwardVector(); }
 	FVector GetViewUp() const { return GetActorUpVector(); }
 
@@ -119,4 +123,8 @@ private:
 	float SmoothedRadius = 1000.f;
 	float SpareFloat = 0.f;
 	FVector SpareVector = FVector::ZeroVector;
+	bool bOverview = false;
+	bool bOverviewPlaced = false;
+	FVector OverviewLoc = FVector::ZeroVector;
+	FVector OverviewLook = FVector::ZeroVector;
 };

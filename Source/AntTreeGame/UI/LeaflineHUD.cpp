@@ -12,6 +12,8 @@
 #include "World/WindSystem.h"
 #include "Tree/TreeActor.h"
 #include "Colony/TrailNetwork.h"
+#include "Colony/LineSystem.h"
+#include "Game/Upgrades.h"
 #include "CanvasItem.h"
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
@@ -88,7 +90,21 @@ void ALeaflineHUD::DrawHUD()
 		default: break;
 		}
 	}
+	bWasRecap = false;
+	const ALineSystem* Lines = D ? D->GetLineSystem() : nullptr;
+	if (D && D->IsHarvest())
+	{
+		// The harvest plays from the nest: no ant to prompt for, so only the colony's numbers.
+		DrawDayInfo(D, Scale);
+		DrawColonyCounter(D, Scale, Dt);
+		DrawLineRows(D, Lines, Scale);
+		DrawDeliveryPops(Lines, Scale);
+		if (Lines && Lines->IsActive()) DrawHarvest(D, Lines, Scale);
+		return;
+	}
 	if (D) DrawDayInfo(D, Scale);
+	if (D) DrawColonyCounter(D, Scale, Dt);
+	if (D) DrawLineRows(D, Lines, Scale);
 	// First-day goals, instead of a tutorial.
 	if (D && Ant && D->GetDay() == 1 && D->GetPhase() == EDayPhase::Shift)
 	{
@@ -117,7 +133,9 @@ void ALeaflineHUD::DrawHUD()
 		DrawCutArc(Ant, Scale);
 		DrawLeafTarget(Ant, Scale);
 		DrawCutLine(Ant, Scale);
+		DrawPatchPreview(Ant, Lines, Scale);
 	}
+	DrawDeliveryPops(Lines, Scale);
 	DrawPrompt(Ant, D, Scale);
 	if (D) DrawShiftBanner(D, Scale, Dt);
 }
@@ -364,9 +382,15 @@ void ALeaflineHUD::DrawLeafTarget(const AAntPawn* Ant, float Scale)
 {
 	const int32 Index = Ant->GetLeafInReach();
 	if (Index == INDEX_NONE || Ant->IsCutting() || Ant->IsCarrying()) return;
+	const float Pulse = 0.65f + 0.35f * FMath::Sin(GetWorld() ? GetWorld()->GetRealTimeSeconds() * 5.f : 0.f);
+	DrawLeafOutline(Index, FLinearColor(1.f, 0.88f, 0.45f, Pulse), 2.f * Scale);
+}
+
+bool ALeaflineHUD::DrawLeafOutline(int32 Index, const FLinearColor& Color, float Thickness)
+{
 	const ATreeActor* Tree = ATreeActor::Get(this);
 	const APlayerController* PC = GetOwningPlayerController();
-	if (!Tree || !PC || !PC->PlayerCameraManager || Index >= Tree->GetLeaves().Num()) return;
+	if (Index == INDEX_NONE || !Tree || !PC || !PC->PlayerCameraManager || Index >= Tree->GetLeaves().Num()) return false;
 	const FTreeLeaf& L = Tree->GetLeaves().Get(Index);
 	const FVector CamPos = PC->PlayerCameraManager->GetCameraLocation();
 	const FVector CamFwd = PC->PlayerCameraManager->GetCameraRotation().Vector();
@@ -381,18 +405,140 @@ void ALeaflineHUD::DrawLeafTarget(const AAntPawn* Ant, float Scale)
 			const float Along = L.Length * (Side == 0 ? i : Steps - i) / Steps;
 			const float Across = L.HalfWidthAt(Along) * (Side == 0 ? 1.f : -1.f);
 			const FVector W = L.Point(Along, Across) + L.Normal * 0.5f;
-			if (FVector::DotProduct(W - CamPos, CamFwd) < 10.0) return; // part of the blade is behind the camera
+			if (FVector::DotProduct(W - CamPos, CamFwd) < 10.0) return false; // part of the blade is behind the camera
 			const FVector S = Canvas->Project(W);
 			Screen.Add(FVector2D(S.X, S.Y));
 		}
 	}
-	const float Pulse = 0.65f + 0.35f * FMath::Sin(GetWorld() ? GetWorld()->GetRealTimeSeconds() * 5.f : 0.f);
-	const FLinearColor Color(1.f, 0.88f, 0.45f, Pulse);
 	for (int32 i = 0; i < Screen.Num(); ++i)
 	{
 		const FVector2D& A = Screen[i];
 		const FVector2D& B = Screen[(i + 1) % Screen.Num()];
-		DrawLine(A.X, A.Y, B.X, B.Y, Color, 2.f * Scale);
+		DrawLine(A.X, A.Y, B.X, B.Y, Color, Thickness);
+	}
+	return true;
+}
+
+void ALeaflineHUD::DrawDeliveryPops(const ALineSystem* Lines, float Scale)
+{
+	const APlayerController* PC = GetOwningPlayerController();
+	if (!Lines || !PC || !PC->PlayerCameraManager || !GetWorld()) return;
+	const FVector CamPos = PC->PlayerCameraManager->GetCameraLocation();
+	const FVector CamFwd = PC->PlayerCameraManager->GetCameraRotation().Vector();
+	const double Now = GetWorld()->GetRealTimeSeconds();
+	constexpr float Life = 1.5f;
+	UFont* Font = GEngine->GetMediumFont();
+	for (const FDeliveryPop& P : Lines->GetRecentDeliveries())
+	{
+		const float T = float(Now - P.RealTime) / Life;
+		if (T < 0.f || T > 1.f) continue;
+		if (FVector::DotProduct(P.WorldPos - CamPos, CamFwd) < 10.0) continue; // behind the camera
+		const FVector S = Canvas->Project(P.WorldPos);
+		// Rises with an ease-out, holds, then fades over the last 40%.
+		const float Rise = 80.f * Scale * (1.f - FMath::Square(1.f - T));
+		const float A = FMath::Clamp((1.f - T) / 0.4f, 0.f, 1.f);
+		const float Size = (1.1f + 0.08f * FMath::Min(P.Chain, 10)) * Scale;
+		const FString Text = P.Mass >= 10.f ? FString::Printf(TEXT("+%.0f"), P.Mass) : FString::Printf(TEXT("+%.1f"), P.Mass);
+		DrawTextCentered(Text, S.X, S.Y - Rise, FLinearColor(0.7f, 0.98f, 0.5f, A), Size, Font);
+	}
+}
+
+void ALeaflineHUD::DrawColonyCounter(const ADayDirector* D, float Scale, float Dt)
+{
+	const ULeaflineGameInstance* GI = Cast<ULeaflineGameInstance>(GetGameInstance());
+	if (!GI) return;
+	const float Target = GI->GetTotalHauled();
+	if (ColonyShown < 0.f || Target < ColonyShown)
+	{
+		ColonyShown = Target;
+	}
+	else
+	{
+		// Eases toward the real value, but never crawls: at least a few units a second until it arrives.
+		const float Diff = Target - ColonyShown;
+		ColonyShown = Diff < 0.05f ? Target : ColonyShown + FMath::Min(Diff, FMath::Max(Diff * 5.f * Dt, 6.f * Dt));
+	}
+	UFont* Font = GEngine->GetMediumFont();
+	const float CX = Canvas->ClipX * 0.5f;
+	DrawTextCentered(FString::Printf(TEXT("Colony  %s"), *FString::FormatAsNumber(FMath::RoundToInt(ColonyShown))), CX, 22.f * Scale, TextColor, 1.6f * Scale, Font);
+	DrawTextCentered(FString::Printf(TEXT("Today  +%.1f"), D->GetStats().MassHauled), CX, 62.f * Scale, AccentColor, 1.05f * Scale, Font);
+}
+
+void ALeaflineHUD::DrawLineRows(const ADayDirector* D, const ALineSystem* Lines, float Scale)
+{
+	if (!Lines || Lines->GetLines().Num() == 0) return;
+	if (D->GetPhase() != EDayPhase::Shift && D->GetPhase() != EDayPhase::Harvest) return;
+	UFont* Font = GEngine->GetMediumFont();
+	const float X = 40.f * Scale;
+	float Y = 150.f * Scale;
+	const float RowH = 28.f * Scale;
+	const float BarW = 70.f * Scale, BarH = 8.f * Scale;
+	for (const FColonyLine& L : Lines->GetLines())
+	{
+		const bool bLive = L.IsLive();
+		const float Dim = bLive ? 1.f : 0.5f;
+		const FLinearColor Text(TextColor.R, TextColor.G, TextColor.B, Dim);
+		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.35f * Dim), X - 8.f * Scale, Y - 3.f * Scale, 400.f * Scale, RowH);
+		DrawCrisp(Canvas, FString::Printf(TEXT("Line %d"), L.Number), FLinearColor(AccentColor.R, AccentColor.G, AccentColor.B, Dim), X, Y, Font, 0.95f * Scale);
+		DrawCrisp(Canvas, FString::Printf(TEXT("home %d"), L.PiecesHome), Text, X + 78.f * Scale, Y, Font, 0.95f * Scale);
+		DrawCrisp(Canvas, FString::Printf(TEXT("lost %d"), L.PiecesLost), L.PiecesLost > 0 ? FLinearColor(StaminaLockedColor.R, StaminaLockedColor.G, StaminaLockedColor.B, Dim) : Text,
+			X + 156.f * Scale, Y, Font, 0.95f * Scale);
+		// Patch remaining: a small bar and the count.
+		const float BX = X + 232.f * Scale, BY = Y + 7.f * Scale;
+		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.5f * Dim), BX - 1.f * Scale, BY - 1.f * Scale, BarW + 2.f * Scale, BarH + 2.f * Scale);
+		DrawRect(FLinearColor(0.4f, 0.75f, 0.3f, 0.95f * Dim), BX, BY, BarW * L.Fullness(), BarH);
+		DrawCrisp(Canvas, FString::Printf(TEXT("%d"), FMath::Max(L.PatchRemaining, 0)), Text, BX + BarW + 8.f * Scale, Y, Font, 0.95f * Scale);
+		DrawCrisp(Canvas, FString::Printf(TEXT("\u00D7%.1f"), L.Richness), FLinearColor(0.95f, 0.9f, 0.5f, Dim), BX + BarW + 44.f * Scale, Y, Font, 0.95f * Scale);
+		Y += RowH;
+	}
+	if (D->GetPhase() == EDayPhase::Shift && Lines->IsActive() && Lines->NumIdle() > 0)
+	{
+		const int32 N = Lines->NumIdle();
+		DrawCrisp(Canvas, FString::Printf(TEXT("%d worker%s idle: lay a new line"), N, N == 1 ? TEXT("") : TEXT("s")), FLinearColor(1.f, 0.8f, 0.35f, 1.f),
+			X, Y + 4.f * Scale, Font, 1.0f * Scale);
+	}
+}
+
+void ALeaflineHUD::DrawPatchPreview(const AAntPawn* Ant, const ALineSystem* Lines, float Scale)
+{
+	if (!Lines || Ant->IsCarrying()) return;
+	int32 Leaf = Ant->GetLeafInReach();
+	if (Leaf == INDEX_NONE && Ant->IsCutting()) Leaf = Ant->GetCuttingLeaf();
+	if (Leaf == INDEX_NONE) return;
+	const float Template = Ant->IsCutting() ? Ant->GetCutSize() : Lines->Tuning.PreviewTemplate;
+	FPatchPreview P;
+	if (!Lines->GetPatchPreview(Leaf, Template, P) || P.Pieces <= 0) return;
+	// The scout's own leaf is outlined by DrawLeafTarget; the patch's other leaves get a fainter outline.
+	const FLinearColor Faint(1.f, 0.88f, 0.45f, 0.35f);
+	for (const int32 Other : P.Leaves)
+	{
+		if (Other != Leaf) DrawLeafOutline(Other, Faint, 1.5f * Scale);
+	}
+	UFont* Font = GEngine->GetMediumFont();
+	const FString Text = FString::Printf(TEXT("This patch: about %d pieces, rich \u00D7%.1f"), P.Pieces, P.Richness);
+	DrawTextCentered(Text, Canvas->ClipX * 0.5f, Canvas->ClipY - 175.f * Scale, FLinearColor(0.95f, 0.9f, 0.5f, 1.f), 1.1f * Scale, Font);
+}
+
+void ALeaflineHUD::DrawHarvest(const ADayDirector* D, const ALineSystem* Lines, float Scale)
+{
+	UFont* Font = GEngine->GetMediumFont();
+	const float CX = Canvas->ClipX * 0.5f;
+	float Y = 120.f * Scale;
+	DrawTextCentered(TEXT("Harvest: the colony brings in the rest"), CX, Y, AccentColor, 1.4f * Scale, Font);
+	Y += 40.f * Scale;
+	FString Speed = D->IsSkippingHarvest() ? FString(TEXT("skipping...")) : FString::Printf(TEXT("Speed \u00D7%d"), FMath::RoundToInt(Lines ? Lines->GetSpeedFactor() : 1.f));
+	if (Lines)
+	{
+		Speed += FString::Printf(TEXT("      Recruits out: %d      Trips left: %d"), Lines->NumOut(), Lines->TripsLeft());
+	}
+	DrawTextCentered(Speed, CX, Y, TextColor, 1.1f * Scale, Font);
+	const FString Controls = D->IsSkippingHarvest() ? FString() : FString(TEXT("Space / A: skip      Tab / LB: next line"));
+	if (!Controls.IsEmpty())
+	{
+		const FVector2D Size = MeasureCrisp(Controls, Font, 1.15f * Scale);
+		const float BY = Canvas->ClipY - 130.f * Scale;
+		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.4f), CX - Size.X * 0.5f - 14.f * Scale, BY - 6.f * Scale, Size.X + 28.f * Scale, Size.Y + 12.f * Scale);
+		DrawTextCentered(Controls, CX, BY, TextColor, 1.15f * Scale, Font);
 	}
 }
 
@@ -442,24 +588,91 @@ void ALeaflineHUD::DrawRecap(const ADayDirector* D, float Scale)
 	DrawRect(FLinearColor(0.02f, 0.03f, 0.02f, 0.72f), 0.f, 0.f, Canvas->ClipX, Canvas->ClipY);
 	UFont* Large = GEngine->GetLargeFont();
 	UFont* Medium = GEngine->GetMediumFont();
+	const ULeaflineGameInstance* GI = Cast<ULeaflineGameInstance>(GetGameInstance());
+	const ALineSystem* LineSys = D->GetLineSystem();
 	const float CX = Canvas->ClipX * 0.5f;
-	float Y = Canvas->ClipY * 0.28f;
+	float Y = Canvas->ClipY * 0.11f;
 	const FDayStats& S = D->GetStats();
+
+	// Reveal clock: restarts each time the recap opens.
+	const float Dt = GetWorld() ? FMath::Min(GetWorld()->GetDeltaSeconds(), 0.1f) : 0.016f;
+	if (!bWasRecap) RecapTime = 0.f;
+	bWasRecap = true;
+	RecapTime += Dt;
+	auto Count01 = [&](float Start, float Dur) { return FMath::Clamp((RecapTime - Start) / Dur, 0.f, 1.f); };
+
 	DrawTextCentered(FString::Printf(TEXT("Day %d: today's cut from %s"), S.Day, *D->GetTreeName()), CX, Y, AccentColor, 2.0f * Scale, Large);
-	Y += 90.f * Scale;
-	const TArray<FString> Lines = {
-		FString::Printf(TEXT("Leaf hauled: %.1f"), S.MassHauled),
+	Y += 80.f * Scale;
+
+	// One row per line, in turn, each counting up; then the day total.
+	const bool bShowLines = LineSys && LineSys->GetLines().Num() > 0;
+	constexpr float RowGap = 0.6f, RowCount = 0.5f, FirstRow = 0.4f;
+	float TotalStart = 0.3f;
+	if (bShowLines)
+	{
+		const TArray<FColonyLine>& All = LineSys->GetLines();
+		constexpr int32 MaxRows = 8;
+		const int32 Shown = FMath::Min(All.Num(), MaxRows);
+		const float RowH = 30.f * Scale;
+		const float RW = 760.f * Scale, X = CX - RW * 0.5f;
+		for (int32 i = 0; i < Shown; ++i)
+		{
+			const FColonyLine& L = All[i];
+			const float Start = FirstRow + i * RowGap;
+			if (RecapTime < Start) break;
+			const float K = Count01(Start, RowCount);
+			const float Fade = FMath::Clamp((RecapTime - Start) / 0.2f, 0.f, 1.f);
+			DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.35f * Fade), X, Y - 2.f * Scale, RW, RowH);
+			DrawCrisp(Canvas, FString::Printf(TEXT("Line %d"), L.Number), FLinearColor(AccentColor.R, AccentColor.G, AccentColor.B, Fade), X + 14.f * Scale, Y, Medium, 1.05f * Scale);
+			const FLinearColor T(TextColor.R, TextColor.G, TextColor.B, Fade);
+			DrawCrisp(Canvas, FString::Printf(TEXT("pieces home %d"), FMath::RoundToInt(L.PiecesHome * K)), T, X + 120.f * Scale, Y, Medium, 1.05f * Scale);
+			DrawCrisp(Canvas, FString::Printf(TEXT("lost %d"), FMath::RoundToInt(L.PiecesLost * K)), L.PiecesLost > 0 ? FLinearColor(StaminaLockedColor.R, StaminaLockedColor.G, StaminaLockedColor.B, Fade) : T,
+				X + 330.f * Scale, Y, Medium, 1.05f * Scale);
+			DrawCrisp(Canvas, FString::Printf(TEXT("patch left %d"), FMath::Max(L.PatchRemaining, 0)), T, X + 430.f * Scale, Y, Medium, 1.05f * Scale);
+			DrawCrisp(Canvas, FString::Printf(TEXT("%.1f"), L.MassHome * K), FLinearColor(0.7f, 0.98f, 0.5f, Fade), X + RW - 90.f * Scale, Y, Medium, 1.05f * Scale);
+			Y += RowH + 4.f * Scale;
+		}
+		if (All.Num() > Shown)
+		{
+			DrawTextCentered(FString::Printf(TEXT("and %d more"), All.Num() - Shown), CX, Y, TextColor, 0.9f * Scale, Medium);
+			Y += 28.f * Scale;
+		}
+		TotalStart = FirstRow + Shown * RowGap + 0.2f;
+		Y = FMath::Max(Y, Canvas->ClipY * 0.11f + 80.f * Scale + Shown * (RowH + 4.f * Scale));
+	}
+	Y += 10.f * Scale;
+
+	// Day total, counting up, with the best-day mark.
+	const float TK = Count01(TotalStart, 0.9f);
+	if (RecapTime >= TotalStart)
+	{
+		DrawTextCentered(FString::Printf(TEXT("Leaf hauled: %.1f"), S.MassHauled * TK), CX, Y, TextColor, 1.5f * Scale, Medium);
+		Y += 46.f * Scale;
+		if (TK >= 1.f)
+		{
+			if (S.bNewBest) DrawTextCentered(TEXT("Best day yet!"), CX, Y, FLinearColor(0.95f, 0.9f, 0.5f, 1.f), 1.25f * Scale, Medium);
+			else DrawTextCentered(FString::Printf(TEXT("Best day so far: %.1f"), GI ? GI->GetBestDayHaul() : S.PreviousBest), CX, Y, FLinearColor(0.8f, 0.8f, 0.75f, 1.f), 1.05f * Scale, Medium);
+		}
+		Y += 40.f * Scale;
+	}
+	else
+	{
+		Y += 86.f * Scale;
+	}
+
+	TArray<FString> Rows = {
 		FString::Printf(TEXT("Fragments brought home: %d"), S.Fragments),
 		FString::Printf(TEXT("Largest fragment: %.1f"), S.LargestFragment),
 		FString::Printf(TEXT("Workers blown off: %d"), S.BlownOff),
 		FString::Printf(TEXT("Trail laid: %.0f m"), S.TrailLaid / 100.f),
 	};
-	for (const FString& L : Lines)
+	if (bShowLines && D->AreRecruitsOn()) Rows.Insert(FString::Printf(TEXT("Recruits: %d pieces home, %d lost to the wind"), S.RecruitPieces, S.RecruitLost), 1);
+	for (const FString& L : Rows)
 	{
-		DrawTextCentered(L, CX, Y, TextColor, 1.3f * Scale, Medium);
-		Y += 44.f * Scale;
+		DrawTextCentered(L, CX, Y, TextColor, 1.1f * Scale, Medium);
+		Y += 34.f * Scale;
 	}
-	Y += 24.f * Scale;
+	Y += 14.f * Scale;
 	DrawColonyMeter(CX, Y, 520.f * Scale, Scale);
 	Y += 90.f * Scale;
 	DrawTextCentered(TEXT("Press E / Space / A or click to go into the nest"), CX, Y, AccentColor, 1.2f * Scale, Medium);
@@ -470,7 +683,8 @@ void ALeaflineHUD::DrawColonyMeter(float CX, float Y, float W, float Scale)
 	const ULeaflineGameInstance* GI = Cast<ULeaflineGameInstance>(GetGameInstance());
 	if (!GI) return;
 	UFont* Medium = GEngine->GetMediumFont();
-	const float Top = LeaflineUpgrades::GetMilestoneThreshold(LeaflineUpgrades::MilestoneCount - 1);
+	const bool bRecruits = GI->AreRecruitsEnabled();
+	const float Top = LeaflineUpgrades::GetMilestoneThreshold(LeaflineUpgrades::MilestoneCount - 1, bRecruits);
 	const float H = 12.f * Scale, X = CX - W * 0.5f;
 	DrawTextCentered(FString::Printf(TEXT("Colony: %.1f hauled in all"), GI->GetTotalHauled()), CX, Y, TextColor, 1.1f * Scale, Medium);
 	const float BarY = Y + 34.f * Scale;
@@ -478,7 +692,7 @@ void ALeaflineHUD::DrawColonyMeter(float CX, float Y, float W, float Scale)
 	DrawRect(FLinearColor(0.4f, 0.75f, 0.3f, 0.95f), X, BarY, W * FMath::Clamp(GI->GetTotalHauled() / Top, 0.f, 1.f), H);
 	for (int32 m = 0; m < LeaflineUpgrades::MilestoneCount; ++m)
 	{
-		const float T = LeaflineUpgrades::GetMilestoneThreshold(m);
+		const float T = LeaflineUpgrades::GetMilestoneThreshold(m, bRecruits);
 		const float MX = X + W * T / Top;
 		const bool bReached = GI->HasReachedMilestone(m);
 		DrawRect(bReached ? AccentColor : TextColor, MX - 1.5f * Scale, BarY - 6.f * Scale, 3.f * Scale, H + 12.f * Scale);
@@ -532,6 +746,8 @@ void ALeaflineHUD::DrawNest(const ADayDirector* D, float Scale)
 	const float RowW = 760.f * Scale, RowH = 56.f * Scale, X = CX - RowW * 0.5f;
 	for (int32 i = 0; i <= LeaflineUpgrades::Count; ++i)
 	{
+		// Row indices and hit ids stay the upgrade index; a hidden row (Brood with recruits off) just takes no space.
+		if (i < LeaflineUpgrades::Count && !D->IsNestRowVisible(i)) continue;
 		const bool bSel = D->GetNestSelection() == i;
 		DrawRect(bSel ? FLinearColor(0.3f, 0.55f, 0.6f, 0.45f) : FLinearColor(0.f, 0.f, 0.f, 0.35f), X, Y, RowW, RowH - 6.f * Scale);
 		AddMenuHit(X, Y, RowW, RowH - 6.f * Scale, i);

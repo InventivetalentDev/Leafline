@@ -67,12 +67,21 @@ public:
 	/** Total drawn trail length (cm). */
 	float DrawnLength() const;
 
+	/**
+	 * Brightness of the ribbon by line: every drawn stretch within MergeDistance of a line's route takes the brightest
+	 * glow of the lines that use it (0..1, vertex alpha in M_Trail); stretches on no line take NoLine. Only chunks whose
+	 * brightness changed are rebuilt.
+	 */
+	void SetLineGlow(const TArray<const TArray<FTrailPoint>*>& Routes, const TArray<float>& Glow, float NoLine);
+
 private:
 	struct FPath
 	{
 		TArray<FTrailPoint> Points;
 		TArray<uint8> Drawn;
 		TArray<float> Dist;              // distance along the path to each point (cm)
+		TArray<float> Glow;              // ribbon brightness at each point (SetLineGlow)
+		TSet<int32> GlowDirtyChunks;
 		int32 DirtyFromChunk = INDEX_NONE; // only the growing tail is rebuilt
 	};
 
@@ -87,6 +96,7 @@ private:
 	TArray<FPath> Paths;
 	TMap<FIntVector, TArray<FIntPoint>> Grid; // cell -> (path, point index), every point
 	float CellSize = 60.f;
+	float NoLineGlow = 1.f;
 	float RebuildTimer = 0.f;
 
 	UPROPERTY(Transient)

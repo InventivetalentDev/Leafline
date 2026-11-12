@@ -1,5 +1,6 @@
 #include "Ant/AntPawn.h"
 #include "AntTreeGame.h"
+#include "Colony/LineSystem.h"
 #include "Ant/AntMovementComponent.h"
 #include "Tree/TreeActor.h"
 #include "Colony/TrailNetwork.h"
@@ -170,6 +171,56 @@ void AAntPawn::UnPossessed()
 void AAntPawn::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+	if (bSimDriven) return;
+	StepLogic(DeltaSeconds, true);
+}
+
+void AAntPawn::MakeRecruit(ALineSystem* InOwner)
+{
+	bRecruit = true;
+	LineOwner = InOwner;
+	SetSimDriven(true);
+}
+
+void AAntPawn::SetSimDriven(bool bDriven)
+{
+	bSimDriven = bDriven;
+	if (Movement) Movement->SetExternalStep(bDriven);
+}
+
+void AAntPawn::SimStep(float Dt, bool bVisuals)
+{
+	if (!Movement) return;
+	if (VanishTime < 0.f) Movement->Step(Dt, bVisuals);
+	StepLogic(Dt, bVisuals);
+}
+
+void AAntPawn::PushVisuals()
+{
+	if (!Movement || VanishTime >= 0.f) return;
+	Movement->ApplyTransformNow();
+	if (BodyMID)
+	{
+		BodyMID->SetScalarParameterValue(TEXT("GaitPhase"), GaitPhase);
+		BodyMID->SetScalarParameterValue(TEXT("GaitAmount"), GaitAmount);
+	}
+	UpdateSounds();
+}
+
+void AAntPawn::StartAutoCut(int32 Leaf, float Size)
+{
+	ATreeActor* Tree = GetTree();
+	if (!Tree || IsCarrying() || IsCutting()) return;
+	CuttingLeaf = Leaf;
+	CutSize = 0.f;
+	CutCap = FMath::Max(Size, Cut.MinSize);
+	bAutoCut = true;
+	if (Movement->GetState() == EAntState::Riding || Movement->GetState() == EAntState::Returning) Movement->StopFollow();
+	Movement->SetState(EAntState::Cutting);
+}
+
+void AAntPawn::StepLogic(float DeltaSeconds, bool bVisuals)
+{
 	if (!Movement) return;
 	UpdateFlutter(DeltaSeconds);
 	if (VanishTime >= 0.f)
@@ -195,7 +246,7 @@ void AAntPawn::Tick(float DeltaSeconds)
 	UpdateGrip();
 	UpdateRecording();
 	UpdateWind(DeltaSeconds);
-	UpdateSounds();
+	if (bVisuals) UpdateSounds();
 
 	// Gait: the legs cycle with distance walked (about 1.5 strides per body length) and settle when the ant stops.
 	if (BodyMID)
@@ -205,10 +256,15 @@ void AAntPawn::Tick(float DeltaSeconds)
 		const float Speed = bLegsStill ? 0.f : (float)Movement->GetVelocity().Size();
 		GaitPhase = FMath::Fmod(GaitPhase + Speed * DeltaSeconds * (2.f * PI / 14.f), 2.f * PI);
 		GaitAmount = FMath::FInterpTo(GaitAmount, FMath::Clamp(Speed / 120.f, 0.f, 1.f), DeltaSeconds, 8.f);
-		BodyMID->SetScalarParameterValue(TEXT("GaitPhase"), GaitPhase);
-		BodyMID->SetScalarParameterValue(TEXT("GaitAmount"), GaitAmount);
+		if (bVisuals)
+		{
+			BodyMID->SetScalarParameterValue(TEXT("GaitPhase"), GaitPhase);
+			BodyMID->SetScalarParameterValue(TEXT("GaitAmount"), GaitAmount);
+		}
 	}
 
+	// Recruits answer to the line system, which watches their progress itself.
+	if (bRecruit) return;
 	ADayDirector* Director = GetDirector();
 	if (!Director) return;
 	if (Movement->ConsumeFollowFinished() && Movement->GetState() == EAntState::Returning)
@@ -258,36 +314,56 @@ void AAntPawn::UpdateCutting(float Dt)
 			UE_LOG(LogLeafline, Log, TEXT("%s: cutting leaf %d (size cap %.2f)"), *GetName(), CuttingLeaf, CutCap);
 		}
 	}
+	else if (bAutoCut)
+	{
+		CutSize = FMath::Min(CutCap, CutSize + Cut.CutRate * CutRateMultiplier * Dt);
+		if (CutSize >= CutCap - 1e-4f) FinishCut();
+	}
 	else if (bCutHeld && IsPlayerControlled())
 	{
 		CutSize = FMath::Min(CutCap, CutSize + Cut.CutRate * CutRateMultiplier * Dt);
 	}
 	else
 	{
-		// Where the piece comes out, taken before the bite changes the leaf.
-		FVector2f BiteC(0.f, 0.f);
-		float BiteR = 0.f;
-		Tree->GetLeaves().PlanBite(CuttingLeaf, DiameterForSize(CutSize), BiteC, BiteR);
-		const FTreeLeaf LeafBefore = Tree->GetLeaves().Get(CuttingLeaf);
-		if (CutSize >= Cut.MinSize && Tree->BiteLeaf(CuttingLeaf, CutSize, DiameterForSize(CutSize), Cut.LeafUsePerCut))
-		{
-			SetFragment(CutSize);
-			// The tear now; the pickup sound plays when the piece lands on the back (UpdateCutVisuals).
-			LeafSound::Play(this, TEXT("cut_done"), 0.7f);
-			StartFragmentSwing(LeafBefore.Point(BiteC.X, BiteC.Y), LeafBefore.Dir, LeafBefore.Normal);
-			UE_LOG(LogLeafline, Log, TEXT("%s: cut a fragment of size %.2f (mass %.1f, %.0f cm) from leaf %d"),
-				*GetName(), CutSize, CarriedMass, DiameterForSize(CutSize), CuttingLeaf);
-		}
-		else
-		{
-			UE_LOG(LogLeafline, Log, TEXT("%s: cut cancelled at size %.2f"), *GetName(), CutSize);
-		}
-		CuttingLeaf = INDEX_NONE;
-		CutSize = 0.f;
-		LeafSound::Stop(CutLoop);
-		if (Movement->GetState() == EAntState::Cutting) Movement->SetState(EAntState::Walking);
+		FinishCut();
 	}
 	bPrevCutHeld = bCutHeld;
+}
+
+void AAntPawn::FinishCut()
+{
+	ATreeActor* Tree = GetTree();
+	if (!Tree || CuttingLeaf == INDEX_NONE) return;
+	// Where the piece comes out, taken before the bite changes the leaf.
+	FVector2f BiteC(0.f, 0.f);
+	float BiteR = 0.f;
+	Tree->GetLeaves().PlanBite(CuttingLeaf, DiameterForSize(CutSize), BiteC, BiteR);
+	const FTreeLeaf LeafBefore = Tree->GetLeaves().Get(CuttingLeaf);
+	if (CutSize >= Cut.MinSize && Tree->BiteLeaf(CuttingLeaf, CutSize, DiameterForSize(CutSize), Cut.LeafUsePerCut))
+	{
+		CarriedRichness = FMath::Max(LeafBefore.Richness, 1.f);
+		SetFragment(CutSize);
+		LastCut.Leaf = CuttingLeaf;
+		LastCut.Branch = Movement->GetCurrentBranch();
+		LastCut.Pos = Movement->GetSurfacePosition();
+		LastCut.Normal = Movement->GetSurfaceNormal();
+		LastCut.Size = CutSize;
+		LastCut.Richness = CarriedRichness;
+		// The tear now; the pickup sound plays when the piece lands on the back (UpdateCutVisuals).
+		if (!bRecruit) LeafSound::Play(this, TEXT("cut_done"), 0.7f);
+		StartFragmentSwing(LeafBefore.Point(BiteC.X, BiteC.Y), LeafBefore.Dir, LeafBefore.Normal);
+		UE_LOG(LogLeafline, Log, TEXT("%s: cut a fragment of size %.2f (mass %.1f, rich x%.2f, %.0f cm) from leaf %d"),
+			*GetName(), CutSize, CarriedMass, CarriedRichness, DiameterForSize(CutSize), CuttingLeaf);
+	}
+	else
+	{
+		UE_LOG(LogLeafline, Log, TEXT("%s: cut cancelled at size %.2f"), *GetName(), CutSize);
+	}
+	CuttingLeaf = INDEX_NONE;
+	CutSize = 0.f;
+	bAutoCut = false;
+	LeafSound::Stop(CutLoop);
+	if (Movement->GetState() == EAntState::Cutting) Movement->SetState(EAntState::Walking);
 }
 
 void AAntPawn::StartFragmentSwing(const FVector& WorldCenter, const FVector& LeafDir, const FVector& LeafNormal)
@@ -306,6 +382,8 @@ void AAntPawn::StartFragmentSwing(const FVector& WorldCenter, const FVector& Lea
 
 void AAntPawn::DepositAndVanish(const FVector& Entrance)
 {
+	// The vanish is a visual: it plays on the actor's own tick, in real time, even for a sim-stepped ant.
+	if (bSimDriven) SetSimDriven(false);
 	LeafSound::Stop(CutLoop);
 	LeafSound::Stop(GripLoop);
 	if (Movement) Movement->SetComponentTickEnabled(false);
@@ -465,9 +543,38 @@ bool AAntPawn::DebugCutNow(float Size01)
 	const int32 Leaf = Tree->FindLeafNear(GetActorTransform().TransformPosition(MandibleOffset), Cut.Reach);
 	if (Leaf == INDEX_NONE) return false;
 	const float Size = FMath::Min(Size01, Tree->LeafSizeCap(Leaf, Cut.LeafUsePerCut));
+	const float Richness = FMath::Max(Tree->GetLeaves().Get(Leaf).Richness, 1.f);
 	if (!Tree->BiteLeaf(Leaf, Size, DiameterForSize(Size), Cut.LeafUsePerCut)) return false;
+	CarriedRichness = Richness;
 	SetFragment(Size);
+	LastCut.Leaf = Leaf;
+	LastCut.Branch = Movement->GetCurrentBranch();
+	LastCut.Pos = Movement->GetSurfacePosition();
+	LastCut.Normal = Movement->GetSurfaceNormal();
+	LastCut.Size = Size;
+	LastCut.Richness = Richness;
 	UE_LOG(LogLeafline, Log, TEXT("%s: cut a fragment of size %.2f (mass %.1f) from leaf %d"), *GetName(), Size, CarriedMass, Leaf);
+	return true;
+}
+
+bool AAntPawn::DebugCutLeaf(int32 Leaf, float Size01)
+{
+	ATreeActor* Tree = GetTree();
+	if (!Tree || IsCarrying() || Leaf < 0 || Leaf >= Tree->GetLeaves().Num()) return false;
+	const float Size = FMath::Min(Size01, Tree->LeafSizeCap(Leaf, Cut.LeafUsePerCut));
+	const FTreeLeaf& L = Tree->GetLeaves().Get(Leaf);
+	const float Richness = FMath::Max(L.Richness, 1.f);
+	const int32 Branch = L.Branch;
+	if (Size < Cut.MinSize || !Tree->BiteLeaf(Leaf, Size, DiameterForSize(Size), Cut.LeafUsePerCut)) return false;
+	CarriedRichness = Richness;
+	SetFragment(Size);
+	LastCut.Leaf = Leaf;
+	LastCut.Branch = Movement->GetCurrentBranch() != INDEX_NONE ? Movement->GetCurrentBranch() : Branch;
+	LastCut.Pos = Movement->GetSurfacePosition();
+	LastCut.Normal = Movement->GetSurfaceNormal();
+	LastCut.Size = Size;
+	LastCut.Richness = Richness;
+	UE_LOG(LogLeafline, Log, TEXT("%s: test cut of size %.2f (mass %.1f, rich x%.2f) from leaf %d"), *GetName(), Size, CarriedMass, Richness, Leaf);
 	return true;
 }
 
@@ -577,7 +684,7 @@ void AAntPawn::UpdateWind(float Dt)
 
 void AAntPawn::BlowOff(float Force, float Hold, float Exposure)
 {
-	LeafSound::Play(this, TEXT("blown_off"), 0.8f);
+	if (!bRecruit) LeafSound::Play(this, TEXT("blown_off"), 0.8f);
 	LeafSound::Stop(CutLoop);
 	UE_LOG(LogLeafline, Log, TEXT("%s: blown off (force %.2f > hold %.2f, exposure %.2f, fragment %.1f, state %s)"),
 		*GetName(), Force, Hold, Exposure, CarriedMass, *UEnum::GetValueAsString(Movement->GetState()));
@@ -585,6 +692,7 @@ void AAntPawn::BlowOff(float Force, float Hold, float Exposure)
 	{
 		CuttingLeaf = INDEX_NONE;
 		CutSize = 0.f;
+		bAutoCut = false;
 	}
 	const bool bHadPiece = IsCarrying();
 	ClearFragment();
@@ -614,7 +722,14 @@ void AAntPawn::BlowOff(float Force, float Hold, float Exposure)
 		}
 	}
 	Movement->StartFall(Wind ? Wind->GetDirection() : FVector::ForwardVector);
-	if (ADayDirector* D = GetDirector()) D->OnBlownOff(this);
+	if (bRecruit)
+	{
+		if (ALineSystem* Lines = LineOwner.Get()) Lines->OnRecruitBlownOff(this);
+	}
+	else if (ADayDirector* D = GetDirector())
+	{
+		D->OnBlownOff(this);
+	}
 }
 
 void AAntPawn::UpdateSounds()
@@ -674,17 +789,8 @@ void AAntPawn::StartReturn()
 	// and skip the loops, so an ant sent home halfway down the tree goes down, not back up first.
 	TArray<FTrailPoint> Route;
 	const ATreeActor* Tree = GetTree();
-	auto CanCross = [Tree](const FVector& A, const FVector& B)
-	{
-		// The follower walks the straight line and projects onto the nearest bark: every sample must stay close to
-		// the surface, or it would hop to another branch. A chord across a curved trunk dips a few cm into the wood.
-		if (!Tree) return false;
-		for (int32 k = 1; k < 6; ++k)
-		{
-			if (FMath::Abs(Tree->GetField().Distance(FMath::Lerp(A, B, k / 6.0))) > 10.0) return false;
-		}
-		return true;
-	};
+	// The follower walks the straight line and projects onto the nearest bark: a jump is only taken where it stays on it.
+	auto CanCross = [Tree](const FVector& A, const FVector& B) { return Tree && Tree->StaysOnBark(A, B); };
 	Trails->BuildReturnRoute(Movement->GetSurfacePosition(), Movement->GetSurfaceNormal(), PathIndex, 100.f, CanCross, Route);
 	const TArray<FTrailPoint>& Own = Trails->GetPoints(PathIndex);
 	auto Length = [](const TArray<FTrailPoint>& Pts)
@@ -715,6 +821,7 @@ void AAntPawn::ClearFragment()
 {
 	CarriedSize = 0.f;
 	CarriedMass = 0.f;
+	CarriedRichness = 1.f;
 	if (Movement) Movement->CarriedMass = 0.f;
 	FragmentMesh->SetVisibility(false);
 }

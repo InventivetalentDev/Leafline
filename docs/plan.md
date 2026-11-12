@@ -123,7 +123,23 @@ Order by visible impact per hour:
 
 **Feature freeze: Saturday 23:00.** After this, only fixes.
 
-## M6: Stretch (only if M0–M5 are complete before the freeze)
+## M5b: The line (Thu night to Fri; owner's verdict Friday evening)
+
+Spec: `docs/briefs/the-line.md`; work split and interfaces: `docs/briefs/line-contract.md`. Tagged `pre-line` before it started; commits start with `Line:`. If the owner cuts it, `FDayTuning::bRecruits` ships off and nothing is reverted.
+
+- [ ] Lines: a scout's piece on its way home turns its loop-free route (from the cut, `BuildReturnRoute`) into a line; the patch is the walkable leaves around the cut leaf (`ATreeActor::BuildPatch`, `BuildLeafApproach`).
+- [ ] Recruits (`ALineSystem`): one pool from Brood, three trips each, leave 1.5 s apart, same wind test as scouts, blown-off recruits lose the trip, stripped patches send them home without using one.
+- [ ] Fixed-step sim: recruits, the wind clock and (in the harvest) returning scouts step in 1/120 s steps, so a skipped harvest is the same simulation.
+- [ ] Day end: every ant home; harvest phase at 5×, skippable; camera at the nest looking up the trunk, Tab hops to the patches.
+- [ ] Richer leaves (1× to 3×, paler green), patch read-out and outline before cutting.
+- [ ] Trail brightness by patch (replaces the age fade).
+- [ ] Six-level ladders, Brood as the recruit pool, two milestone sets, save version 2 with v1 migration, best day; `-LeafSlot` test slot.
+- [ ] Number-go-up: "+N" at the nest with a rising chime, colony counter, one row per line, recap counting up line by line.
+- [ ] Off switch `Leaf.Recruits 0|1`.
+- [ ] Codex review of the day-end state machine.
+- [ ] Acceptance tests 1 to 8 (`Tools/line_test.sh`, `Tools/econ_sim.py`).
+
+## M6: Stretch (only if M0–M5b are complete before the freeze; the bird waits for the owner to keep the line)
 
 1. Bird: perches, notices exposed ants, swoops; dropping a food item distracts it. Needs a model (Blender script), simple state machine, and a food pickup. Nothing harmful is shown happening to the bird.
 2. Taking control of an ant that is already returning.

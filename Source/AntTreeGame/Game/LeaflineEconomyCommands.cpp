@@ -46,7 +46,7 @@ namespace
 		}));
 
 	FAutoConsoleCommandWithWorldAndArgs CmdResetSave(
-		TEXT("Leaf.ResetSave"), TEXT("Leaf.ResetSave: overwrite the colony save with defaults. Active day continues."),
+		TEXT("Leaf.ResetSave"), TEXT("Leaf.ResetSave: overwrite the selected -LeafSlot (default Leafline). Active day continues."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 		{
 			if (Args.Num() != 0)
@@ -70,6 +70,11 @@ namespace
 			{
 				UE_LOG(LogLeafline, Log, TEXT("Mass %.2f; total hauled %.2f; day %d; milestones %d/%d. Next cost 0 = MAX."),
 					Colony->GetLeafMass(), Colony->GetTotalHauled(), Colony->GetDay(), Colony->GetReachedMilestoneCount(), LeaflineUpgrades::MilestoneCount);
+				UE_LOG(LogLeafline, Log, TEXT("Recruits %s; pool %d; best day %.2f; milestone thresholds %.0f / %.0f / %.0f."),
+					Colony->AreRecruitsEnabled() ? TEXT("on") : TEXT("off"), Colony->GetRecruitPool(), Colony->GetBestDayHaul(),
+					LeaflineUpgrades::GetMilestoneThreshold(0, Colony->AreRecruitsEnabled()),
+					LeaflineUpgrades::GetMilestoneThreshold(1, Colony->AreRecruitsEnabled()),
+					LeaflineUpgrades::GetMilestoneThreshold(2, Colony->AreRecruitsEnabled()));
 				for (int32 Index = 0; Index < LeaflineUpgrades::Count; ++Index)
 				{
 					const FLeaflineUpgradeInfo* Info = LeaflineUpgrades::Get(Index);

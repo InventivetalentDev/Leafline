@@ -2,6 +2,7 @@
 #include "AntTreeGame.h"
 #include "Tree/TreeSkeleton.h"
 #include "Tree/TreeMeshBuilder.h"
+#include "Colony/ColonyTypes.h"
 #include "ProceduralMeshComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "UObject/ConstructorHelpers.h"
@@ -18,6 +19,394 @@ namespace
 		C->bUseAsyncCooking = false;
 		C->RegisterComponent();
 		return C;
+	}
+}
+
+/**
+ * Approach routes over the bark. The route is laid out from the skeleton: along each branch of the branch-graph walk
+ * (up the start branch to its junction, along the common ancestor, out the leaf's branch), a guide point every few cm at
+ * the ride height above the branch surface, at an angle round the branch (0 = its top). Each guide is projected onto the
+ * walking field, gaps and sharp bends between neighbours are subdivided by projecting midpoints, and every step is checked.
+ * The angle turns from the start's side onto the top (or a side, if the top is blocked by another twig's base: the
+ * retries), runs there, and turns to the leaf's side for the last stretch. A child's guides start at its axis, inside the
+ * parent, where they project onto the parent's surface, so a junction crossing is a continuous curve.
+ */
+namespace LeafRoute
+{
+	constexpr double Height = 1.5;        // the followers' ride height (FAntMoveTuning::RideHeight) and the trail points'
+	constexpr double StepS = 9.0;         // guide spacing along a branch axis (cm)
+	constexpr double MaxGap = 12.0;       // longest step between route points (cm)
+	constexpr double MinGap = 4.0;        // a guide closer than this to the previous point is dropped
+	constexpr double MinNormalDot = 0.0;  // a sharper turn of the surface normal within one step is subdivided
+	constexpr double TurnLen = 60.0;      // the route turns from its start's side onto the top over this length (and to the leaf)
+	constexpr double BarkTolerance = 10.0;
+	constexpr int32 MaxRefineDepth = 5;
+
+	enum EResult : int32 { Ok, BadInput, TooFar, Projection, OffPath, Gap, OffBark, TooLong, NumResults };
+	const TCHAR* const ResultNames[NumResults] = { TEXT("ok"), TEXT("bad input"), TEXT("too far along the branches"),
+		TEXT("projection failed"), TEXT("left the branches"), TEXT("gap"), TEXT("off the bark"), TEXT("too long") };
+
+	bool OnBark(const FTreeField& Field, const FVector& A, const FVector& B)
+	{
+		// The follower walks the straight line and projects onto the nearest bark: every sample must stay close to the
+		// surface, or it would hop to another branch. A chord across a curved trunk dips a few cm into the wood.
+		for (int32 k = 1; k < 6; ++k)
+		{
+			if (FMath::Abs(Field.Distance(FMath::Lerp(A, B, k / 6.0))) > BarkTolerance) return false;
+		}
+		return true;
+	}
+
+	double RouteLength(const TArray<FTrailPoint>& Pts)
+	{
+		double L = 0.0;
+		for (int32 k = 1; k < Pts.Num(); ++k) L += FVector::Dist(Pts[k - 1].Pos, Pts[k].Pos);
+		return L;
+	}
+
+	/** Arc length of the point on a branch's centreline nearest P. */
+	double NearestS(const FTreeBranch& B, const FVector& P)
+	{
+		double BestD2 = TNumericLimits<double>::Max(), BestS = 0.0;
+		for (int32 i = 0; i + 1 < B.Samples.Num(); ++i)
+		{
+			const FVector A = B.Samples[i];
+			const FVector AB = B.Samples[i + 1] - A;
+			const double L2 = AB.SizeSquared();
+			const double T = L2 > 1e-6 ? FMath::Clamp(FVector::DotProduct(P - A, AB) / L2, 0.0, 1.0) : 0.0;
+			const double D2 = FVector::DistSquared(P, A + AB * T);
+			if (D2 < BestD2)
+			{
+				BestD2 = D2;
+				BestS = FMath::Lerp((double)B.SampleDist[i], (double)B.SampleDist[i + 1], T);
+			}
+		}
+		return BestS;
+	}
+
+	/** Centre, radius, tangent and an across-frame (Top: world up across the branch; Side = T x Top) at arc length S. */
+	struct FAcross
+	{
+		FVector C = FVector::ZeroVector;
+		FVector T = FVector::UpVector;
+		FVector Top = FVector::ForwardVector;
+		FVector Side = FVector::RightVector;
+		double R = 0.0;
+	};
+
+	FAcross FrameAt(const FTreeSkeleton& Sk, int32 Branch, double S)
+	{
+		const FTreeBranch& B = Sk.Branches[Branch];
+		const double Len = FMath::Max((double)B.Length(), 1.0);
+		FAcross F;
+		float Rad = 0.f;
+		F.C = TreeSkeleton::SampleAt(B, (float)(S / Len), &Rad);
+		F.R = Rad;
+		// Central difference over a few cm: SampleAt's own tangent is the chord of one sample span and kinks at samples.
+		const FVector Ahead = TreeSkeleton::SampleAt(B, (float)(FMath::Min(S + 6.0, Len) / Len));
+		const FVector Behind = TreeSkeleton::SampleAt(B, (float)(FMath::Max(S - 6.0, 0.0) / Len));
+		F.T = (Ahead - Behind).GetSafeNormal();
+		if (F.T.IsNearlyZero()) F.T = FVector::UpVector;
+		FVector Top = FVector::UpVector - F.T * F.T.Z;
+		const double TopLen = Top.Size();
+		// On a near-vertical branch "up" has no direction across it: blend toward a direction across the parent, so a
+		// child's guides at its base never sit on the parent's axis (where the field has no gradient).
+		FVector Alt = FVector::ForwardVector;
+		if (Sk.Branches.IsValidIndex(B.Parent))
+		{
+			FVector PT;
+			TreeSkeleton::SampleAt(Sk.Branches[B.Parent], B.ParentT, nullptr, &PT);
+			const FVector Across = FVector::CrossProduct(PT, FVector::UpVector);
+			if (Across.SizeSquared() > 0.01) Alt = Across.GetSafeNormal();
+		}
+		Alt = (Alt - F.T * FVector::DotProduct(Alt, F.T)).GetSafeNormal();
+		if (TopLen < 0.25)
+		{
+			Top += Alt * ((0.25 - TopLen) * 4.0);
+			Top -= F.T * FVector::DotProduct(Top, F.T);
+		}
+		F.Top = Top.GetSafeNormal();
+		if (F.Top.IsNearlyZero()) F.Top = Alt.IsNearlyZero() ? FVector::ForwardVector : Alt;
+		F.Side = FVector::CrossProduct(F.T, F.Top);
+		return F;
+	}
+
+	double AngleIn(const FAcross& F, const FVector& V)
+	{
+		return FMath::Atan2(FVector::DotProduct(V, F.Side), FVector::DotProduct(V, F.Top));
+	}
+
+	FVector Radial(const FAcross& F, double Theta)
+	{
+		return F.Top * FMath::Cos(Theta) + F.Side * FMath::Sin(Theta);
+	}
+
+	double Smooth(double T)
+	{
+		T = FMath::Clamp(T, 0.0, 1.0);
+		return T * T * (3.0 - 2.0 * T);
+	}
+
+	double LerpAngle(double A, double B, double T)
+	{
+		return A + FMath::UnwindRadians(B - A) * T;
+	}
+
+	/** One stretch of the walk: along Branch from arc length S0 to S1. */
+	struct FLeg
+	{
+		int32 Branch = INDEX_NONE;
+		double S0 = 0.0;
+		double S1 = 0.0;
+	};
+	using FLegs = TArray<FLeg, TInlineAllocator<8>>;
+
+	/**
+	 * The branch-graph walk from (BranchA, SA) to (BranchB, SB) through their common ancestor. OutLen is its centreline
+	 * length; OutBark discounts the stretch of each child branch buried in its parent (a closer estimate of the walk over
+	 * the bark). False if the branches are not connected.
+	 */
+	bool Walk(const FTreeSkeleton& Sk, int32 BranchA, double SA, int32 BranchB, double SB, FLegs* OutLegs, double& OutLen, double& OutBark)
+	{
+		OutLen = OutBark = 0.0;
+		if (OutLegs) OutLegs->Reset();
+		TArray<int32, TInlineAllocator<8>> ChainA, ChainB;
+		for (int32 b = BranchA; Sk.Branches.IsValidIndex(b) && ChainA.Num() < 16; b = Sk.Branches[b].Parent) ChainA.Add(b);
+		for (int32 b = BranchB; Sk.Branches.IsValidIndex(b) && ChainB.Num() < 16; b = Sk.Branches[b].Parent) ChainB.Add(b);
+		int32 IA = INDEX_NONE, IB = INDEX_NONE;
+		for (int32 i = 0; i < ChainA.Num() && IA == INDEX_NONE; ++i)
+		{
+			const int32 j = ChainB.Find(ChainA[i]);
+			if (j != INDEX_NONE)
+			{
+				IA = i;
+				IB = j;
+			}
+		}
+		if (IA == INDEX_NONE) return false;
+
+		auto JunctionS = [&Sk](int32 Child)
+		{
+			const FTreeBranch& C = Sk.Branches[Child];
+			return (double)C.ParentT * Sk.Branches[C.Parent].Length();
+		};
+		auto ParentRadius = [&Sk](int32 Child)
+		{
+			const FTreeBranch& C = Sk.Branches[Child];
+			float R = 0.f;
+			TreeSkeleton::SampleAt(Sk.Branches[C.Parent], C.ParentT, &R);
+			return (double)R;
+		};
+		auto AddLeg = [&](int32 Branch, double S0, double S1, bool bChild, int32 ChildIndex)
+		{
+			const double D = FMath::Abs(S1 - S0);
+			OutLen += D;
+			OutBark += bChild ? FMath::Max(D - ParentRadius(ChildIndex), 0.0) : D;
+			if (OutLegs) OutLegs->Add({ Branch, S0, S1 });
+		};
+
+		// Down the start branch's ancestry to the common ancestor (toward each branch's base)...
+		double S = SA;
+		for (int32 i = 0; i < IA; ++i)
+		{
+			const int32 b = ChainA[i];
+			AddLeg(b, S, 0.0, true, b);
+			S = JunctionS(b);
+		}
+		// ...along it...
+		const int32 Lca = ChainA[IA];
+		const double SEnd = IB == 0 ? SB : JunctionS(ChainB[IB - 1]);
+		AddLeg(Lca, S, SEnd, false, INDEX_NONE);
+		// ...and out to the leaf's branch.
+		for (int32 j = IB - 1; j >= 0; --j)
+		{
+			const int32 b = ChainB[j];
+			AddLeg(b, 0.0, j == 0 ? SB : JunctionS(ChainB[j - 1]), true, b);
+		}
+		return true;
+	}
+
+	/** Projects guides onto the field and joins them into a route with checked steps. */
+	struct FTracer
+	{
+		const FTreeField& Field;
+		TArray<int32, TInlineAllocator<32>> Allowed; // branches the route may touch
+		TArray<FTrailPoint> Pts;
+
+		explicit FTracer(const FTreeField& InField) : Field(InField) {}
+
+		EResult Place(FVector& P, FVector& N) const
+		{
+			double Err = 0.0;
+			if (!Field.Project(P, N, Height, &Err))
+			{
+				// A symmetric spot can have no gradient: nudge off it and try again (as UAntMovementComponent::SnapToSurface).
+				P += FVector(0.7, 0.3, 1.1);
+				if (!Field.Project(P, N, Height, &Err)) return Projection;
+			}
+			int32 Nearest = INDEX_NONE;
+			Field.Distance(P, &Nearest);
+			return Nearest != INDEX_NONE && Allowed.Contains(Nearest) ? Ok : OffPath;
+		}
+
+		/** Appends the points after A up to B, subdividing until each step is short and gently curved. */
+		EResult Refine(const FTrailPoint& A, const FTrailPoint& B, int32 Depth)
+		{
+			if (FVector::Dist(A.Pos, B.Pos) <= MaxGap && FVector::DotProduct(A.Normal, B.Normal) >= MinNormalDot)
+			{
+				if (!OnBark(Field, A.Pos, B.Pos)) return OffBark;
+				Pts.Add(B);
+				return Ok;
+			}
+			if (Depth >= MaxRefineDepth) return Gap;
+			FTrailPoint M;
+			M.Pos = (A.Pos + B.Pos) * 0.5;
+			const EResult R = Place(M.Pos, M.Normal);
+			if (R != Ok) return R;
+			const EResult R1 = Refine(A, M, Depth + 1);
+			return R1 != Ok ? R1 : Refine(M, B, Depth + 1);
+		}
+
+		/** Projects a guide and joins it to the route. The last guide is always kept: the route must end at the leaf. */
+		EResult Add(const FVector& Guide, bool bLast)
+		{
+			FTrailPoint Q;
+			Q.Pos = Guide;
+			const EResult R = Place(Q.Pos, Q.Normal);
+			if (R != Ok) return R;
+			// Drop points the route would double back over: where a child rises from its parent's top, its first guides
+			// project a little behind the junction. Only near-reversals (over about 155 degrees); fork turns are gentler.
+			while (Pts.Num() >= 2)
+			{
+				const FVector In = Pts.Last().Pos - Pts[Pts.Num() - 2].Pos;
+				const FVector Out = Q.Pos - Pts.Last().Pos;
+				if (FVector::DotProduct(In, Out) >= -0.9 * In.Size() * Out.Size()) break;
+				Pts.RemoveAt(Pts.Num() - 1);
+			}
+			if (FVector::Dist(Pts.Last().Pos, Q.Pos) < MinGap)
+			{
+				if (!bLast) return Ok;
+				if (Pts.Num() > 1) Pts.RemoveAt(Pts.Num() - 1);
+			}
+			const FTrailPoint Prev = Pts.Last(); // a copy: Refine appends to Pts
+			return Refine(Prev, Q, 0);
+		}
+	};
+
+	EResult BuildApproach(const FTreeSkeleton& Sk, const FTreeField& Field, const FLeafSet& Leaves,
+		const TArray<TArray<int32>>& Children, const FVector& From, int32 FromBranch, int32 Leaf, double MaxWalk,
+		TArray<FTrailPoint>& OutRoute)
+	{
+		OutRoute.Reset();
+		if (!Field.IsValid() || Leaf < 0 || Leaf >= Leaves.Num()) return BadInput;
+		const FTreeLeaf& L = Leaves.Get(Leaf);
+		auto Usable = [&Sk](int32 b) { return Sk.Branches.IsValidIndex(b) && Sk.Branches[b].Samples.Num() >= 2; };
+		if (!Usable(L.Branch)) return BadInput;
+
+		FTracer Tr(Field);
+		// Start on the bark under From.
+		FTrailPoint Start;
+		Start.Pos = From;
+		{
+			double Err = 0.0;
+			if (!Field.Project(Start.Pos, Start.Normal, Height, &Err))
+			{
+				Start.Pos += FVector(0.7, 0.3, 1.1);
+				if (!Field.Project(Start.Pos, Start.Normal, Height, &Err)) return Projection;
+			}
+		}
+		int32 NearStart = INDEX_NONE;
+		Field.Distance(Start.Pos, &NearStart);
+		int32 B0 = Usable(FromBranch) ? FromBranch : NearStart;
+		if (!Usable(B0)) return BadInput; // on the ground
+		double S0 = NearestS(Sk.Branches[B0], Start.Pos);
+		FAcross F0 = FrameAt(Sk, B0, S0);
+		if (B0 != NearStart && Usable(NearStart))
+		{
+			// The given branch is not under From (more than a hand's width off its surface): walk from the nearest one.
+			const FVector V = Start.Pos - F0.C;
+			const double Off = (V - F0.T * FVector::DotProduct(V, F0.T)).Size() - F0.R;
+			if (FMath::Abs(Off) > 25.0)
+			{
+				B0 = NearStart;
+				S0 = NearestS(Sk.Branches[B0], Start.Pos);
+				F0 = FrameAt(Sk, B0, S0);
+			}
+		}
+		const double S1 = FMath::Clamp((double)L.BranchS, 0.0, (double)Sk.Branches[L.Branch].Length());
+		const FAcross F1 = FrameAt(Sk, L.Branch, S1);
+
+		FLegs Legs;
+		double Len = 0.0, Bark = 0.0;
+		if (!Walk(Sk, B0, S0, L.Branch, S1, &Legs, Len, Bark)) return BadInput;
+		if (Bark > MaxWalk * 1.15 + 30.0) return TooFar;
+
+		// The route may touch the walk's branches, their parents (junctions) and their children (it may brush past the base
+		// of a twig it does not take), but nothing else: a point on any other branch means it hopped across the air.
+		auto Allow = [&](int32 b)
+		{
+			if (!Sk.Branches.IsValidIndex(b)) return;
+			Tr.Allowed.AddUnique(b);
+			if (Sk.Branches.IsValidIndex(Sk.Branches[b].Parent)) Tr.Allowed.AddUnique(Sk.Branches[b].Parent);
+			if (Children.IsValidIndex(b)) for (int32 c : Children[b]) Tr.Allowed.AddUnique(c);
+		};
+		for (const FLeg& G : Legs) Allow(G.Branch);
+		if (Usable(NearStart)) Tr.Allowed.AddUnique(NearStart);
+
+		const double ThStart = AngleIn(F0, Start.Pos - F0.C);
+		const double ThEnd = AngleIn(F1, L.Base - F1.C);
+		const bool bCruise = Len >= 2.0 * TurnLen + 20.0;
+		// Long routes: over the top first, then further round on either side (another twig's base can block the top).
+		// Short ones turn straight from the start's side to the leaf's, or the other way round the branch.
+		TArray<double, TInlineAllocator<6>> Options;
+		const double Delta = FMath::UnwindRadians(ThEnd - ThStart);
+		if (bCruise) Options.Append({ 0.0, 1.05, -1.05, 2.1, -2.1, PI });
+		else
+		{
+			Options.Add(Delta);
+			if (FMath::Abs(Delta) > 0.5) Options.Add(Delta - FMath::Sign(Delta) * 2.0 * PI);
+		}
+
+		EResult First = Ok;
+		for (int32 o = 0; o < Options.Num(); ++o)
+		{
+			const double Opt = Options[o];
+			auto Theta = [&](double U)
+			{
+				if (!bCruise) return ThStart + Opt * Smooth(Len > 1.0 ? U / Len : 1.0);
+				if (U < TurnLen) return LerpAngle(ThStart, Opt, Smooth(U / TurnLen));
+				if (U > Len - TurnLen) return LerpAngle(Opt, ThEnd, Smooth((U - (Len - TurnLen)) / TurnLen));
+				return Opt;
+			};
+			Tr.Pts.Reset();
+			Tr.Pts.Add(Start);
+			EResult R = Ok;
+			double U = 0.0;
+			for (int32 g = 0; g < Legs.Num() && R == Ok; ++g)
+			{
+				const FLeg& Leg = Legs[g];
+				const double D = FMath::Abs(Leg.S1 - Leg.S0);
+				const int32 N = FMath::Max(1, FMath::CeilToInt32(D / StepS));
+				for (int32 k = 0; k <= N && R == Ok; ++k)
+				{
+					const double A = double(k) / N;
+					const FAcross F = FrameAt(Sk, Leg.Branch, FMath::Lerp(Leg.S0, Leg.S1, A));
+					const bool bLast = g == Legs.Num() - 1 && k == N;
+					// At U = Len the angle is ThEnd in the leaf's frame, so the last guide sits on the leaf's Base.
+					R = Tr.Add(F.C + Radial(F, Theta(bLast ? Len : U + D * A)) * (F.R + Height), bLast);
+				}
+				U += D;
+			}
+			if (R == Ok && FVector::Dist(Tr.Pts.Last().Pos, L.Base) > 25.0) R = Gap;
+			if (R == Ok && RouteLength(Tr.Pts) > MaxWalk) R = TooLong;
+			if (R == Ok)
+			{
+				OutRoute = MoveTemp(Tr.Pts);
+				return Ok;
+			}
+			if (o == 0) First = R;
+		}
+		return First;
 	}
 }
 
@@ -45,6 +434,13 @@ void ATreeActor::Grow(int32 Seed)
 	const double StartTime = FPlatformTime::Seconds();
 	TreeSkeleton::Grow(Skeleton, Params, Seed);
 	Field.Build(Skeleton);
+	BranchChildren.Reset();
+	BranchChildren.SetNum(Skeleton.Branches.Num());
+	for (int32 b = 0; b < Skeleton.Branches.Num(); ++b)
+	{
+		const int32 Parent = Skeleton.Branches[b].Parent;
+		if (BranchChildren.IsValidIndex(Parent)) BranchChildren[Parent].Add(b);
+	}
 
 	FTreeMeshData Data;
 	TreeMeshBuilder::Build(Skeleton, Data);
@@ -67,6 +463,7 @@ void ATreeActor::Grow(int32 Seed)
 
 	// Leaves: one mesh section per limb, so a cut rebuilds only a small chunk.
 	Leaves.Build(Skeleton, Field);
+	PatchWalkCache.Reset();
 	if (!LeafMesh) LeafMesh = MakeMeshComponent(this, RootComponent, TEXT("LeafMesh"));
 	LeafMesh->ClearAllMeshSections();
 	LeafMaterialInUse = LeafMaterial;
@@ -114,6 +511,162 @@ bool ATreeActor::BiteLeaf(int32 Leaf, float Size01, float DiameterCm, float UseP
 	UE_LOG(LogLeafline, Log, TEXT("Leaf %d bitten: size %.2f, %d bites, %.0f%% left"), Leaf, Size01, Leaves.Get(Leaf).Bites,
 		Leaves.Get(Leaf).Remaining * 100.f);
 	return true;
+}
+
+bool ATreeActor::StaysOnBark(const FVector& A, const FVector& B) const
+{
+	return LeafRoute::OnBark(Field, A, B);
+}
+
+bool ATreeActor::BuildLeafApproach(const FVector& From, int32 FromBranch, int32 Leaf, float MaxWalk, TArray<FTrailPoint>& OutRoute) const
+{
+	const LeafRoute::EResult R = LeafRoute::BuildApproach(Skeleton, Field, Leaves, BranchChildren, From, FromBranch, Leaf, MaxWalk, OutRoute);
+	if (ApproachStats.Num() < LeafRoute::NumResults) ApproachStats.SetNumZeroed(LeafRoute::NumResults);
+	++ApproachStats[R];
+	if (R != LeafRoute::Ok)
+	{
+		UE_LOG(LogLeafline, Verbose, TEXT("Approach to leaf %d from branch %d failed: %s"), Leaf, FromBranch, LeafRoute::ResultNames[R]);
+	}
+	return R == LeafRoute::Ok;
+}
+
+bool ATreeActor::PatchLeafReachable(int32 CutLeaf, int32 Leaf, float MaxWalk) const
+{
+	// Reachability depends only on the tree, so it is kept for the tree's life: the HUD asks again as the cut grows.
+	const uint64 Key = (uint64(uint32(CutLeaf)) << 32) | uint64(uint32(Leaf));
+	if (const float* Known = PatchWalkCache.Find(Key))
+	{
+		if (*Known >= 0.f) return *Known <= MaxWalk;
+		if (MaxWalk <= -*Known) return false;
+	}
+	const FTreeLeaf& Cut = Leaves.Get(CutLeaf);
+	TArray<FTrailPoint> Route;
+	const bool bOk = BuildLeafApproach(Cut.Base, Cut.Branch, Leaf, MaxWalk, Route);
+	PatchWalkCache.Add(Key, bOk ? (float)LeafRoute::RouteLength(Route) : -FMath::Max(MaxWalk, 1.f));
+	return bOk;
+}
+
+void ATreeActor::BuildPatch(int32 CutLeaf, const FPatchRules& Rules, TArray<int32>& OutLeaves) const
+{
+	OutLeaves.Reset();
+	if (CutLeaf < 0 || CutLeaf >= Leaves.Num()) return;
+	const FTreeLeaf& Cut = Leaves.Get(CutLeaf);
+	if (!Skeleton.Branches.IsValidIndex(Cut.Branch)) return;
+	OutLeaves.Add(CutLeaf);
+	int32 Pieces = Leaves.PiecesLeft(CutLeaf, Rules.Template, Rules.UsePerCut);
+	const int32 MaxLeaves = FMath::Max(Rules.MaxLeaves, 1);
+	if (OutLeaves.Num() >= MaxLeaves || Pieces >= Rules.MaxPieces) return;
+
+	// Leaves grow on boughs (level 2) and twigs (level 3): the patch is the cut leaf's bough and that bough's twigs.
+	const FTreeBranch& CutBranch = Skeleton.Branches[Cut.Branch];
+	int32 Bough = Cut.Branch;
+	if (CutBranch.Level >= 3 && Skeleton.Branches.IsValidIndex(CutBranch.Parent)) Bough = CutBranch.Parent;
+	TArray<int32, TInlineAllocator<16>> Group;
+	Group.Add(Bough);
+	if (BranchChildren.IsValidIndex(Bough))
+	{
+		for (int32 c : BranchChildren[Bough])
+		{
+			if (Skeleton.Branches[c].Level > Skeleton.Branches[Bough].Level) Group.Add(c);
+		}
+	}
+
+	// Candidates by the cheap estimate (along the branch graph), the cut leaf's own branch first; approaches are built
+	// lazily in that order, since each costs a few thousand field evaluations.
+	struct FCand
+	{
+		int32 Leaf;
+		bool bOtherBranch;
+		double Walk;
+	};
+	TArray<FCand, TInlineAllocator<64>> Cands;
+	for (int32 b : Group)
+	{
+		const TArray<int32>* List = Leaves.LeavesOnBranch(b);
+		if (!List) continue;
+		for (int32 i : *List)
+		{
+			if (i == CutLeaf || Leaves.PiecesLeft(i, Rules.Template, Rules.UsePerCut) <= 0) continue;
+			double Len = 0.0, Bark = 0.0;
+			if (!LeafRoute::Walk(Skeleton, Cut.Branch, Cut.BranchS, b, Leaves.Get(i).BranchS, nullptr, Len, Bark)) continue;
+			if (Bark > Rules.MaxWalk) continue;
+			Cands.Add({ i, b != Cut.Branch, Bark });
+		}
+	}
+	Cands.Sort([](const FCand& A, const FCand& B) { return A.bOtherBranch != B.bOtherBranch ? !A.bOtherBranch : A.Walk < B.Walk; });
+
+	for (const FCand& C : Cands)
+	{
+		if (OutLeaves.Num() >= MaxLeaves || Pieces >= Rules.MaxPieces) break;
+		const int32 P = Leaves.PiecesLeft(C.Leaf, Rules.Template, Rules.UsePerCut);
+		if (Pieces + P > Rules.MaxPieces) continue; // a smaller leaf further on may still fit
+		if (!PatchLeafReachable(CutLeaf, C.Leaf, Rules.MaxWalk)) continue;
+		OutLeaves.Add(C.Leaf);
+		Pieces += P;
+	}
+}
+
+void ATreeActor::LogPatchSurvey(int32 Samples) const
+{
+	if (Leaves.Num() == 0) return;
+	const double StartTime = FPlatformTime::Seconds();
+	PatchWalkCache.Reset();
+	if (ApproachStats.Num() < LeafRoute::NumResults) ApproachStats.SetNumZeroed(LeafRoute::NumResults);
+	const TArray<int32> Before = ApproachStats;
+
+	const float Templates[3] = { 0.3f, 0.6f, 1.0f };
+	TArray<int32> LeafCount[3], PieceCount[3];
+	FPatchRules Rules;
+	TArray<int32> Patch;
+	const int32 Want = FMath::Clamp(Samples, 1, Leaves.Num());
+	const int32 Stride = FMath::Max(1, Leaves.Num() / Want);
+	int32 Taken = 0;
+	for (int32 i = Stride / 2; i < Leaves.Num() && Taken < Want; i += Stride)
+	{
+		if (!Leaves.Get(i).CanCut()) continue;
+		++Taken;
+		for (int32 t = 0; t < 3; ++t)
+		{
+			Rules.Template = Templates[t];
+			BuildPatch(i, Rules, Patch);
+			int32 P = 0;
+			for (int32 l : Patch) P += Leaves.PiecesLeft(l, Rules.Template, Rules.UsePerCut);
+			LeafCount[t].Add(Patch.Num());
+			PieceCount[t].Add(P);
+		}
+	}
+	auto Summary = [](TArray<int32>& V)
+	{
+		if (V.Num() == 0) return FString(TEXT("none"));
+		V.Sort();
+		return FString::Printf(TEXT("median %d (%d..%d)"), V[V.Num() / 2], V[0], V.Last());
+	};
+	for (int32 t = 0; t < 3; ++t)
+	{
+		UE_LOG(LogLeafline, Log, TEXT("Patch survey, template %.1f: %d patches, leaves %s, pieces %s (scout's leaf included, before its cut)"),
+			Templates[t], LeafCount[t].Num(), *Summary(LeafCount[t]), *Summary(PieceCount[t]));
+	}
+	int32 Built = 0;
+	FString Failures;
+	for (int32 r = 0; r < LeafRoute::NumResults; ++r)
+	{
+		const int32 N = ApproachStats[r] - Before[r];
+		Built += N;
+		if (r != LeafRoute::Ok && N > 0) Failures += FString::Printf(TEXT(", %s %d"), LeafRoute::ResultNames[r], N);
+	}
+	const int32 Failed = Built - (ApproachStats[LeafRoute::Ok] - Before[LeafRoute::Ok]);
+	UE_LOG(LogLeafline, Log, TEXT("Patch survey: %d candidate approaches built, %d failed%s; %.0f ms (seed %d, max walk %.0f cm)"),
+		Built, Failed, *Failures, (FPlatformTime::Seconds() - StartTime) * 1000.0, GetSeed(), Rules.MaxWalk);
+}
+
+FString ATreeActor::DescribeApproachStats() const
+{
+	FString Out;
+	for (int32 r = 0; r < LeafRoute::NumResults && r < ApproachStats.Num(); ++r)
+	{
+		if (ApproachStats[r] > 0) Out += FString::Printf(TEXT("%s%s %d"), Out.IsEmpty() ? TEXT("") : TEXT(", "), LeafRoute::ResultNames[r], ApproachStats[r]);
+	}
+	return Out.IsEmpty() ? FString(TEXT("none built")) : Out;
 }
 
 void ATreeActor::BuildGrove()

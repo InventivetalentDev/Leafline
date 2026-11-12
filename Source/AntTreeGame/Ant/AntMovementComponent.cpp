@@ -130,6 +130,12 @@ bool UAntMovementComponent::PlaceOnBranch(int32 Branch, float T)
 void UAntMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+	if (bExternalStep) return;
+	Step(DeltaTime, true);
+}
+
+void UAntMovementComponent::Step(float DeltaTime, bool bApplyTransform)
+{
 	const FTreeField* F = GetField();
 	if (!F || !F->IsValid()) return;
 	if (!bPlaced) SnapToSurface();
@@ -153,7 +159,7 @@ void UAntMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType, 
 		TickRooted(Dt);
 		break;
 	}
-	ApplyTransform();
+	if (bApplyTransform) ApplyTransform();
 
 	if (LeafDebug::bDebugField)
 	{
@@ -449,6 +455,8 @@ void UAntMovementComponent::StartFollow(const TArray<FTrailPoint>& Points, int32
 	FollowFrac = 0.0;
 	FollowDir = Direction >= 0 ? 1 : -1;
 	bFollowFinished = false;
+	FollowWait = 0.f;
+	FollowLag = 0.0;
 	SetState(FollowState);
 }
 
@@ -471,16 +479,25 @@ void UAntMovementComponent::TickFollow(float Dt)
 	UpdateStamina(Dt, false);
 
 	const float CarryFactor = FMath::Clamp(1.f - Tuning.SpeedLossPerMass * CarriedMass, Tuning.MinCarrySpeedFactor, 1.f);
-	const float Speed = State == EAntState::Riding ? Tuning.RideSpeed : Tuning.WalkSpeed * CarryFactor;
-	double Remaining = Speed * Dt;
+	const float Speed = State == EAntState::Riding ? (FollowRideOverride > 0.f ? FollowRideOverride : Tuning.RideSpeed)
+	                                               : Tuning.WalkSpeed * CarryFactor * FollowReturnScale;
+	// The point being followed waits for an ant that falls behind (a concave corner where the ground meets the trunk,
+	// a sharp turn), so the straight step toward it never cuts through wood and pins the ant there. The wait is
+	// bounded so a stuck ant still gets on, and a follow only finishes once the ant has reached the end.
+	{
+		const int32 NextIdx = FollowIndex + FollowDir;
+		const FVector Cur = FollowPoints.IsValidIndex(NextIdx)
+			? FMath::Lerp(FollowPoints[FollowIndex].Pos, FollowPoints[NextIdx].Pos, FollowFrac)
+			: FollowPoints[FollowIndex].Pos;
+		FollowLag = FVector::Dist(Pos, Cur);
+		FollowWait = FollowLag > 30.0 ? FollowWait + Dt : 0.f;
+		if (!FollowPoints.IsValidIndex(NextIdx) && (FollowLag < 20.0 || FollowWait >= 2.f)) bFollowFinished = true;
+	}
+	double Remaining = (FollowLag > 30.0 && FollowWait < 2.f) ? 0.0 : Speed * Dt;
 	while (Remaining > 0.0 && !bFollowFinished)
 	{
 		const int32 Next = FollowIndex + FollowDir;
-		if (!FollowPoints.IsValidIndex(Next))
-		{
-			bFollowFinished = true;
-			break;
-		}
+		if (!FollowPoints.IsValidIndex(Next)) break; // at the end: finishes once the ant is there (above)
 		const double SegLen = FMath::Max(FVector::Dist(FollowPoints[FollowIndex].Pos, FollowPoints[Next].Pos), 0.01);
 		const double Left = SegLen * (1.0 - FollowFrac);
 		if (Remaining < Left)

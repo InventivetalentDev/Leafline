@@ -13,6 +13,7 @@ class AAntPawn;
 class APlayerController;
 class ADirectionalLight;
 class AWindSystem;
+class ALineSystem;
 
 /**
  * The look of the day: sun warmth through the shifts, sky haze, height fog and light shafts. Applied to the level's
@@ -91,7 +92,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day")
 	TSubclassOf<AAntPawn> WorkerClass;
 
-	void Init(ATreeActor* InTree, ATrailNetwork* InTrails, ANestActor* InNest, AWindSystem* InWind);
+	void Init(ATreeActor* InTree, ATrailNetwork* InTrails, ANestActor* InNest, AWindSystem* InWind, ALineSystem* InLines);
 	void SetPlayer(APlayerController* InPlayer) { Player = InPlayer; }
 
 	/** Grows the day's tree (seed from the day number unless overridden) and sends out the first worker. */
@@ -103,6 +104,8 @@ public:
 	void OnBlownOff(AAntPawn* Ant);
 	/** An ant reached the nest: deposit what it carries. */
 	void OnAntReachedNest(AAntPawn* Ant);
+	/** A piece reached the nest (scout or recruit): today's stats, the colony's haul, milestones. */
+	void CreditHaul(float Mass, bool bByRecruit);
 	/** Switch the camera between ants that are out or returning. */
 	void CycleWorker();
 	/** Leave the recap screen for the next day. */
@@ -117,6 +120,24 @@ public:
 	bool IsMenuPhase() const { return Phase == EDayPhase::Title || Phase == EDayPhase::Recap || Phase == EDayPhase::EndCard || Phase == EDayPhase::Nest; }
 	/** Selected row on the nest screen: 0..4 upgrades, 5 = start the next day. */
 	int32 GetNestSelection() const { return NestSelection; }
+	/** Whether an upgrade's row is on the nest screen (Brood is hidden while recruits are off). */
+	bool IsNestRowVisible(int32 Upgrade) const;
+	/** Recruits on: FDayTuning::bRecruits (Leaf.Recruits). */
+	bool AreRecruitsOn() const { return Tuning.bRecruits; }
+	void SetRecruitsOn(bool bOn);
+
+	// Harvest: every scout is home or on its way and recruits still have trips; the rest of the day plays fast.
+	bool IsHarvest() const { return Phase == EDayPhase::Harvest; }
+	bool IsSkippingHarvest() const { return bSkippingHarvest; }
+	/** Finish the harvest at skip speed (same simulation, more steps per frame). */
+	void SkipHarvest();
+	/** Harvest camera: 0 = at the nest looking up the trunk, k = the patch end of the k-th live line. Tab steps. */
+	void CycleHarvestView();
+	int32 GetHarvestView() const { return HarvestView; }
+	/** Debug (Leaf.Harvest): end every shift now and go straight to the harvest. */
+	void ForceHarvest();
+	/** Debug: the scout under control if it is out, else the next one called out at once (no pause). */
+	AAntPawn* DebugTakeNextScout();
 	/** The mouse moved onto a nest row (0..upgrade count, the last is "next day"). */
 	void SetNestSelection(int32 Index);
 
@@ -136,6 +157,7 @@ public:
 	ATrailNetwork* GetTrails() const { return Trails; }
 	ANestActor* GetNest() const { return Nest; }
 	AWindSystem* GetWind() const { return Wind; }
+	ALineSystem* GetLineSystem() const { return Lines; }
 
 	static ADayDirector* Get(const UObject* WorldContext);
 
@@ -151,12 +173,19 @@ private:
 	void PossessNext();
 	int32 FindWorker(const AAntPawn* Ant) const;
 	void CheckAllHome();
+	/** Day-end and harvest transitions, evaluated every frame during shifts and the harvest. */
+	void UpdateDayFlow();
+	void EnterHarvest();
+	void EndDay();
+	/** Where the harvest camera should be for the current view. */
+	void UpdateHarvestCamera(float Dt);
 	void UpdateSun(float Dt, bool bSnap);
 
 	UPROPERTY(Transient) TObjectPtr<ATreeActor> Tree;
 	UPROPERTY(Transient) TObjectPtr<ATrailNetwork> Trails;
 	UPROPERTY(Transient) TObjectPtr<ANestActor> Nest;
 	UPROPERTY(Transient) TObjectPtr<AWindSystem> Wind;
+	UPROPERTY(Transient) TObjectPtr<ALineSystem> Lines;
 	TWeakObjectPtr<APlayerController> Player;
 	TWeakObjectPtr<ADirectionalLight> Sun;
 
@@ -181,4 +210,6 @@ private:
 	TWeakObjectPtr<AAntPawn> PendingFrom;
 	int32 NestSelection = 0;
 	bool bEndCardPending = false;
+	bool bSkippingHarvest = false;
+	int32 HarvestView = 0;
 };

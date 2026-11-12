@@ -38,5 +38,6 @@ private:
 	UPROPERTY(Transient) TObjectPtr<ANestActor> Nest;
 	UPROPERTY(Transient) TObjectPtr<ADayDirector> Director;
 	UPROPERTY(Transient) TObjectPtr<class AWindSystem> Wind;
+	UPROPERTY(Transient) TObjectPtr<class ALineSystem> Lines;
 	bool bDayStarted = false;
 };

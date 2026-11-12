@@ -158,7 +158,17 @@ A separate actor that follows the controlled ant. It is never attached.
 - **Returning** is that array played backwards at the ant's laden speed, each point re-projected onto the field.
 - The network keeps every path for the day. For drawing, a new path only adds geometry where it is farther than a threshold from existing trail; where it overlaps, it raises that trail's strength.
 - **Riding**: find the nearest trail point within reach, then advance along that path away from the nest. At the end of a path, or on any movement input, return to `Walking`. Where paths fork, prefer the one whose direction best matches the camera's forward.
-- Rendering: a thin ribbon lifted slightly off the surface along the stored normals, unlit translucent cyan, with a slow flow in the shader. Brightness follows strength. Restrained, as in the concept art.
+- Rendering: a thin ribbon lifted slightly off the surface along the stored normals, unlit translucent cyan. Brightness (vertex alpha, which `M_Trail` multiplies into opacity) shows each line's patch: `ATrailNetwork::SetLineGlow` gives every drawn stretch within `MergeDistance` of a line's route the brightest glow of the lines using it (full patch 1.0, stripped 0.3, no line 0.25), and only the chunks that changed are rebuilt. Faint stretches are a little thinner.
+
+## The line (`LineSystem`)
+
+Spec: `docs/briefs/the-line.md`. `ALineSystem` (spawned by the game mode, initialised with the tree, trails, nest, wind and director) owns lines, the recruit pool and the fixed-step clock.
+
+- **Line**: made by `AddLine` when a scout's piece is on its way home (`ADayDirector::SendHome`, or a scout carrying it into the nest). The route is `BuildReturnRoute` from the scout's cut (`AAntPawn::GetLastCut`, recorded at the cut, not where send-home was pressed), nest first. The patch is `ATreeActor::BuildPatch` around the cut leaf (same twig, then neighbouring twigs of the bough, nearest first along the bark; `FLineTuning::PatchMaxLeaves` 4, `PatchMaxPieces` 10 including the scout's piece), and each patch leaf gets an approach route over the branch graph (`ATreeActor::BuildLeafApproach`). Leaves without an approach are left out.
+- **Recruits** are `AAntPawn`s with `MakeRecruit`: never possessed, no trail recording, stepped by the line system (`SetSimDriven`, `SimStep`), spawned per trip and gone into the nest at the end (`DepositAndVanish`). States: `Nest`, `Queued`, `Out` (riding the line plus the approach at `OutSpeed`), `Cutting` (`StartAutoCut`, the template size at the ant's cut rate), `Laden` / `Empty` (route backwards at the laden speed × `HomeSpeedScale`), `Fallen` (blown off: fall, walk home over the ground). Per-leaf reservations keep two recruits from going for the last piece. A recruit not at its leaf `ReachTimeout` s after the end of the line cuts from where it stands (logged as a fallback). A rescue after `RescueAfter` s guarantees every recruit gets home.
+- **Fixed steps**: `ALineSystem::Tick` accumulates real time × `SpeedFactor` and runs steps of `FLineTuning::Step` (1/120 s): the wind clock (`AWindSystem::Advance`; the wind's own tick only does sound, materials and streaks), every recruit and, during the harvest, returning scouts handed over with `AddDrivenAnt`. A frame budget (`FrameBudgetMs`) bounds the skip; over budget the backlog is dropped, so results never depend on frame rate or on watching versus skipping. Transforms and leg animation are pushed once per frame (`PushVisuals`).
+- **Values**: `FTreeLeaf::Richness` (1× low to about 3× high and far out) multiplies a piece's value (`AAntPawn::GetCarriedValue`); the carried weight that slows the ant stays size-based. Leaf vertex alpha carries `(Richness - 1) / 2` for `M_Leaf`.
+- **Read-outs**: `GetLines` (per line: pieces home and lost, patch remaining, fullness, recruits on it), `NumIdle`, `GetPatchPreview` (cached a second), `GetRecentDeliveries` (for the "+N"; the chime pitch rises with `Chain`).
 
 ## Cutting and carrying
 
@@ -191,15 +201,19 @@ blown off when Force > Hold
 - `DayDirector` runs the day as a state machine:
 
 ```
-Title -> DayStart (grow tree from hash(seed, day), set wind, reset roster)
-      -> Shift (player controls worker i; others may be Returning)
+Title -> DayStart (grow tree from hash(seed, day), set wind, reset roster and recruit pool)
+      -> Shift (player controls scout i; others may be Returning; recruits work lines at 1x)
+      -> Harvest (no scout waiting or out, recruits still have work: 5x, skippable)
       -> AllHome -> Recap -> Nest (upgrade screen) -> DayStart
 ```
+
+- `ADayDirector::UpdateDayFlow` runs every frame in `Shift` and `Harvest`: with no scout waiting or out (and the send-home or fall moment over), it enters the harvest if `ALineSystem::HasWork()`, else ends the day once no scout is still returning. In the harvest the day ends when no recruit has work and no scout is returning. `HasWork` is true while any recruit is queued or out, or one in the nest has trips left and a live line to go to.
 
 - The roster holds one entry per worker: `Waiting`, `Out`, `Returning`, `Home`, `BlownOff`. "Next worker" spawns at the nest. When none are waiting, the camera follows a returning ant and the cycle key switches between them until all are in.
 - Difficulty per day: `LowestLeafyHeight` rises, gust peak and frequency rise.
 - Spawn objects the pawn depends on in `InitGame`, since the pawn exists before `BeginPlay`.
-- Milestones and the end card read `TotalHauled`.
+- Milestones and the end card read `TotalHauled`, against the line set or the "by hand" set (`ULeaflineGameInstance::AreRecruitsEnabled`).
+- Save version 2 adds `BestDayHaul`; version-1 saves are migrated (levels clamped to the new range). `-LeafSlot=<name>` selects another save slot for automated runs (`Tools/line_test.sh` uses `LineTest`).
 
 ## Input
 
@@ -248,13 +262,20 @@ Console commands pay for themselves, because verification is done by driving Pla
 | `Leaf.PauseMenu <0\|1> [row]` | Pause and show the pause menu (0) or the options page (1) with a row selected (screenshots) |
 | `Leaf.LightInfo` | Log the sun, sky light, atmosphere, fog, clouds and post-process settings found in the level |
 | `Leaf.QuitAfter <seconds>` | Exit a standalone game after a delay, also while paused (unattended runs; ignored in the editor) |
-| `Leaf.Tune <cam\|move\|input> [Field] [Value]` | List, read or set a tuning value while playing (shown on screen and logged), e.g. `Leaf.Tune cam SurfaceFollow 0` |
+| `Leaf.Tune <cam\|move\|input\|look\|day\|line\|wind> [Field] [Value]` | List, read or set a tuning value while playing (shown on screen and logged), e.g. `Leaf.Tune cam SurfaceFollow 0` |
 | `Leaf.NewDay [seed]` | Regrow |
 | `Leaf.Gust [0-1]` | Trigger a gust (warning, rise, hold, fall) with that peak |
 | `Leaf.FaceWind exposed\|sheltered` | Put the ant on the windward or lee side of the trunk (wind tests) |
 | `Leaf.Give <mass>` / `Leaf.Buy <index>` | Economy |
 | `Leaf.DebugField 0\|1` | Draw normals, projection error, exposure |
 | `Leaf.Carry <size>` | Hand the ant a fragment |
+| `Leaf.Recruits 0\|1` | The line's off switch: recruits, harvest, Brood row, milestone set (the pool follows from the next day) |
+| `Leaf.Pool <n>` | Force the recruit pool from the next day; -1 returns to the Brood upgrade |
+| `Leaf.Patch [leaf] [size]` | Log the patch around the leaf in reach (or a given leaf): leaves, pieces at that size, richness |
+| `Leaf.Harvest` / `Leaf.SkipHarvest` | End the shifts now and go to the harvest; skip a running harvest |
+| `Leaf.LineInfo` | Log every line (home, lost, patch left, reserved, recruits on it) and the pool |
+| `Leaf.TestLines <n> [size] [exposed\|sheltered\|any] [seed]` | Scouts lay lines at once to leaves in the lowest leafy band, each with a real walk over the bark from the nest (tests) |
+| `Leaf.AutoPlay <days> [lines] [watch\|skip] [buy] [quit]` | Unattended days with scripted scouts and random lines; logs whether every day ends |
 
 Log gameplay events under one category (`LogLeafline`) so pickups, deposits, blow-offs and state changes can be checked from the log.
 

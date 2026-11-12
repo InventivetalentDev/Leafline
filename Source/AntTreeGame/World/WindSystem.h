@@ -87,6 +87,12 @@ public:
 	void StartDay(int32 InDay, int32 Seed);
 	/** Starts a gust now (Leaf.Gust). */
 	void TriggerGust(float Peak = 1.f);
+	/** Advances the gust clock (phases, strength, direction). The line system calls it in its fixed sim steps; the
+	 *  actor's own tick then only updates sound, materials and streaks. */
+	void Advance(float Dt);
+	void SetExternalClock(bool bExternal) { bExternalClock = bExternal; }
+	/** No warning sound on phase changes (a skipped harvest runs many gusts a second). */
+	void SetMuteCues(bool bMute) { bMuteCues = bMute; }
 
 	EWindPhase GetPhase() const { return Phase; }
 	float GetStrength() const { return Strength; }
@@ -148,6 +154,8 @@ private:
 	float BaseYaw = 0.f;
 	float Clock = 0.f;
 	int32 Day = 1;
+	bool bExternalClock = false;
+	bool bMuteCues = false;
 	float SpareFloat = 0.f;
 	int32 SpareInt = 0;
 };

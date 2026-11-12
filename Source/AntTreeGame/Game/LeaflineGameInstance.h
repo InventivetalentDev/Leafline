@@ -44,7 +44,15 @@ public:
 	float GetUpgradeEffect(ELeaflineUpgrade Upgrade) const;
 	float GetGripMultiplier() const { return GetUpgradeEffect(ELeaflineUpgrade::Grip); }
 	int32 GetWorkersPerDay(int32 Base) const;
-	/** Milestone indices 0..2 correspond to 15/40/80 lifetime haul. Spending cannot undo them. */
+	/** Runtime switch, default true; never stored in the colony save. */
+	bool AreRecruitsEnabled() const;
+	void SetRecruitsEnabled(bool bOn);
+	/** Brood's pool, or zero while recruits are disabled. */
+	int32 GetRecruitPool() const;
+	float GetBestDayHaul() const;
+	/** Updates a positive finite record; persisted by SaveNow. */
+	bool RecordDayHaul(float DayHaul);
+	/** Milestone indices 0..2 use the current recruit flag. Spending cannot undo them. */
 	bool HasReachedMilestone(int32 Index) const;
 	int32 GetReachedMilestoneCount() const;
 	/** Past the last milestone and the end card not yet shown (survives quitting at the recap). */
@@ -66,6 +74,8 @@ private:
 	void RefreshAntUpgrades();
 
 	UPROPERTY(Transient) TObjectPtr<ULeaflineSaveGame> Colony;
+	FString SaveSlot = TEXT("Leafline");
+	bool bRecruitsEnabled = true;
 	/** Weak keys let old worlds/workers be collected normally. */
 	TMap<TWeakObjectPtr<AAntPawn>, FAntBaseTuning> AntBases;
 };

@@ -6,6 +6,7 @@
 
 class AAntPawn;
 class ADayDirector;
+class ALineSystem;
 
 /** Canvas HUD: stamina, carried load, worker pips, cut arc, context prompts and the end-of-day recap. */
 UCLASS()
@@ -44,6 +45,14 @@ private:
 	void DrawCutArc(const AAntPawn* Ant, float Scale);
 	/** Outline of the leaf the ant would cut, so the player can see the target before pressing cut. */
 	void DrawLeafTarget(const AAntPawn* Ant, float Scale);
+	/** Outline of one leaf's blade. False (nothing drawn) if part of it is behind the camera. */
+	bool DrawLeafOutline(int32 LeafIndex, const FLinearColor& Color, float Thickness);
+	/** The line: "+N" at the nest, colony counter, line rows, patch read-out and the harvest overlay. */
+	void DrawDeliveryPops(const ALineSystem* Lines, float Scale);
+	void DrawColonyCounter(const ADayDirector* D, float Scale, float Dt);
+	void DrawLineRows(const ADayDirector* D, const ALineSystem* Lines, float Scale);
+	void DrawPatchPreview(const AAntPawn* Ant, const ALineSystem* Lines, float Scale);
+	void DrawHarvest(const ADayDirector* D, const ALineSystem* Lines, float Scale);
 	/** While cutting: the line the piece will tear along (the part of the bite circle inside the blade), growing with it. */
 	void DrawCutLine(const AAntPawn* Ant, float Scale);
 	void DrawPrompt(const AAntPawn* Ant, const ADayDirector* D, float Scale);
@@ -77,6 +86,12 @@ private:
 	float BannerTime = 0.f;
 	FString BannerTitle;
 	FString BannerLine;
+
+	// Colony counter value shown (ticks up to the real total); negative until first drawn.
+	float ColonyShown = -1.f;
+	// Recap reveal clock (real seconds since the recap opened) and whether the last frame was the recap.
+	float RecapTime = 0.f;
+	bool bWasRecap = false;
 
 	float StaminaShown = 1.f;
 	float StaminaAlpha = 0.f;

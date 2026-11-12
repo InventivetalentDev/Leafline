@@ -4,29 +4,42 @@
 #include "Ant/AntPawn.h"
 #include "Ant/AntMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 #include "UObject/UObjectGlobals.h"
 
 namespace
 {
-	const FString SaveSlot = TEXT("Leafline");
 	constexpr int32 SaveUser = 0;
 }
 
 void ULeaflineGameInstance::Init()
 {
 	Super::Init();
+	FString RequestedSlot;
+	if (FParse::Value(FCommandLine::Get(), TEXT("LeafSlot="), RequestedSlot) && !RequestedSlot.IsEmpty())
+		SaveSlot = RequestedSlot;
+	bool bMigrate = false;
 	if (UGameplayStatics::DoesSaveGameExist(SaveSlot, SaveUser))
 	{
 		Colony = Cast<ULeaflineSaveGame>(UGameplayStatics::LoadGameFromSlot(SaveSlot, SaveUser));
-		if (!Colony || Colony->Version != ULeaflineSaveGame::CurrentVersion)
+		if (!Colony || Colony->Version < 1 || Colony->Version > ULeaflineSaveGame::CurrentVersion)
 		{
 			UE_LOG(LogLeafline, Warning, TEXT("Leafline save unreadable or unsupported version; starting a fresh colony."));
 			Colony = nullptr;
 		}
+		else bMigrate = Colony->Version == 1;
 	}
 	if (!Colony) Colony = NewObject<ULeaflineSaveGame>(this);
 	Colony->Sanitize();
-	UE_LOG(LogLeafline, Log, TEXT("Colony loaded: day %d, mass %.2f, total hauled %.2f"), GetDay(), GetLeafMass(), GetTotalHauled());
+	if (bMigrate)
+	{
+		Colony->Version = ULeaflineSaveGame::CurrentVersion;
+		UE_LOG(LogLeafline, Log, TEXT("Migrated colony save from version 1 to 2; existing levels and progress preserved."));
+		SaveNow(); // A write failure is logged; the migrated in-memory colony remains usable.
+	}
+	UE_LOG(LogLeafline, Log, TEXT("Colony loaded from slot '%s': day %d, mass %.2f, total hauled %.2f, best day %.2f"),
+		*SaveSlot, GetDay(), GetLeafMass(), GetTotalHauled(), GetBestDayHaul());
 	OnChanged.Broadcast();
 }
 
@@ -91,7 +104,7 @@ void ULeaflineGameInstance::SetDay(int32 InDay)
 bool ULeaflineGameInstance::SaveNow()
 {
 	const bool bSaved = Colony && UGameplayStatics::SaveGameToSlot(Colony, SaveSlot, SaveUser);
-	if (!bSaved) UE_LOG(LogLeafline, Error, TEXT("Could not write the Leafline save slot."));
+	if (!bSaved) UE_LOG(LogLeafline, Error, TEXT("Could not write save slot '%s'."), *SaveSlot);
 	return bSaved;
 }
 
@@ -117,13 +130,39 @@ float ULeaflineGameInstance::GetUpgradeEffect(ELeaflineUpgrade Upgrade) const
 
 int32 ULeaflineGameInstance::GetWorkersPerDay(int32 Base) const
 {
-	const int32 Extra = static_cast<int32>(GetUpgradeEffect(ELeaflineUpgrade::Brood));
-	return FMath::Clamp(Base, 0, MAX_int32 - Extra) + Extra;
+	return Base;
+}
+
+bool ULeaflineGameInstance::AreRecruitsEnabled() const { return bRecruitsEnabled; }
+
+void ULeaflineGameInstance::SetRecruitsEnabled(bool bOn)
+{
+	if (bRecruitsEnabled == bOn) return;
+	bRecruitsEnabled = bOn;
+	UE_LOG(LogLeafline, Log, TEXT("Recruits %s; pool %d, milestones %d/%d"), bOn ? TEXT("on") : TEXT("off"),
+		GetRecruitPool(), GetReachedMilestoneCount(), LeaflineUpgrades::MilestoneCount);
+	OnChanged.Broadcast();
+}
+
+int32 ULeaflineGameInstance::GetRecruitPool() const
+{
+	return bRecruitsEnabled ? static_cast<int32>(GetUpgradeEffect(ELeaflineUpgrade::Brood)) : 0;
+}
+
+float ULeaflineGameInstance::GetBestDayHaul() const { return Colony ? Colony->BestDayHaul : 0.f; }
+
+bool ULeaflineGameInstance::RecordDayHaul(float DayHaul)
+{
+	if (!Colony || !FMath::IsFinite(DayHaul) || DayHaul <= Colony->BestDayHaul) return false;
+	Colony->BestDayHaul = DayHaul;
+	UE_LOG(LogLeafline, Log, TEXT("New best day: %.2f"), DayHaul);
+	OnChanged.Broadcast();
+	return true;
 }
 
 bool ULeaflineGameInstance::HasReachedMilestone(int32 Index) const
 {
-	const float Threshold = LeaflineUpgrades::GetMilestoneThreshold(Index);
+	const float Threshold = LeaflineUpgrades::GetMilestoneThreshold(Index, AreRecruitsEnabled());
 	return Threshold > 0.f && GetTotalHauled() >= Threshold;
 }
 

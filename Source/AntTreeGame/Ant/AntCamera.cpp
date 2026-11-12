@@ -91,9 +91,38 @@ void AAntCamera::Snap()
 	bHasSnapped = true;
 }
 
+void AAntCamera::SetOverview(bool bOn, const FVector& Location, const FVector& LookAt)
+{
+	if (!bOn)
+	{
+		if (bOverview)
+		{
+			bOverview = false;
+			bHasSnapped = false; // back on the ant: snap behind it
+		}
+		return;
+	}
+	if (!bOverview) bOverviewPlaced = false;
+	bOverview = true;
+	OverviewLoc = Location;
+	OverviewLook = LookAt;
+}
+
 void AAntCamera::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	if (bOverview)
+	{
+		// Glide (or cut, the first time) to the overview spot; no cutaway, no ant.
+		const float Dt = FMath::Min(DeltaTime, 0.1f);
+		const FVector Loc = bOverviewPlaced ? FMath::VInterpTo(GetActorLocation(), OverviewLoc, Dt, 2.2f) : OverviewLoc;
+		const FRotator Want = (OverviewLook - Loc).Rotation();
+		const FRotator Rot = bOverviewPlaced ? FMath::RInterpTo(GetActorRotation(), Want, Dt, 3.f) : Want;
+		SetActorLocationAndRotation(Loc, Rot);
+		bOverviewPlaced = true;
+		PublishView(Loc, OverviewLook, false);
+		return;
+	}
 	AAntPawn* T = Target.Get();
 	if (!T || !T->GetAntMovement())
 	{

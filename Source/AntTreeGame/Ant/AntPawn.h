@@ -15,6 +15,20 @@ class ATreeActor;
 class ATrailNetwork;
 class ADayDirector;
 class ULeaflineAudioLoop;
+class ALineSystem;
+
+/** Where a worker's last piece came from: a line is built from here, not from where send-home was pressed. */
+struct FAntCutRecord
+{
+	int32 Leaf = INDEX_NONE;
+	/** Branch the ant stood on while cutting. */
+	int32 Branch = INDEX_NONE;
+	FVector Pos = FVector::ZeroVector;
+	FVector Normal = FVector::UpVector;
+	float Size = 0.f;
+	float Richness = 1.f;
+	bool IsValid() const { return Leaf != INDEX_NONE; }
+};
 
 /** A worker ant. The same class is used for the controlled ant and unattended ones. */
 UCLASS()
@@ -74,7 +88,26 @@ public:
 	bool IsTrailInReach() const { return bTrailInReach; }
 	bool IsCarrying() const { return CarriedSize > 0.f; }
 	float GetCarriedSize() const { return CarriedSize; }
+	/** Size-based mass: what slows the ant and tires it. */
 	float GetCarriedMass() const { return CarriedMass; }
+	/** What the colony is credited on delivery: the mass times the leaf's richness. */
+	float GetCarriedValue() const { return IsCarrying() ? CarriedMass * CarriedRichness : 0.f; }
+	float GetCarriedRichness() const { return CarriedRichness; }
+	/** The last piece this ant cut (invalid until it cuts one). */
+	const FAntCutRecord& GetLastCut() const { return LastCut; }
+
+	// Recruits: workers the colony sends by itself along a line. Never controlled; the line system steps them.
+	void MakeRecruit(ALineSystem* Owner);
+	bool IsRecruit() const { return bRecruit; }
+	/** Cut this leaf now, the piece growing to Size at the ant's cut rate, then onto the back (recruits). */
+	void StartAutoCut(int32 Leaf, float Size);
+	/** Movement and logic advance only through SimStep (recruits, and returning scouts during the harvest). */
+	void SetSimDriven(bool bDriven);
+	bool IsSimDriven() const { return bSimDriven; }
+	/** One fixed sim step. bVisuals: also update the transform, legs and other looks (the last step of a frame). */
+	void SimStep(float Dt, bool bVisuals);
+	/** After a frame's sim steps: place the actor and update the legs and sounds once. */
+	void PushVisuals();
 	float MassForSize(float Size01) const { return FMath::Lerp(Cut.MassMin, Cut.MassMax, FMath::Clamp(Size01, 0.f, 1.f)); }
 	float DiameterForSize(float Size01) const { return FMath::Lerp(Cut.DiameterMin, Cut.DiameterMax, FMath::Clamp(Size01, 0.f, 1.f)); }
 	void ClearFragment();
@@ -82,6 +115,8 @@ public:
 	void GiveFragment(float Size01) { SetFragment(Size01); }
 	/** Cuts the leaf in reach at once with the given size (debug). Returns false if no leaf is in reach. */
 	bool DebugCutNow(float Size01);
+	/** Cuts this leaf at once, wherever the ant is (automated tests). */
+	bool DebugCutLeaf(int32 Leaf, float Size01);
 
 	/** Replay the recorded path back to the nest, unattended. */
 	void StartReturn();
@@ -136,7 +171,10 @@ protected:
 	UPROPERTY(Transient) TObjectPtr<ULeaflineAudioLoop> GripLoop;
 
 private:
+	void StepLogic(float Dt, bool bVisuals);
 	void UpdateCutting(float Dt);
+	/** The cut ends: bite the leaf and take the piece if it is big enough, else cancel. */
+	void FinishCut();
 	void UpdateRiding(float Dt);
 	void UpdateRecording();
 	void UpdateGrip();
@@ -181,6 +219,12 @@ private:
 	float CutCap = 0.f;
 	float CarriedSize = 0.f;
 	float CarriedMass = 0.f;
+	float CarriedRichness = 1.f;
+	FAntCutRecord LastCut;
+	bool bRecruit = false;
+	bool bSimDriven = false;
+	bool bAutoCut = false;
+	TWeakObjectPtr<ALineSystem> LineOwner;
 	int32 LeafInReach = INDEX_NONE;
 	bool bTrailInReach = false;
 	float TrailCheckTimer = 0.f;

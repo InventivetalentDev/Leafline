@@ -19,6 +19,7 @@ enum class EDayPhase : uint8
 	Starting,
 	Title,   // title screen over the first worker at the nest
 	Shift,
+	Harvest, // every scout is home or on its way; recruits finish their trips at a faster sim speed (skippable)
 	AllHome,
 	Recap,
 	EndCard, // shown once, after the day the colony reaches its third milestone
@@ -44,6 +45,14 @@ struct FDayStats
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Day") int32 BlownOff = 0;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Day") float TrailLaid = 0.f; // cm
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Day") float LargestFragment = 0.f;
+	/** Pieces recruits brought home, and lost to the wind. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Day") int32 RecruitPieces = 0;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Day") int32 RecruitLost = 0;
+	/** Mass hauled by scouts themselves (the rest came from recruits). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Day") float ScoutMass = 0.f;
+	/** Set at day end: the best day before this one, and whether this day beat it. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Day") float PreviousBest = 0.f;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Day") bool bNewBest = false;
 };
 
 /** Cutting and carrying numbers. Fragment size s is 0..1. */
@@ -91,4 +100,7 @@ struct FDayTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day") float LeafyHeightDay1 = 2000.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day") float LeafyHeightPerDay = 700.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day") int32 BaseSeed = 1112;
+	/** The line: recruits follow scouts' lines and strip their patches. Off: no recruits, no harvest, no Brood row, and
+	 *  the smaller "by hand" milestones. Leaf.Recruits 0|1 toggles it while playing. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day") bool bRecruits = true;
 };

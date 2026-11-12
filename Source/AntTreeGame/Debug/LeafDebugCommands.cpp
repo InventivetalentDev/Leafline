@@ -15,6 +15,7 @@
 #include "World/DayDirector.h"
 #include "TimerManager.h"
 #include "World/WindSystem.h"
+#include "Colony/LineSystem.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
@@ -312,7 +313,7 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs CmdTune(
 		TEXT("Leaf.Tune"),
-		TEXT("Leaf.Tune <cam|move|input|look|day> [Field] [Value]: list, read or set a tuning value while playing, e.g. Leaf.Tune cam SurfaceFollow 0. In colours ';' may stand for ','."),
+		TEXT("Leaf.Tune <cam|move|input|look|day|line|wind> [Field] [Value]: list, read or set a tuning value while playing, e.g. Leaf.Tune cam SurfaceFollow 0. In colours ';' may stand for ','."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 		{
 			ALeaflinePlayerController* PC = World ? Cast<ALeaflinePlayerController>(World->GetFirstPlayerController()) : nullptr;
@@ -336,6 +337,8 @@ namespace
 			ADayDirector* LookOwner = nullptr;
 			if (Which == TEXT("cam")) UseTuning(PC->GetAntCamera());
 			else if (Which == TEXT("day")) UseTuning(ADayDirector::Get(World));
+			else if (Which == TEXT("line")) UseTuning(ALineSystem::Get(World));
+			else if (Which == TEXT("wind")) UseTuning(AWindSystem::Get(World));
 			else if (Which == TEXT("look"))
 			{
 				LookOwner = ADayDirector::Get(World);
