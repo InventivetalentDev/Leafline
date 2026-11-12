@@ -93,7 +93,7 @@ Rules for parallel work:
 - [x] Colony meter, three milestones, end card, continue.
 - [x] Day scaling: leafy height, gust strength and frequency.
 - [x] Title and pause screens.
-- [x] Codex code review of M1–M3; fixed (docs/reviews). M4 screens not yet reviewed.
+- [x] Codex code review of M1–M3; fixed (docs/reviews). M4 screens, audio and pause reviewed too; five fixes (docs/reviews/codex-m4-audio.md), four of them checked by reading only.
 
 **Done when:** a fresh save can be played to the end card in about 15 minutes, and quitting and relaunching keeps the colony.
 
@@ -101,7 +101,7 @@ Rules for parallel work:
 
 Order by visible impact per hour:
 
-- [x] Bark material (plates, fissures, moss). Bark relief in field and mesh not done (cut list item 3).
+- [x] Bark material (plates, fissures, moss). Rebuilt as `M_TreeBark`: seamless world-scale noise on a cylinder per branch, with the camera cutaway. Bark relief in field and mesh not done (cut list item 3).
 - [x] Leaf material: shape, veins, backlight, bite edges, wind sway.
 - [ ] Lighting pass against concept image 01: sun angle per shift, volumetric shafts, fog, mild depth of field, exposure.
 - [x] Final ant mesh with shader gait; carried fragment mesh (placeholder disc).
@@ -110,6 +110,7 @@ Order by visible impact per hour:
 - [x] Audio: runtime WAV loader (no import tool), all sounds hooked up. Mix not yet checked by ear.
 - [x] Onboarding prompts for the first day; recap screen titled as the day's cut.
 - [ ] Screens moved to Slate if time allows.
+- [x] Owner playtest 1 (Thu): all seven notes fixed (`docs/playtest-notes.md`). Bark look and the camera cutaway await the owner's verdict; leaves are not dithered yet.
 
 **Done when:** a screenshot from play, set beside concept image 01, clearly shows the same game, and a new player reaches their first cut without being told the controls.
 

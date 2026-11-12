@@ -50,3 +50,14 @@ Leafline is made by one person directing AI agents. Claude (Anthropic) does plan
 - First procedural materials, built node by node through the MCP: plated bark with fissures and moss, two-sided leaves with veins and backlight that sway with the wind, soil with leaf litter, a soft cyan trail. No textures anywhere.
 - Codex's second review (M2 and M3) found nine more problems, including two ways a day could fail to end. All fixed (`docs/reviews/codex-m2m3.md`).
 - Fog with light shafts, depth of field focused on the ant, and a slightly darker exposure.
+
+## 2026-11-12 (Thu): first playtest
+
+- The owner's first playtest gave seven notes; all are fixed.
+- The ant still climbed through the air at the base of the trunk. The real cause was not the ground blend after all: the walking surface rounded every joint of a branch with a sphere of the joint radius, and where the trunk's buried section meets the flare that sphere was 14 m across and poked up to 1.7 m out of the bark. The field now uses the exact cone between samples, with the joint rounded only on the outer side of a bend, where the mesh rounds it too. Checked against every visible vertex of the bark (436,644): none is more than 0.00 cm off the walking surface. Walking tests on trunk, limb, bough and twig: no stalls, projection error at most 0.06 cm.
+- Ants now start on top of the nest entrance; the mound is part of the walking surface.
+- HUD text is rendered at its real size, so it is sharp. The cut label now says what it is about: "This piece: safe / risky / too big for a gust".
+- New bark material without UV seams: the noise is evaluated on a cylinder around each branch, stretched along it, so the fissures run up the trunk and out along the limbs.
+- The camera no longer jumps in when wood comes between it and the ant. It passes through, and the bark along the line to the ant dithers away.
+- A Codex review of the screens, audio and pause code found five more issues (sounds playing through pause, an end card that could be lost, a stuck state at twig tips, among others). All fixed.
+- Two lessons for the tools, now in `CLAUDE.md`: Live Coding scrambled the debug console commands after new ones were added, and deleting material nodes from a script crashed the editor.
