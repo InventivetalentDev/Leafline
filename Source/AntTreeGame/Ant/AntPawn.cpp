@@ -466,9 +466,35 @@ void AAntPawn::StartReturn()
 	ATrailNetwork* Trails = GetTrails();
 	if (!Trails || PathIndex == INDEX_NONE) return;
 	Trails->AddPoint(PathIndex, Movement->GetSurfacePosition(), Movement->GetSurfaceNormal());
-	const TArray<FTrailPoint>& Points = Trails->GetPoints(PathIndex);
-	Movement->StartFollow(Points, Points.Num() - 1, -1, EAntState::Returning);
-	UE_LOG(LogLeafline, Log, TEXT("%s: returning along %d path points"), *GetName(), Points.Num());
+	// Not a strict replay of this worker's walk: start from the nearby scent line point nearest the nest (any path)
+	// and skip the loops, so an ant sent home halfway down the tree goes down, not back up first.
+	TArray<FTrailPoint> Route;
+	const ATreeActor* Tree = GetTree();
+	auto CanCross = [Tree](const FVector& A, const FVector& B)
+	{
+		// The follower walks the straight line and projects onto the nearest bark: every sample must stay close to
+		// the surface, or it would hop to another branch. A chord across a curved trunk dips a few cm into the wood.
+		if (!Tree) return false;
+		for (int32 k = 1; k < 6; ++k)
+		{
+			if (FMath::Abs(Tree->GetField().Distance(FMath::Lerp(A, B, k / 6.0))) > 10.0) return false;
+		}
+		return true;
+	};
+	Trails->BuildReturnRoute(Movement->GetSurfacePosition(), Movement->GetSurfaceNormal(), PathIndex, 100.f, CanCross, Route);
+	const TArray<FTrailPoint>& Own = Trails->GetPoints(PathIndex);
+	auto Length = [](const TArray<FTrailPoint>& Pts)
+	{
+		double L = 0.0;
+		for (int32 k = 1; k < Pts.Num(); ++k) L += FVector::Dist(Pts[k - 1].Pos, Pts[k].Pos);
+		return L;
+	};
+	const int32 OwnPoints = Own.Num();
+	const double OwnLength = Length(Own);
+	if (Route.Num() < 2) Route = Own;
+	Movement->StartFollow(Route, Route.Num() - 1, -1, EAntState::Returning);
+	UE_LOG(LogLeafline, Log, TEXT("%s: returning along %d route points, %.0f cm (its own path: %d points, %.0f cm)"),
+		*GetName(), Route.Num(), Length(Route), OwnPoints, OwnLength);
 }
 
 void AAntPawn::SetFragment(float Size01)

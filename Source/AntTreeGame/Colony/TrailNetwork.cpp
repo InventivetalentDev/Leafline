@@ -1,4 +1,5 @@
 #include "Colony/TrailNetwork.h"
+#include "Algo/Reverse.h"
 #include "AntTreeGame.h"
 #include "ProceduralMeshComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -179,6 +180,83 @@ bool ATrailNetwork::FindRideStart(const FVector& P, float Reach, const FVector& 
 				}
 			}
 	return BestScore > -TNumericLimits<double>::Max();
+}
+
+void ATrailNetwork::BuildReturnRoute(const FVector& P, const FVector& Normal, int32 OwnPath, float Reach,
+	TFunctionRef<bool(const FVector&, const FVector&)> CanCross, TArray<FTrailPoint>& OutRoute) const
+{
+	OutRoute.Reset();
+	int32 Path = INDEX_NONE, Index = INDEX_NONE;
+	double Best = TNumericLimits<double>::Max();
+	if (Paths.IsValidIndex(OwnPath) && Paths[OwnPath].Points.Num() > 0)
+	{
+		Path = OwnPath;
+		Index = Paths[OwnPath].Points.Num() - 1;
+		Best = Paths[OwnPath].Dist.IsValidIndex(Index) ? Paths[OwnPath].Dist[Index] : Best;
+	}
+
+	// Any trail point in reach that is nearer the nest along its path (another worker's scent line counts too).
+	{
+		const int32 R = FMath::CeilToInt(Reach / CellSize);
+		const FIntVector C = Cell(P);
+		const double Reach2 = (double)Reach * Reach;
+		for (int32 X = -R; X <= R; ++X)
+			for (int32 Y = -R; Y <= R; ++Y)
+				for (int32 Z = -R; Z <= R; ++Z)
+				{
+					const TArray<FIntPoint>* List = Grid.Find(C + FIntVector(X, Y, Z));
+					if (!List) continue;
+					for (const FIntPoint& Ref : *List)
+					{
+						const FPath& Src = Paths[Ref.X];
+						const FTrailPoint& Pt = Src.Points[Ref.Y];
+						if (FVector::DistSquared(Pt.Pos, P) > Reach2 || FVector::DotProduct(Pt.Normal, Normal) < 0.3) continue;
+						const double D = Src.Dist.IsValidIndex(Ref.Y) ? Src.Dist[Ref.Y] : TNumericLimits<double>::Max();
+						if (D < Best && CanCross(P, Pt.Pos))
+						{
+							Best = D;
+							Path = Ref.X;
+							Index = Ref.Y;
+						}
+					}
+				}
+	}
+	if (Path == INDEX_NONE) return;
+
+	// Back along that path to the nest, cutting out loops.
+	constexpr double LoopReach = 35.0;
+	const int32 LR = FMath::CeilToInt(LoopReach / CellSize);
+	const FPath& Src = Paths[Path];
+	TArray<FTrailPoint> Rev;
+	Rev.Add({ P, Normal });
+	for (int32 i = Index; i >= 0;)
+	{
+		const FTrailPoint& Here = Src.Points[i];
+		Rev.Add(Here);
+		if (i == 0) break;
+		int32 Jump = i - 1;
+		const FIntVector C = Cell(Here.Pos);
+		for (int32 X = -LR; X <= LR; ++X)
+			for (int32 Y = -LR; Y <= LR; ++Y)
+				for (int32 Z = -LR; Z <= LR; ++Z)
+				{
+					const TArray<FIntPoint>* List = Grid.Find(C + FIntVector(X, Y, Z));
+					if (!List) continue;
+					for (const FIntPoint& Ref : *List)
+					{
+						if (Ref.X != Path || Ref.Y >= i - 3 || Ref.Y >= Jump) continue;
+						const FTrailPoint& Pt = Src.Points[Ref.Y];
+						if (FVector::DistSquared(Pt.Pos, Here.Pos) <= LoopReach * LoopReach && FVector::DotProduct(Pt.Normal, Here.Normal) > 0.5
+							&& CanCross(Here.Pos, Pt.Pos))
+						{
+							Jump = Ref.Y;
+						}
+					}
+				}
+		i = Jump;
+	}
+	Algo::Reverse(Rev);
+	OutRoute = MoveTemp(Rev);
 }
 
 float ATrailNetwork::DrawnLength() const

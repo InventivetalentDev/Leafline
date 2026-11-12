@@ -182,11 +182,26 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs CmdSendHome(
 		TEXT("Leaf.SendHome"),
-		TEXT("Leaf.SendHome: send the controlled ant home, as if Q were pressed."),
-		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>&, UWorld* World)
+		TEXT("Leaf.SendHome [delay]: send the controlled ant home, as if Q were pressed; after delay seconds if given (unattended return tests)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 		{
-			ADayDirector* D = ADayDirector::Get(World);
-			if (D) D->SendHome(PlayerAnt(World));
+			const float Delay = Args.Num() > 0 ? FCString::Atof(*Args[0]) : 0.f;
+			if (Delay <= 0.f || !World)
+			{
+				ADayDirector* D = ADayDirector::Get(World);
+				if (D) D->SendHome(PlayerAnt(World));
+				return;
+			}
+			FTimerHandle Handle;
+			TWeakObjectPtr<UWorld> WeakWorld(World);
+			World->GetTimerManager().SetTimer(Handle, FTimerDelegate::CreateLambda([WeakWorld]()
+			{
+				UWorld* W = WeakWorld.Get();
+				ADayDirector* D = W ? ADayDirector::Get(W) : nullptr;
+				UE_LOG(LogLeafline, Log, TEXT("Leaf.SendHome: delay over, sending home"));
+				if (D) D->SendHome(PlayerAnt(W));
+			}), Delay, false);
+			UE_LOG(LogLeafline, Log, TEXT("Leaf.SendHome in %.0f s"), Delay);
 		}));
 
 	FAutoConsoleCommandWithWorldAndArgs CmdHold(

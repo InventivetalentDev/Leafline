@@ -19,7 +19,8 @@
 - [ ] eventually make selection outlines for leaves etc, instead of just showing an UI overlay
   - Leaves done (outline on the targeted leaf). Trails not yet.
 - [ ] low priority: leaf cutting animation would be nice
-- [ ] low priority: if you're already halfway back down the tree and you engage the auto-return, ideally it should just follow the scent line if you're close to it from that location, instead of walking strictly back (and going back up the tree etc.)
+- [x] low priority: if you're already halfway back down the tree and you engage the auto-return, ideally it should just follow the scent line if you're close to it from that location, instead of walking strictly back (and going back up the tree etc.)
+  - Done: a worker sent home now starts from the scent line point within 1 m that is nearest the nest (its own line or another worker's), then follows it home and skips its loops (where the line comes back within 35 cm of itself it cuts across). It only cuts across where the straight line stays on the bark, never through the air to another branch. Test: an ant that wandered on the trunk for 45 s went home along 61 m instead of retracing 105 m (both include a 40 m jump from the test's teleport), and reached the nest. Not in the packaged build yet.
 - [ ] add key/controller icons (https://thoseawesomeguys.com/prompts/)
 - [x] add controller support
   - Xbox pads worked already (XInput). PS5 and PS4 pads now work through Microsoft GameInput, mapped per SDL_GameControllerDB and checked with your DualSense. Right stick looks inverted, as you asked. Not in the packaged build yet.

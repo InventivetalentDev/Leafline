@@ -130,7 +130,7 @@ Tick(dt):
 ```
 
 - Substep when `Speed * dt` exceeds half an ant length, so thin twigs are not skipped.
-- States: `Walking`, `Cutting` (rooted), `Gripping` (rooted), `Riding` (following a trail), `Returning` (unattended replay), `Falling` (simple ballistic drop to the ground, then `WalkingHome` along the ground to the nest).
+- States: `Walking`, `Cutting` (rooted), `Gripping` (rooted), `Riding` (following a trail), `Returning` (unattended walk home: from the nearby scent line point nearest the nest, along that line with its loops cut out; `ATrailNetwork::BuildReturnRoute`), `Falling` (simple ballistic drop to the ground, then `WalkingHome` along the ground to the nest).
 - Sprint multiplies speed and drains stamina. Carried mass scales speed down.
 - The same component drives the player's ant and unattended ants; only the source of "wish" differs.
 
@@ -240,7 +240,7 @@ Console commands pay for themselves, because verification is done by driving Pla
 | `Leaf.SurfaceGap [maxZ]` | Project points around the trunk and roots (below maxZ, default 1500 cm) onto the walking field and log how far they float above the visible bark: mean, worst and where |
 | `Leaf.MeshGap` | Evaluate the walking field at every visible bark mesh vertex: mean, worst and how many float more than 1 or 3 cm (the honest check; `SurfaceGap` compares the field with its own frustum model) |
 | `Leaf.GapAt <x> <y> <z>` | At one point: the field distance, and each nearby branch's distance to its visible bark |
-| `Leaf.GoLeaf` / `Leaf.Cut [size]` / `Leaf.SendHome` | Drive the loop from the console: go beside a random cuttable leaf, cut it at once, send the ant home |
+| `Leaf.GoLeaf` / `Leaf.Cut [size]` / `Leaf.SendHome [delay]` | Drive the loop from the console: go beside a random cuttable leaf, cut it at once, send the ant home |
 | `Leaf.Hold <cut\|grip\|follow> <seconds>` | Hold a button for a while, as if pressed (hold-to-cut, grip, riding) |
 | `Leaf.QuitAfter <seconds>` | Exit a standalone game after a delay (unattended runs; ignored in the editor) |
 | `Leaf.Tune <cam\|move\|input> [Field] [Value]` | List, read or set a tuning value while playing (shown on screen and logged), e.g. `Leaf.Tune cam SurfaceFollow 0` |

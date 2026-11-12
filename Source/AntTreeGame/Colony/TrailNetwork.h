@@ -11,7 +11,8 @@ class UMaterialInstanceDynamic;
 
 /**
  * Every worker's recorded path for the day, drawn as thin ribbons. A new path only adds ribbon where it is not already
- * on an existing trail, so overlapping routes do not stack. Returning ants replay their own path backwards.
+ * on an existing trail, so overlapping routes do not stack. Returning ants walk home along the nearest scent line,
+ * loops cut out (BuildReturnRoute).
  */
 UCLASS()
 class ANTTREEGAME_API ATrailNetwork : public AActor
@@ -52,6 +53,16 @@ public:
 	 * best matches PreferredDir. Returns false if there is none.
 	 */
 	bool FindRideStart(const FVector& P, float Reach, const FVector& PreferredDir, int32& OutPath, int32& OutIndex, int32 ExcludePath = INDEX_NONE) const;
+
+	/**
+	 * The way home from P. Starts at the trail point within Reach (on any path, facing the same way as Normal) that is
+	 * nearest the nest along its own path, then follows that path back, skipping loops: wherever an earlier point of the
+	 * same path lies within about 35 cm, it jumps there instead of retracing the detour. OutRoute[0] is at the nest, the
+	 * last point is P. Empty if OwnPath is invalid and no trail is in reach. CanCross(A, B) says whether the straight
+	 * line from A to B stays on the bark; jumps that fail it are not taken (the follower would cut through the air).
+	 */
+	void BuildReturnRoute(const FVector& P, const FVector& Normal, int32 OwnPath, float Reach,
+		TFunctionRef<bool(const FVector&, const FVector&)> CanCross, TArray<FTrailPoint>& OutRoute) const;
 
 	/** Total drawn trail length (cm). */
 	float DrawnLength() const;
