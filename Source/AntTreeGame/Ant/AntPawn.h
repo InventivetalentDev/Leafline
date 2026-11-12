@@ -60,7 +60,7 @@ public:
 	int32 GetPathIndex() const { return PathIndex; }
 
 	/** Held buttons, fed by the controller every frame while possessed. */
-	void SetActionInput(bool bInCutHeld, bool bInFollowHeld);
+	void SetActionInput(bool bInCutHeld, bool bInFollowHeld, bool bInGripHeld);
 
 	// Cutting and carrying.
 	bool IsCutting() const { return CuttingLeaf != INDEX_NONE; }
@@ -81,6 +81,10 @@ public:
 
 	/** Replay the recorded path back to the nest, unattended. */
 	void StartReturn();
+
+	/** Wind knocked the ant off: it drops its fragment, falls and walks home. */
+	void BlowOff(float Force, float Hold, float Exposure);
+	bool IsGripping() const;
 
 protected:
 	UPROPERTY(VisibleAnywhere, Category = "Ant")
@@ -121,6 +125,9 @@ private:
 	void UpdateCutting(float Dt);
 	void UpdateRiding(float Dt);
 	void UpdateRecording();
+	void UpdateGrip();
+	void UpdateWind(float Dt);
+	float GetGripMultiplier() const;
 	void SetFragment(float Size01);
 	void BuildFragmentMesh(float Diameter);
 	ATreeActor* GetTree();
@@ -136,6 +143,12 @@ private:
 	bool bCutHeld = false;
 	bool bPrevCutHeld = false;
 	bool bFollowHeld = false;
+	bool bGripHeld = false;
+	float WindCheckTimer = 0.f;
+	float GustMaxRatio = 0.f;
+	float GustMaxExposure = 0.f;
+	bool bGustSeen = false;
+	bool bGustGripped = false;
 	int32 CuttingLeaf = INDEX_NONE;
 	float CutSize = 0.f;
 	float CutCap = 0.f;

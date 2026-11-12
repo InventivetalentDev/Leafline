@@ -162,7 +162,7 @@ void ALeaflinePlayerController::PlayerTick(float DeltaTime)
 			M->SetMoveInput(Move, AntCamera->GetViewForward(), AntCamera->GetViewUp());
 			M->SetSprintInput((Held & LeafButtons::Sprint) != 0);
 		}
-		Ant->SetActionInput((Held & LeafButtons::Cut) != 0, (Held & LeafButtons::Follow) != 0);
+		Ant->SetActionInput((Held & LeafButtons::Cut) != 0, (Held & LeafButtons::Follow) != 0, (Held & LeafButtons::Grip) != 0);
 	}
 	if (ButtonsPressed) HandleButtons(ButtonsPressed);
 }

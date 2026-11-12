@@ -10,6 +10,7 @@
 #include "UObject/UnrealType.h"
 #include "World/DayDirector.h"
 #include "TimerManager.h"
+#include "World/WindSystem.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
@@ -180,6 +181,36 @@ namespace
 				FPlatformMisc::RequestExit(false);
 			}), Seconds, false);
 			UE_LOG(LogLeafline, Log, TEXT("Leaf.QuitAfter: exiting in %.0f s"), Seconds);
+		}));
+
+	FAutoConsoleCommandWithWorldAndArgs CmdGust(
+		TEXT("Leaf.Gust"),
+		TEXT("Leaf.Gust [0-1]: start a gust now (warning, rise, hold, fall) with that peak strength."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			if (AWindSystem* Wind = AWindSystem::Get(World))
+			{
+				const float Peak = Args.Num() > 0 ? FCString::Atof(*Args[0]) : 1.f;
+				Wind->TriggerGust(Peak);
+				UE_LOG(LogLeafline, Log, TEXT("Leaf.Gust %.2f"), Peak);
+			}
+		}));
+
+	FAutoConsoleCommandWithWorldAndArgs CmdWindFace(
+		TEXT("Leaf.FaceWind"),
+		TEXT("Leaf.FaceWind exposed|sheltered: put the ant on the trunk's windward or lee side at the same height (wind tests)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			AAntPawn* Ant = PlayerAnt(World);
+			ATreeActor* Tree = ATreeActor::Get(World);
+			AWindSystem* Wind = AWindSystem::Get(World);
+			if (!Ant || !Tree || !Wind) return;
+			const bool bExposed = Args.Num() == 0 || !Args[0].Equals(TEXT("sheltered"), ESearchCase::IgnoreCase);
+			const FVector Axis = Tree->GetSkeleton().TrunkBase + FVector(0.0, 0.0, 1500.0);
+			const FVector Side = bExposed ? -Wind->GetDirection() : Wind->GetDirection();
+			Ant->GetAntMovement()->TeleportTo(Axis + Side * 1100.0, FVector::UpVector); // just outside the trunk, so the trunk (not the ground) is nearest
+			UE_LOG(LogLeafline, Log, TEXT("Leaf.FaceWind: %s side, exposure %.2f"), bExposed ? TEXT("exposed") : TEXT("sheltered"),
+				Wind->GetExposure(Ant->GetAntMovement()->GetSurfacePosition(), Ant->GetAntMovement()->GetSurfaceNormal()));
 		}));
 
 	void TuneMessage(const FString& Text)

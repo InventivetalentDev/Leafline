@@ -84,6 +84,16 @@ public:
 	 */
 	void StartFollow(const TArray<FTrailPoint>& Points, int32 StartIndex, int32 Direction, EAntState FollowState);
 	void StopFollow();
+	/** Blown off: a ballistic drop to the ground, then WalkingHome. */
+	void StartFall(const FVector& WindDirection);
+	/** Where WalkingHome heads, and the trunk to walk around on the way. */
+	void SetHomeTarget(const FVector& Nest, const FVector& TrunkBase, float TrunkRadius)
+	{
+		HomeTarget = Nest;
+		HomeTrunkBase = TrunkBase;
+		HomeTrunkRadius = TrunkRadius;
+	}
+
 	/** True once after a follow reached the end of its path. */
 	bool ConsumeFollowFinished()
 	{
@@ -111,6 +121,8 @@ private:
 	void TickWalking(float Dt);
 	void TickRooted(float Dt);
 	void TickFollow(float Dt);
+	void TickFalling(float Dt);
+	FVector HomeWish(const FVector& N) const;
 	FVector ComputeWish(const FVector& N) const;
 	void UpdateOrientation(float Dt);
 	void UpdateStamina(float Dt, bool bWantsMove);
@@ -157,6 +169,13 @@ private:
 	double FollowFrac = 0.0;
 	int32 FollowDir = 1;
 	bool bFollowFinished = false;
+
+	// Falling and walking home.
+	FVector FallVelocity = FVector::ZeroVector;
+	FVector FallSpinAxis = FVector::RightVector;
+	FVector HomeTarget = FVector::ZeroVector;
+	FVector HomeTrunkBase = FVector::ZeroVector;
+	float HomeTrunkRadius = 1500.f;
 	int32 SpareInt2 = 0;
 	FVector SpareVector = FVector::ZeroVector;
 };

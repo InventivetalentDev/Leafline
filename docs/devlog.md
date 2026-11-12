@@ -30,3 +30,12 @@ Leafline is made by one person directing AI agents. Claude (Anthropic) does plan
 - Lighting check passed: the procedural mesh casts and receives shadows under Lumen.
 - Watching that unattended run made me motion sick. The camera's up followed the ant's up, so walking round a thin twig rolled the whole view. Now the horizon stays level on thin branches, follows the surface only on big limbs and the trunk, and can't roll faster than 45° per second. `Leaf.Tune` lets me change camera values while playing.
 - In parallel, a Claude agent wrote the Blender script for the ant mesh, another synthesised the sound effects, and Codex painted key art and reference studies.
+
+## 2026-11-12 (Thu): the loop and the wind
+
+- M2 landed in one pass: leaves on the twigs, cutting with a growing size arc, the fragment carried overhead, scent trails recorded at half an ant length and drawn as ribbons, send home with the worker walking back on its own along its trail while control shifts to the next one, three workers a day, deposits at the nest, a recap titled "today's cut", and a new tree the next day.
+- First packaged build: the cook failed on a missing asset-manager rule (pulled in by the editor toolset plugins); with that fixed, the packaged game starts, grows the tree and runs a day.
+- Codex reviewed the M1 code and found six real problems (controls reversing when the camera looks up from below, a camera trap behind branches, sphere tracing that could overshoot or give up early, failed projections being kept, the frame-time clamp). All fixed; its review is in `docs/reviews/codex-m1.md`.
+- Codex also wrote the save game and the five upgrades on a separate branch in its own worktree; I reviewed and merged it.
+- M3: one prevailing wind per day with a gust cycle. Exposure comes from which way the surface faces and whether the tree shelters it upwind. In a full gust, a large fragment on the windward side of the trunk is blown off (force 1.16 against a grip of 1.00); the same fragment on the lee side rides it out. A blown-off ant falls, lands and walks home empty-handed. The cutting arc is coloured by the predicted risk of each size.
+- Fixed the ant floating at the base of the trunk: the distance field blended the trunk into the ground with an 80 cm fillet the mesh doesn't have. The blends are now small enough not to show.

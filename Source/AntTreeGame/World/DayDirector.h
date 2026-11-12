@@ -11,6 +11,7 @@ class ANestActor;
 class AAntPawn;
 class APlayerController;
 class ADirectionalLight;
+class AWindSystem;
 
 /**
  * Runs a day: grows the tree, sends workers out one shift at a time, brings them home, shows the recap and starts
@@ -32,7 +33,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day")
 	TSubclassOf<AAntPawn> WorkerClass;
 
-	void Init(ATreeActor* InTree, ATrailNetwork* InTrails, ANestActor* InNest);
+	void Init(ATreeActor* InTree, ATrailNetwork* InTrails, ANestActor* InNest, AWindSystem* InWind);
 	void SetPlayer(APlayerController* InPlayer) { Player = InPlayer; }
 
 	/** Grows the day's tree (seed from the day number unless overridden) and sends out the first worker. */
@@ -40,6 +41,8 @@ public:
 
 	/** The controlled ant goes home on its own; control shifts to the next worker. */
 	void SendHome(AAntPawn* Ant);
+	/** Wind knocked a worker off; if it was the controlled one, control moves on after a moment. */
+	void OnBlownOff(AAntPawn* Ant);
 	/** An ant reached the nest: deposit what it carries. */
 	void OnAntReachedNest(AAntPawn* Ant);
 	/** Switch the camera between ants that are out or returning. */
@@ -60,6 +63,7 @@ public:
 	ATreeActor* GetTree() const { return Tree; }
 	ATrailNetwork* GetTrails() const { return Trails; }
 	ANestActor* GetNest() const { return Nest; }
+	AWindSystem* GetWind() const { return Wind; }
 
 	static ADayDirector* Get(const UObject* WorldContext);
 
@@ -80,6 +84,7 @@ private:
 	UPROPERTY(Transient) TObjectPtr<ATreeActor> Tree;
 	UPROPERTY(Transient) TObjectPtr<ATrailNetwork> Trails;
 	UPROPERTY(Transient) TObjectPtr<ANestActor> Nest;
+	UPROPERTY(Transient) TObjectPtr<AWindSystem> Wind;
 	TWeakObjectPtr<APlayerController> Player;
 	TWeakObjectPtr<ADirectionalLight> Sun;
 
@@ -95,4 +100,5 @@ private:
 	float SunYaw = -40.f;
 	float SpareFloat = 0.f;
 	int32 SpareInt = 0;
+	float PendingPossess = 0.f;
 };

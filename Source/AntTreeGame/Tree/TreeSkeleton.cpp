@@ -5,7 +5,7 @@
 namespace
 {
 	constexpr float GoldenAngle = 2.39996323f;
-	constexpr double BigDist = 1.0e9;
+	constexpr double SkelBigDist = 1.0e9;
 
 	FVector CatmullRom(const FVector& P0, const FVector& P1, const FVector& P2, const FVector& P3, double T)
 	{
@@ -59,7 +59,7 @@ namespace
 		/** Smallest gap between a sphere and any grown branch. */
 		double Clearance(const FVector& C, float Radius, int32 Ignore, FVector& OutAway) const
 		{
-			double Best = BigDist;
+			double Best = SkelBigDist;
 			for (int32 b = 0; b < S.Branches.Num(); ++b)
 			{
 				if (b == Ignore) continue;

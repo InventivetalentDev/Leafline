@@ -5,6 +5,7 @@
 #include "Tree/TreeActor.h"
 #include "Colony/TrailNetwork.h"
 #include "Colony/NestActor.h"
+#include "World/WindSystem.h"
 #include "Engine/DirectionalLight.h"
 #include "Components/LightComponent.h"
 #include "GameFramework/PlayerController.h"
@@ -37,8 +38,9 @@ ADayDirector* ADayDirector::Get(const UObject* WorldContext)
 	return nullptr;
 }
 
-void ADayDirector::Init(ATreeActor* InTree, ATrailNetwork* InTrails, ANestActor* InNest)
+void ADayDirector::Init(ATreeActor* InTree, ATrailNetwork* InTrails, ANestActor* InNest, AWindSystem* InWind)
 {
+	Wind = InWind;
 	Tree = InTree;
 	Trails = InTrails;
 	Nest = InNest;
@@ -89,6 +91,8 @@ void ADayDirector::StartDay(int32 InDay, int32 SeedOverride)
 	Tree->Params.LowestLeafyHeight = Tuning.LeafyHeightDay1 + (Day - 1) * Tuning.LeafyHeightPerDay;
 	Tree->Grow(Seed);
 	Nest->SetActorTransform(Tree->GetNestTransform(0));
+	if (Wind) Wind->StartDay(Day, Seed);
+	PendingPossess = 0.f;
 
 	Stats = FDayStats();
 	Stats.Day = Day;
@@ -159,6 +163,20 @@ void ADayDirector::SendHome(AAntPawn* Ant)
 	Ant->StartReturn();
 	UE_LOG(LogLeafline, Log, TEXT("Worker %d sent home carrying %.1f"), i, Ant->GetCarriedMass());
 	PossessNext();
+}
+
+void ADayDirector::OnBlownOff(AAntPawn* Ant)
+{
+	const int32 i = FindWorker(Ant);
+	if (i == INDEX_NONE) return;
+	const EWorkerState Was = Roster[i].State;
+	if (Was != EWorkerState::Out && Was != EWorkerState::Returning) return;
+	Roster[i].State = EWorkerState::BlownOff;
+	Stats.BlownOff += 1;
+	UE_LOG(LogLeafline, Log, TEXT("Worker %d blown off (was %s); it walks home empty-handed"), i, *UEnum::GetValueAsString(Was));
+	// Let the player watch the fall for a moment before the next worker comes out.
+	if (Ant->IsPlayerControlled() && Was == EWorkerState::Out) PendingPossess = 2.5f;
+	CheckAllHome();
 }
 
 void ADayDirector::OnAntReachedNest(AAntPawn* Ant)
@@ -243,6 +261,11 @@ bool ADayDirector::IsNearNest(const FVector& P) const
 void ADayDirector::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	if (PendingPossess > 0.f)
+	{
+		PendingPossess -= DeltaTime;
+		if (PendingPossess <= 0.f && Phase == EDayPhase::Shift) PossessNext();
+	}
 	if (Phase == EDayPhase::AllHome)
 	{
 		PhaseTimer -= DeltaTime;

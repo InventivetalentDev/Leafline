@@ -6,6 +6,7 @@
 #include "Engine/Engine.h"
 #include "Engine/Font.h"
 #include "Game/LeaflineGameInstance.h"
+#include "World/WindSystem.h"
 
 void ALeaflineHUD::DrawHUD()
 {
@@ -92,6 +93,20 @@ void ALeaflineHUD::DrawDayInfo(const ADayDirector* D, float Scale)
 		DrawRect(C, PX + Inset, PY + Inset, Pip - 2.f * Inset, Pip - 2.f * Inset);
 	}
 	DrawText(FString::Printf(TEXT("Hauled %.1f"), D->GetStats().MassHauled), TextColor, X, PY + Pip + 10.f * Scale, Font, 1.0f * Scale);
+
+	// Wind gauge, top right.
+	if (const AWindSystem* Wind = D->GetWind())
+	{
+		const float GW = 180.f * Scale, GH = 8.f * Scale;
+		const float GX = Canvas->ClipX - 40.f * Scale - GW, GY = 50.f * Scale;
+		const EWindPhase Ph = Wind->GetPhase();
+		const TCHAR* Label = Ph == EWindPhase::Calm ? TEXT("Wind: calm") : Ph == EWindPhase::Warning ? TEXT("Wind: gust coming")
+			: Ph == EWindPhase::Falling ? TEXT("Wind: easing") : TEXT("Wind: GUST");
+		const FLinearColor C = Wind->IsGustActive() ? StaminaLockedColor : (Ph == EWindPhase::Warning ? FLinearColor(1.f, 0.72f, 0.2f) : TextColor);
+		DrawText(Label, C, GX, GY - 26.f * Scale, Font, 1.0f * Scale);
+		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.45f), GX - 2.f * Scale, GY - 2.f * Scale, GW + 4.f * Scale, GH + 4.f * Scale);
+		DrawRect(C, GX, GY, GW * FMath::Clamp(Wind->GetStrength(), 0.f, 1.f), GH);
+	}
 }
 
 void ALeaflineHUD::DrawCarry(const AAntPawn* Ant, float Scale)
@@ -111,12 +126,31 @@ void ALeaflineHUD::DrawCutArc(const AAntPawn* Ant, float Scale)
 	const float CX = Canvas->ClipX * 0.5f, CY = Canvas->ClipY * 0.5f;
 	const float R = 60.f * Scale;
 	const float Size = Ant->GetCutSize();
-	// Risk colour comes with wind (M3); until then the arc warms from green to amber with size.
-	const FLinearColor Col = FMath::Lerp(FLinearColor(0.45f, 0.9f, 0.4f), FLinearColor(1.f, 0.7f, 0.2f), Size);
+	// The arc is coloured by the wind risk of each size: safe, risky, or blown off by a full gust on an exposed route.
+	const AWindSystem* Wind = AWindSystem::Get(this);
+	const ULeaflineGameInstance* GI = Cast<ULeaflineGameInstance>(GetGameInstance());
+	const float GripMul = GI ? GI->GetGripMultiplier() : 1.f;
+	auto RiskColor = [&](float S, float& OutRatio)
+	{
+		OutRatio = Wind ? Wind->PredictRiskRatio(Ant->DiameterForSize(S), GripMul) : 0.f;
+		const float Risky = Wind ? Wind->Tuning.RiskyRatio : 0.6f;
+		if (OutRatio >= 1.f) return FLinearColor(0.95f, 0.25f, 0.2f);
+		if (OutRatio >= Risky) return FLinearColor(1.f, 0.72f, 0.2f);
+		return FLinearColor(0.45f, 0.9f, 0.4f);
+	};
 	DrawArc(CX, CY, R, 0.f, Ant->GetCutCap(), FLinearColor(0.f, 0.f, 0.f, 0.35f), 6.f * Scale);
-	DrawArc(CX, CY, R, 0.f, FMath::Max(Size, 0.01f), Col, 6.f * Scale);
+	const int32 Steps = 24;
+	float Ratio = 0.f;
+	for (int32 i = 0; i < Steps; ++i)
+	{
+		const float A = Size * i / Steps, B = Size * (i + 1) / Steps;
+		DrawArc(CX, CY, R, A, FMath::Max(B, A + 0.002f), RiskColor(B, Ratio), 6.f * Scale);
+	}
+	const FLinearColor Now = RiskColor(Size, Ratio);
 	UFont* Font = GEngine->GetMediumFont();
 	DrawTextCentered(FString::Printf(TEXT("%.1f"), Ant->MassForSize(Size)), CX, CY - 12.f * Scale, TextColor, 1.2f * Scale, Font);
+	const TCHAR* Label = Ratio >= 1.f ? TEXT("a full gust will blow it off on an exposed route") : (Wind && Ratio >= Wind->Tuning.RiskyRatio ? TEXT("risky in a gust") : TEXT("safe"));
+	DrawTextCentered(Label, CX, CY + R + 14.f * Scale, Now, 1.0f * Scale, Font);
 }
 
 void ALeaflineHUD::DrawPrompt(const AAntPawn* Ant, const ADayDirector* D, float Scale)
@@ -126,7 +160,13 @@ void ALeaflineHUD::DrawPrompt(const AAntPawn* Ant, const ADayDirector* D, float 
 	{
 		const UAntMovementComponent* M = Ant->GetAntMovement();
 		const EAntState S = M ? M->GetState() : EAntState::Walking;
-		if (S == EAntState::Returning) Prompt = TEXT("Heading home on the trail.   Tab: switch ant");
+		const AWindSystem* Wind = D ? D->GetWind() : nullptr;
+		const bool bGustSoon = Wind && (Wind->GetPhase() == EWindPhase::Warning || Wind->IsGustActive());
+		if (S == EAntState::Falling) Prompt = TEXT("Blown off! The fragment is lost");
+		else if (S == EAntState::WalkingHome) Prompt = TEXT("Walking home empty-handed.   Tab: switch ant");
+		else if (S == EAntState::Gripping) Prompt = TEXT("Gripping. Release Space / A when the gust passes");
+		else if (bGustSoon && (S == EAntState::Walking || S == EAntState::Riding || S == EAntState::Cutting)) Prompt = TEXT("Gust! Hold Space / A to grip");
+		else if (S == EAntState::Returning) Prompt = TEXT("Heading home on the trail.   Tab: switch ant");
 		else if (Ant->IsCutting()) Prompt = TEXT("Release to finish the cut");
 		else if (Ant->IsCarrying()) Prompt = TEXT("Q / Y: send home      or carry it to the nest yourself");
 		else if (Ant->GetLeafInReach() != INDEX_NONE) Prompt = TEXT("Hold E / LMB / X: cut");

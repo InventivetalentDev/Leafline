@@ -7,15 +7,15 @@
 
 namespace
 {
-	FVector ProjectOnPlane(const FVector& V, const FVector& N)
+	FVector CamProjectOnPlane(const FVector& V, const FVector& N)
 	{
 		return V - N * FVector::DotProduct(V, N);
 	}
 
-	FVector AnyPerpendicular(const FVector& N)
+	FVector CamAnyPerpendicular(const FVector& N)
 	{
 		const FVector Ref = FMath::Abs(N.Z) < 0.9 ? FVector::UpVector : FVector::ForwardVector;
-		return ProjectOnPlane(Ref, N).GetSafeNormal();
+		return CamProjectOnPlane(Ref, N).GetSafeNormal();
 	}
 
 	/** Critically damped spring step (stable for any dt). */
@@ -67,8 +67,8 @@ void AAntCamera::Snap()
 	const UAntMovementComponent* M = T->GetAntMovement();
 	CamUp = FVector::UpVector;
 	SmoothedRadius = 1000.f;
-	RefForward = ProjectOnPlane(M->GetBodyForward(), CamUp).GetSafeNormal();
-	if (RefForward.IsNearlyZero()) RefForward = AnyPerpendicular(CamUp);
+	RefForward = CamProjectOnPlane(M->GetBodyForward(), CamUp).GetSafeNormal();
+	if (RefForward.IsNearlyZero()) RefForward = CamAnyPerpendicular(CamUp);
 	Pitch = Tuning.DefaultPitch;
 	Focus = M->GetSurfacePosition() + CamUp * Tuning.TargetHeight;
 	FocusVelocity = FVector::ZeroVector;
@@ -128,8 +128,8 @@ void AAntCamera::Tick(float DeltaTime)
 		if (Angle > MaxAngle) UpDelta = FQuat(Axis, MaxAngle);
 	}
 	CamUp = UpDelta.RotateVector(CamUp).GetSafeNormal();
-	RefForward = ProjectOnPlane(UpDelta.RotateVector(RefForward), CamUp).GetSafeNormal();
-	if (RefForward.IsNearlyZero()) RefForward = AnyPerpendicular(CamUp);
+	RefForward = CamProjectOnPlane(UpDelta.RotateVector(RefForward), CamUp).GetSafeNormal();
+	if (RefForward.IsNearlyZero()) RefForward = CamAnyPerpendicular(CamUp);
 
 	// 2. Orbit.
 	double Yaw = PendingLook.X;
@@ -152,7 +152,7 @@ void AAntCamera::Tick(float DeltaTime)
 	}
 	if (Tuning.AutoAlignRate > 0.f && M->GetVelocity().SizeSquared() > 400.0)
 	{
-		const FVector AntFwd = ProjectOnPlane(M->GetBodyForward(), CamUp).GetSafeNormal();
+		const FVector AntFwd = CamProjectOnPlane(M->GetBodyForward(), CamUp).GetSafeNormal();
 		if (!AntFwd.IsNearlyZero())
 		{
 			Yaw += FMath::RadiansToDegrees(SignedAngle(RefForward, AntFwd, CamUp)) * (1.0 - FMath::Exp(-Tuning.AutoAlignRate * Dt));

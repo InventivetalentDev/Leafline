@@ -37,5 +37,6 @@ private:
 	UPROPERTY(Transient) TObjectPtr<ATrailNetwork> Trails;
 	UPROPERTY(Transient) TObjectPtr<ANestActor> Nest;
 	UPROPERTY(Transient) TObjectPtr<ADayDirector> Director;
+	UPROPERTY(Transient) TObjectPtr<class AWindSystem> Wind;
 	bool bDayStarted = false;
 };

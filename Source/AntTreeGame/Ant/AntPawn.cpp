@@ -4,6 +4,9 @@
 #include "Tree/TreeActor.h"
 #include "Colony/TrailNetwork.h"
 #include "World/DayDirector.h"
+#include "World/WindSystem.h"
+#include "Colony/NestActor.h"
+#include "Game/LeaflineGameInstance.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -115,10 +118,11 @@ void AAntPawn::SetWorker(int32 Index, int32 Path)
 	LastRecordPos = GetActorLocation();
 }
 
-void AAntPawn::SetActionInput(bool bInCutHeld, bool bInFollowHeld)
+void AAntPawn::SetActionInput(bool bInCutHeld, bool bInFollowHeld, bool bInGripHeld)
 {
 	bCutHeld = bInCutHeld;
 	bFollowHeld = bInFollowHeld;
+	bGripHeld = bInGripHeld;
 }
 
 void AAntPawn::UnPossessed()
@@ -126,11 +130,13 @@ void AAntPawn::UnPossessed()
 	Super::UnPossessed();
 	bCutHeld = false;
 	bFollowHeld = false;
+	bGripHeld = false;
 	if (Movement)
 	{
 		Movement->SetMoveInput(FVector2D::ZeroVector, FVector::ForwardVector, FVector::UpVector);
 		Movement->SetSprintInput(false);
 		if (Movement->GetState() == EAntState::Riding) Movement->StopFollow();
+		if (Movement->GetState() == EAntState::Gripping) Movement->SetState(EAntState::Walking);
 	}
 }
 
@@ -152,7 +158,9 @@ void AAntPawn::Tick(float DeltaSeconds)
 
 	UpdateCutting(DeltaSeconds);
 	UpdateRiding(DeltaSeconds);
+	UpdateGrip();
 	UpdateRecording();
+	UpdateWind(DeltaSeconds);
 
 	ADayDirector* Director = GetDirector();
 	if (!Director) return;
@@ -160,6 +168,19 @@ void AAntPawn::Tick(float DeltaSeconds)
 	{
 		Director->OnAntReachedNest(this);
 		return;
+	}
+	if (Movement->GetState() == EAntState::WalkingHome)
+	{
+		if (ANestActor* Nest = Director->GetNest())
+		{
+			const FVector TrunkBase = GetTree() ? GetTree()->GetSkeleton().TrunkBase : FVector::ZeroVector;
+			Movement->SetHomeTarget(Nest->GetActorLocation(), TrunkBase, (float)FVector::Dist2D(Nest->GetActorLocation(), TrunkBase) - 300.f);
+		}
+		if (Director->IsNearNest(Movement->GetSurfacePosition()))
+		{
+			Director->OnAntReachedNest(this);
+			return;
+		}
 	}
 	// Walking home yourself with a fragment also counts.
 	if (IsPlayerControlled() && IsCarrying() && Movement->GetState() == EAntState::Walking &&
@@ -256,6 +277,94 @@ void AAntPawn::UpdateRiding(float Dt)
 	{
 		Movement->StopFollow();
 	}
+}
+
+bool AAntPawn::IsGripping() const
+{
+	return Movement && Movement->GetState() == EAntState::Gripping;
+}
+
+void AAntPawn::UpdateGrip()
+{
+	if (!IsPlayerControlled()) return;
+	const EAntState State = Movement->GetState();
+	if (bGripHeld && (State == EAntState::Walking || State == EAntState::Riding))
+	{
+		if (State == EAntState::Riding) Movement->StopFollow();
+		Movement->SetState(EAntState::Gripping);
+	}
+	else if (!bGripHeld && State == EAntState::Gripping)
+	{
+		Movement->SetState(EAntState::Walking);
+	}
+}
+
+float AAntPawn::GetGripMultiplier() const
+{
+	const ULeaflineGameInstance* GI = Cast<ULeaflineGameInstance>(GetGameInstance());
+	return GI ? FMath::Max(GI->GetGripMultiplier(), 0.01f) : 1.f;
+}
+
+void AAntPawn::UpdateWind(float Dt)
+{
+	// Deterministic blow-off: Force = strength * peak * exposure * (body + fragment area) against the grip.
+	const AWindSystem* Wind = AWindSystem::Get(this);
+	if (!Wind) return;
+	const EAntState State = Movement->GetState();
+	const bool bCanBeBlown = State == EAntState::Walking || State == EAntState::Riding || State == EAntState::Returning ||
+		State == EAntState::Cutting || State == EAntState::Gripping;
+	if (!Wind->IsGustActive() || !bCanBeBlown)
+	{
+		if (bGustSeen && bCanBeBlown)
+		{
+			UE_LOG(LogLeafline, Log, TEXT("%s: rode out the gust (worst force/hold %.2f, exposure %.2f, fragment %.1f, gripped %d)"),
+				*GetName(), GustMaxRatio, GustMaxExposure, CarriedMass, bGustGripped ? 1 : 0);
+		}
+		bGustSeen = false;
+		GustMaxRatio = 0.f;
+		GustMaxExposure = 0.f;
+		bGustGripped = false;
+		return;
+	}
+	WindCheckTimer -= Dt;
+	if (WindCheckTimer > 0.f) return;
+	WindCheckTimer = 0.25f;
+	float Exposure = 0.f;
+	const float Force = Wind->ComputeForce(Movement->GetSurfacePosition(), Movement->GetSurfaceNormal(),
+		IsCarrying() ? DiameterForSize(CarriedSize) : 0.f, &Exposure);
+	const float Hold = Wind->GetHold(GetGripMultiplier(), State == EAntState::Gripping);
+	bGustSeen = true;
+	bGustGripped |= State == EAntState::Gripping;
+	if (Hold > 0.f && Force / Hold > GustMaxRatio)
+	{
+		GustMaxRatio = Force / Hold;
+		GustMaxExposure = Exposure;
+	}
+	if (Force > Hold) BlowOff(Force, Hold, Exposure);
+}
+
+void AAntPawn::BlowOff(float Force, float Hold, float Exposure)
+{
+	UE_LOG(LogLeafline, Log, TEXT("%s: blown off (force %.2f > hold %.2f, exposure %.2f, fragment %.1f, state %s)"),
+		*GetName(), Force, Hold, Exposure, CarriedMass, *UEnum::GetValueAsString(Movement->GetState()));
+	if (IsCutting())
+	{
+		CuttingLeaf = INDEX_NONE;
+		CutSize = 0.f;
+	}
+	ClearFragment();
+	bGustSeen = false;
+	const AWindSystem* Wind = AWindSystem::Get(this);
+	if (ADayDirector* D = GetDirector())
+	{
+		if (ANestActor* Nest = D->GetNest())
+		{
+			const FVector TrunkBase = GetTree() ? GetTree()->GetSkeleton().TrunkBase : FVector::ZeroVector;
+			Movement->SetHomeTarget(Nest->GetActorLocation(), TrunkBase, (float)FVector::Dist2D(Nest->GetActorLocation(), TrunkBase) - 300.f);
+		}
+	}
+	Movement->StartFall(Wind ? Wind->GetDirection() : FVector::ForwardVector);
+	if (ADayDirector* D = GetDirector()) D->OnBlownOff(this);
 }
 
 void AAntPawn::UpdateRecording()

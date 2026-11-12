@@ -139,7 +139,11 @@ void UAntMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType, 
 	switch (State)
 	{
 	case EAntState::Walking:
+	case EAntState::WalkingHome:
 		TickWalking(Dt);
+		break;
+	case EAntState::Falling:
+		TickFalling(Dt);
 		break;
 	case EAntState::Riding:
 	case EAntState::Returning:
@@ -239,8 +243,8 @@ void UAntMovementComponent::TickWalking(float Dt)
 
 	for (int32 s = 0; s < Steps; ++s)
 	{
-		FVector Wish = ComputeWish(N);
-		if (ThinBlend > 0.f && bWantsMove)
+		FVector Wish = State == EAntState::WalkingHome ? HomeWish(N) : ComputeWish(N);
+		if (ThinBlend > 0.f && bWantsMove && State == EAntState::Walking)
 		{
 			const FVector A = ProjectOnPlane(Axis, N).GetSafeNormal();
 			if (!A.IsNearlyZero())
@@ -383,6 +387,69 @@ void UAntMovementComponent::TickFollow(float Dt)
 	}
 }
 
+void UAntMovementComponent::StartFall(const FVector& WindDirection)
+{
+	FollowPoints.Reset();
+	FallVelocity = WindDirection.GetSafeNormal2D() * 520.0 + SurfaceNormal * 160.0 + FVector::UpVector * 120.0;
+	FallSpinAxis = FVector::CrossProduct(FVector::UpVector, WindDirection).GetSafeNormal();
+	if (FallSpinAxis.IsNearlyZero()) FallSpinAxis = FVector::RightVector;
+	SetState(EAntState::Falling);
+}
+
+void UAntMovementComponent::TickFalling(float Dt)
+{
+	// A simple ballistic drop that ignores branches, with air drag and a tumble, until the ground.
+	const FTreeField* F = GetField();
+	FallVelocity.Z -= 980.0 * Dt;
+	FallVelocity *= FMath::Max(0.0, 1.0 - 0.35 * Dt);
+	Pos += FallVelocity * Dt;
+	Velocity = FallVelocity;
+	const FQuat Spin(FallSpinAxis, 7.0 * Dt);
+	Up = Spin.RotateVector(Up).GetSafeNormal();
+	Forward = Spin.RotateVector(Forward).GetSafeNormal();
+	if (Pos.Z <= F->GroundZ + Tuning.RideHeight + 1.0 && FallVelocity.Z < 0.0)
+	{
+		Pos.Z = F->GroundZ + Tuning.RideHeight + 20.0;
+		// Fell through the root flare: step out of the trunk before settling on the ground.
+		FVector FromAxis = Pos - HomeTrunkBase;
+		FromAxis.Z = 0.0;
+		if (F->Distance(Pos) < 0.0 && FromAxis.SizeSquared() > 1.0)
+		{
+			Pos = FVector(HomeTrunkBase.X, HomeTrunkBase.Y, Pos.Z) + FromAxis.GetSafeNormal() * (HomeTrunkRadius + 350.0);
+		}
+		FVector N;
+		F->Project(Pos, N, Tuning.RideHeight);
+		SurfaceNormal = N;
+		Velocity = FVector::ZeroVector;
+		F->Distance(Pos, &CurrentBranch);
+		SetState(EAntState::WalkingHome);
+		UE_LOG(LogLeafline, Log, TEXT("%s: landed at %s, walking home"), *GetOwner()->GetName(), *Pos.ToString());
+	}
+	UpdateStamina(Dt, false);
+}
+
+FVector UAntMovementComponent::HomeWish(const FVector& N) const
+{
+	// Head for the nest along the ground, walking round the trunk when it is in the way.
+	FVector ToNest = HomeTarget - Pos;
+	ToNest.Z = 0.0;
+	FVector FromAxis = Pos - HomeTrunkBase;
+	FromAxis.Z = 0.0;
+	const double R = FromAxis.Size();
+	FVector Wish = ToNest.GetSafeNormal();
+	if (R > UE_SMALL_NUMBER && R < HomeTrunkRadius + 400.0)
+	{
+		const FVector Out = FromAxis / R;
+		if (FVector::DotProduct(Wish, -Out) > 0.2)
+		{
+			FVector Tangent = FVector::CrossProduct(FVector::UpVector, Out);
+			if (FVector::DotProduct(Tangent, ToNest) < 0.0) Tangent = -Tangent;
+			Wish = (Tangent + Out * 0.4).GetSafeNormal();
+		}
+	}
+	return ProjectOnPlane(Wish, N).GetSafeNormal();
+}
+
 void UAntMovementComponent::TickRooted(float Dt)
 {
 	const FTreeField* F = GetField();
@@ -417,6 +484,7 @@ void UAntMovementComponent::UpdateOrientation(float Dt)
 void UAntMovementComponent::UpdateStamina(float Dt, bool bWantsMove)
 {
 	bSprinting = bSprintInput && !bSprintLocked && bWantsMove && State == EAntState::Walking && Stamina > 0.f;
+	if (State == EAntState::WalkingHome) bSprinting = false;
 	if (bSprinting)
 	{
 		Stamina -= (Tuning.StaminaDrain + Tuning.StaminaDrainPerMass * CarriedMass) * Dt;

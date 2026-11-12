@@ -62,14 +62,14 @@ Rules for parallel work:
 
 ## M2: The loop (cut, carry, trail, shift)
 
-- [ ] `LeafSet`: leaf placement on twigs, quads rendered with a placeholder green.
-- [ ] Cutting: prompt, hold to grow, bite written to the leaf, fragment attached to the ant, speed penalty.
-- [ ] `TrailNetwork`: path recording, ribbon rendering, riding.
-- [ ] Send home: unattended replay; roster; next worker spawns; camera glide.
-- [ ] `NestActor`: deposit on arrival.
-- [ ] `DayDirector`: day start, shifts, all home, recap screen, new day with a new seed.
-- [ ] HUD: carried load, worker pips, prompts.
-- [ ] **First packaged build** with `Scripts/package_win64.bat`. Run it outside the editor.
+- [x] `LeafSet`: leaf placement on twigs, quads rendered with a placeholder green.
+- [x] Cutting: prompt, hold to grow, bite written to the leaf, fragment attached to the ant, speed penalty.
+- [x] `TrailNetwork`: path recording, ribbon rendering, riding.
+- [x] Send home: unattended replay; roster; next worker spawns; camera glide.
+- [x] `NestActor`: deposit on arrival.
+- [x] `DayDirector`: day start, shifts, all home, recap screen, new day with a new seed.
+- [x] HUD: carried load, worker pips, prompts.
+- [x] **First packaged build** with `Scripts/package_win64.bat`. Run it outside the editor.
 
 **Done when:** a full day can be played from the packaged build: three workers out, three fragments home, recap, next day on a different tree.
 
@@ -77,18 +77,18 @@ Rules for parallel work:
 
 ## M3: Wind
 
-- [ ] `WindSystem`: daily direction, gust phases, parameter collection.
-- [ ] Exposure and the blow-off test; `Falling` and the walk home.
-- [ ] Grip action.
-- [ ] Risk colour on the cutting arc.
-- [ ] Leaf sway, streaks, wind audio hooked to strength.
-- [ ] `Leaf.Gust`.
+- [x] `WindSystem`: daily direction, gust phases (parameter collection waits for the leaf material in M5).
+- [x] Exposure and the blow-off test; `Falling` and the walk home.
+- [x] Grip action.
+- [x] Risk colour on the cutting arc.
+- [ ] Leaf sway, streaks, wind audio hooked to strength. (Streaks done; sway comes with the leaf material, audio with the runtime WAV loader Codex is writing.)
+- [x] `Leaf.Gust`.
 
 **Done when:** a large fragment on the exposed side is blown off in a full gust; the same fragment on the sheltered side, or with grip held, survives; and both outcomes are visible in the log.
 
 ## M4: Progression
 
-- [ ] `LeaflineGameInstance`, `LeaflineSaveGame`, the five upgrades and their effects. (Good Codex branch task once the interfaces in M2 exist.)
+- [x] `LeaflineGameInstance`, `LeaflineSaveGame`, the five upgrades and their effects. (Good Codex branch task once the interfaces in M2 exist.)
 - [ ] Nest upgrade screen between days.
 - [ ] Colony meter, three milestones, end card, continue.
 - [ ] Day scaling: leafy height, gust strength and frequency.

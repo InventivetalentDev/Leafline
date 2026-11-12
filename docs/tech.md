@@ -235,7 +235,8 @@ Console commands pay for themselves, because verification is done by driving Pla
 | `Leaf.GoLeaf` / `Leaf.Cut [size]` / `Leaf.SendHome` | Drive the loop from the console: go beside a random cuttable leaf, cut it at once, send the ant home |
 | `Leaf.Tune <cam\|move\|input> [Field] [Value]` | List, read or set a tuning value while playing (shown on screen and logged), e.g. `Leaf.Tune cam SurfaceFollow 0` |
 | `Leaf.NewDay [seed]` | Regrow |
-| `Leaf.Gust [0-1]` | Trigger a gust |
+| `Leaf.Gust [0-1]` | Trigger a gust (warning, rise, hold, fall) with that peak |
+| `Leaf.FaceWind exposed\|sheltered` | Put the ant on the windward or lee side of the trunk (wind tests) |
 | `Leaf.Give <mass>` / `Leaf.Buy <index>` | Economy |
 | `Leaf.DebugField 0\|1` | Draw normals, projection error, exposure |
 | `Leaf.Carry <size>` | Hand the ant a fragment |
