@@ -20,6 +20,23 @@ py Tools\strip_image_metadata.py                 # from Windows
 - It doesn't rename files. Pixel filenames like `PXL_20261112_081150350.jpg` still show the date and time each photo was taken.
 - Exit codes: 0 = OK, 1 = `--check` found metadata, 2 = error or unsupported file.
 
+## zip_build.py
+
+`Tools/zip_build.py` zips the packaged build (`Build/Windows`) for sharing, into `Build/inventivetalent_Leafline.zip` with everything under one `Leafline/` folder. Run it after `Scripts/package_win64.bat`.
+
+```
+python3 Tools/zip_build.py                     # default paths
+python3 Tools/zip_build.py --out PATH.zip      # another name or place
+python3 Tools/zip_build.py --keep-pdb          # include debug symbols (about 360 MB more)
+py Tools\zip_build.py                          # from Windows
+```
+
+- It leaves out `AntTreeGame/Saved/` and `Engine/Saved/` (logs with local paths, and the save game and config from test runs), `*.pdb` debug symbols and the packager's `Manifest_*.txt` files.
+- It needs only Python 3 and takes about 40 s. The zip is about 0.43 GB (2026-11-12).
+- It writes to a `.part` file first, so an interrupted run never leaves a broken zip under the real name.
+- Exit codes: 0 = OK, 1 = the zip is 1 GB or larger (over the MegaJam limit), 2 = no packaged build found.
+- The build has not been tested on another PC yet. Players may need the Visual C++ Redistributable 2015–2022 x64, and Windows SmartScreen may warn about the unsigned exe.
+
 ## unreal-lock.sh
 
 `Scripts/unreal-lock.sh` runs one command while holding this PC's Unreal lock, and always releases it, also when the command fails or is stopped. Only one Unreal process (build, cook, standalone game, editor) runs on this machine at a time; an editor takes about 12 GB idle and 20 GB in Play, and three at once crashed with "The paging file is too small". The lock is shared with other Unreal projects on this machine.
