@@ -368,6 +368,50 @@ namespace
 	}
 
 	/**
+	 * The broken limb is grown like a short limb (5 to 12 m at nearly full limb radius: a "weird huge stump", owner,
+	 * 13 Nov), then cut back here, after growth and without random draws, to 0.8 of its radius beyond where it leaves the
+	 * parent, so it reads as a stump. Nothing grows on it and it carries no leaves, so nothing else depends on its length.
+	 */
+	void ShortenStubs(FTreeSkeleton& S)
+	{
+		for (FTreeBranch& B : S.Branches)
+		{
+			if (!B.bStub || !S.Branches.IsValidIndex(B.Parent) || B.Samples.Num() < 3) continue;
+			const FTreeBranch& Par = S.Branches[B.Parent];
+			const int32 NSp = Par.Samples.Num();
+			if (NSp < 2) continue;
+			float SExit = B.Length(), RExit = B.SampleRadius.Last();
+			for (int32 i = 0; i < B.Samples.Num(); ++i)
+			{
+				double D = TNumericLimits<double>::Max();
+				for (int32 sg = 0; sg < NSp - 1; ++sg) D = FMath::Min(D, TubeSegDist(B.Samples[i], Par.Samples, Par.SampleRadius, sg));
+				if (D >= 0.0)
+				{
+					SExit = B.SampleDist[i];
+					RExit = B.SampleRadius[i];
+					break;
+				}
+			}
+			const float Cut = SExit + 0.8f * RExit;
+			const int32 K = FirstDistAtLeast(B.SampleDist, Cut);
+			if (K <= 1 || K >= B.Samples.Num()) continue;
+			const float A = (Cut - B.SampleDist[K - 1]) / FMath::Max(B.SampleDist[K] - B.SampleDist[K - 1], 1e-3f);
+			const FVector P = FMath::Lerp(B.Samples[K - 1], B.Samples[K], (double)A);
+			const float R = FMath::Lerp(B.SampleRadius[K - 1], B.SampleRadius[K], A);
+			const float Before = B.Length();
+			B.Samples.SetNum(K + 1);
+			B.SampleRadius.SetNum(K + 1);
+			B.SampleDist.SetNum(K + 1);
+			B.Samples[K] = P;
+			B.SampleRadius[K] = R;
+			B.SampleDist[K] = Cut;
+			B.Bounds = FBox(ForceInit);
+			for (int32 i = 0; i <= K; ++i) B.Bounds += FBox(B.Samples[i] - FVector(B.SampleRadius[i]), B.Samples[i] + FVector(B.SampleRadius[i]));
+			UE_LOG(LogLeafline, Log, TEXT("TreeSkeleton: broken limb cut from %.0f to %.0f cm (radius %.0f, leaves its parent at %.0f)"), Before, Cut, R, SExit);
+		}
+	}
+
+	/**
 	 * After all branches are grown (draws no random numbers): fills BarkRadius, and when bBranchCollars is on swells every
 	 * branch with a parent where it leaves that parent. s_exit is the arc length of the child's first sample outside the
 	 * parent's tube; the swelling ramps in over [s_exit / 2, s_exit] (so the base ring buried in the parent does not grow
@@ -458,6 +502,7 @@ void TreeSkeleton::Grow(FTreeSkeleton& Out, const FTreeParams& Params, int32 See
 	G.GrowLimbs(Limbs);
 	G.GrowChildren(Limbs, 2, Boughs);
 	G.GrowChildren(Boughs, 3, Twigs);
+	ShortenStubs(Out);
 	FinishRadii(Out, Params);
 
 	int32 Samples = 0;
