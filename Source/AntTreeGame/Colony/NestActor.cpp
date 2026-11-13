@@ -67,7 +67,10 @@ bool ANestActor::EnsureNestMesh()
 	if (bNestMeshTried) return NestMesh != nullptr;
 	bNestMeshTried = true;
 	// Loaded by path (the folder is always cooked) so a missing asset only falls back to the sphere and disc.
-	NestMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/Leafline/Meshes/SM_Nest.SM_Nest"), nullptr, LOAD_NoWarn | LOAD_Quiet);
+	// SM_Nest2 is the same FBX imported with its vertex colours (the first import, SM_Nest, dropped them: the FBX
+	// importer's default is to ignore vertex colours, and the whole mound then shaded as the black entrance).
+	NestMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/Leafline/Meshes/SM_Nest2.SM_Nest2"), nullptr, LOAD_NoWarn | LOAD_Quiet);
+	if (!NestMesh) NestMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/Leafline/Meshes/SM_Nest.SM_Nest"), nullptr, LOAD_NoWarn | LOAD_Quiet);
 	if (!NestMesh)
 	{
 		UE_LOG(LogLeafline, Warning, TEXT("SM_Nest not found; the nest uses the sphere and disc"));
@@ -83,9 +86,13 @@ bool ANestActor::EnsureNestMesh()
 		Soil = SoilMaterial;
 	}
 	if (Soil) Mound->SetMaterial(0, Soil);
-	if (UMaterialInterface* Leaf = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Leafline/Materials/M_Leaf.M_Leaf"), nullptr, LOAD_NoWarn | LOAD_Quiet))
+	// The scraps get a plain dull leaf green: M_Leaf's backlight and blade maths made 5 cm scraps lying on the soil glow
+	// like fireflies (look pass 2 check).
+	if (BasicMaterial)
 	{
-		Mound->SetMaterial(1, Leaf);
+		UMaterialInstanceDynamic* ScrapMID = UMaterialInstanceDynamic::Create(BasicMaterial, this);
+		ScrapMID->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.07f, 0.13f, 0.035f));
+		Mound->SetMaterial(1, ScrapMID);
 	}
 	// The entrance is in the mesh's vertex colours; the disc goes.
 	Hole->SetVisibility(false);

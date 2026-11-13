@@ -44,11 +44,13 @@ FNestSoil S;
 const float GRAIN = 0.8;        // finest grain wavelength; raise it if the soil shimmers from far away
 const float PATCH = 18.0;       // damp and dry patches
 // Colour (linear). Fresh soil is darker and grainier than the ground; pellets are drier and vary per pellet.
-const float3 SOIL_DARK = float3(0.045, 0.030, 0.019);
-const float3 SOIL_LIGHT = float3(0.105, 0.070, 0.044);
+// About 1.6 times lighter than first written: a mound this dark filled the day-start frame, and auto exposure then
+// bleached the ground and blew out the ant (look pass 2 check).
+const float3 SOIL_DARK = float3(0.072, 0.050, 0.032);
+const float3 SOIL_LIGHT = float3(0.165, 0.112, 0.070);
 const float3 CRUMB = float3(0.16, 0.11, 0.068);
-const float3 PELLET_A = float3(0.07, 0.045, 0.028);
-const float3 PELLET_B = float3(0.135, 0.088, 0.054);
+const float3 PELLET_A = float3(0.10, 0.068, 0.042);
+const float3 PELLET_B = float3(0.19, 0.125, 0.078);
 const float3 GROUND_TONE = float3(0.062, 0.071, 0.03); // where the soil thins out: M_Ground's mean base colour (its two tones' mean)
 const float3 THROAT = float3(0.004, 0.003, 0.002);
 
