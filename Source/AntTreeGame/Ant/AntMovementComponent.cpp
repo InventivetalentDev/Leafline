@@ -104,11 +104,13 @@ void UAntMovementComponent::SnapToSurface()
 	ApplyTransform();
 }
 
-void UAntMovementComponent::SetMoveInput(const FVector2D& Input, const FVector& InCamForward, const FVector& InCamUp)
+void UAntMovementComponent::SetMoveInput(const FVector2D& Input, const FVector& InCamForward, const FVector& InCamUp, const FVector& InCamLocation)
 {
 	MoveInput = Input.GetClampedToMaxSize(1.0);
 	CamForward = InCamForward;
 	CamUp = InCamUp;
+	CamPos = InCamLocation;
+	bHasCamPos = !InCamLocation.IsZero();
 }
 
 void UAntMovementComponent::SetState(EAntState NewState)
@@ -221,8 +223,53 @@ FVector UAntMovementComponent::ComputeWish(const FVector& N) const
 	return (Fwd * (MoveInput.Y * FwdGain) + Right * MoveInput.X).GetClampedToMaxSize(1.0);
 }
 
-void UAntMovementComponent::MakeScreenBasis(const FVector& N, FVector& OutFwd, FVector& OutRight) const
+void UAntMovementComponent::MakeScreenBasis(const FVector& N, const FVector& Axis, FVector& OutFwd, FVector& OutRight) const
 {
+	const FVector CamRightV = FVector::CrossProduct(CamUp, CamForward);
+	const FVector AP = Axis.IsNearlyZero() ? FVector::ZeroVector : ProjectOnPlane(Axis, N);
+	if (AP.SizeSquared() > 0.04)
+	{
+		// On a branch: read the stick against how the whole branch lies on screen, not the patch of bark under the ant
+		// (on the side of a branch running away from you, screen-up there is over the top). Stick along the branch's screen
+		// direction walks along it; across it turns the branch's near side that way; diagonals go diagonally. Away from
+		// the camera counts as up, so a branch running into the screen reads as running up and W walks along it.
+		// A direction's motion on screen at the ant, with perspective: going away from the camera moves a point toward the
+		// screen centre (so up for an ant below the centre, left for one right of it).
+		double SX = 0.0, SY = 0.0;
+		if (bHasCamPos)
+		{
+			const FVector Rel = Pos - CamPos;
+			const double Z = FMath::Max(FVector::DotProduct(Rel, CamForward), 10.0);
+			SX = FVector::DotProduct(Rel, CamRightV) / Z;
+			SY = FVector::DotProduct(Rel, CamUp) / Z;
+		}
+		auto OnScreen = [&](const FVector& V)
+		{
+			const double VF = FVector::DotProduct(V, CamForward);
+			return FVector2D(FVector::DotProduct(V, CamRightV) - SX * VF, FVector::DotProduct(V, CamUp) - SY * VF + Tuning.AxisDepthWeight * VF);
+		};
+		FVector2D Ax2 = OnScreen(Axis);
+		FVector AxisW = Axis;
+		if (Ax2.SizeSquared() < 1e-4)
+		{
+			Ax2 = FVector2D(0.0, 1.0);
+		}
+		Ax2.Normalize();
+		const FVector2D Perp2(Ax2.Y, -Ax2.X); // screen-right of the branch's screen direction
+		const FVector A = AP.GetSafeNormal();
+		// Which way round is "right": the side of the branch facing the camera moves toward Perp2 on screen.
+		FVector NFront = -ProjectOnPlane(CamForward, AxisW.GetSafeNormal());
+		if (NFront.SizeSquared() < 1e-4) NFront = CamUp;
+		NFront.Normalize();
+		const FVector AroundFront = FVector::CrossProduct(NFront, AxisW).GetSafeNormal();
+		const double Sense = FVector2D::DotProduct(OnScreen(AroundFront), Perp2) >= 0.0 ? 1.0 : -1.0;
+		const FVector Around = (FVector::CrossProduct(N, AxisW).GetSafeNormal()) * Sense;
+		// The along direction on the bark that matches the axis' sign.
+		const FVector AlongW = FVector::DotProduct(A, AxisW) >= 0.0 ? A : -A;
+		OutFwd = (AlongW * Ax2.Y + Around * Perp2.Y).GetSafeNormal();
+		OutRight = (AlongW * Ax2.X + Around * Perp2.X).GetSafeNormal();
+		if (!OutFwd.IsNearlyZero() && !OutRight.IsNearlyZero()) return;
+	}
 	// Up on screen: screen-up projected onto the surface, plus a little "away from the camera" (the third-person habit
 	// that W walks away), so a surface seen edge-on still has an up. Right on screen: screen-right projected.
 	const FVector CamRight = FVector::CrossProduct(CamUp, CamForward);
@@ -251,7 +298,7 @@ void UAntMovementComponent::MakeScreenBasis(const FVector& N, FVector& OutFwd, F
 	OutRight = R.GetSafeNormal();
 }
 
-void UAntMovementComponent::UpdateHeldInput(float Dt, const FVector& N)
+void UAntMovementComponent::UpdateHeldInput(float Dt, const FVector& N, const FVector& Axis)
 {
 	if (State != EAntState::Walking)
 	{
@@ -279,7 +326,7 @@ void UAntMovementComponent::UpdateHeldInput(float Dt, const FVector& N)
 		FVector2D::DotProduct(Dir, HeldStickDir) < FMath::Cos(FMath::DegreesToRadians(Tuning.NewInputAngleDeg));
 	if (bNew)
 	{
-		MakeScreenBasis(N, HeldFwd, HeldRight);
+		MakeScreenBasis(N, Axis, HeldFwd, HeldRight);
 		SnapChoice = -1;
 	}
 	HeldStickDir = Dir;
@@ -315,7 +362,7 @@ FVector UAntMovementComponent::PreviewWish(const FVector2D& Input, const FVector
 	if (Tuning.ControlStyle == 0)
 	{
 		FVector F = HeldFwd, R = HeldRight;
-		if (F.IsNearlyZero()) MakeScreenBasis(N, F, R);
+		if (F.IsNearlyZero()) MakeScreenBasis(N, Axis, F, R);
 		const FVector Raw = (F * Input.Y + R * Input.X).GetSafeNormal() * InputMag;
 		if (BranchBlend <= 0.f || A.IsNearlyZero() || !Tuning.bSnapOnBranches) return Raw;
 		const FVector Around = FVector::CrossProduct(N, A).GetSafeNormal();
@@ -456,7 +503,9 @@ void UAntMovementComponent::UpdateInputViz(float Dt, const FVector& Axis, float 
 			FVector Q = P + D * StepLen, Qn;
 			double Err = 0.0;
 			if (!Field->Project(Q, Qn, Tuning.RideHeight, &Err)) break;
-			DrawDebugLine(World, P + Nn * 1.5, Q + Qn * 1.5, Col, false, -1.f, SDPG_Foreground, 0.8f);
+			// With depth: a path that goes over an edge and round the back disappears there instead of seeming to cross the
+			// front (the end marker stays on top).
+			DrawDebugLine(World, P + Nn * 2.0, Q + Qn * 2.0, Col, false, -1.f, SDPG_World, 1.0f);
 			D = ProjectOnPlane(FQuat::FindBetweenNormals(Nn, Qn).RotateVector(D), Qn).GetSafeNormal();
 			P = Q;
 			Nn = Qn;
@@ -551,7 +600,7 @@ void UAntMovementComponent::TickWalking(float Dt)
 		: WheelBlend;
 	if (bScreen)
 	{
-		UpdateHeldInput(Dt, N);
+		UpdateHeldInput(Dt, N, Axis);
 	}
 	else
 	{
@@ -746,6 +795,20 @@ void UAntMovementComponent::TickWalking(float Dt)
 				{
 					Wish = FMath::Lerp(Wish, A * (SpareInt * AlongMag * Fade * TipSlow) + Around * (AroundSign * InputMag * Keep * AroundRate), (double)ThinBlend);
 				}
+			}
+		}
+
+		// Screen direction on thin wood: going round is limited to MaxLapsPerSecond (walking along is not), so a diagonal on
+		// a twig is a gentle spiral, not five laps a second.
+		if (bScreen && State == EAntState::Walking && Tuning.MaxLapsPerSecond > 0.f && !Axis.IsNearlyZero() && RadiusHere < 1.0e5f && Speed > 1.f)
+		{
+			const FVector AlongDir = ProjectOnPlane(Axis, N).GetSafeNormal();
+			if (!AlongDir.IsNearlyZero())
+			{
+				const FVector RoundDir = FVector::CrossProduct(N, AlongDir).GetSafeNormal();
+				const double RoundPart = FVector::DotProduct(Wish, RoundDir);
+				const double MaxRound = Tuning.MaxLapsPerSecond * 2.0 * PI * RadiusHere / Speed;
+				if (FMath::Abs(RoundPart) > MaxRound) Wish -= RoundDir * (RoundPart - FMath::Sign(RoundPart) * MaxRound);
 			}
 		}
 

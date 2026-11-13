@@ -63,7 +63,13 @@ struct FAntMoveTuning
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") int32 ControlStyle = 0;
 	/** Screen direction: on thin twigs a diagonal snaps to along or around (no fast corkscrews). False: diagonals go diagonally. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") bool bSnapOnBranches = true;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") bool bSnapOnBranches = false;
+	/** Screen direction on a branch: how the branch lies on screen is its perspective projection at the ant; this much of
+	 *  "away from the camera" is added as up, so a branch pointing straight at the camera still reads as running up. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") float AxisDepthWeight = 0.25f;
+	/** Going round a branch at most this many laps a second (walking along it is not limited); thin twigs only, since
+	 *  from about 30 cm radius full speed is under a lap a second anyway. 0: no limit. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") float MaxLapsPerSecond = 1.f;
 	/** Screen direction: the snap applies fully on wood up to this radius and fades out by SnapFadeRadius (cm). Thicker wood
 	 *  keeps the held direction free, so you can steer onto a twig (a snap on limbs turned the ant round curving boughs). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") float SnapFullRadius = 25.f;
@@ -119,7 +125,7 @@ public:
 	float CarriedMass = 0.f;
 
 	/** Camera-relative move input: X right, Y forward. */
-	void SetMoveInput(const FVector2D& Input, const FVector& CamForward, const FVector& CamUp);
+	void SetMoveInput(const FVector2D& Input, const FVector& CamForward, const FVector& CamUp, const FVector& CamLocation = FVector::ZeroVector);
 	void SetSprintInput(bool bSprint) { bSprintInput = bSprint; }
 	/** The pawn says whether the ant is on another worker's trail (checked a few times a second). */
 	void SetOnTrail(bool bOn) { bOnTrail = bOn; }
@@ -190,9 +196,9 @@ private:
 	FVector HomeWish(const FVector& N) const;
 	FVector ComputeWish(const FVector& N) const;
 	/** Screen-direction controls: take or keep the snapshot of the camera (the held basis) for this frame. */
-	void UpdateHeldInput(float Dt, const FVector& N);
+	void UpdateHeldInput(float Dt, const FVector& N, const FVector& Axis);
 	/** The surface directions that "up" and "right" on screen mean at a point with normal N, from the live camera. */
-	void MakeScreenBasis(const FVector& N, FVector& OutFwd, FVector& OutRight) const;
+	void MakeScreenBasis(const FVector& N, const FVector& Axis, FVector& OutFwd, FVector& OutRight) const;
 	/** Along / around candidates on a branch for a direction, with the current snap kept unless another fits clearly better. */
 	int32 ChooseSnap(const FVector& Dir, const FVector& A, const FVector& Around, int32 Current) const;
 	/** What a pretend stick input would do here, without changing any state (the input view). */
@@ -217,6 +223,8 @@ private:
 	FVector2D MoveInput = FVector2D::ZeroVector;
 	FVector CamForward = FVector::ForwardVector;
 	FVector CamUp = FVector::UpVector;
+	FVector CamPos = FVector::ZeroVector;
+	bool bHasCamPos = false;
 	bool bSprintInput = false;
 	bool bSprinting = false;
 	bool bSprintLocked = false;
