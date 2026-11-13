@@ -69,6 +69,15 @@ private:
 	void DrawTextCentered(const FString& Text, float CenterX, float Y, const FLinearColor& Color, float TextScale, UFont* Font);
 	void DrawTextAt(const FString& Text, float X, float Y, const FLinearColor& Color, float TextScale, UFont* Font);
 	FVector2D MeasureText(const FString& Text, UFont* Font, float TextScale) const;
+	/** Two measured text heights, in 1080p design pixels; both use the existing engine font. */
+	float SecondaryText(float Scale) const;
+	float PrimaryText(float Scale) const;
+	/** Coordinates describe the content; the shared padding is added outside it. */
+	void DrawPanel(float X, float Y, float W, float H, float Scale, float Alpha = 1.f);
+	TArray<FString> WrapText(const FString& Text, float Width, float TextScale) const;
+	float DrawWrappedText(const FString& Text, float CX, float Y, float Width, const FLinearColor& Color, float TextScale, float Scale);
+	void DrawTextPanel(const FString& Text, float CX, float Y, const FLinearColor& Color, float TextScale, float Scale,
+		float Alpha = 1.f, float MaxWidth = 900.f);
 	bool UsingPad() const;
 	void DrawArc(float CX, float CY, float Radius, float From01, float To01, const FLinearColor& Color, float Thickness);
 

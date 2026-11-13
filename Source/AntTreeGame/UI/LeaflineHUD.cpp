@@ -24,6 +24,39 @@
 
 namespace
 {
+	// All lengths are 1080p design pixels. Colours retain their existing gameplay meanings.
+	struct FHUDStyle
+	{
+		float SecondaryHeight = 20.f; // 1.85% of screen height
+		float PrimaryHeight = 30.f;   // 2.78% of screen height
+		float Edge = 32.f;
+		float Padding = 16.f;
+		float Gap = 12.f;
+		float Row = 32.f;
+		float Bar = 10.f;
+		float Stroke = 2.f;
+		float CardWidth = 1120.f;
+		float MenuRow = 64.f;
+		FLinearColor Panel = FLinearColor(0.02f, 0.03f, 0.025f, 0.72f);
+		FLinearColor Track = FLinearColor(0.f, 0.f, 0.f, 0.5f);
+		FLinearColor Muted = FLinearColor(0.8f, 0.8f, 0.75f);
+		FLinearColor Leaf = FLinearColor(0.4f, 0.75f, 0.3f, 0.95f);
+		FLinearColor Rich = FLinearColor(0.95f, 0.9f, 0.5f);
+		FLinearColor Delivery = FLinearColor(0.7f, 0.98f, 0.5f);
+		// ExposureOverlay converts these exact HUD hues to linear emissive. Keep the bands too.
+		float ShelteredBelow = 0.25f;
+		float PartlyBelow = 0.6f;
+		FLinearColor Sheltered = FLinearColor(0.6f, 0.95f, 0.5f);
+		FLinearColor Partly = FLinearColor(1.f, 0.8f, 0.35f);
+		FLinearColor Warning = FLinearColor(1.f, 0.72f, 0.2f);
+		FLinearColor CutSafe = FLinearColor(0.45f, 0.9f, 0.4f);
+		FLinearColor CutDanger = FLinearColor(0.95f, 0.25f, 0.2f);
+		FLinearColor Home = FLinearColor(0.55f, 0.6f, 0.55f);
+		FLinearColor Selection = FLinearColor(0.3f, 0.55f, 0.6f, 0.45f);
+		// Text, accent, stamina and exposed/blown-off colours use the HUD's existing editable properties.
+	};
+	const FHUDStyle Style;
+
 	/**
 	 * The engine font rasterised at the size it is shown. Canvas text drawn with a TextScale is rasterised at the font's
 	 * own size and stretched, which blurs it on large screens.
@@ -39,6 +72,14 @@ namespace
 	{
 		if (!Font || !FSlateApplication::IsInitialized()) return FVector2D::ZeroVector;
 		return FSlateApplication::Get().GetRenderer()->GetFontMeasureService()->Measure(Text, CrispFont(Font, TextScale));
+	}
+
+	float ScaleForHeight(float Height)
+	{
+		UFont* Font = GEngine->GetMediumFont();
+		const float Base = MeasureCrisp(TEXT("Ag"), Font, 1.f).Y;
+		const float FontSize = FMath::Max(float(Font->GetLegacySlateFontInfo().Size), 1.f);
+		return FMath::CeilToInt(Height * FontSize / FMath::Max(Base, 1.f)) / FontSize;
 	}
 
 	void DrawCrisp(UCanvas* Canvas, const FString& Text, const FLinearColor& Color, float X, float Y, const UFont* Font, float TextScale)
@@ -103,15 +144,15 @@ void ALeaflineHUD::DrawHUD()
 		for (int32 i = 0; i < LeafDebug::InputVizLines.Num(); ++i)
 		{
 			const FLinearColor C = i == 0 ? FLinearColor(LeafDebug::InputVizColor) : TextColor;
-			DrawCrisp(Canvas, LeafDebug::InputVizLines[i], C, 30.f * Scale, VY, VizFont, (i == 0 ? 1.1f : 0.85f) * Scale);
-			VY += (i == 0 ? 30.f : 22.f) * Scale;
+			DrawCrisp(Canvas, LeafDebug::InputVizLines[i], C, 30.f * Scale, VY, VizFont, i == 0 ? PrimaryText(Scale) : SecondaryText(Scale));
+			VY += (i == 0 ? Style.PrimaryHeight + Style.Gap : Style.Row) * Scale;
 		}
 		if (const APlayerController* VPC = GetOwningPlayerController())
 		{
 			for (const LeafDebug::FInputVizLabel& L : LeafDebug::InputVizLabels)
 			{
 				FVector2D SP;
-				if (VPC->ProjectWorldLocationToScreen(L.Pos, SP)) DrawCrisp(Canvas, L.Text, FLinearColor(L.Color), SP.X - 6.f * Scale, SP.Y - 12.f * Scale, VizFont, 1.2f * Scale);
+				if (VPC->ProjectWorldLocationToScreen(L.Pos, SP)) DrawCrisp(Canvas, L.Text, FLinearColor(L.Color), SP.X - 6.f * Scale, SP.Y - 12.f * Scale, VizFont, SecondaryText(Scale));
 			}
 		}
 	}
@@ -149,13 +190,12 @@ void ALeaflineHUD::DrawHUD()
 		}
 		if (!Goal.IsEmpty())
 		{
-			DrawTextCentered(Goal, Canvas->ClipX * 0.5f, 118.f * Scale, AccentColor, 1.2f * Scale, GEngine->GetMediumFont());
+			DrawTextPanel(Goal, Canvas->ClipX * 0.5f, 160.f * Scale, AccentColor, SecondaryText(Scale), Scale, 1.f, 700.f);
 		}
 	}
 	if (Ant)
 	{
 		DrawStamina(Ant, Scale, Dt);
-		DrawCarry(Ant, Scale);
 		DrawCutArc(Ant, Scale);
 		DrawLeafTarget(Ant, Scale);
 		DrawCutLine(Ant, Scale);
@@ -177,26 +217,24 @@ void ALeaflineHUD::DrawShiftBanner(const ADayDirector* D, float Scale, float Dt)
 	}
 	BannerShift = Shift;
 	BannerDay = D->GetDay();
-	// While still watching a worker that was just sent home: say so (the next worker comes out a moment later).
 	const APlayerController* PC = GetOwningPlayerController();
 	const AAntPawn* Watched = PC ? Cast<AAntPawn>(PC->GetPawn()) : nullptr;
+	const float CX = Canvas->ClipX * 0.5f, Y = Canvas->ClipY * 0.3f;
 	if (Watched && Watched->GetAntMovement() && Watched->GetAntMovement()->GetState() == EAntState::Returning && BannerTime <= 0.f)
 	{
-		const float CX = Canvas->ClipX * 0.5f;
-		DrawTextCentered(FString::Printf(TEXT("Worker %d heads home with its piece"), Watched->GetWorkerIndex() + 1), CX, Canvas->ClipY * 0.26f,
-			TextColor, 1.25f * Scale, GEngine->GetMediumFont());
+		DrawTextPanel(FString::Printf(TEXT("Worker %d heads home with its piece"), Watched->GetWorkerIndex() + 1),
+			CX, Y, TextColor, SecondaryText(Scale), Scale);
 	}
 	if (BannerTime <= 0.f) return;
-	BannerTime -= Dt;
+	BannerTime = FMath::Max(0.f, BannerTime - Dt);
 	const float A = FMath::Clamp(BannerTime / 0.6f, 0.f, 1.f);
-	const float CX = Canvas->ClipX * 0.5f;
-	float Y = Canvas->ClipY * 0.26f;
-	if (!BannerTitle.IsEmpty())
-	{
-		DrawTextCentered(BannerTitle, CX, Y, FLinearColor(AccentColor.R, AccentColor.G, AccentColor.B, A), 1.8f * Scale, GEngine->GetLargeFont());
-		Y += 70.f * Scale;
-	}
-	DrawTextCentered(BannerLine, CX, Y, FLinearColor(TextColor.R, TextColor.G, TextColor.B, A), 1.25f * Scale, GEngine->GetMediumFont());
+	UFont* Font = GEngine->GetMediumFont();
+	const float TitleH = BannerTitle.IsEmpty() ? 0.f : (Style.PrimaryHeight + Style.Gap) * Scale;
+	const float W = FMath::Max(float(MeasureText(BannerTitle, Font, PrimaryText(Scale)).X),
+		float(MeasureText(BannerLine, Font, SecondaryText(Scale)).X));
+	DrawPanel(CX - W * 0.5f, Y, W, TitleH + Style.SecondaryHeight * Scale, Scale, A);
+	if (!BannerTitle.IsEmpty()) DrawTextCentered(BannerTitle, CX, Y, FLinearColor(AccentColor.R, AccentColor.G, AccentColor.B, A), PrimaryText(Scale), Font);
+	DrawTextCentered(BannerLine, CX, Y + TitleH, FLinearColor(TextColor.R, TextColor.G, TextColor.B, A), SecondaryText(Scale), Font);
 }
 
 namespace
@@ -339,6 +377,89 @@ void ALeaflineHUD::DrawTextCentered(const FString& Text, float CenterX, float Y,
 	DrawTextAt(Text, CenterX - Size.X * 0.5f, Y, Color, TextScale, Font);
 }
 
+float ALeaflineHUD::SecondaryText(float Scale) const
+{
+	return ScaleForHeight(Style.SecondaryHeight * Scale);
+}
+
+float ALeaflineHUD::PrimaryText(float Scale) const
+{
+	return ScaleForHeight(Style.PrimaryHeight * Scale);
+}
+
+void ALeaflineHUD::DrawPanel(float X, float Y, float W, float H, float Scale, float Alpha)
+{
+	FLinearColor C = Style.Panel;
+	C.A *= Alpha;
+	const float P = Style.Padding * Scale;
+	DrawRect(C, X - P, Y - P, W + 2.f * P, H + 2.f * P);
+}
+
+TArray<FString> ALeaflineHUD::WrapText(const FString& Text, float Width, float TextScale) const
+{
+	TArray<FString> Rows;
+	FString Row, Spaces;
+	int32 Start = 0;
+	while (Start < Text.Len())
+	{
+		const int32 Space = Text.Find(TEXT(" "), ESearchCase::CaseSensitive, ESearchDir::FromStart, Start);
+		const int32 End = Space == INDEX_NONE ? Text.Len() : Space;
+		const FString Word = Text.Mid(Start, End - Start);
+		if (!Word.IsEmpty())
+		{
+			const FString Next = Row.IsEmpty() ? Word : Row + Spaces + Word;
+			if (!Row.IsEmpty() && MeasureText(Next, GEngine->GetMediumFont(), TextScale).X > Width)
+			{
+				Rows.Add(Row);
+				Row = Word;
+			}
+			else Row = Next;
+			Spaces = TEXT(" ");
+		}
+		else Spaces += TEXT(" ");
+		Start = End + 1;
+	}
+	if (!Row.IsEmpty()) Rows.Add(Row);
+	return Rows;
+}
+
+float ALeaflineHUD::DrawWrappedText(const FString& Text, float CX, float Y, float Width,
+	const FLinearColor& Color, float TextScale, float Scale)
+{
+	UFont* Font = GEngine->GetMediumFont();
+	const TArray<FString> Rows = WrapText(Text, Width, TextScale);
+	const float Start = Y;
+	for (const FString& Row : Rows)
+	{
+		DrawTextCentered(Row, CX, Y, Color, TextScale, Font);
+		Y += MeasureText(Row, Font, TextScale).Y + Style.Gap * Scale;
+	}
+	return Rows.Num() > 0 ? Y - Start - Style.Gap * Scale : 0.f;
+}
+
+void ALeaflineHUD::DrawTextPanel(const FString& Text, float CX, float Y, const FLinearColor& Color,
+	float TextScale, float Scale, float Alpha, float MaxWidth)
+{
+	UFont* Font = GEngine->GetMediumFont();
+	const float Limit = FMath::Min(MaxWidth * Scale, Canvas->ClipX - 2.f * (Style.Edge + Style.Padding) * Scale);
+	const TArray<FString> Rows = WrapText(Text, Limit, TextScale);
+	float W = 0.f, H = 0.f;
+	for (const FString& Row : Rows)
+	{
+		const FVector2D Size = MeasureText(Row, Font, TextScale);
+		W = FMath::Max(W, float(Size.X));
+		H += Size.Y + Style.Gap * Scale;
+	}
+	if (Rows.Num() == 0) return;
+	H -= Style.Gap * Scale;
+	DrawPanel(CX - W * 0.5f, Y, W, H, Scale, Alpha);
+	for (const FString& Row : Rows)
+	{
+		DrawTextCentered(Row, CX, Y, Color, TextScale, Font);
+		Y += MeasureText(Row, Font, TextScale).Y + Style.Gap * Scale;
+	}
+}
+
 void ALeaflineHUD::DrawArc(float CX, float CY, float Radius, float From01, float To01, const FLinearColor& Color, float Thickness)
 {
 	const int32 Segs = FMath::Max(2, FMath::CeilToInt((To01 - From01) * 64.f));
@@ -356,55 +477,83 @@ void ALeaflineHUD::DrawStamina(const AAntPawn* Ant, float Scale, float Dt)
 	if (!M) return;
 	const float Stamina = M->GetStamina();
 	StaminaShown = FMath::FInterpTo(StaminaShown, Stamina, Dt, 12.f);
-	// Fades out when full and idle, in while it is being used.
-	const bool bActive = Stamina < 0.999f || M->IsSprinting();
+	const bool bActive = Stamina < 0.999f;
 	StaminaAlpha = FMath::FInterpTo(StaminaAlpha, bActive ? 1.f : 0.f, Dt, bActive ? 10.f : 2.f);
 	if (StaminaAlpha < 0.01f) return;
-
-	const float W = 280.f * Scale, H = 9.f * Scale;
+	const float W = 280.f * Scale, H = Style.Bar * Scale;
 	const float X = (Canvas->ClipX - W) * 0.5f;
-	const float Y = Canvas->ClipY - 70.f * Scale;
+	const float BarY = Canvas->ClipY - (Style.Edge + Style.Padding + Style.Bar) * Scale;
+	const float Y = BarY - Style.Row * Scale;
 	FLinearColor Fill = M->IsSprintLocked() ? StaminaLockedColor : StaminaColor;
 	Fill.A *= StaminaAlpha;
-	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.45f * StaminaAlpha), X - 2.f * Scale, Y - 2.f * Scale, W + 4.f * Scale, H + 4.f * Scale);
-	DrawRect(Fill, X, Y, W * FMath::Clamp(StaminaShown, 0.f, 1.f), H);
+	DrawPanel(X, Y, W, (Style.Row + Style.Bar) * Scale, Scale, StaminaAlpha);
+	DrawTextAt(M->IsSprintLocked() ? TEXT("Stamina: recovering") : TEXT("Stamina"), X, Y,
+		FLinearColor(TextColor.R, TextColor.G, TextColor.B, StaminaAlpha), SecondaryText(Scale), GEngine->GetMediumFont());
+	FLinearColor Track = Style.Track;
+	Track.A *= StaminaAlpha;
+	DrawRect(Track, X, BarY, W, H);
+	DrawRect(Fill, X, BarY, W * FMath::Clamp(StaminaShown, 0.f, 1.f), H);
 }
 
 void ALeaflineHUD::DrawDayInfo(const ADayDirector* D, float Scale)
 {
 	UFont* Font = GEngine->GetMediumFont();
-	const float X = 40.f * Scale, Y = 34.f * Scale;
-	DrawCrisp(Canvas, D->GetTreeName().IsEmpty() ? FString::Printf(TEXT("Day %d"), D->GetDay())
-		: FString::Printf(TEXT("Day %d: %s"), D->GetDay(), *D->GetTreeName()), TextColor, X, Y, Font, 1.3f * Scale);
-
-	// Worker pips: filled = waiting in the nest, ring = out or returning, dim = home.
-	const float Pip = 14.f * Scale, Gap = 8.f * Scale;
-	const float PY = Y + 34.f * Scale;
+	const float X = (Style.Edge + Style.Padding) * Scale, Y = X;
+	const FString Title = D->GetTreeName().IsEmpty() ? FString::Printf(TEXT("Day %d"), D->GetDay())
+		: FString::Printf(TEXT("Day %d: %s"), D->GetDay(), *D->GetTreeName());
+	const float Cell = 140.f * Scale;
+	const float W = FMath::Max(FMath::Max(440.f * Scale, D->NumWorkers() * Cell), float(MeasureText(Title, Font, PrimaryText(Scale)).X));
+	DrawPanel(X, Y, W, 128.f * Scale, Scale);
+	DrawTextAt(Title, X, Y, TextColor, PrimaryText(Scale), Font);
+	const float PY = Y + 44.f * Scale, Pip = 14.f * Scale;
 	for (int32 i = 0; i < D->NumWorkers(); ++i)
 	{
-		const float PX = X + i * (Pip + Gap);
-		const EWorkerState S = D->GetWorkerState(i);
+		const float PX = X + i * Cell;
+		const EWorkerState State = D->GetWorkerState(i);
 		FLinearColor C = TextColor;
-		if (S == EWorkerState::Home) C = FLinearColor(0.4f, 0.4f, 0.35f, 0.8f);
-		if (S == EWorkerState::BlownOff) C = StaminaLockedColor;
-		if (S == EWorkerState::Out || S == EWorkerState::Returning) C = AccentColor;
-		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.4f), PX - 2.f * Scale, PY - 2.f * Scale, Pip + 4.f * Scale, Pip + 4.f * Scale);
-		const float Inset = (S == EWorkerState::Returning) ? 4.f * Scale : 0.f;
-		DrawRect(C, PX + Inset, PY + Inset, Pip - 2.f * Inset, Pip - 2.f * Inset);
+		const TCHAR* Label = TEXT("Ready");
+		switch (State)
+		{
+		case EWorkerState::Waiting: break;
+		case EWorkerState::Out: C = AccentColor; Label = TEXT("Out"); break;
+		case EWorkerState::Returning: C = Style.Rich; Label = TEXT("Returning"); break;
+		case EWorkerState::Home: C = Style.Home; Label = TEXT("Home"); break;
+		case EWorkerState::BlownOff: C = StaminaLockedColor; Label = TEXT("Blown off"); break;
+		}
+		// Outline = ready, solid = out, inset = returning, underline = home, cross = blown off.
+		const float T = Style.Stroke * Scale, MidY = PY + 10.f * Scale;
+		if (State == EWorkerState::Out) DrawRect(C, PX, MidY - Pip * 0.5f, Pip, Pip);
+		else if (State == EWorkerState::Home) DrawRect(C, PX, MidY + Pip * 0.5f - T, Pip, T);
+		else if (State == EWorkerState::BlownOff)
+		{
+			DrawLine(PX, MidY - Pip * 0.5f, PX + Pip, MidY + Pip * 0.5f, C, T);
+			DrawLine(PX, MidY + Pip * 0.5f, PX + Pip, MidY - Pip * 0.5f, C, T);
+		}
+		else
+		{
+			DrawRect(C, PX, MidY - Pip * 0.5f, Pip, Pip);
+			DrawRect(Style.Panel, PX + T, MidY - Pip * 0.5f + T, Pip - 2.f * T, Pip - 2.f * T);
+			if (State == EWorkerState::Returning) DrawRect(C, PX + 5.f * Scale, MidY - 2.f * Scale, 4.f * Scale, 4.f * Scale);
+		}
+		DrawTextAt(FString::Printf(TEXT("%d %s"), i + 1, Label), PX + Pip + 6.f * Scale, PY, C, SecondaryText(Scale), Font);
 	}
-	DrawCrisp(Canvas, FString::Printf(TEXT("Hauled %.1f"), D->GetStats().MassHauled), TextColor, X, PY + Pip + 10.f * Scale, Font, 1.0f * Scale);
-
+	DrawTextAt(FString::Printf(TEXT("Hauled %.1f"), D->GetStats().MassHauled), X, Y + 84.f * Scale, TextColor, SecondaryText(Scale), Font);
+	if (const AAntPawn* Ant = Cast<AAntPawn>(GetOwningPawn())) DrawCarry(Ant, Scale);
 	// Wind gauge, top right.
 	if (const AWindSystem* Wind = D->GetWind())
 	{
-		const float GW = 180.f * Scale, GH = 8.f * Scale;
-		const float GX = Canvas->ClipX - 40.f * Scale - GW, GY = 50.f * Scale;
+		const float GW = 260.f * Scale, GH = Style.Bar * Scale;
+		const float GX = Canvas->ClipX - (Style.Edge + Style.Padding) * Scale - GW, GY = 90.f * Scale;
+		const ALeaflinePlayerController* WindPC = Cast<ALeaflinePlayerController>(GetOwningPlayerController());
+		const bool bMap = WindPC && WindPC->IsWindMapShown();
+		DrawPanel(GX - 42.f * Scale, (Style.Edge + Style.Padding) * Scale, GW + 42.f * Scale,
+			(D->GetPhase() == EDayPhase::Shift ? (bMap ? 214.f : 154.f) : 100.f) * Scale, Scale);
 		const EWindPhase Ph = Wind->GetPhase();
 		const TCHAR* Label = Ph == EWindPhase::Calm ? TEXT("Wind: calm") : Ph == EWindPhase::Warning ? TEXT("Wind: gust coming")
 			: Ph == EWindPhase::Falling ? TEXT("Wind: easing") : TEXT("Wind: GUST");
-		const FLinearColor C = Wind->IsGustActive() ? StaminaLockedColor : (Ph == EWindPhase::Warning ? FLinearColor(1.f, 0.72f, 0.2f) : TextColor);
-		DrawCrisp(Canvas, Label, C, GX, GY - 26.f * Scale, Font, 1.0f * Scale);
-		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.45f), GX - 2.f * Scale, GY - 2.f * Scale, GW + 4.f * Scale, GH + 4.f * Scale);
+		const FLinearColor C = Wind->IsGustActive() ? StaminaLockedColor : (Ph == EWindPhase::Warning ? Style.Warning : TextColor);
+		DrawTextAt(Label, GX, (Style.Edge + Style.Padding) * Scale, C, SecondaryText(Scale), Font);
+		DrawRect(Style.Track, GX, GY, GW, GH);
 		DrawRect(C, GX, GY, GW * FMath::Clamp(Wind->GetStrength(), 0.f, 1.f), GH);
 
 		// Which way it blows, as seen from the camera: up on screen is away from you.
@@ -415,16 +564,16 @@ void ALeaflineHUD::DrawDayInfo(const ADayDirector* D, float Scale)
 			F.Z = 0.0;
 			F = F.GetSafeNormal();
 			const FVector R(-F.Y, F.X, 0.0);
-			const FVector W = Wind->GetDirection().GetSafeNormal2D();
-			FVector2D V(FVector::DotProduct(W, R), -FVector::DotProduct(W, F));
+			const FVector WindDir = Wind->GetDirection().GetSafeNormal2D();
+			FVector2D V(FVector::DotProduct(WindDir, R), -FVector::DotProduct(WindDir, F));
 			if (!F.IsNearlyZero() && !V.IsNearlyZero())
 			{
 				V.Normalize();
 				const float AR = 13.f * Scale;
-				const FVector2D Ctr(GX - 30.f * Scale, GY - 6.f * Scale);
+				const FVector2D Ctr(GX - 30.f * Scale, GY + GH * 0.5f);
 				const FVector2D Tip = Ctr + V * AR, Tail = Ctr - V * AR;
 				const FVector2D Side(-V.Y, V.X);
-				const float T = 2.f * Scale;
+				const float T = Style.Stroke * Scale;
 				DrawLine(Tail.X, Tail.Y, Tip.X, Tip.Y, C, T);
 				const FVector2D H1 = Tip - V * (AR * 0.6f) + Side * (AR * 0.45f), H2 = Tip - V * (AR * 0.6f) - Side * (AR * 0.45f);
 				DrawLine(Tip.X, Tip.Y, H1.X, H1.Y, C, T);
@@ -443,27 +592,27 @@ void ALeaflineHUD::DrawDayInfo(const ADayDirector* D, float Scale)
 		}
 		if (M && ExposureShown >= 0.f)
 		{
-			const bool bSheltered = ExposureShown < 0.25f, bPartly = ExposureShown < 0.6f;
-			const FLinearColor EC = bSheltered ? FLinearColor(0.6f, 0.95f, 0.5f) : (bPartly ? FLinearColor(1.f, 0.8f, 0.35f) : StaminaLockedColor);
+			const bool bSheltered = ExposureShown < Style.ShelteredBelow, bPartly = ExposureShown < Style.PartlyBelow;
+			const FLinearColor EC = bSheltered ? Style.Sheltered : (bPartly ? Style.Partly : StaminaLockedColor);
 			const TCHAR* EL = bSheltered ? TEXT("Here: sheltered") : (bPartly ? TEXT("Here: partly exposed") : TEXT("Here: exposed"));
-			DrawCrisp(Canvas, EL, EC, GX, GY + GH + 10.f * Scale, Font, 1.0f * Scale);
+			DrawTextAt(EL, GX, GY + GH + Style.Gap * Scale, EC, SecondaryText(Scale), Font);
 		}
 		// The wind map (hold Tab / LB): its legend while shown, otherwise a quiet reminder that it exists (in play only:
 		// in the harvest Tab steps the views).
 		if (M && D->GetPhase() == EDayPhase::Shift)
 		{
 			const ALeaflinePlayerController* LPC = Cast<ALeaflinePlayerController>(PC);
-			const float LY = GY + GH + 32.f * Scale;
+			const float LY = GY + GH + (Style.Gap + Style.Row) * Scale;
 			if (LPC && LPC->IsWindMapShown())
 			{
-				DrawCrisp(Canvas, TEXT("Wind map:"), TextColor, GX, LY, Font, 0.9f * Scale);
-				DrawCrisp(Canvas, TEXT("green sheltered"), FLinearColor(0.6f, 0.95f, 0.5f), GX, LY + 20.f * Scale, Font, 0.9f * Scale);
-				DrawCrisp(Canvas, TEXT("amber partly exposed"), FLinearColor(1.f, 0.8f, 0.35f), GX, LY + 38.f * Scale, Font, 0.9f * Scale);
-				DrawCrisp(Canvas, TEXT("red exposed"), StaminaLockedColor, GX, LY + 56.f * Scale, Font, 0.9f * Scale);
+				DrawCrisp(Canvas, TEXT("Wind map:"), TextColor, GX, LY, Font, SecondaryText(Scale));
+				DrawCrisp(Canvas, TEXT("green sheltered"), Style.Sheltered, GX, LY + Style.Row * Scale, Font, SecondaryText(Scale));
+				DrawCrisp(Canvas, TEXT("amber partly exposed"), Style.Partly, GX, LY + 2.f * Style.Row * Scale, Font, SecondaryText(Scale));
+				DrawCrisp(Canvas, TEXT("red exposed"), StaminaLockedColor, GX, LY + 3.f * Style.Row * Scale, Font, SecondaryText(Scale));
 			}
 			else
 			{
-				DrawTextAt(TEXT("Hold {Cycle}: wind map"), GX, LY, FLinearColor(TextColor.R, TextColor.G, TextColor.B, 0.55f), 0.85f * Scale, Font);
+				DrawTextAt(TEXT("Hold {Cycle}: wind map"), GX, LY, Style.Muted, SecondaryText(Scale), Font);
 			}
 		}
 	}
@@ -471,13 +620,12 @@ void ALeaflineHUD::DrawDayInfo(const ADayDirector* D, float Scale)
 
 void ALeaflineHUD::DrawCarry(const AAntPawn* Ant, float Scale)
 {
-	if (!Ant->IsCarrying()) return;
-	UFont* Font = GEngine->GetMediumFont();
-	const float X = 40.f * Scale, Y = Canvas->ClipY - 110.f * Scale;
-	DrawCrisp(Canvas, FString::Printf(TEXT("Carrying %.1f"), Ant->GetCarriedMass()), TextColor, X, Y, Font, 1.2f * Scale);
-	const float W = 160.f * Scale, H = 8.f * Scale;
-	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.45f), X - 2.f * Scale, Y + 30.f * Scale, W + 4.f * Scale, H + 4.f * Scale);
-	DrawRect(FLinearColor(0.35f, 0.75f, 0.25f, 0.95f), X, Y + 32.f * Scale, W * Ant->GetCarriedSize(), H);
+	const float X = (Style.Edge + Style.Padding + 210.f) * Scale, Y = (Style.Edge + Style.Padding + 84.f) * Scale;
+	DrawTextAt(Ant->IsCarrying() ? FString::Printf(TEXT("Carrying %.1f"), Ant->GetCarriedMass()) : FString(TEXT("Carrying: empty")),
+		X, Y, TextColor, SecondaryText(Scale), GEngine->GetMediumFont());
+	const float W = 230.f * Scale, H = Style.Bar * Scale, BY = Y + Style.Row * Scale;
+	DrawRect(Style.Track, X, BY, W, H);
+	if (Ant->IsCarrying()) DrawRect(Style.Leaf, X, BY, W * FMath::Clamp(Ant->GetCarriedSize(), 0.f, 1.f), H);
 }
 
 void ALeaflineHUD::DrawCutArc(const AAntPawn* Ant, float Scale)
@@ -494,25 +642,24 @@ void ALeaflineHUD::DrawCutArc(const AAntPawn* Ant, float Scale)
 	{
 		OutRatio = Wind ? Wind->PredictRiskRatio(Ant->DiameterForSize(S), GripMul) : 0.f;
 		const float Risky = Wind ? Wind->Tuning.RiskyRatio : 0.6f;
-		if (OutRatio >= 1.f) return FLinearColor(0.95f, 0.25f, 0.2f);
-		if (OutRatio >= Risky) return FLinearColor(1.f, 0.72f, 0.2f);
-		return FLinearColor(0.45f, 0.9f, 0.4f);
+		if (OutRatio >= 1.f) return Style.CutDanger;
+		if (OutRatio >= Risky) return Style.Warning;
+		return Style.CutSafe;
 	};
-	DrawArc(CX, CY, R, 0.f, Ant->GetCutCap(), FLinearColor(0.f, 0.f, 0.f, 0.35f), 6.f * Scale);
+	DrawArc(CX, CY, R, 0.f, Ant->GetCutCap(), Style.Track, Style.Bar * Scale);
 	const int32 Steps = 24;
 	float Ratio = 0.f;
 	for (int32 i = 0; i < Steps; ++i)
 	{
 		const float A = Size * i / Steps, B = Size * (i + 1) / Steps;
-		DrawArc(CX, CY, R, A, FMath::Max(B, A + 0.002f), RiskColor(B, Ratio), 6.f * Scale);
+		DrawArc(CX, CY, R, A, FMath::Max(B, A + 0.002f), RiskColor(B, Ratio), Style.Bar * Scale);
 	}
 	const FLinearColor Now = RiskColor(Size, Ratio);
-	UFont* Font = GEngine->GetMediumFont();
-	DrawTextCentered(FString::Printf(TEXT("%.1f"), Ant->MassForSize(Size)), CX, CY - 12.f * Scale, TextColor, 1.2f * Scale, Font);
+	DrawTextPanel(FString::Printf(TEXT("%.1f"), Ant->MassForSize(Size)), CX, CY - Style.PrimaryHeight * 0.5f * Scale, TextColor, PrimaryText(Scale), Scale);
 	// Name the subject: the label is about the piece being cut, not the ant or the leaf.
 	const TCHAR* Label = Ratio >= 1.f ? TEXT("This piece: too big for a gust")
 		: (Wind && Ratio >= Wind->Tuning.RiskyRatio ? TEXT("This piece: risky in a gust") : TEXT("This piece: safe in a gust"));
-	DrawTextCentered(Label, CX, CY + R + 14.f * Scale, Now, 1.0f * Scale, Font);
+	DrawTextPanel(Label, CX, CY + R + 28.f * Scale, Now, SecondaryText(Scale), Scale);
 }
 
 void ALeaflineHUD::DrawCutLine(const AAntPawn* Ant, float Scale)
@@ -605,7 +752,6 @@ void ALeaflineHUD::DrawDeliveryPops(const ALineSystem* Lines, float Scale)
 	const FVector CamFwd = PC->PlayerCameraManager->GetCameraRotation().Vector();
 	const double Now = GetWorld()->GetRealTimeSeconds();
 	constexpr float Life = 1.5f;
-	UFont* Font = GEngine->GetMediumFont();
 	for (const FDeliveryPop& P : Lines->GetRecentDeliveries())
 	{
 		const float T = float(Now - P.RealTime) / Life;
@@ -615,9 +761,9 @@ void ALeaflineHUD::DrawDeliveryPops(const ALineSystem* Lines, float Scale)
 		// Rises with an ease-out, holds, then fades over the last 40%.
 		const float Rise = 80.f * Scale * (1.f - FMath::Square(1.f - T));
 		const float A = FMath::Clamp((1.f - T) / 0.4f, 0.f, 1.f);
-		const float Size = (1.1f + 0.08f * FMath::Min(P.Chain, 10)) * Scale;
+		const float Size = PrimaryText(Scale);
 		const FString Text = P.Mass >= 10.f ? FString::Printf(TEXT("+%.0f"), P.Mass) : FString::Printf(TEXT("+%.1f"), P.Mass);
-		DrawTextCentered(Text, S.X, S.Y - Rise, FLinearColor(0.7f, 0.98f, 0.5f, A), Size, Font);
+		DrawTextPanel(Text, S.X, S.Y - Rise, FLinearColor(Style.Delivery.R, Style.Delivery.G, Style.Delivery.B, A), Size, Scale, A);
 	}
 }
 
@@ -637,9 +783,13 @@ void ALeaflineHUD::DrawColonyCounter(const ADayDirector* D, float Scale, float D
 		ColonyShown = Diff < 0.05f ? Target : ColonyShown + FMath::Min(Diff, FMath::Max(Diff * 5.f * Dt, 6.f * Dt));
 	}
 	UFont* Font = GEngine->GetMediumFont();
-	const float CX = Canvas->ClipX * 0.5f;
-	DrawTextCentered(FString::Printf(TEXT("Colony  %s"), *FString::FormatAsNumber(FMath::RoundToInt(ColonyShown))), CX, 22.f * Scale, TextColor, 1.6f * Scale, Font);
-	DrawTextCentered(FString::Printf(TEXT("Today  +%.1f"), D->GetStats().MassHauled), CX, 62.f * Scale, AccentColor, 1.05f * Scale, Font);
+	const float CX = Canvas->ClipX * 0.5f, Y = (Style.Edge + Style.Padding) * Scale;
+	const FString Total = FString::Printf(TEXT("Colony  %s"), *FString::FormatAsNumber(FMath::RoundToInt(ColonyShown)));
+	const FString Today = FString::Printf(TEXT("Today  +%.1f"), D->GetStats().MassHauled);
+	const float W = FMath::Max(float(MeasureText(Total, Font, PrimaryText(Scale)).X), float(MeasureText(Today, Font, SecondaryText(Scale)).X));
+	DrawPanel(CX - W * 0.5f, Y, W, (Style.PrimaryHeight + Style.Gap + Style.SecondaryHeight) * Scale, Scale);
+	DrawTextCentered(Total, CX, Y, TextColor, PrimaryText(Scale), Font);
+	DrawTextCentered(Today, CX, Y + (Style.PrimaryHeight + Style.Gap) * Scale, AccentColor, SecondaryText(Scale), Font);
 }
 
 void ALeaflineHUD::DrawLineRows(const ADayDirector* D, const ALineSystem* Lines, float Scale)
@@ -647,33 +797,29 @@ void ALeaflineHUD::DrawLineRows(const ADayDirector* D, const ALineSystem* Lines,
 	if (!Lines || Lines->GetLines().Num() == 0) return;
 	if (D->GetPhase() != EDayPhase::Shift && D->GetPhase() != EDayPhase::Harvest) return;
 	UFont* Font = GEngine->GetMediumFont();
-	const float X = 40.f * Scale;
-	float Y = 150.f * Scale;
-	const float RowH = 28.f * Scale;
-	const float BarW = 70.f * Scale, BarH = 8.f * Scale;
+	const float X = (Style.Edge + Style.Padding) * Scale;
+	float Y = 232.f * Scale;
+	const float RowH = 64.f * Scale, W = 440.f * Scale;
+	const bool bIdle = D->GetPhase() == EDayPhase::Shift && Lines->IsActive() && Lines->NumIdle() > 0;
+	DrawPanel(X, Y, W, (Lines->GetLines().Num() * 64.f - Style.Gap + (bIdle ? Style.Row : 0.f)) * Scale, Scale);
 	for (const FColonyLine& L : Lines->GetLines())
 	{
-		const bool bLive = L.IsLive();
-		const float Dim = bLive ? 1.f : 0.5f;
+		const float Dim = L.IsLive() ? 1.f : 0.7f;
 		const FLinearColor Text(TextColor.R, TextColor.G, TextColor.B, Dim);
-		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.35f * Dim), X - 8.f * Scale, Y - 3.f * Scale, 400.f * Scale, RowH);
-		DrawCrisp(Canvas, FString::Printf(TEXT("Line %d"), L.Number), FLinearColor(AccentColor.R, AccentColor.G, AccentColor.B, Dim), X, Y, Font, 0.95f * Scale);
-		DrawCrisp(Canvas, FString::Printf(TEXT("home %d"), L.PiecesHome), Text, X + 78.f * Scale, Y, Font, 0.95f * Scale);
-		DrawCrisp(Canvas, FString::Printf(TEXT("lost %d"), L.PiecesLost), L.PiecesLost > 0 ? FLinearColor(StaminaLockedColor.R, StaminaLockedColor.G, StaminaLockedColor.B, Dim) : Text,
-			X + 156.f * Scale, Y, Font, 0.95f * Scale);
-		// Patch remaining: a small bar and the count.
-		const float BX = X + 232.f * Scale, BY = Y + 7.f * Scale;
-		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.5f * Dim), BX - 1.f * Scale, BY - 1.f * Scale, BarW + 2.f * Scale, BarH + 2.f * Scale);
-		DrawRect(FLinearColor(0.4f, 0.75f, 0.3f, 0.95f * Dim), BX, BY, BarW * L.Fullness(), BarH);
-		DrawCrisp(Canvas, FString::Printf(TEXT("%d"), FMath::Max(L.PatchRemaining, 0)), Text, BX + BarW + 8.f * Scale, Y, Font, 0.95f * Scale);
-		DrawCrisp(Canvas, FString::Printf(TEXT("\u00D7%.1f"), L.Richness), FLinearColor(0.95f, 0.9f, 0.5f, Dim), BX + BarW + 44.f * Scale, Y, Font, 0.95f * Scale);
+		DrawTextAt(FString::Printf(TEXT("Line %d"), L.Number), X, Y, FLinearColor(AccentColor.R, AccentColor.G, AccentColor.B, Dim), SecondaryText(Scale), Font);
+		DrawTextAt(FString::Printf(TEXT("Home %d   Lost %d"), L.PiecesHome, L.PiecesLost), X + 115.f * Scale, Y,
+			L.PiecesLost > 0 ? FLinearColor(StaminaLockedColor.R, StaminaLockedColor.G, StaminaLockedColor.B, Dim) : Text, SecondaryText(Scale), Font);
+		const float BY = Y + Style.Row * Scale, BW = 100.f * Scale, BH = Style.Bar * Scale;
+		DrawRect(Style.Track, X, BY + 5.f * Scale, BW, BH);
+		DrawRect(FLinearColor(Style.Leaf.R, Style.Leaf.G, Style.Leaf.B, Dim), X, BY + 5.f * Scale, BW * L.Fullness(), BH);
+		DrawTextAt(FString::Printf(TEXT("%d left   rich \u00D7%.1f"), FMath::Max(L.PatchRemaining, 0), L.Richness),
+			X + 115.f * Scale, BY, FLinearColor(Style.Rich.R, Style.Rich.G, Style.Rich.B, Dim), SecondaryText(Scale), Font);
 		Y += RowH;
 	}
-	if (D->GetPhase() == EDayPhase::Shift && Lines->IsActive() && Lines->NumIdle() > 0)
+	if (bIdle)
 	{
 		const int32 N = Lines->NumIdle();
-		DrawCrisp(Canvas, FString::Printf(TEXT("%d worker%s idle: lay a new line"), N, N == 1 ? TEXT("") : TEXT("s")), FLinearColor(1.f, 0.8f, 0.35f, 1.f),
-			X, Y + 4.f * Scale, Font, 1.0f * Scale);
+		DrawTextAt(FString::Printf(TEXT("%d worker%s idle: lay a new line"), N, N == 1 ? TEXT("") : TEXT("s")), X, Y, Style.Partly, SecondaryText(Scale), Font);
 	}
 }
 
@@ -685,8 +831,7 @@ void ALeaflineHUD::DrawPatchPreview(const AAntPawn* Ant, const ALineSystem* Line
 	// The read-out is measured at the mouth, like the cut reach. No cuttable leaf there but a spent one: the bough is stripped.
 	auto DrawStripped = [&]()
 	{
-		UFont* F = GEngine->GetMediumFont();
-		DrawTextCentered(TEXT("Stripped. Fresh leaves are higher up."), Canvas->ClipX * 0.5f, Canvas->ClipY - 175.f * Scale, FLinearColor(0.95f, 0.9f, 0.5f, 1.f), 1.1f * Scale, F);
+		DrawTextPanel(TEXT("Stripped. Fresh leaves are higher up."), Canvas->ClipX * 0.5f, Canvas->ClipY - 250.f * Scale, Style.Rich, SecondaryText(Scale), Scale);
 	};
 	if (Leaf == INDEX_NONE)
 	{
@@ -713,35 +858,25 @@ void ALeaflineHUD::DrawPatchPreview(const AAntPawn* Ant, const ALineSystem* Line
 	{
 		if (Other != Leaf) DrawLeafOutline(Other, Faint, 1.5f * Scale);
 	}
-	UFont* Font = GEngine->GetMediumFont();
 	const FString Text = FString::Printf(TEXT("This patch: about %d pieces, rich \u00D7%.1f"), P.Pieces, P.Richness);
-	DrawTextCentered(Text, Canvas->ClipX * 0.5f, Canvas->ClipY - 175.f * Scale, FLinearColor(0.95f, 0.9f, 0.5f, 1.f), 1.1f * Scale, Font);
+	DrawTextPanel(Text, Canvas->ClipX * 0.5f, Canvas->ClipY - 250.f * Scale, Style.Rich, SecondaryText(Scale), Scale);
 }
 
 void ALeaflineHUD::DrawHarvest(const ADayDirector* D, const ALineSystem* Lines, float Scale)
 {
 	UFont* Font = GEngine->GetMediumFont();
-	const float CX = Canvas->ClipX * 0.5f;
-	float Y = 120.f * Scale;
-	// Only scouts walking home (no recruit trips): the same fast-forward, about the walk home.
+	const float CX = Canvas->ClipX * 0.5f, Y = 176.f * Scale;
 	const bool bHomeOnly = D->IsHomeOnlyHarvest();
-	DrawTextCentered(bHomeOnly ? TEXT("Fast-forward: the last workers head home") : TEXT("Harvest: the colony brings in the rest"), CX, Y, AccentColor, 1.4f * Scale, Font);
-	Y += 40.f * Scale;
-	FString Speed = D->IsSkippingHarvest() ? FString(TEXT("skipping...")) : FString::Printf(TEXT("Speed \u00D7%d"), FMath::RoundToInt(Lines ? Lines->GetSpeedFactor() : 1.f));
-	if (Lines && !bHomeOnly)
-	{
-		Speed += FString::Printf(TEXT("      Recruits out: %d      Trips left: %d"), Lines->NumOut(), Lines->TripsLeft());
-	}
-	DrawTextCentered(Speed, CX, Y, TextColor, 1.1f * Scale, Font);
+	const FString Title = bHomeOnly ? TEXT("Fast-forward: the last workers head home") : TEXT("Harvest: the colony brings in the rest");
+	FString Speed = D->IsSkippingHarvest() ? FString(TEXT("Skipping...")) : FString::Printf(TEXT("Speed \u00D7%d"), FMath::RoundToInt(Lines ? Lines->GetSpeedFactor() : 1.f));
+	if (Lines && !bHomeOnly) Speed += FString::Printf(TEXT("   Recruits out: %d   Trips left: %d"), Lines->NumOut(), Lines->TripsLeft());
+	const float W = FMath::Max(float(MeasureText(Title, Font, PrimaryText(Scale)).X), float(MeasureText(Speed, Font, SecondaryText(Scale)).X));
+	DrawPanel(CX - W * 0.5f, Y, W, (Style.PrimaryHeight + Style.Gap + Style.SecondaryHeight) * Scale, Scale);
+	DrawTextCentered(Title, CX, Y, AccentColor, PrimaryText(Scale), Font);
+	DrawTextCentered(Speed, CX, Y + (Style.PrimaryHeight + Style.Gap) * Scale, TextColor, SecondaryText(Scale), Font);
 	const bool bLineViews = Lines && Lines->NumLiveLines() > 0;
-	const FString Controls = D->IsSkippingHarvest() ? FString() : FString(bLineViews ? TEXT("{Grip}: skip      {Cycle}: next line") : TEXT("{Grip}: skip"));
-	if (!Controls.IsEmpty())
-	{
-		const FVector2D Size = MeasureText(Controls, Font, 1.15f * Scale);
-		const float BY = Canvas->ClipY - 130.f * Scale;
-		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.4f), CX - Size.X * 0.5f - 14.f * Scale, BY - 6.f * Scale, Size.X + 28.f * Scale, Size.Y + 12.f * Scale);
-		DrawTextCentered(Controls, CX, BY, TextColor, 1.15f * Scale, Font);
-	}
+	if (!D->IsSkippingHarvest()) DrawTextPanel(bLineViews ? TEXT("{Grip}: skip      {Cycle}: next line") : TEXT("{Grip}: skip"),
+		CX, Canvas->ClipY - 190.f * Scale, TextColor, SecondaryText(Scale), Scale);
 }
 
 void ALeaflineHUD::DrawPrompt(const AAntPawn* Ant, const ADayDirector* D, float Scale)
@@ -759,7 +894,7 @@ void ALeaflineHUD::DrawPrompt(const AAntPawn* Ant, const ADayDirector* D, float 
 		else if (bGustSoon && (S == EAntState::Walking || S == EAntState::Riding || S == EAntState::Cutting))
 		{
 			// Sheltered spots need no grip; elsewhere say what helps: grip, or the side away from the arrow.
-			Prompt = ExposureShown >= 0.f && ExposureShown < 0.25f ? TEXT("Gust! You are sheltered here")
+			Prompt = ExposureShown >= 0.f && ExposureShown < Style.ShelteredBelow ? TEXT("Gust! You are sheltered here")
 				: (Wind->GetPhase() == EWindPhase::Warning ? TEXT("Gust coming: hold {Grip} to grip, or get to the side away from the wind arrow")
 				                                           : TEXT("Gust! Hold {Grip} to grip"));
 		}
@@ -777,95 +912,19 @@ void ALeaflineHUD::DrawPrompt(const AAntPawn* Ant, const ADayDirector* D, float 
 		Prompt = TEXT("Everyone is home");
 	}
 	if (Prompt.IsEmpty()) return;
-	UFont* Font = GEngine->GetMediumFont();
-	const float Y = Canvas->ClipY - 130.f * Scale;
-	const FVector2D Size = MeasureText(Prompt, Font, 1.15f * Scale);
-	const float W = Size.X, H = Size.Y;
-	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.4f), (Canvas->ClipX - W) * 0.5f - 14.f * Scale, Y - 6.f * Scale, W + 28.f * Scale, H + 12.f * Scale);
-	DrawTextCentered(Prompt, Canvas->ClipX * 0.5f, Y, TextColor, 1.15f * Scale, Font);
+	DrawTextPanel(Prompt, Canvas->ClipX * 0.5f, Canvas->ClipY - 190.f * Scale, TextColor, SecondaryText(Scale), Scale, 1.f, 1200.f);
 }
 
 void ALeaflineHUD::DrawRecap(const ADayDirector* D, float Scale)
 {
-	DrawRect(FLinearColor(0.02f, 0.03f, 0.02f, 0.72f), 0.f, 0.f, Canvas->ClipX, Canvas->ClipY);
-	UFont* Large = GEngine->GetLargeFont();
-	UFont* Medium = GEngine->GetMediumFont();
+	UFont* Font = GEngine->GetMediumFont();
 	const ULeaflineGameInstance* GI = Cast<ULeaflineGameInstance>(GetGameInstance());
 	const ALineSystem* LineSys = D->GetLineSystem();
-	const float CX = Canvas->ClipX * 0.5f;
-	float Y = Canvas->ClipY * 0.11f;
 	const FDayStats& S = D->GetStats();
-
-	// Reveal clock: restarts each time the recap opens.
-	const float Dt = GetWorld() ? FMath::Min(GetWorld()->GetDeltaSeconds(), 0.1f) : 0.016f;
-	if (!bWasRecap) RecapTime = 0.f;
-	bWasRecap = true;
-	RecapTime += Dt;
-	auto Count01 = [&](float Start, float Dur) { return FMath::Clamp((RecapTime - Start) / Dur, 0.f, 1.f); };
-
-	DrawTextCentered(FString::Printf(TEXT("Day %d: today's cut from %s"), S.Day, *D->GetTreeName()), CX, Y, AccentColor, 2.0f * Scale, Large);
-	Y += 80.f * Scale;
-	if (D->IsOneTree())
-	{
-		DrawTextCentered(FString::Printf(TEXT("Tree %d, %s: day %d on this tree"), D->GetStage() + 1, *D->GetTreeName(), D->GetDayOnTree()), CX, Y - 30.f * Scale, TextColor, 1.0f * Scale, Medium);
-	}
-
-	// One row per line, in turn, each counting up; then the day total.
 	const bool bShowLines = LineSys && LineSys->GetLines().Num() > 0;
-	constexpr float RowGap = 0.6f, RowCount = 0.5f, FirstRow = 0.4f;
-	float TotalStart = 0.3f;
-	if (bShowLines)
-	{
-		const TArray<FColonyLine>& All = LineSys->GetLines();
-		constexpr int32 MaxRows = 8;
-		const int32 Shown = FMath::Min(All.Num(), MaxRows);
-		const float RowH = 30.f * Scale;
-		const float RW = 760.f * Scale, X = CX - RW * 0.5f;
-		for (int32 i = 0; i < Shown; ++i)
-		{
-			const FColonyLine& L = All[i];
-			const float Start = FirstRow + i * RowGap;
-			if (RecapTime < Start) break;
-			const float K = Count01(Start, RowCount);
-			const float Fade = FMath::Clamp((RecapTime - Start) / 0.2f, 0.f, 1.f);
-			DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.35f * Fade), X, Y - 2.f * Scale, RW, RowH);
-			DrawCrisp(Canvas, FString::Printf(TEXT("Line %d"), L.Number), FLinearColor(AccentColor.R, AccentColor.G, AccentColor.B, Fade), X + 14.f * Scale, Y, Medium, 1.05f * Scale);
-			const FLinearColor T(TextColor.R, TextColor.G, TextColor.B, Fade);
-			DrawCrisp(Canvas, FString::Printf(TEXT("pieces home %d"), FMath::RoundToInt(L.PiecesHome * K)), T, X + 120.f * Scale, Y, Medium, 1.05f * Scale);
-			DrawCrisp(Canvas, FString::Printf(TEXT("lost %d"), FMath::RoundToInt(L.PiecesLost * K)), L.PiecesLost > 0 ? FLinearColor(StaminaLockedColor.R, StaminaLockedColor.G, StaminaLockedColor.B, Fade) : T,
-				X + 330.f * Scale, Y, Medium, 1.05f * Scale);
-			DrawCrisp(Canvas, FString::Printf(TEXT("patch left %d"), FMath::Max(L.PatchRemaining, 0)), T, X + 430.f * Scale, Y, Medium, 1.05f * Scale);
-			DrawCrisp(Canvas, FString::Printf(TEXT("%.1f"), L.MassHome * K), FLinearColor(0.7f, 0.98f, 0.5f, Fade), X + RW - 90.f * Scale, Y, Medium, 1.05f * Scale);
-			Y += RowH + 4.f * Scale;
-		}
-		if (All.Num() > Shown)
-		{
-			DrawTextCentered(FString::Printf(TEXT("and %d more"), All.Num() - Shown), CX, Y, TextColor, 0.9f * Scale, Medium);
-			Y += 28.f * Scale;
-		}
-		TotalStart = FirstRow + Shown * RowGap + 0.2f;
-		Y = FMath::Max(Y, Canvas->ClipY * 0.11f + 80.f * Scale + Shown * (RowH + 4.f * Scale));
-	}
-	Y += 10.f * Scale;
-
-	// Day total, counting up, with the best-day mark.
-	const float TK = Count01(TotalStart, 0.9f);
-	if (RecapTime >= TotalStart)
-	{
-		DrawTextCentered(FString::Printf(TEXT("Leaf hauled: %.1f"), S.MassHauled * TK), CX, Y, TextColor, 1.5f * Scale, Medium);
-		Y += 46.f * Scale;
-		if (TK >= 1.f)
-		{
-			if (S.bNewBest) DrawTextCentered(TEXT("Best day yet!"), CX, Y, FLinearColor(0.95f, 0.9f, 0.5f, 1.f), 1.25f * Scale, Medium);
-			else DrawTextCentered(FString::Printf(TEXT("Best day so far: %.1f"), GI ? GI->GetBestDayHaul() : S.PreviousBest), CX, Y, FLinearColor(0.8f, 0.8f, 0.75f, 1.f), 1.05f * Scale, Medium);
-		}
-		Y += 40.f * Scale;
-	}
-	else
-	{
-		Y += 86.f * Scale;
-	}
-
+	const bool bMove = D->IsOneTree() && D->IsMoveDue();
+	const int32 Shown = bShowLines ? FMath::Min(LineSys->GetLines().Num(), 8) : 0;
+	const bool bMore = bShowLines && LineSys->GetLines().Num() > Shown;
 	TArray<FString> Rows = {
 		FString::Printf(TEXT("Fragments brought home: %d"), S.Fragments),
 		FString::Printf(TEXT("Largest fragment: %.1f"), S.LargestFragment),
@@ -873,20 +932,81 @@ void ALeaflineHUD::DrawRecap(const ADayDirector* D, float Scale)
 		FString::Printf(TEXT("Trail laid: %.0f m"), S.TrailLaid / 100.f),
 	};
 	if (bShowLines && D->AreRecruitsOn()) Rows.Insert(FString::Printf(TEXT("Recruits: %d pieces home, %d lost to the wind"), S.RecruitPieces, S.RecruitLost), 1);
-	for (const FString& L : Rows)
+	const float CX = Canvas->ClipX * 0.5f, W = Style.CardWidth * Scale;
+	const float H = (96.f + (Shown + (bMore ? 1 : 0)) * Style.Row + Style.Gap + 74.f
+		+ Rows.Num() * Style.Row + Style.Gap + 128.f + (bMove ? Style.Row : 0.f) + 28.f) * Scale;
+	float Y = (Canvas->ClipY - H) * 0.5f;
+	DrawPanel(CX - W * 0.5f, Y, W, H, Scale);
+
+	// Reserve the whole layout while rows reveal, so the totals and continue prompt stay anchored.
+	const float Dt = GetWorld() ? FMath::Min(GetWorld()->GetDeltaSeconds(), 0.1f) : 0.016f;
+	if (!bWasRecap) RecapTime = 0.f;
+	bWasRecap = true;
+	RecapTime += Dt;
+	auto Count01 = [&](float Start, float Dur) { return FMath::Clamp((RecapTime - Start) / Dur, 0.f, 1.f); };
+	DrawTextCentered(FString::Printf(TEXT("Day %d: today's cut from %s"), S.Day, *D->GetTreeName()), CX, Y, AccentColor, PrimaryText(Scale), Font);
+	if (D->IsOneTree()) DrawTextCentered(FString::Printf(TEXT("Tree %d: day %d on this tree"), D->GetStage() + 1, D->GetDayOnTree()),
+		CX, Y + (Style.PrimaryHeight + Style.Gap) * Scale, TextColor, SecondaryText(Scale), Font);
+	Y += 96.f * Scale;
+
+	constexpr float RowGap = 0.6f, RowCount = 0.5f, FirstRow = 0.4f;
+	float TotalStart = 0.3f;
+	if (bShowLines)
 	{
-		DrawTextCentered(L, CX, Y, TextColor, 1.1f * Scale, Medium);
-		Y += 34.f * Scale;
+		const TArray<FColonyLine>& All = LineSys->GetLines();
+		const float X = CX - 480.f * Scale;
+		for (int32 i = 0; i < Shown; ++i)
+		{
+			const FColonyLine& L = All[i];
+			const float Start = FirstRow + i * RowGap;
+			if (RecapTime < Start) continue;
+			const float K = Count01(Start, RowCount);
+			const float Fade = FMath::Clamp((RecapTime - Start) / 0.2f, 0.f, 1.f);
+			const float RY = Y + i * Style.Row * Scale;
+			const FLinearColor T(TextColor.R, TextColor.G, TextColor.B, Fade);
+			DrawTextAt(FString::Printf(TEXT("Line %d"), L.Number), X, RY, FLinearColor(AccentColor.R, AccentColor.G, AccentColor.B, Fade), SecondaryText(Scale), Font);
+			DrawTextAt(FString::Printf(TEXT("Home %d"), FMath::RoundToInt(L.PiecesHome * K)), X + 140.f * Scale, RY, T, SecondaryText(Scale), Font);
+			DrawTextAt(FString::Printf(TEXT("Lost %d"), FMath::RoundToInt(L.PiecesLost * K)), X + 330.f * Scale, RY,
+				L.PiecesLost > 0 ? FLinearColor(StaminaLockedColor.R, StaminaLockedColor.G, StaminaLockedColor.B, Fade) : T, SecondaryText(Scale), Font);
+			DrawTextAt(FString::Printf(TEXT("Patch left %d"), FMath::Max(L.PatchRemaining, 0)), X + 490.f * Scale, RY, T, SecondaryText(Scale), Font);
+			DrawTextAt(FString::Printf(TEXT("Hauled %.1f"), L.MassHome * K), X + 750.f * Scale, RY,
+				FLinearColor(Style.Delivery.R, Style.Delivery.G, Style.Delivery.B, Fade), SecondaryText(Scale), Font);
+		}
+		Y += Shown * Style.Row * Scale;
+		if (bMore)
+		{
+			DrawTextCentered(FString::Printf(TEXT("and %d more"), All.Num() - Shown), CX, Y, Style.Muted, SecondaryText(Scale), Font);
+			Y += Style.Row * Scale;
+		}
+		TotalStart = FirstRow + Shown * RowGap + 0.2f;
 	}
-	Y += 14.f * Scale;
-	DrawColonyMeter(CX, Y, 520.f * Scale, Scale);
-	Y += 90.f * Scale;
-	if (D->IsOneTree() && D->IsMoveDue())
+	Y += Style.Gap * Scale;
+	const float TK = Count01(TotalStart, 0.9f);
+	if (RecapTime >= TotalStart)
 	{
-		DrawTextCentered(TEXT("Tomorrow the colony moves to a new tree"), CX, Y, FLinearColor(0.95f, 0.9f, 0.5f, 1.f), 1.15f * Scale, Medium);
-		Y += 40.f * Scale;
+		DrawTextCentered(FString::Printf(TEXT("Leaf hauled: %.1f"), S.MassHauled * TK), CX, Y, TextColor, PrimaryText(Scale), Font);
+		if (TK >= 1.f)
+		{
+			const FString Best = S.bNewBest ? FString(TEXT("Best day yet!"))
+				: FString::Printf(TEXT("Best day so far: %.1f"), GI ? GI->GetBestDayHaul() : S.PreviousBest);
+			DrawTextCentered(Best, CX, Y + (Style.PrimaryHeight + Style.Gap) * Scale, S.bNewBest ? Style.Rich : Style.Muted, SecondaryText(Scale), Font);
+		}
 	}
-	DrawTextCentered(TEXT("Press {Confirm}{orclick} to go into the nest"), CX, Y, AccentColor, 1.2f * Scale, Medium);
+	Y += 74.f * Scale;
+	for (const FString& Row : Rows)
+	{
+		DrawTextCentered(Row, CX, Y, TextColor, SecondaryText(Scale), Font);
+		Y += Style.Row * Scale;
+	}
+	Y += Style.Gap * Scale;
+	DrawColonyMeter(CX, Y, 640.f * Scale, Scale);
+	Y += 128.f * Scale;
+	if (bMove)
+	{
+		DrawTextCentered(TEXT("Tomorrow the colony moves to a new tree"), CX, Y, Style.Rich, SecondaryText(Scale), Font);
+		Y += Style.Row * Scale;
+	}
+	DrawTextCentered(TEXT("Press {Confirm}{orclick} to go into the nest"), CX, Y, AccentColor, SecondaryText(Scale), Font);
 }
 
 void ALeaflineHUD::DrawColonyMeter(float CX, float Y, float W, float Scale)
@@ -896,11 +1016,11 @@ void ALeaflineHUD::DrawColonyMeter(float CX, float Y, float W, float Scale)
 	UFont* Medium = GEngine->GetMediumFont();
 	const bool bOneTree = GI->IsOneTree();
 	const float Top = GI->GetMilestoneThreshold(LeaflineUpgrades::MilestoneCount - 1);
-	const float H = 12.f * Scale, X = CX - W * 0.5f;
-	DrawTextCentered(FString::Printf(TEXT("Colony: %.1f hauled in all"), GI->GetTotalHauled()), CX, Y, TextColor, 1.1f * Scale, Medium);
-	const float BarY = Y + 34.f * Scale;
-	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.5f), X - 2.f * Scale, BarY - 2.f * Scale, W + 4.f * Scale, H + 4.f * Scale);
-	DrawRect(FLinearColor(0.4f, 0.75f, 0.3f, 0.95f), X, BarY, W * FMath::Clamp(GI->GetTotalHauled() / Top, 0.f, 1.f), H);
+	const float H = Style.Bar * Scale, X = CX - W * 0.5f;
+	DrawTextCentered(FString::Printf(TEXT("Colony: %.1f hauled in all"), GI->GetTotalHauled()), CX, Y, TextColor, SecondaryText(Scale), Medium);
+	const float BarY = Y + 42.f * Scale;
+	DrawRect(Style.Track, X, BarY, W, H);
+	DrawRect(Style.Leaf, X, BarY, W * FMath::Clamp(GI->GetTotalHauled() / Top, 0.f, 1.f), H);
 	for (int32 m = 0; m < LeaflineUpgrades::MilestoneCount; ++m)
 	{
 		const float T = GI->GetMilestoneThreshold(m);
@@ -908,193 +1028,181 @@ void ALeaflineHUD::DrawColonyMeter(float CX, float Y, float W, float Scale)
 		const bool bReached = GI->HasReachedMilestone(m);
 		const FLinearColor MarkColor = bReached ? AccentColor : TextColor;
 		DrawRect(MarkColor, MX - 1.5f * Scale, BarY - 6.f * Scale, 3.f * Scale, H + 12.f * Scale);
-		DrawTextCentered(FString::Printf(TEXT("%.0f"), T), MX, BarY + H + 8.f * Scale, MarkColor, 0.9f * Scale, Medium);
+		DrawTextCentered(FString::Printf(TEXT("%.0f"), T), MX, BarY + H + Style.Gap * Scale, MarkColor, SecondaryText(Scale), Medium);
 		// With one tree on, the second and third milestones move the colony: a small tree above the mark and a label.
 		if (bOneTree && m >= 1)
 		{
-			const float TW = 7.f * Scale, TY = BarY - 12.f * Scale;
+			const float TW = 7.f * Scale, TY = BarY - 6.f * Scale;
 			DrawRect(MarkColor, MX - 1.f * Scale, TY - 4.f * Scale, 2.f * Scale, 5.f * Scale);                    // trunk
 			DrawRect(MarkColor, MX - TW * 0.5f, TY - 11.f * Scale, TW, 8.f * Scale);                              // crown
-			DrawTextCentered(TEXT("new tree"), MX, BarY + H + 30.f * Scale, MarkColor, 0.8f * Scale, Medium);
+			DrawTextCentered(TEXT("new tree"), MX, BarY + H + (Style.Gap + Style.Row) * Scale, MarkColor, SecondaryText(Scale), Medium);
 		}
 	}
 }
 
 void ALeaflineHUD::DrawTitle(const ADayDirector* D, float Scale)
 {
-	DrawRect(FLinearColor(0.02f, 0.03f, 0.02f, 0.55f), 0.f, 0.f, Canvas->ClipX, Canvas->ClipY);
-	UFont* Large = GEngine->GetLargeFont();
-	UFont* Medium = GEngine->GetMediumFont();
-	const float CX = Canvas->ClipX * 0.5f;
-	float Y = Canvas->ClipY * 0.22f;
-	DrawTextCentered(TEXT("Leafline"), CX, Y, AccentColor, 3.6f * Scale, Large);
-	Y += 120.f * Scale;
-	DrawTextCentered(TEXT("You are a leafcutter ant on an enormous tree."), CX, Y, TextColor, 1.3f * Scale, Medium);
-	Y += 40.f * Scale;
-	DrawTextCentered(TEXT("Cut a piece of leaf, send the worker home along your scent trail, and take over the next one."), CX, Y, TextColor, 1.1f * Scale, Medium);
-	Y += 70.f * Scale;
+	UFont* Font = GEngine->GetMediumFont();
+	const float CX = Canvas->ClipX * 0.5f, W = Style.CardWidth * Scale;
+	float Y = 220.f * Scale;
+	DrawPanel(CX - W * 0.5f, Y, W, 580.f * Scale, Scale);
+	DrawTextCentered(TEXT("Leafline"), CX, Y, AccentColor, PrimaryText(Scale), Font);
+	Y += 74.f * Scale;
+	Y += DrawWrappedText(TEXT("You are a leafcutter ant on an enormous tree."), CX, Y, W, TextColor, SecondaryText(Scale), Scale) + Style.Gap * Scale;
+	Y += DrawWrappedText(TEXT("Cut a piece of leaf, send the worker home along your scent trail, and take over the next one."), CX, Y, W, TextColor, SecondaryText(Scale), Scale) + 44.f * Scale;
 	const TArray<FString> Controls = {
 		TEXT("{Move} move      {Look} look      {Sprint} sprint"),
 		TEXT("{Cut} cut (hold)      {Send} send home      {Follow} follow a trail (hold)"),
-		TEXT("{Grip} grip in a gust (hold)      {Cycle} switch ant (tap), wind map (hold)      {Pause} pause"),
+		TEXT("{Grip} grip in a gust (hold)      {Cycle} switch ant (tap), wind map (hold)"),
+		TEXT("{Pause} pause"),
 	};
 	for (const FString& C : Controls)
 	{
-		DrawTextCentered(C, CX, Y, FLinearColor(0.85f, 0.85f, 0.8f, 1.f), 1.0f * Scale, Medium);
-		Y += 34.f * Scale;
+		Y += DrawWrappedText(C, CX, Y, W, Style.Muted, SecondaryText(Scale), Scale) + Style.Padding * Scale;
 	}
-	Y += 50.f * Scale;
+	Y += 28.f * Scale;
 	DrawTextCentered(D->GetDay() > 1 ? FString::Printf(TEXT("Press {Confirm}{orclick} to continue: day %d"), D->GetDay()) : FString(TEXT("Press {Confirm}{orclick} to begin")),
-		CX, Y, AccentColor, 1.4f * Scale, Medium);
+		CX, Y, AccentColor, SecondaryText(Scale), Font);
 }
 
 void ALeaflineHUD::DrawNest(const ADayDirector* D, float Scale)
 {
-	DrawRect(FLinearColor(0.03f, 0.025f, 0.015f, 0.78f), 0.f, 0.f, Canvas->ClipX, Canvas->ClipY);
 	const ULeaflineGameInstance* GI = Cast<ULeaflineGameInstance>(GetGameInstance());
-	UFont* Large = GEngine->GetLargeFont();
-	UFont* Medium = GEngine->GetMediumFont();
-	const float CX = Canvas->ClipX * 0.5f;
-	float Y = Canvas->ClipY * 0.12f;
-	DrawTextCentered(TEXT("The nest"), CX, Y, AccentColor, 2.2f * Scale, Large);
-	Y += 80.f * Scale;
-	if (GI)
-	{
-		DrawTextCentered(FString::Printf(TEXT("Leaf to spend: %.1f"), GI->GetLeafMass()), CX, Y, TextColor, 1.3f * Scale, Medium);
-		Y += 50.f * Scale;
-	}
-	const float RowW = 760.f * Scale, RowH = 56.f * Scale, X = CX - RowW * 0.5f;
+	UFont* Font = GEngine->GetMediumFont();
+	const float CX = Canvas->ClipX * 0.5f, W = Style.CardWidth * Scale;
+	float Y = 96.f * Scale;
+	DrawPanel(CX - W * 0.5f, Y, W, 824.f * Scale, Scale);
+	DrawTextCentered(TEXT("The nest"), CX, Y, AccentColor, PrimaryText(Scale), Font);
+	Y += (Style.PrimaryHeight + Style.Gap) * Scale;
+	if (GI) DrawTextCentered(FString::Printf(TEXT("Leaf to spend: %.1f"), GI->GetLeafMass()), CX, Y, TextColor, SecondaryText(Scale), Font);
+	Y += 62.f * Scale;
+	const float RowW = 1000.f * Scale, RowH = 76.f * Scale, X = CX - RowW * 0.5f;
 	for (int32 i = 0; i <= LeaflineUpgrades::Count; ++i)
 	{
-		// Row indices and hit ids stay the upgrade index; a hidden row (Brood with recruits off) just takes no space.
 		if (i < LeaflineUpgrades::Count && !D->IsNestRowVisible(i)) continue;
-		const bool bSel = D->GetNestSelection() == i;
-		DrawRect(bSel ? FLinearColor(0.3f, 0.55f, 0.6f, 0.45f) : FLinearColor(0.f, 0.f, 0.f, 0.35f), X, Y, RowW, RowH - 6.f * Scale);
-		AddMenuHit(X, Y, RowW, RowH - 6.f * Scale, i);
+		AddMenuHit(X, Y, RowW, RowH - Style.Gap * Scale, i);
+		const bool bSel = D->GetNestSelection() == i || IsHovered(i);
+		if (bSel)
+		{
+			DrawRect(Style.Selection, X, Y, RowW, RowH - Style.Gap * Scale);
+			DrawRect(AccentColor, X, Y, Style.Stroke * Scale, RowH - Style.Gap * Scale);
+		}
 		if (i < LeaflineUpgrades::Count)
 		{
 			const FLeaflineUpgradeInfo* Info = LeaflineUpgrades::Get(i);
 			const int32 Level = GI ? GI->GetUpgradeLevel(i) : 0;
 			const int32 Cost = GI ? GI->GetUpgradeCost(i) : 0;
 			const bool bAfford = GI && GI->CanAfford(i);
-			DrawCrisp(Canvas, Info->Name, TextColor, X + 18.f * Scale, Y + 6.f * Scale, Medium, 1.25f * Scale);
-			DrawCrisp(Canvas, Info->Description, FLinearColor(0.8f, 0.8f, 0.75f, 1.f), X + 18.f * Scale, Y + 30.f * Scale, Medium, 0.9f * Scale);
+			DrawTextAt(Info->Name, X + Style.Padding * Scale, Y + 6.f * Scale, bSel ? AccentColor : TextColor, SecondaryText(Scale), Font);
+			DrawTextAt(Info->Description, X + Style.Padding * Scale, Y + 38.f * Scale, Style.Muted, SecondaryText(Scale), Font);
 			for (int32 l = 0; l < LeaflineUpgrades::MaxLevel; ++l)
 			{
-				DrawRect(l < Level ? AccentColor : FLinearColor(0.25f, 0.25f, 0.22f, 1.f), X + RowW * 0.55f + l * 26.f * Scale, Y + 18.f * Scale, 18.f * Scale, 14.f * Scale);
+				DrawRect(l < Level ? AccentColor : Style.Home, X + 610.f * Scale + l * 30.f * Scale, Y + 24.f * Scale, 18.f * Scale, Style.Bar * Scale);
 			}
-			const FString CostText = Cost > 0 ? FString::Printf(TEXT("%d"), Cost) : FString(TEXT("max"));
-			DrawCrisp(Canvas, CostText, Cost > 0 ? (bAfford ? FLinearColor(0.6f, 0.95f, 0.5f, 1.f) : StaminaLockedColor) : TextColor, X + RowW - 90.f * Scale, Y + 12.f * Scale, Medium, 1.2f * Scale);
+			const FString CostText = Cost > 0 ? FString::Printf(TEXT("Cost %d"), Cost) : FString(TEXT("Max"));
+			DrawTextAt(CostText, X + 850.f * Scale, Y + 20.f * Scale, Cost > 0 ? (bAfford ? Style.Sheltered : StaminaLockedColor) : TextColor, SecondaryText(Scale), Font);
 		}
 		else
 		{
-			DrawCrisp(Canvas, (D->IsOneTree() ? (D->IsMoveDue() ? FString::Printf(TEXT("Start day %d on a new tree"), D->GetDay() + 1) : FString::Printf(TEXT("Start day %d"), D->GetDay() + 1))
-					: FString::Printf(TEXT("Start day %d: a new tree"), D->GetDay() + 1)), AccentColor, X + 18.f * Scale, Y + 14.f * Scale, Medium, 1.25f * Scale);
+			const FString Start = D->IsOneTree() ? (D->IsMoveDue() ? FString::Printf(TEXT("Start day %d on a new tree"), D->GetDay() + 1) : FString::Printf(TEXT("Start day %d"), D->GetDay() + 1))
+				: FString::Printf(TEXT("Start day %d: a new tree"), D->GetDay() + 1);
+			DrawTextAt(Start, X + Style.Padding * Scale, Y + 20.f * Scale, AccentColor, SecondaryText(Scale), Font);
 		}
 		Y += RowH;
 	}
-	Y += 30.f * Scale;
-	DrawColonyMeter(CX, Y, 520.f * Scale, Scale);
-	Y += 100.f * Scale;
+	Y += Style.Gap * Scale;
+	DrawColonyMeter(CX, Y, 640.f * Scale, Scale);
+	Y += 128.f * Scale;
 	if (D->IsOneTree() && D->IsMoveDue())
 	{
-		DrawTextCentered(TEXT("Tomorrow the colony moves to a new tree"), CX, Y, FLinearColor(0.95f, 0.9f, 0.5f, 1.f), 1.15f * Scale, Medium);
-		Y += 40.f * Scale;
+		DrawTextCentered(TEXT("Tomorrow the colony moves to a new tree"), CX, Y, Style.Rich, SecondaryText(Scale), Font);
+		Y += Style.Row * Scale;
 	}
-	DrawTextCentered(TEXT("{Choose}: choose      {Confirm}{orclick}: buy or start      {Back}: start the next day"), CX, Y, FLinearColor(0.8f, 0.8f, 0.75f, 1.f), 1.0f * Scale, Medium);
+	DrawWrappedText(TEXT("{Choose}: choose      {Confirm}{orclick}: buy or start      {Back}: start the next day"), CX, Y, W, Style.Muted, SecondaryText(Scale), Scale);
 }
 
 void ALeaflineHUD::DrawMoveCard(const ADayDirector* D, float Scale)
 {
-	DrawRect(FLinearColor(0.02f, 0.04f, 0.03f, 0.55f), 0.f, 0.f, Canvas->ClipX, Canvas->ClipY); // lighter: the new tree shows behind it
-	UFont* Large = GEngine->GetLargeFont();
-	UFont* Medium = GEngine->GetMediumFont();
-	const float CX = Canvas->ClipX * 0.5f;
-	float Y = Canvas->ClipY * 0.3f;
-	DrawTextCentered(D->GetMoveCardText(), CX, Y, AccentColor, 2.4f * Scale, Large);
-	Y += 100.f * Scale;
-	DrawTextCentered(TEXT("A new tree: taller, with richer leaves and stronger gusts."), CX, Y, TextColor, 1.25f * Scale, Medium);
-	Y += 90.f * Scale;
-	DrawTextCentered(FString::Printf(TEXT("Press {Confirm}{orclick} to begin day %d"), D->GetDay()), CX, Y, AccentColor, 1.3f * Scale, Medium);
+	UFont* Font = GEngine->GetMediumFont();
+	const float CX = Canvas->ClipX * 0.5f, W = Style.CardWidth * Scale;
+	float Y = 340.f * Scale;
+	DrawPanel(CX - W * 0.5f, Y, W, 260.f * Scale, Scale);
+	Y += DrawWrappedText(D->GetMoveCardText(), CX, Y, W, AccentColor, PrimaryText(Scale), Scale) + 44.f * Scale;
+	Y += DrawWrappedText(TEXT("A new tree: taller, with richer leaves and stronger gusts."), CX, Y, W, TextColor, SecondaryText(Scale), Scale) + 62.f * Scale;
+	DrawTextCentered(FString::Printf(TEXT("Press {Confirm}{orclick} to begin day %d"), D->GetDay()), CX, Y, AccentColor, SecondaryText(Scale), Font);
 }
 
 void ALeaflineHUD::DrawEndCard(const ADayDirector* D, float Scale)
 {
-	DrawRect(FLinearColor(0.02f, 0.04f, 0.03f, 0.82f), 0.f, 0.f, Canvas->ClipX, Canvas->ClipY);
-	UFont* Large = GEngine->GetLargeFont();
-	UFont* Medium = GEngine->GetMediumFont();
-	const float CX = Canvas->ClipX * 0.5f;
-	float Y = Canvas->ClipY * 0.3f;
-	DrawTextCentered(TEXT("The colony thrives"), CX, Y, AccentColor, 2.4f * Scale, Large);
-	Y += 100.f * Scale;
-	DrawTextCentered(TEXT("Enough leaf has come home to feed the fungus garden for a season."), CX, Y, TextColor, 1.25f * Scale, Medium);
-	Y += 42.f * Scale;
-	DrawTextCentered(TEXT("Thank you for playing Leafline. The trees keep growing, and so can the colony."), CX, Y, TextColor, 1.25f * Scale, Medium);
-	Y += 90.f * Scale;
-	DrawTextCentered(TEXT("Press {Confirm}{orclick} to keep playing"), CX, Y, AccentColor, 1.3f * Scale, Medium);
+	UFont* Font = GEngine->GetMediumFont();
+	const float CX = Canvas->ClipX * 0.5f, W = Style.CardWidth * Scale;
+	float Y = 320.f * Scale;
+	DrawPanel(CX - W * 0.5f, Y, W, 340.f * Scale, Scale);
+	DrawTextCentered(TEXT("The colony thrives"), CX, Y, AccentColor, PrimaryText(Scale), Font);
+	Y += 74.f * Scale;
+	Y += DrawWrappedText(TEXT("Enough leaf has come home to feed the fungus garden for a season."), CX, Y, W, TextColor, SecondaryText(Scale), Scale) + Style.Gap * Scale;
+	Y += DrawWrappedText(TEXT("Thank you for playing Leafline. The trees keep growing, and so can the colony."), CX, Y, W, TextColor, SecondaryText(Scale), Scale) + 62.f * Scale;
+	DrawTextCentered(TEXT("Press {Confirm}{orclick} to keep playing"), CX, Y, AccentColor, SecondaryText(Scale), Font);
 }
 
 void ALeaflineHUD::DrawPause(float Scale)
 {
-	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.6f), 0.f, 0.f, Canvas->ClipX, Canvas->ClipY);
-	UFont* Large = GEngine->GetLargeFont();
-	UFont* Medium = GEngine->GetMediumFont();
-	const float CX = Canvas->ClipX * 0.5f;
+	UFont* Font = GEngine->GetMediumFont();
+	const float CX = Canvas->ClipX * 0.5f, W = Style.CardWidth * Scale;
 	const ALeaflinePlayerController* PC = Cast<ALeaflinePlayerController>(GetOwningPlayerController());
 	const int32 Page = PC ? PC->GetPausePage() : 0;
 	const int32 Sel = PC ? PC->GetPauseRow() : 0;
-	float Y = Canvas->ClipY * (Page == 0 ? 0.32f : 0.24f);
-	DrawTextCentered(Page == 0 ? TEXT("Paused") : TEXT("Options"), CX, Y, AccentColor, 2.4f * Scale, Large);
-	Y += 100.f * Scale;
-	const FLinearColor RowSel(0.3f, 0.55f, 0.6f, 0.6f), RowIdle(0.f, 0.f, 0.f, 0.45f);
-	const float RowH = 54.f * Scale, Gap = 10.f * Scale;
-
+	float Y = (Page == 0 ? 240.f : 160.f) * Scale;
+	DrawPanel(CX - W * 0.5f, Y, W, (Page == 0 ? 420.f : 580.f) * Scale, Scale);
+	DrawTextCentered(Page == 0 ? TEXT("Paused") : TEXT("Options"), CX, Y, AccentColor, PrimaryText(Scale), Font);
+	Y += 74.f * Scale;
+	const float RowH = Style.MenuRow * Scale, Gap = Style.Gap * Scale;
 	if (Page == 0)
 	{
-		// Resume / Options / Quit, for keys, pad and mouse.
-		const float BW = 300.f * Scale;
+		const float BW = 800.f * Scale;
 		const TCHAR* Labels[3] = { TEXT("Resume"), TEXT("Options"), TEXT("Quit") };
 		const int32 Ids[3] = { MenuResume, MenuOptions, MenuQuit };
 		for (int32 b = 0; b < 3; ++b)
 		{
-			const bool bOn = Sel == b || IsHovered(Ids[b]);
-			DrawRect(bOn ? RowSel : RowIdle, CX - BW * 0.5f, Y, BW, RowH);
-			DrawTextCentered(Labels[b], CX, Y + 12.f * Scale, bOn ? AccentColor : TextColor, 1.3f * Scale, Medium);
 			AddMenuHit(CX - BW * 0.5f, Y, BW, RowH, Ids[b]);
+			const bool bOn = Sel == b || IsHovered(Ids[b]);
+			if (bOn) DrawRect(Style.Selection, CX - BW * 0.5f, Y, BW, RowH);
+			DrawTextCentered(Labels[b], CX, Y + Style.Padding * Scale, bOn ? AccentColor : TextColor, PrimaryText(Scale), Font);
 			Y += RowH + Gap;
 		}
-		Y += 20.f * Scale;
-		DrawTextCentered(TEXT("{Choose}: choose      {Confirm}{orclick}: select      {Pause}: resume      {Back}: quit"), CX, Y, TextColor, 1.0f * Scale, Medium);
+		Y += Style.Gap * Scale;
+		Y += DrawWrappedText(TEXT("{Choose}: choose      {Confirm}{orclick}: select"), CX, Y, W, TextColor, SecondaryText(Scale), Scale) + Style.Padding * Scale;
+		DrawWrappedText(TEXT("{Pause}: resume      {Back}: quit"), CX, Y, W, Style.Muted, SecondaryText(Scale), Scale);
 		return;
 	}
 
-	// Options: label on the left, "<  value  >" on the right; the last row goes back.
-	const float RW = 640.f * Scale, X = CX - RW * 0.5f;
+	const float RW = 800.f * Scale, X = CX - RW * 0.5f;
 	const TCHAR* Labels[ALeaflinePlayerController::NumOptionRows] = { TEXT("Mouse sensitivity"), TEXT("Invert look"), TEXT("Volume"), TEXT("Graphics"), TEXT("Back") };
 	for (int32 r = 0; r < ALeaflinePlayerController::NumOptionRows; ++r)
 	{
 		const bool bBack = r == ALeaflinePlayerController::NumOptionRows - 1;
-		const bool bOn = Sel == r;
-		DrawRect(bOn ? RowSel : RowIdle, X, Y, RW, RowH);
 		AddMenuHit(X, Y, RW, RowH, MenuOptRow + r);
+		const bool bOn = Sel == r || IsHovered(MenuOptRow + r) || IsHovered(MenuOptMinus + r) || IsHovered(MenuOptPlus + r);
+		if (bOn) DrawRect(Style.Selection, X, Y, RW, RowH);
 		if (bBack)
 		{
-			DrawTextCentered(Labels[r], CX, Y + 12.f * Scale, bOn ? AccentColor : TextColor, 1.25f * Scale, Medium);
+			DrawTextCentered(Labels[r], CX, Y + Style.Padding * Scale, bOn ? AccentColor : TextColor, PrimaryText(Scale), Font);
 		}
 		else
 		{
-			DrawCrisp(Canvas, Labels[r], bOn ? AccentColor : TextColor, X + 22.f * Scale, Y + 12.f * Scale, Medium, 1.25f * Scale);
-			const float VX = X + RW * 0.72f, Arrow = 34.f * Scale;
+			DrawTextAt(Labels[r], X + Style.Padding * Scale, Y + Style.Padding * Scale, bOn ? AccentColor : TextColor, PrimaryText(Scale), Font);
+			const float VX = X + RW * 0.72f, Arrow = 44.f * Scale;
+			// Arrow boxes precede the whole-row box: MenuItemAt returns the first match.
+			MenuHits.Insert({ FBox2D(FVector2D(VX - 100.f * Scale - Arrow * 0.5f, Y), FVector2D(VX - 100.f * Scale + Arrow * 0.5f, Y + RowH)), MenuOptMinus + r }, 0);
+			MenuHits.Insert({ FBox2D(FVector2D(VX + 100.f * Scale - Arrow * 0.5f, Y), FVector2D(VX + 100.f * Scale + Arrow * 0.5f, Y + RowH)), MenuOptPlus + r }, 0);
 			const bool bMinus = IsHovered(MenuOptMinus + r), bPlus = IsHovered(MenuOptPlus + r);
-			DrawTextCentered(TEXT("<"), VX - 90.f * Scale, Y + 12.f * Scale, bMinus ? AccentColor : TextColor, 1.3f * Scale, Medium);
-			DrawTextCentered(PC ? PC->GetOptionValueText(r) : FString(), VX, Y + 12.f * Scale, TextColor, 1.25f * Scale, Medium);
-			DrawTextCentered(TEXT(">"), VX + 90.f * Scale, Y + 12.f * Scale, bPlus ? AccentColor : TextColor, 1.3f * Scale, Medium);
-			// The arrow hit boxes come after the row's, so they win (MenuItemAt returns the first match: check them first).
-			MenuHits.Insert({ FBox2D(FVector2D(VX - 90.f * Scale - Arrow * 0.5f, Y), FVector2D(VX - 90.f * Scale + Arrow * 0.5f, Y + RowH)), MenuOptMinus + r }, 0);
-			MenuHits.Insert({ FBox2D(FVector2D(VX + 90.f * Scale - Arrow * 0.5f, Y), FVector2D(VX + 90.f * Scale + Arrow * 0.5f, Y + RowH)), MenuOptPlus + r }, 0);
+			DrawTextCentered(TEXT("<"), VX - 100.f * Scale, Y + Style.Padding * Scale, bMinus ? AccentColor : TextColor, PrimaryText(Scale), Font);
+			DrawTextCentered(PC ? PC->GetOptionValueText(r) : FString(), VX, Y + Style.Padding * Scale, TextColor, PrimaryText(Scale), Font);
+			DrawTextCentered(TEXT(">"), VX + 100.f * Scale, Y + Style.Padding * Scale, bPlus ? AccentColor : TextColor, PrimaryText(Scale), Font);
 		}
 		Y += RowH + Gap;
 	}
-	Y += 20.f * Scale;
-	DrawTextCentered(TEXT("{Choose}: choose      {Change}{orclick}: change      {Confirm}: change or back      {Back}: back"), CX, Y, TextColor, 1.0f * Scale, Medium);
+	Y += Style.Gap * Scale;
+	Y += DrawWrappedText(TEXT("{Choose}: choose      {Change}{orclick}: change"), CX, Y, W, TextColor, SecondaryText(Scale), Scale) + Style.Padding * Scale;
+	DrawWrappedText(TEXT("{Confirm}: change or back      {Back}: back"), CX, Y, W, Style.Muted, SecondaryText(Scale), Scale);
 }
