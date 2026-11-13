@@ -130,6 +130,9 @@ def update_code():
         if f:
             sp(e, {'Code': code(f)})
             done.append(desc)
+    # Setting only Code did not always mark the package dirty (13 Nov): nudge a material property so it saves.
+    sp(MAT, {'OpacityMaskClipValue': 0.5001})
+    sp(MAT, {'OpacityMaskClipValue': 0.5})
     return {'updated': done}
 
 def run():

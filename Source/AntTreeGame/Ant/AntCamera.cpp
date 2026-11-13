@@ -377,7 +377,8 @@ void AAntCamera::Tick(float DeltaTime)
 	FPostProcessSettings& PP = Camera->PostProcessSettings;
 	PP.bOverride_DepthOfFieldFocalDistance = Tuning.DepthOfFieldFstop > 0.f;
 	PP.bOverride_DepthOfFieldFstop = Tuning.DepthOfFieldFstop > 0.f;
-	PP.DepthOfFieldFocalDistance = FMath::Max(CurrentBoom, 10.f);
+	// Focus on the ant itself: the look-up assist and the slide out of thick wood move the camera off the boom.
+	PP.DepthOfFieldFocalDistance = FMath::Max((float)FVector::Dist(CamPos, AntPos), 10.f);
 	PP.DepthOfFieldFstop = FMath::Max(Tuning.DepthOfFieldFstop, 0.7f);
 	PP.bOverride_AutoExposureBias = true;
 	PP.AutoExposureBias = Tuning.ExposureBias;

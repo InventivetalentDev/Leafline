@@ -95,3 +95,17 @@ Scripts/unreal-lock.sh --no-wait|--timeout <min>|--break-stale ...
 ## Reference screenshots (`Tools/ref_shots.sh`)
 
 `Tools/ref_shots.sh <label>` takes three fixed views on seed 517192 from the editor binaries (no packaging): up the trunk into the crown (framed like concept image 01), in the canopy, and from the nest at the trunk base. Each runs with hardware ray tracing and with `-noraytracing`. Files land in `Saved/RefShots/<label>-<view>-<rt|nort>.png`. `ONLY=<view>` takes one view, `NO_NORT=1` skips the runs without ray tracing; `TRUNK_T`, `TRUNK_PITCH`, `CANOPY_BRANCH`, `CANOPY_HEADING`, `BASE_HEADING` move the views. The editor must be closed (it goes through the Unreal lock). About 25 s per shot.
+
+## Material code (`Tools/materials`)
+
+The look-pass bark `M_TreeBark2` is three Custom HLSL nodes; their code is kept here, not only in the asset:
+`bark2_bark.hlsl` (colour, roughness, world-space normal, AO), `bark2_cut.hlsl` (camera cutaway and buried bark,
+the opacity mask outside the shadow pass) and `bark2_keep.hlsl` (the shadow pass: buried bark only). Edit the files,
+then have the main session push them into the material over unreal-mcp (`ProgrammaticToolset.execute_tool_script`;
+the script environment can read files but has no `exec`, so the script body is pasted). `build_bark2_mcp.py` builds
+the material from scratch (`MODE='build'`, only under a new name) or replaces the three nodes' code (`MODE='code'`);
+`mpc_view_params_mcp.py` adds the cutaway scalars to `MPC_View`. Lessons from 13 Nov: a new Custom node already has
+one unnamed input, and its `Inputs` and `AdditionalOutputs` arrays only take when the existing elements are sent back
+exactly as read and one element is added per call; the vertex colour node's main output is RGB only (alpha is the `A`
+output); and setting only a node's `Code` did not always mark the package dirty, so nudge a material property before
+`save_assets`.

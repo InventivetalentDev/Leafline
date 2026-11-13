@@ -37,9 +37,10 @@ struct FLookTuning
 	/** How strongly the sun lights the volumetric fog (light shafts through the leaves). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sun") float SunVolumetricScattering = 3.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sky") float SkyLightIntensity = 1.f;
+	/** 3 since the look pass (13 Nov, was 1), with the cool tint below: shadowed bark gets a visible cool fill. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sky") float SkyLightIntensity = 3.f;
 	/** Tint of the sky light: the fill in shadowed bark. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sky") FLinearColor SkyLightColor = FLinearColor(1.f, 1.f, 1.f, 1.f);
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sky") FLinearColor SkyLightColor = FLinearColor(0.75f, 0.85f, 1.15f, 1.f);
 	/** Aerial perspective distance scale: above 1 hazes distant things sooner (the world is at ant scale). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sky") float AerialPerspectiveScale = 4.f;
 	/** Haze in the sky (Mie scattering) and how tightly it glows around the sun. */

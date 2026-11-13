@@ -103,7 +103,7 @@ Order by visible impact per hour:
 
 - [x] Bark material (plates, fissures, moss). Rebuilt as `M_TreeBark`: seamless world-scale noise on a cylinder per branch, with the camera cutaway. Bark relief in field and mesh not done (cut list item 3).
 - [x] Leaf material: shape, veins, backlight, bite edges, wind sway.
-- [ ] Lighting pass against concept image 01: sun angle per shift, volumetric shafts, fog, mild depth of field, exposure.
+- [x] Lighting pass against concept image 01: sun angle per shift, volumetric shafts, fog, mild depth of field, exposure. Continued as M5d (look pass).
   - Pass 1 (Thu evening): `FLookTuning` on the day director, tunable live with `Leaf.Tune look`. Sun warmth per shift (4600/5600/3800 K), haze based at the ground, stronger shafts, sun glow in the fog. Leaves 1.5 times as dense; the distant grove has leaf crowns. Reference shots with `Tools/ref_shots.sh`. Still open: ground colour (M_Ground, needs the editor), leaves dithering near the camera, exposure.
 - [x] Final ant mesh with shader gait; carried fragment mesh (placeholder disc).
 - [x] Trail shader (soft-edged translucent cyan; no flow yet).
@@ -197,6 +197,21 @@ From `docs/playtest-notes.md`; each feel change has an off switch for the owner'
 - [x] Controls follow-ups (owner): twig snap off by default, the stick read against the branch's on-screen direction, one lap a second; package and zip from 4f356c2 (13 Nov 15:37); packaged smoke test passed.
 - [x] Owner on the new controls (13 Nov, 15:37 package): "that feels pretty good now".
 - [ ] Still open: PS5 audio check (needs the owner's pad). Aiming stays as it is (owner).
+
+## M5d: Look pass (Fri evening; brief `docs/briefs/look-pass.md`; owner's verdict from a package)
+
+Tagged `pre-look` before it started. Commits start `Look:` (and `HUD:` for the HUD, which has no off switch).
+
+- [x] Part 0: views `junction` (limb 21 at -80°, the black wedge) and `sunward` (shift 1, lee side, toward the sun) in `Tools/ref_shots.sh`, plus `bough`, pitch sweeps, `SHIFT=`, `--probe`, and every run in the slot `RefShot` with a check that the owner's save is untouched. Before set `look0` (old bark, both modes). By a Claude agent; report `docs/reviews/look-shots.md`.
+- [x] Part 1 (tuning only): sky light 3 with a cool tint, exposure bias 0.2, `WoodClearance` 60 (the "amber wash" on near bark was the cutaway digging a trench under a camera 12 cm above the bark). Fog unchanged. The dark morning sky is the low sun plus metering, not a bug.
+- [x] Part 2, the wedge: bark buried inside the neighbouring branch, seen through the cutaway, black because nothing lights it. The mesh now marks buried bark in vertex alpha and `M_TreeBark2` hides it; gone at the `junction` pose (still there with `Leaf.Bark 0`). `ThickWoodRadius` made no difference anywhere. Cutaway band, taper and near fade are live in `MPC_View` and `Leaf.Tune cam`. Depth of field focuses on the ant's real distance.
+- [x] Part 2, look-up assist behind `bLookUpAssist` (off; the owner tries `Leaf.Tune cam bLookUpAssist True`).
+- [x] Framing: `BoomLength` 170 (was 220), `DefaultPitch` -25 (was -20). Needs the owner's verdict.
+- [x] Part 3: `M_TreeBark2`, code in `Tools/materials/` (long ridges and soft furrows, relief from the normal, fine grain up close, moss in patches). `Leaf.Bark 0` returns to `M_TreeBark`.
+- [x] Part 4: HUD restyle by Codex in a worktree (style table, panels, larger text, worker states, stamina label, the screens too); checked at 1280x720 and 3840x2160 with key and pad icons.
+- [ ] After set `look1`, pitch sweeps with the new bark, signal shots, frame times on Epic and Low, packaged smoke test with and without ray tracing.
+- [ ] Owner's verdict. Veto list and undo: bark `Leaf.Bark 0`; camera `Leaf.Tune cam WoodClearance 12`, `BoomLength 220`, `DefaultPitch -20`, `ExposureBias -0.4`; sky `Leaf.Tune look SkyLightIntensity 1`, `SkyLightColor (R=1,G=1,B=1,A=1)`; HUD: revert its commit.
+- [ ] Part 5 (trail near the camera, leaf tone variation, framing foliage on the grove) only if time remains before the freeze.
 
 ## M6: Stretch (only if M0–M5b are complete before the freeze; the bird waits for the owner to keep the line)
 

@@ -13,7 +13,8 @@ struct FAntCameraTuning
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float BoomLength = 220.f;
+	/** 170 since the look pass (13 Nov, was 220): the ant about 5.6% of the screen width instead of 4.4%. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float BoomLength = 170.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float MinBoomLength = 35.f;
 	/** Look-at point above the ant along its up (cm). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float TargetHeight = 25.f;
@@ -33,7 +34,7 @@ struct FAntCameraTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float GlideTime = 1.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float PitchMin = -80.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float PitchMax = 60.f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float DefaultPitch = -20.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float DefaultPitch = -25.f;
 	/**
 	 * Pull the boom in when the trunk or a big limb blocks the view. Off by default: the camera passes through wood
 	 * and the bark between camera and ant dithers away instead (CutawayRadius), which is less jarring.
@@ -54,7 +55,9 @@ struct FAntCameraTuning
 	 *  WoodClearance above the bark, still looking at the ant. Thinner wood it passes through. 0 turns this off. Wood
 	 *  between the camera and the ant is dithered away either way. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float ThickWoodRadius = 120.f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float WoodClearance = 12.f;
+	/** At least CutawayRadius: nearer than that, the cutaway digs a trench into the bark the camera sits over (look pass,
+	 *  13 Nov, was 12). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float WoodClearance = 60.f;
 	/** Probe radius for keeping the camera out of the tree (cm). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float ProbeRadius = 12.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float BoomShrinkRate = 5.f;
@@ -62,7 +65,8 @@ struct FAntCameraTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float FieldOfView = 75.f;
 	/** Mild depth of field focused on the ant sells the macro scale; 0 disables it. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float DepthOfFieldFstop = 4.f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float ExposureBias = -0.4f;
+	/** 0.2 since the look pass (was -0.4): frames full of sunlit bark metered the sky too dark. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float ExposureBias = 0.2f;
 	/** Auto exposure range (EV100). Both at -100 leave the level's post-process settings alone. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float ExposureMinEV = -100.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float ExposureMaxEV = -100.f;
