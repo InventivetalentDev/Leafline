@@ -48,6 +48,11 @@ public:
 
 	/** Nearest cuttable leaf whose blade start is within Reach of P, or INDEX_NONE. */
 	int32 FindNearest(const FVector& P, float Reach) const;
+	/** Nearest leaf that can no longer be cut (!CanCut), measured as FindNearest does, or INDEX_NONE. */
+	int32 FindNearestSpent(const FVector& P, float Reach) const;
+
+	/** The tree's FTreeParams::RichnessMul at the last Build (1 for a set that was never built, like the grove's). */
+	float GetRichnessMul() const { return RichnessMul; }
 
 	/** Where the next bite of this diameter would go (leaf-local along/across, cm) and its radius. */
 	void PlanBite(int32 Index, float DiameterCm, FVector2f& OutCenter, float& OutRadius) const;
@@ -67,16 +72,22 @@ public:
 	/** A leaf for scenery only (distant grove crowns): no grid entry, so it can never be found or cut. */
 	void AddDecorLeaf(const FTreeLeaf& Leaf);
 
-	/** Two-sided blades for one chunk. */
+	/**
+	 * Blades for one chunk. A leaf with little area left (Remaining <= 0.16, the CanCut threshold) is drawn as its bare
+	 * stalk only. Vertex colour: R 1 for a leaf that can still be cut, 0 for a spent one (M_Leaf turns it brown); G a
+	 * per-leaf random; B height on the tree; A the shape-based richness (Richness / RichnessMul - 1) / 2.
+	 */
 	void BuildChunkMesh(int32 Chunk, FTreeMeshData& Out, int32 Segments = 0) const;
 
 	TArray<FTreeLeaf> Leaves;
 
 private:
 	FIntVector Cell(const FVector& P) const;
+	int32 FindNearestWhere(const FVector& P, float Reach, bool bCuttable) const;
 
 	TArray<TArray<int32>> ChunkLeaves;
 	TMap<FIntVector, TArray<int32>> Grid;
 	TMap<int32, TArray<int32>> BranchLeaves;
 	float CellSize = 300.f;
+	float RichnessMul = 1.f;
 };

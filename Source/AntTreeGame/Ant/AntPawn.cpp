@@ -367,6 +367,7 @@ void AAntPawn::FinishCut()
 	CutSize = FMath::Min(CutSize, CapNow);
 	if (CutSize >= Cut.MinSize && Tree->BiteLeaf(CuttingLeaf, CutSize, DiameterForSize(CutSize), Cut.LeafUsePerCut))
 	{
+		if (ADayDirector* D = ADayDirector::Get(this)) D->NoteCut(CuttingLeaf);
 		CarriedRichness = FMath::Max(LeafBefore.Richness, 1.f);
 		SetFragment(CutSize);
 		LastCut.Leaf = CuttingLeaf;
@@ -571,6 +572,7 @@ bool AAntPawn::DebugCutNow(float Size01)
 	const float Size = FMath::Min(Size01, Tree->LeafSizeCap(Leaf, Cut.LeafUsePerCut));
 	const float Richness = FMath::Max(Tree->GetLeaves().Get(Leaf).Richness, 1.f);
 	if (!Tree->BiteLeaf(Leaf, Size, DiameterForSize(Size), Cut.LeafUsePerCut)) return false;
+	if (ADayDirector* D = ADayDirector::Get(this)) D->NoteCut(Leaf);
 	CarriedRichness = Richness;
 	SetFragment(Size);
 	LastCut.Leaf = Leaf;
@@ -592,6 +594,7 @@ bool AAntPawn::DebugCutLeaf(int32 Leaf, float Size01)
 	const float Richness = FMath::Max(L.Richness, 1.f);
 	const int32 Branch = L.Branch;
 	if (Size < Cut.MinSize || !Tree->BiteLeaf(Leaf, Size, DiameterForSize(Size), Cut.LeafUsePerCut)) return false;
+	if (ADayDirector* D = ADayDirector::Get(this)) D->NoteCut(Leaf);
 	CarriedRichness = Richness;
 	SetFragment(Size);
 	LastCut.Leaf = Leaf;

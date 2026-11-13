@@ -14,4 +14,7 @@ void ULeaflineSaveGame::Sanitize()
 	Day = FMath::Max(1, Day);
 	UpgradeLevels.SetNum(LeaflineUpgrades::Count);
 	for (int32& Level : UpgradeLevels) Level = FMath::Clamp(Level, 0, LeaflineUpgrades::MaxLevel);
+	Stage = FMath::Max(0, Stage);
+	StageStartDay = FMath::Clamp(StageStartDay, 1, Day);
+	TreeLeafCount = FMath::Max(0, TreeLeafCount);
 }

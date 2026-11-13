@@ -1,0 +1,77 @@
+# Measured with Leaf.TreeReport on the fresh tree of each stage (Tools/tree_test.sh moves, 13 Nov, stage tuning sparse x12 over 55 m for tree 1, x8 over 45 m for trees 2 and 3).
+tree 1 day 1: seed 675856, 7542 leaves; per 10 m band: live/all leaves, pieces left at template 0.5
+tree 1 day 1: band 30-40 m: 3/3 live, 9 pieces
+tree 1 day 1: band 40-50 m: 10/10 live, 30 pieces
+tree 1 day 1: band 50-60 m: 22/22 live, 66 pieces
+tree 1 day 1: band 60-70 m: 108/108 live, 324 pieces
+tree 1 day 1: band 70-80 m: 129/129 live, 387 pieces
+tree 1 day 1: band 80-90 m: 63/63 live, 189 pieces
+tree 1 day 1: band 90-100 m: 81/81 live, 243 pieces
+tree 1 day 1: band 100-110 m: 231/231 live, 693 pieces
+tree 1 day 1: band 110-120 m: 460/460 live, 1380 pieces
+tree 1 day 1: band 120-130 m: 479/479 live, 1437 pieces
+tree 1 day 1: band 130-140 m: 337/337 live, 1011 pieces
+tree 1 day 1: band 140-150 m: 363/363 live, 1089 pieces
+tree 1 day 1: band 150-160 m: 402/402 live, 1206 pieces
+tree 1 day 1: band 160-170 m: 353/353 live, 1059 pieces
+tree 1 day 1: band 170-180 m: 420/420 live, 1260 pieces
+tree 1 day 1: band 180-190 m: 419/419 live, 1257 pieces
+tree 1 day 1: bands 190-200 m: 522/522 live, 1566 pieces; 200-210 m: 337/337 live, 1011 pieces
+tree 1 day 1: bands 210-220 m: 476/476 live, 1428 pieces; 220-230 m: 471/471 live, 1413 pieces
+tree 1 day 1: bands 230-240 m: 457/457 live, 1371 pieces; 240-250 m: 249/249 live, 747 pieces
+tree 1 day 1: bands 250-260 m: 376/376 live, 1128 pieces; 260-270 m: 183/183 live, 549 pieces
+tree 1 day 1: bands 270-280 m: 316/316 live, 948 pieces; 280-290 m: 207/207 live, 621 pieces
+tree 1 day 1: bands 290-300 m: 68/68 live, 204 pieces
+tree 1 day 1: whole tree 7542/7542 live, 22626 pieces; mean height of live leaves 185.1 m
+tree 2 day 1: seed 377994, 6464 leaves; per 10 m band: live/all leaves, pieces left at template 0.5
+tree 2 day 1: band 30-40 m: 1/1 live, 3 pieces
+tree 2 day 1: band 40-50 m: 4/4 live, 12 pieces
+tree 2 day 1: band 50-60 m: 12/12 live, 36 pieces
+tree 2 day 1: band 60-70 m: 33/33 live, 99 pieces
+tree 2 day 1: band 70-80 m: 117/117 live, 351 pieces
+tree 2 day 1: band 80-90 m: 201/201 live, 603 pieces
+tree 2 day 1: band 90-100 m: 203/203 live, 609 pieces
+tree 2 day 1: band 100-110 m: 143/143 live, 429 pieces
+tree 2 day 1: band 110-120 m: 278/278 live, 834 pieces
+tree 2 day 1: band 120-130 m: 180/180 live, 540 pieces
+tree 2 day 1: band 130-140 m: 267/267 live, 801 pieces
+tree 2 day 1: band 140-150 m: 351/351 live, 1053 pieces
+tree 2 day 1: band 150-160 m: 302/302 live, 906 pieces
+tree 2 day 1: band 160-170 m: 203/203 live, 609 pieces
+tree 2 day 1: band 170-180 m: 293/293 live, 879 pieces
+tree 2 day 1: band 180-190 m: 269/269 live, 807 pieces
+tree 2 day 1: bands 190-200 m: 323/323 live, 969 pieces; 200-210 m: 324/324 live, 972 pieces
+tree 2 day 1: bands 210-220 m: 392/392 live, 1176 pieces; 220-230 m: 220/220 live, 660 pieces
+tree 2 day 1: bands 230-240 m: 376/376 live, 1128 pieces; 240-250 m: 251/251 live, 753 pieces
+tree 2 day 1: bands 250-260 m: 289/289 live, 867 pieces; 260-270 m: 188/188 live, 564 pieces
+tree 2 day 1: bands 270-280 m: 201/201 live, 603 pieces; 280-290 m: 184/184 live, 552 pieces
+tree 2 day 1: bands 290-300 m: 240/240 live, 720 pieces; 300-310 m: 248/248 live, 744 pieces
+tree 2 day 1: bands 310-320 m: 161/161 live, 483 pieces; 320-330 m: 163/163 live, 489 pieces
+tree 2 day 1: bands 330-340 m: 47/47 live, 141 pieces
+tree 2 day 1: whole tree 6464/6464 live, 19392 pieces; mean height of live leaves 200.5 m
+tree 3 day 1: seed 15161, 9940 leaves; per 10 m band: live/all leaves, pieces left at template 0.5
+tree 3 day 1: band 30-40 m: 3/3 live, 9 pieces
+tree 3 day 1: band 40-50 m: 13/13 live, 39 pieces
+tree 3 day 1: band 50-60 m: 0/0 live, 0 pieces
+tree 3 day 1: band 60-70 m: 0/0 live, 0 pieces
+tree 3 day 1: band 70-80 m: 157/157 live, 471 pieces
+tree 3 day 1: band 80-90 m: 443/443 live, 1329 pieces
+tree 3 day 1: band 90-100 m: 267/267 live, 801 pieces
+tree 3 day 1: band 100-110 m: 246/246 live, 738 pieces
+tree 3 day 1: band 110-120 m: 254/254 live, 762 pieces
+tree 3 day 1: band 120-130 m: 256/256 live, 768 pieces
+tree 3 day 1: band 130-140 m: 266/266 live, 798 pieces
+tree 3 day 1: band 140-150 m: 332/332 live, 996 pieces
+tree 3 day 1: band 150-160 m: 191/191 live, 573 pieces
+tree 3 day 1: band 160-170 m: 601/601 live, 1803 pieces
+tree 3 day 1: band 170-180 m: 434/434 live, 1302 pieces
+tree 3 day 1: band 180-190 m: 348/348 live, 1044 pieces
+tree 3 day 1: bands 190-200 m: 220/220 live, 660 pieces; 200-210 m: 324/324 live, 972 pieces; 210-220 m: 489/489 live, 1467 pieces
+tree 3 day 1: bands 220-230 m: 367/367 live, 1101 pieces; 230-240 m: 362/362 live, 1086 pieces; 240-250 m: 401/401 live, 1203 pieces
+tree 3 day 1: bands 250-260 m: 286/286 live, 858 pieces; 260-270 m: 282/282 live, 846 pieces; 270-280 m: 450/450 live, 1350 pieces
+tree 3 day 1: bands 280-290 m: 353/353 live, 1059 pieces; 290-300 m: 370/370 live, 1110 pieces; 300-310 m: 334/334 live, 1002 pieces
+tree 3 day 1: bands 310-320 m: 164/164 live, 492 pieces; 320-330 m: 297/297 live, 891 pieces; 330-340 m: 352/352 live, 1056 pieces
+tree 3 day 1: bands 340-350 m: 112/112 live, 336 pieces; 350-360 m: 290/290 live, 870 pieces; 360-370 m: 43/43 live, 129 pieces
+tree 3 day 1: bands 370-380 m: 226/226 live, 678 pieces; 380-390 m: 236/236 live, 708 pieces; 390-400 m: 141/141 live, 423 pieces
+tree 3 day 1: bands 400-410 m: 30/30 live, 90 pieces
+tree 3 day 1: whole tree 9940/9940 live, 29820 pieces; mean height of live leaves 225.9 m

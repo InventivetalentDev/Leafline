@@ -67,6 +67,27 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Tree")
 	void Grow(int32 Seed);
 
+	// One tree per stage: the tree's bites are saved at day end and applied when the tree is grown again on load.
+	/** Every leaf with at least one bite (or used up by StripBelow), in leaf order. */
+	void ExportBites(TArray<FSavedLeaf>& Out) const;
+	/**
+	 * Grows the tree from Seed like Grow, then applies Bites before the leaf meshes are built (one build, not one per
+	 * bite). If LeafCount does not match the grown tree's leaf count, or an entry is out of range or malformed, none of
+	 * the bites are applied, a warning is logged and the tree stays fresh. Returns false only in that case: an empty
+	 * Bites list applies nothing, logs nothing and returns true whatever LeafCount is.
+	 */
+	bool GrowWithBites(int32 Seed, const TArray<FSavedLeaf>& Bites, int32 LeafCount);
+	/** Debug (Leaf.Strip): uses up every leaf whose base is below Z (world cm): no pieces left. Rebuilds the changed
+	 *  chunks once. Returns how many leaves changed. */
+	int32 StripBelow(float Z);
+	/** Logs pieces left per 10 m height band, the six lowest leafy boughs (with their twigs) and the two lowest leafy limbs
+	 *  with their live leaves and pieces (Leaf.TreeReport). */
+	void LogTreeReport(const FString& Label) const;
+	/** Nearest leaf within Reach of P that can no longer be cut (stripped or brown), or INDEX_NONE. */
+	int32 FindSpentLeafNear(const FVector& P, float Reach) const;
+	/** Pieces left at the patch template over the whole tree (fast enough for once a day). */
+	int32 CountPiecesLeft(float Template = 0.5f, float UsePerCut = 0.38f) const;
+
 	const FTreeSkeleton& GetSkeleton() const { return Skeleton; }
 	const FTreeField& GetField() const { return Field; }
 	int32 GetSeed() const { return Skeleton.Seed; }
@@ -134,7 +155,14 @@ private:
 	UPROPERTY()
 	TObjectPtr<UMaterialInterface> FallbackMaterial;
 
-	void BuildLeafChunk(int32 Chunk);
+	/** Rebuilds one leaf chunk's mesh section. With bHitchCheck, warns when it takes over 4 ms (off for the full build). */
+	void BuildLeafChunk(int32 Chunk, bool bHitchCheck = true);
+	/** Grow, part 1: skeleton, field, wood, ground, grove and the leaf set (no leaf meshes yet). */
+	void GrowShape(int32 Seed);
+	/** Grow, part 2: every leaf chunk's mesh and the grove crowns. */
+	void BuildLeafMeshes();
+	/** Checks every saved entry against the freshly built leaf set, then applies all of them or none (see GrowWithBites). */
+	bool ApplySavedBites(const TArray<FSavedLeaf>& Bites, int32 LeafCount);
 	/** Whether BuildLeafApproach from CutLeaf's base to Leaf works within MaxWalk (cached for the tree's life). */
 	bool PatchLeafReachable(int32 CutLeaf, int32 Leaf, float MaxWalk) const;
 	void BuildGround();

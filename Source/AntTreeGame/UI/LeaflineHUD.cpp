@@ -87,6 +87,7 @@ void ALeaflineHUD::DrawHUD()
 		case EDayPhase::Recap: DrawRecap(D, Scale); return;
 		case EDayPhase::EndCard: DrawEndCard(D, Scale); return;
 		case EDayPhase::Nest: DrawNest(D, Scale); return;
+		case EDayPhase::Move: DrawMoveCard(D, Scale); return;
 		default: break;
 		}
 	}
@@ -106,18 +107,20 @@ void ALeaflineHUD::DrawHUD()
 	if (D) DrawColonyCounter(D, Scale, Dt);
 	if (D) DrawLineRows(D, Lines, Scale);
 	// First-day goals, instead of a tutorial.
-	if (D && Ant && D->GetDay() == 1 && D->GetPhase() == EDayPhase::Shift)
+	// The climb goal shows on the first day of each tree (day 1 only with one tree off); the riding goal on day 1 only.
+	const bool bTreeFirstDay = D && (D->IsOneTree() ? D->GetDayOnTree() == 1 : D->GetDay() == 1);
+	if (D && Ant && (bTreeFirstDay || D->GetDay() == 1) && D->GetPhase() == EDayPhase::Shift)
 	{
 		const UAntMovementComponent* M = Ant->GetAntMovement();
 		FString Goal;
 		// Leaves grow on boughs and twigs above LowestLeafyHeight, and the first limbs start at LimbStartHeight.
 		const float LeavesFrom = D->GetTree() ? FMath::Max(D->GetTree()->Params.LowestLeafyHeight, D->GetTree()->Params.LimbStartHeight) : 3000.f;
 		const bool bLow = M && M->GetSurfacePosition().Z < LeavesFrom - 600.f;
-		if (Ant->GetWorkerIndex() == 0 && D->GetStats().Fragments == 0 && !Ant->IsCarrying() && M && M->GetState() == EAntState::Walking && bLow)
+		if (bTreeFirstDay && Ant->GetWorkerIndex() == 0 && D->GetStats().Fragments == 0 && !Ant->IsCarrying() && M && M->GetState() == EAntState::Walking && bLow)
 		{
 			Goal = FString::Printf(TEXT("Climb the trunk: the leaves start about %d m up"), FMath::RoundToInt(LeavesFrom / 100.f));
 		}
-		else if (Ant->GetWorkerIndex() == 1 && !Ant->IsCarrying() && M && M->GetState() == EAntState::Walking)
+		else if (D->GetDay() == 1 && Ant->GetWorkerIndex() == 1 && !Ant->IsCarrying() && M && M->GetState() == EAntState::Walking)
 		{
 			Goal = TEXT("Your first worker walks home on its own. Hold F on the cyan trail to ride it up");
 		}
@@ -501,13 +504,34 @@ void ALeaflineHUD::DrawLineRows(const ADayDirector* D, const ALineSystem* Lines,
 
 void ALeaflineHUD::DrawPatchPreview(const AAntPawn* Ant, const ALineSystem* Lines, float Scale)
 {
-	if (!Lines || Ant->IsCarrying()) return;
+	if (Ant->IsCarrying()) return;
 	int32 Leaf = Ant->GetLeafInReach();
 	if (Leaf == INDEX_NONE && Ant->IsCutting()) Leaf = Ant->GetCuttingLeaf();
-	if (Leaf == INDEX_NONE) return;
+	// The read-out is measured at the mouth, like the cut reach. No cuttable leaf there but a spent one: the bough is stripped.
+	auto DrawStripped = [&]()
+	{
+		UFont* F = GEngine->GetMediumFont();
+		DrawTextCentered(TEXT("Stripped. Fresh leaves are higher up."), Canvas->ClipX * 0.5f, Canvas->ClipY - 175.f * Scale, FLinearColor(0.95f, 0.9f, 0.5f, 1.f), 1.1f * Scale, F);
+	};
+	if (Leaf == INDEX_NONE)
+	{
+		const ATreeActor* Tree = ATreeActor::Get(this);
+		if (Tree && !Ant->IsCutting() && Ant->IsPlayerControlled()
+			&& Tree->FindSpentLeafNear(Ant->GetActorTransform().TransformPosition(Ant->MandibleOffset), Ant->Cut.Reach) != INDEX_NONE)
+		{
+			DrawStripped();
+		}
+		return;
+	}
+	if (!Lines) return;
 	const float Template = Ant->IsCutting() ? Ant->GetCutSize() : Lines->Tuning.PreviewTemplate;
 	FPatchPreview P;
-	if (!Lines->GetPatchPreview(Leaf, Template, P) || P.Pieces <= 0) return;
+	if (!Lines->GetPatchPreview(Leaf, Template, P)) return;
+	if (P.Pieces <= 0)
+	{
+		if (!Ant->IsCutting()) DrawStripped();
+		return;
+	}
 	// The scout's own leaf is outlined by DrawLeafTarget; the patch's other leaves get a fainter outline.
 	const FLinearColor Faint(1.f, 0.88f, 0.45f, 0.35f);
 	for (const int32 Other : P.Leaves)
@@ -603,6 +627,10 @@ void ALeaflineHUD::DrawRecap(const ADayDirector* D, float Scale)
 
 	DrawTextCentered(FString::Printf(TEXT("Day %d: today's cut from %s"), S.Day, *D->GetTreeName()), CX, Y, AccentColor, 2.0f * Scale, Large);
 	Y += 80.f * Scale;
+	if (D->IsOneTree())
+	{
+		DrawTextCentered(FString::Printf(TEXT("Tree %d, %s: day %d on this tree"), D->GetStage() + 1, *D->GetTreeName(), D->GetDayOnTree()), CX, Y - 30.f * Scale, TextColor, 1.0f * Scale, Medium);
+	}
 
 	// One row per line, in turn, each counting up; then the day total.
 	const bool bShowLines = LineSys && LineSys->GetLines().Num() > 0;
@@ -675,6 +703,11 @@ void ALeaflineHUD::DrawRecap(const ADayDirector* D, float Scale)
 	Y += 14.f * Scale;
 	DrawColonyMeter(CX, Y, 520.f * Scale, Scale);
 	Y += 90.f * Scale;
+	if (D->IsOneTree() && D->IsMoveDue())
+	{
+		DrawTextCentered(TEXT("Tomorrow the colony moves to a new tree"), CX, Y, FLinearColor(0.95f, 0.9f, 0.5f, 1.f), 1.15f * Scale, Medium);
+		Y += 40.f * Scale;
+	}
 	DrawTextCentered(TEXT("Press E / Space / A or click to go into the nest"), CX, Y, AccentColor, 1.2f * Scale, Medium);
 }
 
@@ -683,8 +716,8 @@ void ALeaflineHUD::DrawColonyMeter(float CX, float Y, float W, float Scale)
 	const ULeaflineGameInstance* GI = Cast<ULeaflineGameInstance>(GetGameInstance());
 	if (!GI) return;
 	UFont* Medium = GEngine->GetMediumFont();
-	const bool bRecruits = GI->AreRecruitsEnabled();
-	const float Top = LeaflineUpgrades::GetMilestoneThreshold(LeaflineUpgrades::MilestoneCount - 1, bRecruits);
+	const bool bOneTree = GI->IsOneTree();
+	const float Top = GI->GetMilestoneThreshold(LeaflineUpgrades::MilestoneCount - 1);
 	const float H = 12.f * Scale, X = CX - W * 0.5f;
 	DrawTextCentered(FString::Printf(TEXT("Colony: %.1f hauled in all"), GI->GetTotalHauled()), CX, Y, TextColor, 1.1f * Scale, Medium);
 	const float BarY = Y + 34.f * Scale;
@@ -692,11 +725,20 @@ void ALeaflineHUD::DrawColonyMeter(float CX, float Y, float W, float Scale)
 	DrawRect(FLinearColor(0.4f, 0.75f, 0.3f, 0.95f), X, BarY, W * FMath::Clamp(GI->GetTotalHauled() / Top, 0.f, 1.f), H);
 	for (int32 m = 0; m < LeaflineUpgrades::MilestoneCount; ++m)
 	{
-		const float T = LeaflineUpgrades::GetMilestoneThreshold(m, bRecruits);
+		const float T = GI->GetMilestoneThreshold(m);
 		const float MX = X + W * T / Top;
 		const bool bReached = GI->HasReachedMilestone(m);
-		DrawRect(bReached ? AccentColor : TextColor, MX - 1.5f * Scale, BarY - 6.f * Scale, 3.f * Scale, H + 12.f * Scale);
-		DrawTextCentered(FString::Printf(TEXT("%.0f"), T), MX, BarY + H + 8.f * Scale, bReached ? AccentColor : TextColor, 0.9f * Scale, Medium);
+		const FLinearColor MarkColor = bReached ? AccentColor : TextColor;
+		DrawRect(MarkColor, MX - 1.5f * Scale, BarY - 6.f * Scale, 3.f * Scale, H + 12.f * Scale);
+		DrawTextCentered(FString::Printf(TEXT("%.0f"), T), MX, BarY + H + 8.f * Scale, MarkColor, 0.9f * Scale, Medium);
+		// With one tree on, the second and third milestones move the colony: a small tree above the mark and a label.
+		if (bOneTree && m >= 1)
+		{
+			const float TW = 7.f * Scale, TY = BarY - 12.f * Scale;
+			DrawRect(MarkColor, MX - 1.f * Scale, TY - 4.f * Scale, 2.f * Scale, 5.f * Scale);                    // trunk
+			DrawRect(MarkColor, MX - TW * 0.5f, TY - 11.f * Scale, TW, 8.f * Scale);                              // crown
+			DrawTextCentered(TEXT("new tree"), MX, BarY + H + 30.f * Scale, MarkColor, 0.8f * Scale, Medium);
+		}
 	}
 }
 
@@ -768,14 +810,34 @@ void ALeaflineHUD::DrawNest(const ADayDirector* D, float Scale)
 		}
 		else
 		{
-			DrawCrisp(Canvas, FString::Printf(TEXT("Start day %d: a new tree"), D->GetDay() + 1), AccentColor, X + 18.f * Scale, Y + 14.f * Scale, Medium, 1.25f * Scale);
+			DrawCrisp(Canvas, (D->IsOneTree() ? (D->IsMoveDue() ? FString::Printf(TEXT("Start day %d on a new tree"), D->GetDay() + 1) : FString::Printf(TEXT("Start day %d"), D->GetDay() + 1))
+					: FString::Printf(TEXT("Start day %d: a new tree"), D->GetDay() + 1)), AccentColor, X + 18.f * Scale, Y + 14.f * Scale, Medium, 1.25f * Scale);
 		}
 		Y += RowH;
 	}
 	Y += 30.f * Scale;
 	DrawColonyMeter(CX, Y, 520.f * Scale, Scale);
 	Y += 100.f * Scale;
+	if (D->IsOneTree() && D->IsMoveDue())
+	{
+		DrawTextCentered(TEXT("Tomorrow the colony moves to a new tree"), CX, Y, FLinearColor(0.95f, 0.9f, 0.5f, 1.f), 1.15f * Scale, Medium);
+		Y += 40.f * Scale;
+	}
 	DrawTextCentered(TEXT("W / S, stick or mouse: choose      E / Space / A or click: buy or start      Q / Y: start the next day"), CX, Y, FLinearColor(0.8f, 0.8f, 0.75f, 1.f), 1.0f * Scale, Medium);
+}
+
+void ALeaflineHUD::DrawMoveCard(const ADayDirector* D, float Scale)
+{
+	DrawRect(FLinearColor(0.02f, 0.04f, 0.03f, 0.55f), 0.f, 0.f, Canvas->ClipX, Canvas->ClipY); // lighter: the new tree shows behind it
+	UFont* Large = GEngine->GetLargeFont();
+	UFont* Medium = GEngine->GetMediumFont();
+	const float CX = Canvas->ClipX * 0.5f;
+	float Y = Canvas->ClipY * 0.3f;
+	DrawTextCentered(D->GetMoveCardText(), CX, Y, AccentColor, 2.4f * Scale, Large);
+	Y += 100.f * Scale;
+	DrawTextCentered(TEXT("A new tree: taller, with richer leaves and stronger gusts."), CX, Y, TextColor, 1.25f * Scale, Medium);
+	Y += 90.f * Scale;
+	DrawTextCentered(FString::Printf(TEXT("Press E / Space / A or click to begin day %d"), D->GetDay()), CX, Y, AccentColor, 1.3f * Scale, Medium);
 }
 
 void ALeaflineHUD::DrawEndCard(const ADayDirector* D, float Scale)

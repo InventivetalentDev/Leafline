@@ -142,11 +142,121 @@ int32 ADayDirector::FindWorker(const AAntPawn* Ant) const
 	return INDEX_NONE;
 }
 
+void ADayDirector::SetOneTree(bool bOn)
+{
+	PendingOneTree = bOn ? 1 : 0;
+	UE_LOG(LogLeafline, Log, TEXT("One tree per stage %s (from the next day)"), bOn ? TEXT("on") : TEXT("off"));
+}
+
+FString ADayDirector::GetMoveCardText() const
+{
+	return FString::Printf(TEXT("The colony moves to %s"), *TreeName);
+}
+
+float ADayDirector::GetLowestLeafyHeight() const
+{
+	return Tree ? FMath::Max(Tree->Params.LowestLeafyHeight, Tree->Params.LimbStartHeight) : 3000.f;
+}
+
+bool ADayDirector::IsMoveDue() const
+{
+	const ULeaflineGameInstance* GI = Colony(this);
+	return Tuning.bOneTree && GI && GI->GetStage() > Stage;
+}
+
+void ADayDirector::DebugMoveNow()
+{
+	if (!Tuning.bOneTree)
+	{
+		UE_LOG(LogLeafline, Warning, TEXT("Leaf.Move: one tree per stage is off (Leaf.OneTree 1)"));
+		return;
+	}
+	ULeaflineGameInstance* GI = Colony(this);
+	if (GI && GI->GetStage() > Stage)
+	{
+		// A milestone move is already scheduled for tomorrow: take that one today instead of skipping a tree.
+		GI->SetTree(GI->GetStage(), GI->GetTreeSeed(), Day);
+	}
+	else
+	{
+		bDebugMovePending = true;
+	}
+	UE_LOG(LogLeafline, Log, TEXT("Leaf.Move: day %d restarts on tree %d"), Day, Stage + 2);
+	StartDay(Day);
+	if (bMovedToday) Phase = EDayPhase::Move;
+}
+
+namespace
+{
+	/** The tree shapes, in the order the colony meets them: the old giant, a spreading giant, a tall spire, a leaning elder. */
+	FTreeParams ShapeParams(const FTreeParams& Base, int32 Shape, FString& OutName)
+	{
+		FTreeParams P = Base;
+		switch (Shape)
+		{
+		case 1:
+			OutName = TEXT("a spreading giant");
+			P.TrunkHeight *= 0.8f;
+			P.TrunkRadius *= 1.1f;
+			P.NumLimbs = 18;
+			P.LimbLengthMax *= 1.45f;
+			P.LimbLengthMin *= 1.3f;
+			P.LimbPitchMinDeg = 4.f;
+			P.LimbPitchMaxDeg = 26.f;
+			break;
+		case 2:
+			OutName = TEXT("a tall spire");
+			P.TrunkHeight *= 1.2f;
+			P.TrunkRadius *= 0.85f;
+			P.NumLimbs = 28;
+			P.LimbLengthMax *= 0.65f;
+			P.LimbLengthMin *= 0.8f;
+			P.LimbPitchMinDeg = 28.f;
+			P.LimbPitchMaxDeg = 58.f;
+			break;
+		case 3:
+			OutName = TEXT("a leaning elder");
+			P.TrunkLeanDeg = 9.f;
+			P.TrunkWobble = 0.09f;
+			P.FlareMul = 1.05f;
+			P.NumRoots = 6;
+			P.RootLength *= 1.3f;
+			P.LimbPitchMinDeg = 8.f;
+			P.LimbPitchMaxDeg = 36.f;
+			break;
+		default:
+			OutName = TEXT("the old giant");
+			break;
+		}
+		return P;
+	}
+
+	/** Stage the colony's milestones put it in (one tree on): it moves at the second and the third. */
+	int32 StageForMilestones(int32 Reached)
+	{
+		return Reached >= 3 ? 2 : (Reached >= 2 ? 1 : 0);
+	}
+}
+
+const FStageTuning& ADayDirector::GetStageTuning(int32 InStage) const
+{
+	static const FStageTuning Default;
+	if (Tuning.Stages.Num() == 0) return Default;
+	return Tuning.Stages[FMath::Clamp(InStage, 0, Tuning.Stages.Num() - 1)];
+}
+
+int32 ADayDirector::SeedForStage(int32 InStage) const
+{
+	// Never 0: a stored seed of 0 means "no tree yet".
+	return 1 + (int32)((HashCombine(GetTypeHash(Tuning.BaseSeed), GetTypeHash(InStage * 7919 + 4242)) & 0x7fffffff) % 999999);
+}
+
 void ADayDirector::StartDay(int32 InDay, int32 SeedOverride)
 {
 	if (!Tree || !Trails || !Nest) return;
+	const double StartTime = FPlatformTime::Seconds();
+	const bool bFromNest = Phase == EDayPhase::Nest;
 	Day = FMath::Max(1, InDay);
-	Seed = SeedOverride >= 0 ? SeedOverride : (int32)((HashCombine(GetTypeHash(Tuning.BaseSeed), GetTypeHash(Day)) & 0x7fffffff) % 1000000);
 
 	for (FWorker& W : Roster)
 	{
@@ -156,63 +266,123 @@ void ADayDirector::StartDay(int32 InDay, int32 SeedOverride)
 	ULeaflineGameInstance* GI = Colony(this);
 	Roster.SetNum(FMath::Max(1, GI ? GI->GetWorkersPerDay(Tuning.WorkersPerDay) : Tuning.WorkersPerDay));
 	if (GI) GI->SetDay(Day);
-	Trails->ClearAll();
+	// The day's modes are latched now: milestone sets, the save at day end and the stage choice below all use them.
+	if (PendingOneTree >= 0)
+	{
+		const bool bWasOn = Tuning.bOneTree;
+		Tuning.bOneTree = PendingOneTree != 0;
+		PendingOneTree = -1;
+		// Leaving one tree per stage forgets the kept tree, so turning it on again later starts a fresh one for the stage
+		// (not an old tree with a stale day count).
+		if (bWasOn && !Tuning.bOneTree && GI) GI->ClearTreeState();
+	}
+	if (GI) GI->SetOneTree(Tuning.bOneTree);
+	if (GI) GI->SetRecruitsEnabled(Tuning.bRecruits);
 
-	// Each day's tree has a character: day 1 is the classic shape, later days take turns being broad and spreading,
-	// tall and narrow, or leaning with more roots. Every tree also has one broken limb low down (bBrokenLimb).
 	if (!bHaveBaseTreeParams)
 	{
 		BaseTreeParams = Tree->Params;
 		bHaveBaseTreeParams = true;
 	}
-	FTreeParams P = BaseTreeParams;
-	const int32 Shape = Tuning.TreeShapeOverride >= 0 ? Tuning.TreeShapeOverride % 4 : (Day <= 1 ? 0 : 1 + (Day - 2) % 3);
-	switch (Shape)
+	bool bGrew = false;
+	bMovedToday = false;
+	if (!Tuning.bOneTree)
 	{
-	case 1:
-		TreeName = TEXT("a spreading giant");
-		P.TrunkHeight *= 0.8f;
-		P.TrunkRadius *= 1.1f;
-		P.NumLimbs = 18;
-		P.LimbLengthMax *= 1.45f;
-		P.LimbLengthMin *= 1.3f;
-		P.LimbPitchMinDeg = 4.f;
-		P.LimbPitchMaxDeg = 26.f;
-		break;
-	case 2:
-		TreeName = TEXT("a tall spire");
-		P.TrunkHeight *= 1.2f;
-		P.TrunkRadius *= 0.85f;
-		P.NumLimbs = 28;
-		P.LimbLengthMax *= 0.65f;
-		P.LimbLengthMin *= 0.8f;
-		P.LimbPitchMinDeg = 28.f;
-		P.LimbPitchMaxDeg = 58.f;
-		break;
-	case 3:
-		TreeName = TEXT("a leaning elder");
-		P.TrunkLeanDeg = 9.f;
-		P.TrunkWobble = 0.09f;
-		P.FlareMul = 1.05f;
-		P.NumRoots = 6;
-		P.RootLength *= 1.3f;
-		P.LimbPitchMinDeg = 8.f;
-		P.LimbPitchMaxDeg = 36.f;
-		break;
-	default:
-		TreeName = TEXT("the old giant");
-		break;
+		// A new tree every day. Each day's tree has a character: day 1 is the classic shape, later days take turns being
+		// broad and spreading, tall and narrow, or leaning with more roots. Every tree also has one broken limb low down.
+		Seed = SeedOverride >= 0 ? SeedOverride : (int32)((HashCombine(GetTypeHash(Tuning.BaseSeed), GetTypeHash(Day)) & 0x7fffffff) % 1000000);
+		Trails->ClearAll();
+		// A kept tree from earlier one-tree days is forgotten, so turning the flag on later starts a fresh tree.
+		if (GI && GI->GetTreeSeed() != 0) GI->ClearTreeState();
+		const int32 Shape = Tuning.TreeShapeOverride >= 0 ? Tuning.TreeShapeOverride % 4 : (Day <= 1 ? 0 : 1 + (Day - 2) % 3);
+		FTreeParams P = ShapeParams(BaseTreeParams, Shape, TreeName);
+		P.LowestLeafyHeight = Tuning.LeafyHeightDay1 + (Day - 1) * Tuning.LeafyHeightPerDay;
+		Tree->Params = P;
+		Tree->Grow(Seed);
+		bGrew = true;
+		GrownTreeSeed = -1;
+		GrownStage = -1;
+		Stage = 0;
+		StageStartDay = Day;
+		if (Wind) Wind->StartDay(Day, Seed);
 	}
-	P.LowestLeafyHeight = Tuning.LeafyHeightDay1 + (Day - 1) * Tuning.LeafyHeightPerDay;
-	Tree->Params = P;
-	Tree->Grow(Seed);
-	Nest->SetActorTransform(Tree->GetNestTransform(0));
-	Nest->SetMoundSize(Tree->Params.NestMoundRadius, Tree->Params.NestMoundHeight);
-	if (Wind) Wind->StartDay(Day, Seed);
+	else
+	{
+		// One tree per stage: the save names the stage and its tree. Seed 0 means none yet (a fresh colony, or a save from
+		// before this change): it starts on a fresh tree for the stage its milestones put it in.
+		Stage = GI ? GI->GetStage() : Stage;
+		int32 TreeSeed = GI ? GI->GetTreeSeed() : GrownTreeSeed;
+		StageStartDay = GI ? GI->GetStageStartDay() : StageStartDay;
+		const bool bExplicitMove = bDebugMovePending;
+		if (bDebugMovePending)
+		{
+			bDebugMovePending = false;
+			++Stage;
+			TreeSeed = 0;
+		}
+		if (SeedOverride >= 0)
+		{
+			TreeSeed = SeedOverride;
+			if (GI) GI->SetTree(Stage, TreeSeed, Day);
+			StageStartDay = Day;
+			GrownTreeSeed = -1;
+		}
+		if (TreeSeed <= 0)
+		{
+			if (GI && !bExplicitMove) Stage = FMath::Max(Stage, StageForMilestones(GI->GetReachedMilestoneCount()));
+			TreeSeed = SeedForStage(Stage);
+			StageStartDay = Day;
+			if (GI) GI->SetTree(Stage, TreeSeed, Day); // written with the day's haul at day end
+		}
+		Seed = TreeSeed;
+		bMovedToday = Stage > 0 && Day == StageStartDay;
+
+		const FStageTuning& ST = GetStageTuning(Stage);
+		const int32 Shape = Tuning.TreeShapeOverride >= 0 ? Tuning.TreeShapeOverride % 4 : Stage % 4;
+		FTreeParams P = ShapeParams(BaseTreeParams, Shape, TreeName);
+		P.TrunkHeight *= ST.TreeHeightMul;
+		P.LowestLeafyHeight = ST.LowestLeafyHeight;
+		P.RichnessMul = ST.RichnessMul;
+		P.SparseSpacingMul = ST.SparseSpacingMul;
+		P.SparseBlendHeight = ST.SparseBlendHeight;
+		P.SparseTwigDrop = ST.SparseTwigDrop;
+		if (GrownTreeSeed != TreeSeed || GrownStage != Stage || (GI && GrownGeneration != GI->GetTreeGeneration()))
+		{
+			Tree->Params = P;
+			const bool bSaved = GI && GI->GetTreeSeed() == TreeSeed && GI->GetSavedBites().Num() > 0;
+			if (bSaved) Tree->GrowWithBites(TreeSeed, GI->GetSavedBites(), GI->GetSavedLeafCount());
+			else Tree->Grow(TreeSeed);
+			GrownTreeSeed = TreeSeed;
+			GrownStage = Stage;
+			GrownGeneration = GI ? GI->GetTreeGeneration() : -1;
+			bGrew = true;
+		}
+		// Yesterday's routes stay one more day, faint and ridable; a move drops them (SetTree).
+		if (GI && GI->GetYesterdayDay() == Day - 1 && GI->GetYesterdayTrails().Num() > 0) Trails->LoadYesterday(GI->GetYesterdayTrails());
+		else Trails->ClearAll();
+		if (Wind)
+		{
+			// The wind changes direction every day; within a stage only its strength rises, a little each day.
+			const int32 WindSeed = (int32)((HashCombine(GetTypeHash(TreeSeed), GetTypeHash(Day)) & 0x7fffffff) % 1000000);
+			const float Scale = ST.GustMul * (1.f + Tuning.GustPerDayOnTree * (GetDayOnTree() - 1));
+			// The direction turns 70 to 290 degrees from the day before, so the sheltered side always moves. Rebuilt from
+			// the tree's first day, so it does not depend on the session.
+			float Yaw = FRandomStream(TreeSeed * 13 + 5).FRandRange(0.f, 360.f);
+			for (int32 d = StageStartDay + 1; d <= Day; ++d)
+			{
+				Yaw += FRandomStream((int32)((HashCombine(GetTypeHash(TreeSeed), GetTypeHash(d * 31 + 7)) & 0x7fffffff))).FRandRange(70.f, 290.f);
+			}
+			Wind->StartDay(Day, WindSeed, Scale, GetDayOnTree(), FMath::Fmod(Yaw, 360.f));
+		}
+	}
+	if (bGrew)
+	{
+		Nest->SetActorTransform(Tree->GetNestTransform(0));
+		Nest->SetMoundSize(Tree->Params.NestMoundRadius, Tree->Params.NestMoundHeight);
+	}
 	PendingPossess = 0.f;
 	bSkippingHarvest = false;
 	HarvestView = 0;
-	if (GI) GI->SetRecruitsEnabled(Tuning.bRecruits);
 	if (Lines) Lines->StartDay();
 	if (ALeaflinePlayerController* PC = Cast<ALeaflinePlayerController>(Player.Get()))
 	{
@@ -221,13 +391,31 @@ void ADayDirector::StartDay(int32 InDay, int32 SeedOverride)
 
 	Stats = FDayStats();
 	Stats.Day = Day;
+	CutZSum = 0.0;
+	CutCount = 0;
+	CutZMin = 0.f;
 	Phase = EDayPhase::Shift;
 	ShiftsStarted = 0;
 	Current = INDEX_NONE;
-	UE_LOG(LogLeafline, Log, TEXT("Day %d starts: seed %d, %s, %d workers, lowest leafy branch at %.0f m"),
-		Day, Seed, *TreeName, Roster.Num(), Tree->Params.LowestLeafyHeight / 100.f);
+	if (Tuning.bOneTree)
+	{
+		UE_LOG(LogLeafline, Log, TEXT("Day %d starts: tree %d (%s, seed %d), day %d on this tree, %s in %.0f ms, %d workers, lowest leafy branch at %.0f m, %d pieces left, %d yesterday's routes"),
+			Day, Stage + 1, *TreeName, Seed, GetDayOnTree(), bGrew ? TEXT("grown") : TEXT("kept"), (FPlatformTime::Seconds() - StartTime) * 1000.0,
+			Roster.Num(), Tree->Params.LowestLeafyHeight / 100.f, Tree->CountPiecesLeft(), Trails->NumYesterdayPaths());
+	}
+	else
+	{
+		UE_LOG(LogLeafline, Log, TEXT("Day %d starts: seed %d, %s, %d workers, lowest leafy branch at %.0f m"),
+			Day, Seed, *TreeName, Roster.Num(), Tree->Params.LowestLeafyHeight / 100.f);
+	}
 	PossessNext();
 	UpdateSun(0.f, true);
+	// A day on a new tree opens with the move card (after the title at launch, see MenuConfirm).
+	if (bMovedToday && bFromNest)
+	{
+		Phase = EDayPhase::Move;
+		UE_LOG(LogLeafline, Log, TEXT("Move card: %s"), *GetMoveCardText());
+	}
 }
 
 AAntPawn* ADayDirector::SpawnWorker(int32 Index)
@@ -408,6 +596,15 @@ void ADayDirector::CreditHaul(float Mass, bool bByRecruit)
 	}
 }
 
+void ADayDirector::NoteCut(int32 Leaf)
+{
+	if (!Tree || Leaf < 0 || Leaf >= Tree->GetLeaves().Num()) return;
+	const float Z = Tree->GetLeaves().Get(Leaf).Base.Z;
+	CutZMin = CutCount == 0 ? Z : FMath::Min(CutZMin, Z);
+	CutZSum += Z;
+	++CutCount;
+}
+
 void ADayDirector::CheckAllHome()
 {
 	UpdateDayFlow();
@@ -535,6 +732,17 @@ void ADayDirector::UpdateHarvestCamera(float Dt)
 	ALeaflinePlayerController* PC = Cast<ALeaflinePlayerController>(Player.Get());
 	AAntCamera* Cam = PC ? PC->GetAntCamera() : nullptr;
 	if (!Cam || !Tree || !Nest) return;
+	if (Phase == EDayPhase::Move)
+	{
+		// The move card: the whole new tree from out on the ground, looking up its trunk.
+		const FVector NestPos = Nest->GetActorLocation();
+		FVector Away = (NestPos - Tree->GetSkeleton().TrunkBase).GetSafeNormal2D();
+		if (Away.IsNearlyZero()) Away = FVector::ForwardVector;
+		const float H = Tree->Params.TrunkHeight;
+		const FVector Base = Tree->GetSkeleton().TrunkBase;
+		Cam->SetOverview(true, Base + Away * (H * 0.55f) + FVector(0.0, 0.0, H * 0.12f), Base + FVector(0.0, 0.0, H * 0.4f));
+		return;
+	}
 	if (Phase != EDayPhase::Harvest)
 	{
 		Cam->SetOverview(false);
@@ -594,9 +802,36 @@ void ADayDirector::EndDay()
 		Stats.PreviousBest = GI->GetBestDayHaul();
 		const bool bBest = GI->RecordDayHaul(Stats.MassHauled);
 		Stats.bNewBest = bBest && Stats.PreviousBest > 0.f;
+		if (Tuning.bOneTree && Tree && Trails && GI->GetTreeGeneration() != GrownGeneration)
+		{
+			UE_LOG(LogLeafline, Warning, TEXT("The colony's tree changed during the day (a reset or reload): today's tree is not saved"));
+		}
+		else if (Tuning.bOneTree && Tree && Trails)
+		{
+			// The day's bites and routes go into the same write as the day's haul: quitting mid-day restarts the day from
+			// dawn with neither. Purchases on the nest screen save later and carry this snapshot.
+			TArray<FSavedLeaf> Bites;
+			Tree->ExportBites(Bites);
+			TArray<FSavedTrail> Routes;
+			Trails->ExportToday(Routes);
+			GI->SetTree(Stage, Seed, StageStartDay);
+			GI->SetTreeState(Bites, Tree->GetLeaves().Num(), Routes, Day);
+			// The second and third milestones move the colony: the next day starts on a new tree. At most one move a day;
+			// if both milestones land on one day, the second move follows the day after.
+			const int32 Target = StageForMilestones(GI->GetReachedMilestoneCount());
+			if (Target > Stage)
+			{
+				GI->SetTree(Stage + 1, SeedForStage(Stage + 1), Day + 1);
+				UE_LOG(LogLeafline, Log, TEXT("Colony moves to tree %d tomorrow (%d milestones reached)"), Stage + 2, GI->GetReachedMilestoneCount());
+			}
+			UE_LOG(LogLeafline, Log, TEXT("Tree saved: %d bitten leaves of %d, %d routes, %d pieces left"), Bites.Num(),
+				Tree->GetLeaves().Num(), Routes.Num(), Tree->CountPiecesLeft());
+		}
 		GI->SetDay(Day + 1);
 		GI->SaveNow();
 	}
+	UE_LOG(LogLeafline, Log, TEXT("Day %d cuts: %d at mean height %.1f m (lowest %.1f m), tree %d day %d"), Day, CutCount,
+		CutCount > 0 ? CutZSum / CutCount / 100.0 : 0.0, CutZMin / 100.f, Stage + 1, GetDayOnTree());
 	UE_LOG(LogLeafline, Log, TEXT("Day %d: all workers home (hauled %.1f, recruits %d pieces home and %d lost, %d lines, %d fallback cuts%s)"),
 		Day, Stats.MassHauled, Stats.RecruitPieces, Stats.RecruitLost, Lines ? Lines->GetLines().Num() : 0,
 		Lines ? Lines->GetFallbackCount() : 0, Stats.bNewBest ? TEXT(", best day yet") : TEXT(""));
@@ -695,9 +930,18 @@ void ADayDirector::MenuConfirm()
 	switch (Phase)
 	{
 	case EDayPhase::Title:
+	case EDayPhase::Move:
+		// At launch on a tree's first day (not the first tree), the move card follows the title.
+		if (Phase == EDayPhase::Title && bMovedToday)
+		{
+			Phase = EDayPhase::Move;
+			LeafSound::Play(this, TEXT("ui_confirm"), 0.6f);
+			UE_LOG(LogLeafline, Log, TEXT("Move card: %s"), *GetMoveCardText());
+			break;
+		}
+		UE_LOG(LogLeafline, Log, TEXT("%s: play starts on day %d"), Phase == EDayPhase::Move ? TEXT("Move card") : TEXT("Title"), Day);
 		Phase = EDayPhase::Shift;
 		LeafSound::Play(this, TEXT("ui_confirm"), 0.6f);
-		UE_LOG(LogLeafline, Log, TEXT("Title: play starts on day %d"), Day);
 		// The world keeps running behind the title: workers may have been blown off and walked home meanwhile.
 		if (!Player.IsValid() || !Player->GetPawn()) PossessNext();
 		CheckAllHome();

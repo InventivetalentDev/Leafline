@@ -33,6 +33,62 @@ void ATrailNetwork::ClearAll()
 	if (Mesh) Mesh->ClearAllMeshSections();
 }
 
+// --- Yesterday's trails ---
+void ATrailNetwork::ExportToday(TArray<FSavedTrail>& Out) const
+{
+	Out.Reset();
+	for (const FPath& Path : Paths)
+	{
+		if (Path.bYesterday || Path.Points.Num() < 2) continue;
+		FSavedTrail& Saved = Out.AddDefaulted_GetRef();
+		Saved.Points.Reserve(Path.Points.Num());
+		Saved.Normals.Reserve(Path.Points.Num());
+		for (const FTrailPoint& P : Path.Points)
+		{
+			Saved.Points.Add(P.Pos);
+			Saved.Normals.Add(P.Normal);
+		}
+	}
+}
+
+void ATrailNetwork::LoadYesterday(const TArray<FSavedTrail>& Routes)
+{
+	ClearAll();
+	int32 Count = 0, PointCount = 0;
+	for (const FSavedTrail& Route : Routes)
+	{
+		if (Route.Points.Num() < 2) continue;
+		const int32 Index = Paths.AddDefaulted();
+		Paths[Index].bYesterday = true; // before the first point, so the merge test and glow see it
+		for (int32 i = 0; i < Route.Points.Num(); ++i)
+		{
+			const FVector N = Route.Normals.IsValidIndex(i) && !Route.Normals[i].IsNearlyZero() ? Route.Normals[i].GetSafeNormal() : FVector::UpVector;
+			AddPoint(Index, Route.Points[i], N);
+		}
+		++Count;
+		PointCount += Route.Points.Num();
+	}
+	// Build every chunk now rather than on the next ticks.
+	for (int32 p = 0; p < Paths.Num(); ++p)
+	{
+		FPath& Path = Paths[p];
+		const int32 LastChunk = FMath::Max(Path.Points.Num() - 2, 0) / ChunkSize;
+		for (int32 c = 0; c <= LastChunk; ++c) RebuildChunk(p, c);
+		Path.DirtyFromChunk = INDEX_NONE;
+		Path.GlowDirtyChunks.Reset();
+	}
+	UE_LOG(LogLeafline, Log, TEXT("Trails: loaded %d yesterday paths (%d points)"), Count, PointCount);
+}
+
+bool ATrailNetwork::IsYesterdayPath(int32 Path) const { return Paths.IsValidIndex(Path) && Paths[Path].bYesterday; }
+
+int32 ATrailNetwork::NumYesterdayPaths() const
+{
+	int32 N = 0;
+	for (const FPath& Path : Paths) N += Path.bYesterday ? 1 : 0;
+	return N;
+}
+
 int32 ATrailNetwork::StartPath(const FVector& Pos, const FVector& Normal)
 {
 	const int32 Index = Paths.AddDefaulted();
@@ -58,6 +114,7 @@ void ATrailNetwork::AddPoint(int32 PathIndex, const FVector& Pos, const FVector&
 					for (const FIntPoint& Ref : *List)
 					{
 						if (Ref.X == PathIndex || !Paths[Ref.X].Drawn[Ref.Y]) continue;
+						if (Paths[Ref.X].bYesterday != Path.bYesterday) continue; // yesterday's and today's ribbons do not merge
 						if (FVector::DistSquared(Paths[Ref.X].Points[Ref.Y].Pos, Pos) < Merge2)
 						{
 							bNearOther = true;
@@ -72,7 +129,7 @@ void ATrailNetwork::AddPoint(int32 PathIndex, const FVector& Pos, const FVector&
 	const int32 Index = Path.Points.Add({ Pos, Normal });
 	Path.Drawn.Add(bNearOther ? 0 : 1);
 	Path.Dist.Add(PrevDist + Step);
-	Path.Glow.Add(NoLineGlow);
+	Path.Glow.Add(Path.bYesterday ? YesterdayGlow : NoLineGlow);
 	Grid.FindOrAdd(C).Add(FIntPoint(PathIndex, Index));
 	// The segment ending at this point belongs to the chunk of the point before it.
 	const int32 Chunk = FMath::Max(Index - 1, 0) / ChunkSize;
@@ -110,7 +167,7 @@ void ATrailNetwork::SetLineGlow(const TArray<const TArray<FTrailPoint>*>& Routes
 	NoLineGlow = NoLine;
 	TArray<TArray<float>> NewGlow;
 	NewGlow.SetNum(Paths.Num());
-	for (int32 p = 0; p < Paths.Num(); ++p) NewGlow[p].Init(NoLine, Paths[p].Points.Num());
+	for (int32 p = 0; p < Paths.Num(); ++p) NewGlow[p].Init(Paths[p].bYesterday ? YesterdayGlow : NoLine, Paths[p].Points.Num());
 	const double Merge2 = MergeDistance * MergeDistance;
 	for (int32 r = 0; r < Routes.Num() && r < Glow.Num(); ++r)
 	{
@@ -127,6 +184,7 @@ void ATrailNetwork::SetLineGlow(const TArray<const TArray<FTrailPoint>*>& Routes
 						if (!List) continue;
 						for (const FIntPoint& Ref : *List)
 						{
+							if (Paths[Ref.X].bYesterday) continue; // stays at YesterdayGlow
 							if (FVector::DistSquared(Paths[Ref.X].Points[Ref.Y].Pos, RP.Pos) < Merge2)
 							{
 								float& Slot = NewGlow[Ref.X][Ref.Y];
@@ -162,6 +220,7 @@ void ATrailNetwork::RebuildChunk(int32 PathIndex, int32 Chunk)
 	TArray<FProcMeshTangent> Tan;
 	TArray<int32> Tri;
 	const int32 Num = Path.Points.Num();
+	const float PathLift = Path.bYesterday ? FMath::Max(Lift - 0.4f, 0.5f) : Lift; // below today's ribbon: no z-fighting
 	const int32 First = Chunk * ChunkSize;
 	const int32 Last = FMath::Min((Chunk + 1) * ChunkSize, Num - 1);
 	float Along = Path.Dist.IsValidIndex(First) ? Path.Dist[First] : 0.f;
@@ -182,7 +241,7 @@ void ATrailNetwork::RebuildChunk(int32 PathIndex, int32 Chunk)
 		const FVector SideA = FVector::CrossProduct(A.Normal, Dir).GetSafeNormal() * (W * 0.5f);
 		const FVector SideB = FVector::CrossProduct(B.Normal, Dir).GetSafeNormal() * (W * 0.5f);
 		const int32 Base = V.Num();
-		V.Append({ A.Pos + A.Normal * Lift - SideA, A.Pos + A.Normal * Lift + SideA, B.Pos + B.Normal * Lift - SideB, B.Pos + B.Normal * Lift + SideB });
+		V.Append({ A.Pos + A.Normal * PathLift - SideA, A.Pos + A.Normal * PathLift + SideA, B.Pos + B.Normal * PathLift - SideB, B.Pos + B.Normal * PathLift + SideB });
 		N.Append({ A.Normal, A.Normal, B.Normal, B.Normal });
 		UV.Append({ FVector2D(0.0, Along), FVector2D(1.0, Along), FVector2D(0.0, Along + SegLen), FVector2D(1.0, Along + SegLen) });
 		Col.Append({ Tint, Tint, Tint, Tint });
@@ -326,6 +385,7 @@ float ATrailNetwork::DrawnLength() const
 	double Total = 0.0;
 	for (const FPath& Path : Paths)
 	{
+		if (Path.bYesterday) continue; // the recap's "trail laid" is today's only
 		for (int32 i = 0; i + 1 < Path.Points.Num(); ++i)
 		{
 			const double Seg = FVector::Dist(Path.Points[i].Pos, Path.Points[i + 1].Pos);

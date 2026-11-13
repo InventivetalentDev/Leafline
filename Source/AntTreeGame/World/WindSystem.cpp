@@ -54,13 +54,16 @@ void AWindSystem::BeginPlay()
 	PadLoop = LeafSound::Loop(this, TEXT("ambient_pad_loop"), 0.22f);
 }
 
-void AWindSystem::StartDay(int32 InDay, int32 Seed)
+void AWindSystem::StartDay(int32 InDay, int32 Seed, float InForceScale, int32 InRampDay, float InYaw)
 {
 	Day = FMath::Max(1, InDay);
+	RampDay = InRampDay > 0 ? InRampDay : Day;
+	ForceScale = InForceScale;
 	Clock = 0.f; // the day's wind must not depend on how long the menus before it were open
 	Rand.Initialize(Seed * 31 + 7);
 	StreakRand.Initialize(Seed * 17 + 3); // looks only: gust timing must not depend on how many frames drew streaks
 	BaseYaw = Rand.FRandRange(0.f, 360.f);
+	if (InYaw >= 0.f) BaseYaw = FMath::Fmod(InYaw, 360.f);
 	Direction = FRotator(0.f, BaseYaw, 0.f).Vector();
 	Streaks.Reset();
 	EnterPhase(EWindPhase::Calm);
@@ -69,6 +72,7 @@ void AWindSystem::StartDay(int32 InDay, int32 Seed)
 
 float AWindSystem::GetPeakForce() const
 {
+	if (ForceScale >= 0.f) return Tuning.PeakForceDay1 * ForceScale;
 	return Tuning.PeakForceDay1 * (1.f + Tuning.PeakForcePerDay * (Day - 1));
 }
 
@@ -78,7 +82,7 @@ void AWindSystem::EnterPhase(EWindPhase NewPhase)
 	switch (Phase)
 	{
 	case EWindPhase::Calm:
-		PhaseDuration = FMath::Max(Tuning.CalmFloor, Rand.FRandRange(Tuning.CalmMin, Tuning.CalmMax) - Tuning.CalmShrinkPerDay * (Day - 1));
+		PhaseDuration = FMath::Max(Tuning.CalmFloor, Rand.FRandRange(Tuning.CalmMin, Tuning.CalmMax) - Tuning.CalmShrinkPerDay * (RampDay - 1));
 		GustPeak = 1.f;
 		break;
 	case EWindPhase::Warning:
@@ -86,7 +90,7 @@ void AWindSystem::EnterPhase(EWindPhase NewPhase)
 		if (!bMuteCues) LeafSound::Play(this, TEXT("gust_warning"), 0.55f);
 		break;
 	case EWindPhase::Rising: PhaseDuration = Tuning.Rising; break;
-	case EWindPhase::Holding: PhaseDuration = Rand.FRandRange(Tuning.HoldMin, Tuning.HoldMax) + Tuning.HoldGrowPerDay * (Day - 1); break;
+	case EWindPhase::Holding: PhaseDuration = Rand.FRandRange(Tuning.HoldMin, Tuning.HoldMax) + Tuning.HoldGrowPerDay * (RampDay - 1); break;
 	case EWindPhase::Falling: PhaseDuration = Tuning.Falling; break;
 	}
 	PhaseTimeLeft = PhaseDuration;

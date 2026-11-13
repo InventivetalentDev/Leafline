@@ -32,6 +32,6 @@ namespace LeaflineUpgrades
 	ANTTREEGAME_API int32 GetNextCost(int32 CurrentLevel);
 	/** Returns zero for an invalid index; valid levels are clamped to 0..6. */
 	ANTTREEGAME_API float GetEffect(int32 Index, int32 Level);
-	/** Milestone indices are 0..2; zero means invalid. */
-	ANTTREEGAME_API float GetMilestoneThreshold(int32 Index, bool bRecruits);
+	/** Milestone indices are 0..2; zero means invalid. Four sets: recruits on/off x one tree per stage on/off. */
+	ANTTREEGAME_API float GetMilestoneThreshold(int32 Index, bool bRecruits, bool bOneTree = false);
 }

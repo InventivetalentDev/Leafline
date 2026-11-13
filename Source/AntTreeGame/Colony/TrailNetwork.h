@@ -41,9 +41,22 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trail")
 	float MergeDistance = 18.f;
 
+	/** Ribbon brightness of yesterday's trails (0..1). SetLineGlow never changes it. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trail")
+	float YesterdayGlow = 0.3f;
+
 	int32 StartPath(const FVector& Pos, const FVector& Normal);
 	void AddPoint(int32 Path, const FVector& Pos, const FVector& Normal);
 	void ClearAll();
+
+	// Yesterday's trails (one tree per stage): at day end today's routes are kept; the next day they load as one faint,
+	// ridable set with no lines attached, and they are dropped when that day ends or on a move.
+	/** Today's routes (not yesterday's), for the save. */
+	void ExportToday(TArray<FSavedTrail>& Out) const;
+	/** Clears everything, then adds Routes as yesterday's paths (faint, ridable). Call before any worker starts a path. */
+	void LoadYesterday(const TArray<FSavedTrail>& Routes);
+	bool IsYesterdayPath(int32 Path) const;
+	int32 NumYesterdayPaths() const;
 
 	int32 NumPaths() const { return Paths.Num(); }
 	const TArray<FTrailPoint>& GetPoints(int32 Path) const { return Paths[Path].Points; }
@@ -83,6 +96,7 @@ private:
 		TArray<float> Glow;              // ribbon brightness at each point (SetLineGlow)
 		TSet<int32> GlowDirtyChunks;
 		int32 DirtyFromChunk = INDEX_NONE; // only the growing tail is rebuilt
+		bool bYesterday = false;         // loaded from the save: faint, drawn lower, ignored by today's merge test
 	};
 
 	FIntVector Cell(const FVector& P) const;

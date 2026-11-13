@@ -78,7 +78,7 @@ The MegaJam theme as announced by Unreal Engine on X (full post, supplied by the
 7. **Harvest**: when the last scout is home or on its way, the recruits finish their trips at five times speed (skippable). The camera watches the file of ants come down the trunk to the nest.
 8. **Day ends** when every ant is home. A recap counts up line by line: pieces home, pieces lost to the wind, what is left on each patch, and whether it was the best day yet.
 9. **Nest**: spend leaf mass on upgrades.
-10. **New day**: a new tree is grown from a new seed and yesterday's trails and lines are gone. Days get harder.
+10. **New day**: the colony stays on its tree. The leaves it cut stay cut and never grow back, so the easy low leaves run out and the colony has to climb into more wind. Yesterday's trails stay for one more day, faint; the lines are gone. At the second and third milestones the colony moves to a new tree.
 
 A day should take 4–6 minutes: three trips of roughly 90 seconds.
 
@@ -138,10 +138,21 @@ A day should take 4–6 minutes: three trips of roughly 90 seconds.
 
 **The off switch.** One flag (`FDayTuning::bRecruits`, `Leaf.Recruits 0|1`) turns the line's automation off: no recruits, no harvest, no Brood row, and a smaller "by hand" milestone set. Richer leaves, the patch read-out, the longer ladders and the number-go-up interface stay either way.
 
+**One tree per colony stage.** Agreed with the owner on 13 Nov (`docs/briefs/one-tree.md`); it replaced "new day, new tree".
+- The colony lives on one tree, grown once and kept from day to day. Days still have three scouts, a recap and the nest screen.
+- Cut leaves stay cut, across days and across quitting and relaunching. Leaves never grow back; the only reset is a move. A leaf with little area left loses its blade and keeps its stalk, so a stripped bough looks bare; one that hit the three-bite limit with area to spare keeps its bitten blade and turns brown.
+- The tree is sparse low down and dense high up: the lowest boughs hold only a few patches, enough for two or three days.
+- The day's bites are saved with the day's haul, at the end of the day. Quitting in the middle of a day restarts it from dawn: no bites, no haul.
+- Yesterday's trails stay for one more day: faint, ridable, with no recruits on them. They are gone after the second night and on a move.
+- The wind changes direction every day, so the sheltered side moves. Within a stage only the wind gets harder, a little each day; the big steps are the moves.
+- The colony moves at the second and third milestones: the next day starts on a new tree, a different shape, taller, with richer leaves and stronger gusts, and a card says so ("The colony moves to a tall spire"). The first milestone does not move it (with the end card on about day 5, a move at each milestone would leave too few days per tree). At most one move a day. After the third milestone the end card shows and play continues on the third tree. The shapes come in a fixed order: the old giant, a spreading giant, a tall spire, a leaning elder.
+- A save from before this change keeps its day count and upgrades and starts on a fresh tree for the stage its milestones put it in.
+- The off switch: `FDayTuning::bOneTree`, `Leaf.OneTree 0|1`. Off, a new tree is grown every day with a rising leafy height, and the old milestone sets apply. It is independent of the recruits switch.
+
 **Goal and progression**
 - A colony-growth meter fills with total leaf mass hauled and has three milestones.
 - Reaching the third milestone (target: 15 to 20 minutes into a fresh save, with the line on or off) shows an end card, then play continues. With the line on, day hauls should grow about tenfold from day 1 to the end card.
-- Each new day raises the lowest leafy branch and strengthens the gusts.
+- With one tree per stage, the climb comes from the stripped low boughs and the moves; the gusts strengthen a little each day on a tree and more with each move. With it off, each new day raises the lowest leafy branch and strengthens the gusts.
 
 Starting numbers, to be tuned by play:
 
@@ -155,7 +166,7 @@ Starting numbers, to be tuned by play:
 ## Scale and pacing
 
 - The tree is enormous relative to the ant, and that must be felt. Circling the trunk takes about 20–25 seconds at a walk and about half that at a sprint.
-- The first cut of day one must be reachable within about 90 seconds, so the lowest leafy branch is low on early days. The tree is far taller than early days need, which leaves room for later days.
+- The first cut of day one must be reachable within about 90 seconds, so the lowest leafy branch is low on the first tree. The tree is far taller than early days need, which leaves room for the climb as the low leaves run out.
 - The owner's photos in `Art/Reference/Photos` are scale reference: the view up a trunk from close to the bark. An ant's view is tighter still.
 
 ## Camera and controls
@@ -194,10 +205,12 @@ Starting numbers, to be tuned by play:
 | Taking over an ant that is already returning | Stretch |
 | Walking on leaf blades | Stretch |
 | Skill tree and a visible, growing fungus garden | Game Off |
-| Several trees around the nest, rotating daily | Game Off |
+| Several trees in the world at once | Game Off |
+| Choosing which tree to move to, or going back to an old one | Not planned |
+| Leaves growing back, seasons, weather other than wind | Not planned |
 | Controlling several ants at once, defenders | Game Off, undecided whether it fits (automation arrived with the line) |
 | Orders to recruits ("hold here in gusts") | Dropped: too fiddly |
-| Trails that fade with time or slow ants down; anything that persists on the tree across days | Not planned |
+| Trails that slow ants down | Not planned |
 | Drop cutting, relay caches, castes | Game Off ideas |
 | Other predators (for example the parasitic flies that real leafcutters guard against) | Game Off |
 | Food as a second resource | Arrives with the bird |

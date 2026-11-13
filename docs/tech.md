@@ -158,6 +158,7 @@ A separate actor that follows the controlled ant. It is never attached.
 - **Returning** is that array played backwards at the ant's laden speed, each point re-projected onto the field.
 - The network keeps every path for the day. For drawing, a new path only adds geometry where it is farther than a threshold from existing trail; where it overlaps, it raises that trail's strength.
 - **Riding**: find the nearest trail point within reach, then advance along that path away from the nest. At the end of a path, or on any movement input, return to `Walking`. Where paths fork, prefer the one whose direction best matches the camera's forward.
+- **Yesterday's trails** (one tree per stage): at day end `ExportToday` hands the day's paths to the save. The next day `LoadYesterday` adds them as paths flagged `bYesterday`: drawn at `YesterdayGlow` (0.3), 0.4 cm lower than today's ribbon, never brightened by lines, ignored by today's merge test (a fresh trail over a faint one draws at full strength), left out of `DrawnLength`, and ridden and followed home like any other path. They are dropped when that day ends (the save then holds the newer day's routes) and on a move.
 - Rendering: a thin ribbon lifted slightly off the surface along the stored normals, unlit translucent cyan. Brightness (vertex alpha, which `M_Trail` multiplies into opacity) shows each line's patch: `ATrailNetwork::SetLineGlow` gives every drawn stretch within `MergeDistance` of a line's route the brightest glow of the lines using it (full patch 1.0, stripped 0.3, no line 0.25), and only the chunks that changed are rebuilt. Faint stretches are a little thinner.
 
 ## The line (`LineSystem`)
@@ -167,7 +168,7 @@ Spec: `docs/briefs/the-line.md`. `ALineSystem` (spawned by the game mode, initia
 - **Line**: made by `AddLine` when a scout's piece is on its way home (`ADayDirector::SendHome`, or a scout carrying it into the nest). The route is `BuildReturnRoute` from the scout's cut (`AAntPawn::GetLastCut`, recorded at the cut, not where send-home was pressed), nest first. The patch is `ATreeActor::BuildPatch` around the cut leaf (same twig, then neighbouring twigs of the bough, nearest first along the bark; `FLineTuning::PatchMaxLeaves` 4, `PatchMaxPieces` 10 including the scout's piece), and each patch leaf gets an approach route over the branch graph (`ATreeActor::BuildLeafApproach`). Leaves without an approach are left out.
 - **Recruits** are `AAntPawn`s with `MakeRecruit`: never possessed, no trail recording, stepped by the line system (`SetSimDriven`, `SimStep`), spawned per trip and gone into the nest at the end (`DepositAndVanish`). States: `Nest`, `Queued`, `Out` (riding the line plus the approach at `OutSpeed`), `Cutting` (`StartAutoCut`, the template size at the ant's cut rate), `Laden` / `Empty` (route backwards at the laden speed × `HomeSpeedScale`), `Fallen` (blown off: fall, walk home over the ground). Per-leaf reservations keep two recruits from going for the last piece. A recruit not at its leaf `ReachTimeout` s after the end of the line cuts from where it stands (logged as a fallback). A rescue after `RescueAfter` s guarantees every recruit gets home.
 - **Fixed steps**: `ALineSystem::Tick` accumulates real time × `SpeedFactor` and runs steps of `FLineTuning::Step` (1/120 s): the wind clock (`AWindSystem::Advance`; the wind's own tick only does sound, materials and streaks), every recruit and, during the harvest, returning scouts handed over with `AddDrivenAnt`. A frame budget (`FrameBudgetMs`) bounds the skip; over budget the backlog is dropped, so results never depend on frame rate or on watching versus skipping. Transforms and leg animation are pushed once per frame (`PushVisuals`).
-- **Values**: `FTreeLeaf::Richness` (1× low to about 3× high and far out) multiplies a piece's value (`AAntPawn::GetCarriedValue`); the carried weight that slows the ant stays size-based. Leaf vertex alpha carries `(Richness - 1) / 2` for `M_Leaf`.
+- **Values**: `FTreeLeaf::Richness` (1× low to about 3× high and far out) multiplies a piece's value (`AAntPawn::GetCarriedValue`); the carried weight that slows the ant stays size-based. Leaf vertex alpha carries `(Richness / RichnessMul - 1) / 2` for `M_Leaf` (the shape-based value, so a stage's richness multiplier does not saturate the look).
 - **Read-outs**: `GetLines` (per line: pieces home and lost, patch remaining, fullness, recruits on it), `NumIdle`, `GetPatchPreview` (cached a second), `GetRecentDeliveries` (for the "+N"; the chime pitch rises with `Chain`).
 
 ## Cutting and carrying
@@ -182,7 +183,7 @@ Spec: `docs/briefs/the-line.md`. `ALineSystem` (spawned by the game mode, initia
 ## Wind (`WindSystem`)
 
 - One prevailing direction per day (horizontal, random per day), with a few degrees of wander.
-- Phases: `Calm`, `Warning`, `Rising`, `Holding`, `Falling`. Durations and peak strength scale with the day number.
+- Phases: `Calm`, `Warning`, `Rising`, `Holding`, `Falling`. Durations and peak strength scale with the day number; with one tree per stage, `StartDay(Day, Seed, ForceScale, RampDay)` takes peak force `PeakForceDay1 × stage GustMul × (1 + GustPerDayOnTree × (days on this tree − 1))` and ramps the gust cycle by days on the tree, seeded from hash(tree seed, day) so the direction changes daily.
 - Publishes `Strength` (0–1) and `Direction` to a material parameter collection for leaf sway, streaks and the audio mix.
 - Exposure at a point: `Facing = saturate(dot(Normal, -WindDir) * 0.5 + 0.5)`, multiplied by `Open`, which is 0.25 if `Field.March` upwind hits the tree within a few metres and 1 otherwise.
 - Blow-off test, evaluated a few times per second during `Rising` and `Holding`:
@@ -201,7 +202,8 @@ blown off when Force > Hold
 - `DayDirector` runs the day as a state machine:
 
 ```
-Title -> DayStart (grow tree from hash(seed, day), set wind, reset roster and recruit pool)
+Title -> DayStart (one tree off: grow tree from hash(seed, day); on: keep the stage's tree, or grow it on a move
+                   or after loading; set wind, reset roster and recruit pool) [-> Move card on a new tree]
       -> Shift (player controls scout i; others may be Returning; recruits work lines at 1x)
       -> Harvest (no scout waiting or out, recruits still have work: 5x, skippable)
       -> AllHome -> Recap -> Nest (upgrade screen) -> DayStart
@@ -210,9 +212,11 @@ Title -> DayStart (grow tree from hash(seed, day), set wind, reset roster and re
 - `ADayDirector::UpdateDayFlow` runs every frame in `Shift` and `Harvest`: with no scout waiting or out (and the send-home or fall moment over), it enters the harvest if `ALineSystem::HasWork()`, else ends the day once no scout is still returning. In the harvest the day ends when no recruit has work and no scout is returning. `HasWork` is true while any recruit is queued or out, or one in the nest has trips left and a live line to go to.
 
 - The roster holds one entry per worker: `Waiting`, `Out`, `Returning`, `Home`, `BlownOff`. "Next worker" spawns at the nest. When none are waiting, the camera follows a returning ant and the cycle key switches between them until all are in.
-- Difficulty per day: `LowestLeafyHeight` rises, gust peak and frequency rise.
+- Difficulty per day (one tree off): `LowestLeafyHeight` rises, gust peak and frequency rise. With one tree per stage, see below.
 - Spawn objects the pawn depends on in `InitGame`, since the pawn exists before `BeginPlay`.
 - Milestones and the end card read `TotalHauled`, against the line set or the "by hand" set (`ULeaflineGameInstance::AreRecruitsEnabled`).
+- **One tree per colony stage** (`FDayTuning::bOneTree`, default on; `Leaf.OneTree`; spec `docs/briefs/one-tree.md`). The save holds the stage, its tree seed, the stage's first day, the tree's leaf count, the bitten leaves (`FSavedLeaf`) and the last day's routes (`FSavedTrail`, with their day). `StartDay` with the flag on: seed 0 means no tree yet (a fresh colony or an older save), so it picks the stage from the milestones and `SeedForStage(stage)`; the tree is grown only when its seed, stage or the game instance's tree generation (bumped by `SetTree` with a new stage or seed, `ResetSave` and every load) differ from the grown one, otherwise it is kept as it is, bites and all (a kept day start takes about 2 ms, a grown one about 400 ms). Shape comes from the stage (`Stage % 4`: the old giant, a spreading giant, a tall spire, a leaning elder), and the stage's `FStageTuning` sets trunk height, lowest leafy height, richness, gusts and the sparse low zone. Yesterday's routes are loaded when they are from the day before. `EndDay` puts the tree's bites and today's routes into the colony together with the day's haul, in one `SaveNow`; a purchase or the end card saves later and carries that snapshot. If the colony's milestones (under the one-tree sets) now call for a later stage, `EndDay` also moves it one stage (`SetTree`: new seed, from the next day, bites and routes cleared); at most one move a day. The next `StartDay` from the nest shows `EDayPhase::Move`, the card "The colony moves to …", with the camera on the whole new tree; at launch on such a day the card follows the title. Quitting mid-day loses that day's bites and haul alike: neither was written.
+- Save version 3 adds the tree fields. Versions 1 and 2 never stored their version (it equalled the class default), so `Version` now defaults to 0 and a new colony sets 3 explicitly; a file that loads as 0 is migrated: days, upgrades and haul kept, tree seed 0 (a fresh tree for the stage its milestones give).
 - Save version 2 adds `BestDayHaul`; version-1 saves load with their progress (levels clamped to the new range). Unreal's save serialisation skips properties equal to their defaults, so a version-1 file never stored its `Version` and simply loads as current; checked on a copy of the owner's day-7 save. `-LeafSlot=<name>` selects another save slot for automated runs (`Tools/line_test.sh` uses `LineTest`).
 
 ## Input
@@ -279,7 +283,13 @@ Console commands pay for themselves, because verification is done by driving Pla
 | `Leaf.Cycle` | The cycle button (Tab): next worker in a shift, next view in the harvest |
 | `Leaf.LineInfo` | Log every line (home, lost, patch left, reserved, recruits on it) and the pool |
 | `Leaf.TestLines <n> [size] [exposed\|sheltered\|any] [seed]` | Scouts lay lines at once to leaves in the lowest leafy band, each with a real walk over the bark from the nest (tests) |
-| `Leaf.AutoPlay <days> [lines] [watch\|skip] [buy] [quit]` | Unattended days with scripted scouts and random lines; logs whether every day ends |
+| `Leaf.AutoPlay <days> [lines] [watch\|skip] [buy] [reload] [report] [quit]` | Unattended days with scripted scouts and random lines (with one tree on, among the lowest leaves left); logs whether every day ends. `reload` reads the save and regrows the tree before each day (the launch path); `report` logs `Leaf.TreeReport` each morning; days without recruits fast-forward the scouts' walk home |
+| `Leaf.OneTree 0\|1` | One tree per colony stage on or off, from the next day |
+| `Leaf.Move` | Move the colony to the next tree now (today restarts on it, with the move card) |
+| `Leaf.Strip <metres>` | Use up every leaf below that height (testing the climb) |
+| `Leaf.TreeReport [label]` | Live leaves and pieces left per 10 m band, on the six lowest leafy boughs and the two lowest limbs |
+| `Leaf.Stage <sparse\|blend\|drop\|leafy\|height\|rich\|gust> <value>` | Change today's stage tuning and grow its tree again, fresh (tuning sweeps) |
+| `Leaf.ReloadColony` | Read the save again and restart the day from it, growing the tree as at launch |
 
 Log gameplay events under one category (`LogLeafline`) so pickups, deposits, blow-offs and state changes can be checked from the log.
 

@@ -432,6 +432,23 @@ ATreeActor::ATreeActor()
 void ATreeActor::Grow(int32 Seed)
 {
 	const double StartTime = FPlatformTime::Seconds();
+	GrowShape(Seed);
+	BuildLeafMeshes();
+	UE_LOG(LogLeafline, Log, TEXT("Tree grown: seed %d in %.0f ms"), Seed, (FPlatformTime::Seconds() - StartTime) * 1000.0);
+}
+
+bool ATreeActor::GrowWithBites(int32 Seed, const TArray<FSavedLeaf>& Bites, int32 LeafCount)
+{
+	const double StartTime = FPlatformTime::Seconds();
+	GrowShape(Seed);
+	const bool bApplied = ApplySavedBites(Bites, LeafCount);
+	BuildLeafMeshes(); // once, with the bites already in
+	UE_LOG(LogLeafline, Log, TEXT("Tree grown: seed %d in %.0f ms"), Seed, (FPlatformTime::Seconds() - StartTime) * 1000.0);
+	return bApplied;
+}
+
+void ATreeActor::GrowShape(int32 Seed)
+{
 	TreeSkeleton::Grow(Skeleton, Params, Seed);
 	Field.Build(Skeleton);
 	BranchChildren.Reset();
@@ -464,6 +481,10 @@ void ATreeActor::Grow(int32 Seed)
 	// Leaves: one mesh section per limb, so a cut rebuilds only a small chunk.
 	Leaves.Build(Skeleton, Field);
 	PatchWalkCache.Reset();
+}
+
+void ATreeActor::BuildLeafMeshes()
+{
 	if (!LeafMesh) LeafMesh = MakeMeshComponent(this, RootComponent, TEXT("LeafMesh"));
 	LeafMesh->ClearAllMeshSections();
 	LeafMaterialInUse = LeafMaterial;
@@ -473,7 +494,7 @@ void ATreeActor::Grow(int32 Seed)
 		MID->SetVectorParameterValue(TEXT("Color"), LeafColor);
 		LeafMaterialInUse = MID;
 	}
-	for (int32 c = 0; c < Leaves.NumChunks(); ++c) BuildLeafChunk(c);
+	for (int32 c = 0; c < Leaves.NumChunks(); ++c) BuildLeafChunk(c, false);
 
 	// Grove crowns (leaves made in BuildGrove), drawn with the same leaf material.
 	if (!GroveLeafMesh)
@@ -491,17 +512,23 @@ void ATreeActor::Grow(int32 Seed)
 		if (LeafMaterialInUse) GroveLeafMesh->SetMaterial(0, LeafMaterialInUse);
 		UE_LOG(LogLeafline, Log, TEXT("Grove crowns: %d leaves, %d triangles"), GroveLeaves.Num(), Crowns.Triangles.Num() / 3);
 	}
-
-	UE_LOG(LogLeafline, Log, TEXT("Tree grown: seed %d in %.0f ms"), Seed, (FPlatformTime::Seconds() - StartTime) * 1000.0);
 }
 
-void ATreeActor::BuildLeafChunk(int32 Chunk)
+void ATreeActor::BuildLeafChunk(int32 Chunk, bool bHitchCheck)
 {
+	if (!LeafMesh) return;
+	const double StartTime = FPlatformTime::Seconds();
 	FTreeMeshData Data;
 	Leaves.BuildChunkMesh(Chunk, Data);
 	LeafMesh->CreateMeshSection_LinearColor(Chunk, Data.Vertices, Data.Triangles, Data.Normals, Data.UV0, {}, {}, {},
 		Data.Colors, Data.Tangents, false, false);
 	if (LeafMaterialInUse) LeafMesh->SetMaterial(Chunk, LeafMaterialInUse);
+	const double Ms = (FPlatformTime::Seconds() - StartTime) * 1000.0;
+	if (bHitchCheck && Ms > 4.0)
+	{
+		UE_LOG(LogLeafline, Warning, TEXT("Leaf chunk %d rebuilt in %.1f ms (over 4 ms: a hitch), %d vertices"), Chunk, Ms,
+			Data.Vertices.Num());
+	}
 }
 
 bool ATreeActor::BiteLeaf(int32 Leaf, float Size01, float DiameterCm, float UsePerCut)
@@ -511,6 +538,246 @@ bool ATreeActor::BiteLeaf(int32 Leaf, float Size01, float DiameterCm, float UseP
 	UE_LOG(LogLeafline, Log, TEXT("Leaf %d bitten: size %.2f, %d bites, %.0f%% left"), Leaf, Size01, Leaves.Get(Leaf).Bites,
 		Leaves.Get(Leaf).Remaining * 100.f);
 	return true;
+}
+
+// --- One tree per stage: saved bites, stripping, the tree report ---
+void ATreeActor::ExportBites(TArray<FSavedLeaf>& Out) const
+{
+	Out.Reset();
+	for (int32 i = 0; i < Leaves.Num(); ++i)
+	{
+		const FTreeLeaf& L = Leaves.Get(i);
+		if (L.Bites == 0 && L.Remaining >= 1.f) continue;
+		FSavedLeaf& S = Out.AddDefaulted_GetRef();
+		S.Leaf = i;
+		S.Bites = FMath::Min<int32>(L.Bites, 3);
+		S.Remaining = L.Remaining;
+		S.BiteData.Reserve(S.Bites * 3);
+		for (int32 b = 0; b < S.Bites; ++b)
+		{
+			S.BiteData.Add(L.BiteCenter[b].X);
+			S.BiteData.Add(L.BiteCenter[b].Y);
+			S.BiteData.Add(L.BiteRadius[b]);
+		}
+	}
+}
+
+bool ATreeActor::ApplySavedBites(const TArray<FSavedLeaf>& Saved, int32 LeafCount)
+{
+	if (Saved.Num() == 0) return true;
+	if (LeafCount != Leaves.Num())
+	{
+		UE_LOG(LogLeafline, Warning, TEXT("Tree: saved bites dropped (%d leaves): saved on a tree of %d leaves, seed %d grew %d"),
+			Saved.Num(), LeafCount, GetSeed(), Leaves.Num());
+		return false;
+	}
+	// Check everything first: a save is applied whole or not at all.
+	TBitArray<> Seen(false, Leaves.Num());
+	for (int32 e = 0; e < Saved.Num(); ++e)
+	{
+		const FSavedLeaf& S = Saved[e];
+		const TCHAR* Problem = nullptr;
+		if (S.Leaf < 0 || S.Leaf >= Leaves.Num()) Problem = TEXT("leaf index out of range");
+		else if (Seen[S.Leaf]) Problem = TEXT("leaf listed twice");
+		else if (S.Bites < 0 || S.Bites > 3) Problem = TEXT("bite count out of range");
+		else if (S.BiteData.Num() != S.Bites * 3) Problem = TEXT("bite data does not match the bite count");
+		else if (!FMath::IsFinite(S.Remaining) || S.Remaining < 0.f || S.Remaining > 1.f) Problem = TEXT("remaining share out of range");
+		for (int32 k = 0; !Problem && k < S.BiteData.Num(); ++k)
+		{
+			if (!FMath::IsFinite(S.BiteData[k])) Problem = TEXT("bite data not finite");
+			else if (k % 3 == 2 && S.BiteData[k] < 0.f) Problem = TEXT("negative bite radius");
+		}
+		if (Problem)
+		{
+			UE_LOG(LogLeafline, Warning, TEXT("Tree: saved bites dropped (%d leaves): entry %d (leaf %d): %s"), Saved.Num(), e,
+				S.Leaf, Problem);
+			return false;
+		}
+		Seen[S.Leaf] = true;
+	}
+
+	int32 NumBites = 0;
+	for (const FSavedLeaf& S : Saved)
+	{
+		FTreeLeaf& L = Leaves.Leaves[S.Leaf];
+		L.Bites = (uint8)S.Bites;
+		L.Remaining = S.Remaining;
+		for (int32 b = 0; b < 3; ++b)
+		{
+			const bool bHas = b < S.Bites;
+			L.BiteCenter[b] = bHas ? FVector2f(S.BiteData[3 * b], S.BiteData[3 * b + 1]) : FVector2f(0.f, 0.f);
+			L.BiteRadius[b] = bHas ? S.BiteData[3 * b + 2] : 0.f;
+		}
+		NumBites += S.Bites;
+	}
+	UE_LOG(LogLeafline, Log, TEXT("Tree: applied %d saved bites (%d leaves)"), NumBites, Saved.Num());
+	return true;
+}
+
+int32 ATreeActor::StripBelow(float Z)
+{
+	TBitArray<> Dirty(false, Leaves.NumChunks());
+	int32 Changed = 0;
+	for (FTreeLeaf& L : Leaves.Leaves)
+	{
+		if (L.Base.Z >= Z || L.Remaining <= 0.f) continue;
+		L.Remaining = 0.f;
+		++Changed;
+		if (Dirty.IsValidIndex(L.Chunk)) Dirty[L.Chunk] = true;
+	}
+	const double StartTime = FPlatformTime::Seconds();
+	int32 Rebuilt = 0;
+	for (int32 c = 0; c < Dirty.Num(); ++c)
+	{
+		if (!Dirty[c]) continue;
+		BuildLeafChunk(c);
+		++Rebuilt;
+	}
+	UE_LOG(LogLeafline, Log, TEXT("Tree: stripped %d leaves below %.1f m, %d chunks rebuilt in %.1f ms"), Changed, Z / 100.f,
+		Rebuilt, (FPlatformTime::Seconds() - StartTime) * 1000.0);
+	return Changed;
+}
+
+int32 ATreeActor::FindSpentLeafNear(const FVector& P, float Reach) const
+{
+	return Leaves.FindNearestSpent(P, Reach);
+}
+
+int32 ATreeActor::CountPiecesLeft(float Template, float UsePerCut) const
+{
+	int32 Pieces = 0;
+	for (int32 i = 0; i < Leaves.Num(); ++i) Pieces += Leaves.PiecesLeft(i, Template, UsePerCut);
+	return Pieces;
+}
+
+void ATreeActor::LogTreeReport(const FString& Label) const
+{
+	const int32 N = Leaves.Num();
+	if (N == 0)
+	{
+		UE_LOG(LogLeafline, Log, TEXT("TreeReport %s: no leaves (seed %d)"), *Label, GetSeed());
+		return;
+	}
+	const FTreePatchRules Rules{}; // pieces are counted at the patch template (0.5) and use per cut (0.38)
+	struct FCount
+	{
+		int32 Live = 0;
+		int32 All = 0;
+		int32 Pieces = 0;
+		void Add(bool bLive, int32 InPieces)
+		{
+			Live += bLive ? 1 : 0;
+			++All;
+			Pieces += InPieces;
+		}
+		FString Describe() const { return FString::Printf(TEXT("%d/%d live, %d pieces"), Live, All, Pieces); }
+	};
+
+	// Bands of 10 m on multiples of 10 m, from the band holding the lowest leaf (spent leaves count too, so the bands stay put).
+	constexpr double Band = 1000.0;
+	double ZMin = TNumericLimits<double>::Max(), ZMax = -TNumericLimits<double>::Max();
+	for (const FTreeLeaf& L : Leaves.Leaves)
+	{
+		ZMin = FMath::Min(ZMin, L.Base.Z);
+		ZMax = FMath::Max(ZMax, L.Base.Z);
+	}
+	const double Z0 = FMath::FloorToDouble(ZMin / Band) * Band;
+	const int32 NumBands = FMath::FloorToInt32((ZMax - Z0) / Band) + 1;
+	TArray<FCount> Bands;
+	Bands.SetNum(NumBands);
+
+	// A leaf's bough (level 2: a patch is a bough and its twigs) and limb (level 1): up from its branch to that level.
+	auto AncestorAt = [this](int32 Branch, int32 Level)
+	{
+		int32 A = Branch;
+		for (int32 Guard = 0; Guard < 16 && Skeleton.Branches.IsValidIndex(A) && Skeleton.Branches[A].Level > Level; ++Guard)
+		{
+			A = Skeleton.Branches[A].Parent;
+		}
+		return Skeleton.Branches.IsValidIndex(A) && Skeleton.Branches[A].Level == Level ? A : INDEX_NONE;
+	};
+	TMap<int32, FCount> Boughs, Limbs;
+	FCount Total;
+	double LiveZ = 0.0;
+	for (int32 i = 0; i < N; ++i)
+	{
+		const FTreeLeaf& L = Leaves.Get(i);
+		const bool bLive = L.CanCut();
+		const int32 Pieces = Leaves.PiecesLeft(i, Rules.Template, Rules.UsePerCut);
+		Bands[FMath::Clamp(FMath::FloorToInt32((L.Base.Z - Z0) / Band), 0, NumBands - 1)].Add(bLive, Pieces);
+		Total.Add(bLive, Pieces);
+		if (bLive) LiveZ += L.Base.Z;
+		const int32 Bough = AncestorAt(L.Branch, 2);
+		if (Bough != INDEX_NONE) Boughs.FindOrAdd(Bough).Add(bLive, Pieces);
+		const int32 Limb = AncestorAt(L.Branch, 1);
+		if (Limb != INDEX_NONE) Limbs.FindOrAdd(Limb).Add(bLive, Pieces);
+	}
+
+	UE_LOG(LogLeafline, Log, TEXT("TreeReport %s: seed %d, %d leaves; per 10 m band: live/all leaves, pieces left at template %.1f"),
+		*Label, GetSeed(), N, Rules.Template);
+	// One line per band; on a tall tree the bands above the lowest 16 share lines, to keep the report near 30 lines.
+	constexpr int32 MaxBandLines = 24, ExactBands = 16;
+	auto BandText = [&](int32 k)
+	{
+		return FString::Printf(TEXT("%.0f-%.0f m: %s"), (Z0 + k * Band) / 100.0, (Z0 + (k + 1) * Band) / 100.0, *Bands[k].Describe());
+	};
+	const int32 Single = NumBands <= MaxBandLines ? NumBands : ExactBands;
+	for (int32 k = 0; k < Single; ++k) UE_LOG(LogLeafline, Log, TEXT("TreeReport %s: band %s"), *Label, *BandText(k));
+	if (Single < NumBands)
+	{
+		const int32 PerLine = FMath::DivideAndRoundUp(NumBands - Single, MaxBandLines - Single);
+		for (int32 k = Single; k < NumBands; k += PerLine)
+		{
+			FString Line;
+			for (int32 j = k; j < FMath::Min(k + PerLine, NumBands); ++j)
+			{
+				if (j > k) Line += TEXT("; ");
+				Line += BandText(j);
+			}
+			UE_LOG(LogLeafline, Log, TEXT("TreeReport %s: bands %s"), *Label, *Line);
+		}
+	}
+
+	// The lowest leafy boughs (leaves on the bough or its twigs) by the height of the bough's start, then the lowest leafy
+	// limbs by the height where they leave the trunk.
+	struct FRow
+	{
+		double Z;
+		int32 Branch;
+		FCount Count;
+	};
+	auto LowestRows = [this](const TMap<int32, FCount>& Counts, bool bAtParent)
+	{
+		TArray<FRow> Rows;
+		for (const TPair<int32, FCount>& It : Counts)
+		{
+			const FTreeBranch& B = Skeleton.Branches[It.Key];
+			FVector At = B.Samples.Num() > 0 ? B.Samples[0] : FVector::ZeroVector;
+			if (bAtParent && Skeleton.Branches.IsValidIndex(B.Parent) && Skeleton.Branches[B.Parent].Samples.Num() >= 2)
+			{
+				At = TreeSkeleton::SampleAt(Skeleton.Branches[B.Parent], B.ParentT);
+			}
+			Rows.Add({ At.Z, It.Key, It.Value });
+		}
+		Rows.Sort([](const FRow& A, const FRow& B) { return A.Z < B.Z; });
+		return Rows;
+	};
+	const TArray<FRow> BoughRows = LowestRows(Boughs, false);
+	for (int32 r = 0; r < FMath::Min(6, BoughRows.Num()); ++r)
+	{
+		const FRow& Row = BoughRows[r];
+		UE_LOG(LogLeafline, Log, TEXT("TreeReport %s: low bough %d (branch %d, on limb %d) starts at %.1f m: %s"), *Label, r + 1,
+			Row.Branch, AncestorAt(Row.Branch, 1), Row.Z / 100.0, *Row.Count.Describe());
+	}
+	const TArray<FRow> LimbRows = LowestRows(Limbs, true);
+	for (int32 r = 0; r < FMath::Min(2, LimbRows.Num()); ++r)
+	{
+		const FRow& Row = LimbRows[r];
+		UE_LOG(LogLeafline, Log, TEXT("TreeReport %s: low limb %d (branch %d) at %.1f m: %s"), *Label, r + 1, Row.Branch,
+			Row.Z / 100.0, *Row.Count.Describe());
+	}
+	UE_LOG(LogLeafline, Log, TEXT("TreeReport %s: whole tree %s; mean height of live leaves %.1f m"), *Label,
+		*Total.Describe(), Total.Live > 0 ? LiveZ / Total.Live / 100.0 : 0.0);
 }
 
 bool ATreeActor::StaysOnBark(const FVector& A, const FVector& B) const

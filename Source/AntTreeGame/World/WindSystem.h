@@ -84,7 +84,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind")
 	TSoftObjectPtr<UMaterialInterface> StreakMaterial;
 
-	void StartDay(int32 InDay, int32 Seed);
+	/** ForceScale >= 0 (one tree per stage): peak force = PeakForceDay1 x ForceScale, and the gust cycle ramps with RampDay
+	 *  (days on this tree) instead of the day number. Without them the force rises PeakForcePerDay per day, as before. */
+	/** Yaw >= 0 sets the day's direction (degrees) instead of a random one; the random draw still happens, so the gust
+	 *  timing is the same either way. */
+	void StartDay(int32 InDay, int32 Seed, float InForceScale = -1.f, int32 InRampDay = -1, float InYaw = -1.f);
 	/** Starts a gust now (Leaf.Gust). */
 	void TriggerGust(float Peak = 1.f);
 	/** Advances the gust clock (phases, strength, direction). The line system calls it in its fixed sim steps; the
@@ -155,6 +159,10 @@ private:
 	float BaseYaw = 0.f;
 	float Clock = 0.f;
 	int32 Day = 1;
+	/** Day count the gust cycle ramps with (the day, or days on this tree). */
+	int32 RampDay = 1;
+	/** Negative: the old per-day force rise. */
+	float ForceScale = -1.f;
 	bool bExternalClock = false;
 	bool bMuteCues = false;
 	float SpareFloat = 0.f;

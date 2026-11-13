@@ -62,6 +62,7 @@ private:
 	void DrawTitle(const ADayDirector* D, float Scale);
 	void DrawNest(const ADayDirector* D, float Scale);
 	void DrawEndCard(const ADayDirector* D, float Scale);
+	void DrawMoveCard(const ADayDirector* D, float Scale);
 	void DrawPause(float Scale);
 	void DrawColonyMeter(float CenterX, float Y, float Width, float Scale);
 	void DrawTextCentered(const FString& Text, float CenterX, float Y, const FLinearColor& Color, float TextScale, UFont* Font);

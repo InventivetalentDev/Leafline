@@ -33,10 +33,42 @@ namespace
 		// Leaves in the lowest leafy band, ranked by which way they face from the trunk; "exposed" takes the quarter
 		// facing most into the wind, "sheltered" the quarter facing most away.
 		TArray<TPair<double, int32>> Ranked;
+		// "climb" (one tree per stage): the lowest leaves that still give a piece, lowest first and no two on one branch, as a
+		// player takes the easy ones first and climbs as they run out.
+		if (Side == TEXT("climb"))
+		{
+			// Ranked by the height where the leaf's bough starts (a twig's parent bough), then by the leaf's own height, so
+			// the colony strips the lowest boughs one by one, as a player who sees boughs would.
+			const FTreeSkeleton& Sk = Tree->GetSkeleton();
+			auto BoughStartZ = [&Sk](int32 Branch)
+			{
+				int32 B = Branch;
+				while (Sk.Branches.IsValidIndex(B) && Sk.Branches[B].Level > 2 && Sk.Branches[B].Parent != INDEX_NONE) B = Sk.Branches[B].Parent;
+				return Sk.Branches.IsValidIndex(B) && Sk.Branches[B].Samples.Num() > 0 ? (float)Sk.Branches[B].Samples[0].Z : 0.f;
+			};
+			TArray<TPair<float, int32>> ByHeight;
+			for (int32 i = 0; i < Leaves.Num(); ++i)
+			{
+				if (Leaves.PiecesLeft(i, 0.3f, 0.38f) > 0) ByHeight.Add({ BoughStartZ(Leaves.Get(i).Branch) * 4.f + (float)Leaves.Get(i).Base.Z, i });
+			}
+			ByHeight.Sort([](const TPair<float, int32>& A, const TPair<float, int32>& B) { return A.Key < B.Key; });
+			TSet<int32> Used;
+			for (const TPair<float, int32>& H : ByHeight)
+			{
+				if (Out.Num() >= Count) break;
+				const int32 Branch = Leaves.Get(H.Value).Branch;
+				if (Used.Contains(Branch)) continue;
+				Used.Add(Branch);
+				Out.Add(H.Value);
+			}
+			UE_LOG(LogLeafline, Log, TEXT("Test leaves: %d live; climbing picks from %.1f m"), ByHeight.Num(), Out.Num() > 0 ? Leaves.Get(Out[0]).Base.Z / 100.f : 0.f);
+			return Out;
+		}
+		const float Ceiling = Low + 1500.f;
 		for (int32 i = 0; i < Leaves.Num(); ++i)
 		{
 			const FTreeLeaf& L = Leaves.Get(i);
-			if (!L.CanCut() || L.Base.Z > Low + 1500.f) continue;
+			if (!L.CanCut() || L.Base.Z > Ceiling) continue;
 			const FVector Out2D = (L.Base - Axis).GetSafeNormal2D();
 			Ranked.Add({ FVector::DotProduct(Out2D, Upwind), i });
 		}
@@ -336,6 +368,12 @@ namespace
 		bool bGusts = true;
 		bool bBuy = false;
 		bool bQuit = false;
+		/** Read the save again before each new day and regrow the tree from it (the launch path). */
+		bool bReload = false;
+		/** Leaf.TreeReport at the start of each day. */
+		bool bReport = false;
+		/** give<N>: haul added at the start of each day (reaches the milestones quickly; saved at day end like any haul). */
+		float GivePerDay = 0.f;
 		int32 LaidOnDay = -1;
 		double DayStart = 0.0;
 		double LastGust = 0.0;
@@ -358,6 +396,7 @@ namespace
 		switch (D->GetPhase())
 		{
 		case EDayPhase::Title:
+		case EDayPhase::Move:
 			D->MenuConfirm();
 			break;
 		case EDayPhase::Shift:
@@ -369,8 +408,32 @@ namespace
 				FRandomStream R(D->GetSeed() + 31 * D->GetDay());
 				const float Size = R.FRandRange(0.3f, 0.95f);
 				const TCHAR* Sides[] = { TEXT("any"), TEXT("exposed"), TEXT("sheltered") };
-				LayTestLines(World, Auto.LinesPerDay, Size, Sides[R.RandRange(0, 2)], R.RandRange(1, 100000));
+				// Same draw order as the old one-line call compiled to (MSVC evaluated the arguments right to left).
+				const int32 PickSeed = R.RandRange(1, 100000);
+				const int32 SideIndex = R.RandRange(0, 2);
+				if (Auto.GivePerDay > 0.f)
+				{
+					if (ULeaflineGameInstance* GI = Cast<ULeaflineGameInstance>(World->GetGameInstance())) GI->AddHaul(Auto.GivePerDay);
+				}
+				if (Auto.bReport)
+				{
+					if (ATreeActor* Tree = ATreeActor::Get(World)) Tree->LogTreeReport(FString::Printf(TEXT("day %d tree %d day %d"), D->GetDay(), D->GetStage() + 1, D->GetDayOnTree()));
+				}
+				LayTestLines(World, Auto.LinesPerDay, Size, D->IsOneTree() ? FString(TEXT("climb")) : FString(Sides[SideIndex]), PickSeed);
 				D->ForceHarvest();
+			}
+			else if (Auto.bSkip && Now - Auto.DayStart > 2.0)
+			{
+				// No recruit work, so no harvest to skip: the scouts walking home (on the line system's clock) are
+				// fast-forwarded the same way. EndDay sets the speed back to 1.
+				bool bAnyOut = false;
+				for (int32 w = 0; w < D->NumWorkers(); ++w)
+				{
+					const EWorkerState WS = D->GetWorkerState(w);
+					bAnyOut |= WS == EWorkerState::Waiting || WS == EWorkerState::Out;
+				}
+				ALineSystem* L = LinesOf(World);
+				if (!bAnyOut && L && L->GetSpeedFactor() < L->Tuning.SkipSpeed) L->SetSpeedFactor(L->Tuning.SkipSpeed);
 			}
 			break;
 		case EDayPhase::Harvest:
@@ -407,7 +470,12 @@ namespace
 				{
 					bBought = false;
 					int32 Best = INDEX_NONE;
-					for (int32 u = 0; u < LeaflineUpgrades::Count; ++u)
+					// Brood first while recruits are on, to level 2 (a player who keeps the line buys recruits early), then the
+					// cheapest affordable upgrade.
+					const int32 Brood = static_cast<int32>(ELeaflineUpgrade::Brood);
+					const bool bBroodFirst = D->IsNestRowVisible(Brood) && GI->CanAfford(Brood) && GI->GetUpgradeLevel(Brood) < 2;
+					if (bBroodFirst) Best = Brood;
+					for (int32 u = 0; u < LeaflineUpgrades::Count && !bBroodFirst; ++u)
 					{
 						if (!D->IsNestRowVisible(u) || !GI->CanAfford(u)) continue;
 						if (Best == INDEX_NONE || GI->GetUpgradeCost(u) < GI->GetUpgradeCost(Best)) Best = u;
@@ -418,6 +486,11 @@ namespace
 						UE_LOG(LogLeafline, Log, TEXT("AutoPlay: bought %s level %d"), LeaflineUpgrades::Get(Best)->Name, GI->GetUpgradeLevel(Best));
 					}
 				}
+			}
+			if (Auto.bReload)
+			{
+				if (ULeaflineGameInstance* GI = Cast<ULeaflineGameInstance>(World->GetGameInstance())) GI->ReloadFromDisk();
+				D->DebugForceRegrow();
 			}
 			D->SetNestSelection(LeaflineUpgrades::Count);
 			D->MenuConfirm();
@@ -436,7 +509,7 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs CmdAutoPlay(
 		TEXT("Leaf.AutoPlay"),
-		TEXT("Leaf.AutoPlay <days> [lines] [watch|skip] [buy] [quit]: unattended days with scripted scouts and random lines; logs whether every day ends; quit exits a standalone game when done. 0 stops."),
+		TEXT("Leaf.AutoPlay <days> [lines] [watch|skip] [buy] [reload] [report] [give<N>] [quit]: unattended days with scripted scouts and random lines (with one tree on, the lowest leaves left); logs whether every day ends; reload reads the save and regrows the tree before each day; report logs Leaf.TreeReport each morning; quit exits a standalone game when done. 0 stops."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 		{
 			Auto.World = World;
@@ -445,10 +518,16 @@ namespace
 			Auto.bSkip = !(Args.Num() > 2 && Args[2].ToLower() == TEXT("watch"));
 			Auto.bBuy = false;
 			Auto.bQuit = false;
+			Auto.bReload = false;
+			Auto.bReport = false;
+			Auto.GivePerDay = 0.f;
 			for (int32 k = 2; k < Args.Num(); ++k)
 			{
 				Auto.bBuy |= Args[k].ToLower() == TEXT("buy");
 				Auto.bQuit |= Args[k].ToLower() == TEXT("quit");
+				Auto.bReload |= Args[k].ToLower() == TEXT("reload");
+				Auto.bReport |= Args[k].ToLower() == TEXT("report");
+				if (Args[k].ToLower().StartsWith(TEXT("give"))) Auto.GivePerDay = FCString::Atof(*Args[k].Mid(4));
 			}
 			Auto.DaysDone = 0;
 			Auto.LaidOnDay = -1;

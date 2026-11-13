@@ -91,6 +91,17 @@ struct FTreeParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Leaves") float LeafLengthMax = 230.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Leaves") float LeafWidthRatio = 0.46f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Leaves") float LeafStalk = 18.f;
+	/** Leaf spacing multiplier at the lowest leafy branch: the tree is sparse low down (one tree per stage). It eases back
+	 *  to 1 over SparseBlendHeight above LowestLeafyHeight. 1 (the default) leaves placement exactly as before. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Leaves") float SparseSpacingMul = 1.f;
+	/** Height above LowestLeafyHeight (cm) over which SparseSpacingMul eases back to 1. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Leaves") float SparseBlendHeight = 0.f;
+	/** Where the spacing multiplier M at a twig's start is above 1, the whole twig is left bare with probability
+	 *  SparseTwigDrop * (1 - 1 / M): 1 thins low twigs as much as the spacing does, 0 turns it off. Only used when
+	 *  SparseSpacingMul != 1. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Leaves") float SparseTwigDrop = 1.f;
+	/** Multiplier on every leaf's Richness (later trees have richer leaves). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Leaves") float RichnessMul = 1.f;
 
 	// Growth
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Growth") float AvoidMargin = 40.f;
@@ -123,6 +134,20 @@ struct FTreeParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh") float AroundSpacing = 30.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh") int32 MaxAroundVerts = 128;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh") int32 MinAroundVerts = 7;
+};
+
+/** A bitten leaf, for the colony save (one tree per stage). Leaf indices are only stable for the same seed, params and
+ *  code; the save also stores the tree's leaf count and drops the bites when it does not match. */
+USTRUCT()
+struct FSavedLeaf
+{
+	GENERATED_BODY()
+
+	UPROPERTY(SaveGame) int32 Leaf = INDEX_NONE;
+	UPROPERTY(SaveGame) int32 Bites = 0;
+	UPROPERTY(SaveGame) float Remaining = 1.f;
+	/** Per bite: centre along, centre across (leaf-local cm), radius (cm); 3 floats each, Bites entries. */
+	UPROPERTY(SaveGame) TArray<float> BiteData;
 };
 
 struct FTreeSkeleton

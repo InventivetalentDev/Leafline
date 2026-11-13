@@ -106,6 +106,8 @@ public:
 	void OnAntReachedNest(AAntPawn* Ant);
 	/** A piece reached the nest (scout or recruit): today's stats, the colony's haul, milestones. */
 	void CreditHaul(float Mass, bool bByRecruit);
+	/** A leaf was bitten (scout or recruit): today's cut heights (logged at day end). */
+	void NoteCut(int32 Leaf);
 	/** Switch the camera between ants that are out or returning. */
 	void CycleWorker();
 	/** Leave the recap screen for the next day. */
@@ -117,11 +119,34 @@ public:
 	void MenuConfirm();
 	void MenuNavigate(int32 Direction);
 	void MenuBack();
-	bool IsMenuPhase() const { return Phase == EDayPhase::Title || Phase == EDayPhase::Recap || Phase == EDayPhase::EndCard || Phase == EDayPhase::Nest; }
+	bool IsMenuPhase() const { return Phase == EDayPhase::Title || Phase == EDayPhase::Recap || Phase == EDayPhase::EndCard || Phase == EDayPhase::Nest || Phase == EDayPhase::Move; }
 	/** Selected row on the nest screen: 0..4 upgrades, 5 = start the next day. */
 	int32 GetNestSelection() const { return NestSelection; }
 	/** Whether an upgrade's row is on the nest screen (Brood is hidden while recruits are off). */
 	bool IsNestRowVisible(int32 Upgrade) const;
+	// One tree per stage (FDayTuning::bOneTree, Leaf.OneTree): the tree is kept from day to day and the colony moves to a
+	// new tree at the second and third milestones.
+	bool IsOneTree() const { return Tuning.bOneTree; }
+	/** Takes effect from the next day (the day's mode is latched at dawn, so a day is always saved the way it started). */
+	void SetOneTree(bool bOn);
+	/** The colony's tree, 0 for the first (one tree on; 0 with it off). */
+	int32 GetStage() const { return Stage; }
+	/** 1 on a tree's first day (always 1 with one tree off: a new tree every day). */
+	int32 GetDayOnTree() const { return FMath::Max(1, Day - StageStartDay + 1); }
+	/** Today's tree is new: the colony moved to it this morning (one tree on, not the first tree). */
+	bool HasMovedToday() const { return bMovedToday; }
+	/** "The colony moves to a tall spire" (the move card). */
+	FString GetMoveCardText() const;
+	/** Lowest leafy branch of today's tree (cm). */
+	float GetLowestLeafyHeight() const;
+	/** The next day starts on a new tree (set at day end, when the second or third milestone was reached). */
+	bool IsMoveDue() const;
+	/** Debug (Leaf.Move): restart today on the next tree. */
+	void DebugMoveNow();
+	/** Debug: the next StartDay grows the tree again from the save (the launch path: seed, saved bites, one mesh build). */
+	void DebugForceRegrow() { GrownTreeSeed = -1; }
+	const FStageTuning& GetStageTuning(int32 InStage) const;
+
 	/** Recruits on: FDayTuning::bRecruits (Leaf.Recruits). */
 	bool AreRecruitsOn() const { return Tuning.bRecruits; }
 	void SetRecruitsOn(bool bOn);
@@ -185,6 +210,8 @@ private:
 	/** Where the harvest camera should be for the current view. */
 	void UpdateHarvestCamera(float Dt);
 	void UpdateSun(float Dt, bool bSnap);
+	/** Seed of a stage's tree (never 0). */
+	int32 SeedForStage(int32 InStage) const;
 
 	UPROPERTY(Transient) TObjectPtr<ATreeActor> Tree;
 	UPROPERTY(Transient) TObjectPtr<ATrailNetwork> Trails;
@@ -217,4 +244,17 @@ private:
 	bool bEndCardPending = false;
 	bool bSkippingHarvest = false;
 	int32 HarvestView = 0;
+	int32 Stage = 0;
+	int32 StageStartDay = 1;
+	bool bMovedToday = false;
+	bool bDebugMovePending = false;
+	/** Leaf.OneTree waiting for the next dawn: -1 none, else 0 or 1. */
+	int32 PendingOneTree = -1;
+	double CutZSum = 0.0;
+	int32 CutCount = 0;
+	float CutZMin = 0.f;
+	/** Seed and stage of the tree currently grown (one tree on); -1 when it must be grown. */
+	int32 GrownTreeSeed = -1;
+	int32 GrownStage = -1;
+	int32 GrownGeneration = -1;
 };

@@ -3,6 +3,8 @@
 #include "CoreMinimal.h"
 #include "Engine/GameInstance.h"
 #include "Game/Upgrades.h"
+#include "Tree/TreeTypes.h"
+#include "Colony/ColonyTypes.h"
 #include "LeaflineGameInstance.generated.h"
 
 class AAntPawn;
@@ -39,6 +41,8 @@ public:
 	int32 GetBaseSeed() const;
 
 	bool SaveNow();
+	/** Debug: reads the slot again, as at launch (tests of the save and load path). Returns whether a save was read. */
+	bool ReloadFromDisk();
 	/** Overwrites the slot with a fresh colony; does not restart the active day. */
 	bool ResetSave();
 	float GetUpgradeEffect(ELeaflineUpgrade Upgrade) const;
@@ -52,7 +56,34 @@ public:
 	float GetBestDayHaul() const;
 	/** Updates a positive finite record; persisted by SaveNow. */
 	bool RecordDayHaul(float DayHaul);
-	/** Milestone indices 0..2 use the current recruit flag. Spending cannot undo them. */
+	/** Runtime switch (FDayTuning::bOneTree), default true; never stored in the colony save. Picks the milestone set. */
+	bool IsOneTree() const { return bOneTree; }
+	void SetOneTree(bool bOn);
+	/** Threshold of milestone 0..2 under the current recruit and one-tree flags. */
+	float GetMilestoneThreshold(int32 Index) const;
+
+	// The colony's tree (one tree per stage). Changes are written by the next SaveNow (at day end).
+	int32 GetStage() const;
+	/** 0 when no tree has been grown for the stage yet. */
+	int32 GetTreeSeed() const;
+	int32 GetStageStartDay() const;
+	/** Moves the colony to Stage with a fresh tree from Seed, first day StartDay: drops saved bites and yesterday's trails. */
+	void SetTree(int32 Stage, int32 Seed, int32 StartDay);
+	/** Day-end snapshot of the tree's bites and the day's routes. */
+	void SetTreeState(const TArray<FSavedLeaf>& Bites, int32 LeafCount, const TArray<FSavedTrail>& Routes, int32 RoutesDay);
+	/** Forgets the saved bites and routes (one tree off: a new tree every day). */
+	void ClearTreeState();
+	const TArray<FSavedLeaf>& GetSavedBites() const;
+	int32 GetSavedLeafCount() const;
+	const TArray<FSavedTrail>& GetYesterdayTrails() const;
+	int32 GetYesterdayDay() const;
+	/** Changes whenever the colony's tree changes other than by today's bites: a new stage or seed, a reset, a reload. The
+	 *  director grows the tree again when it differs from the one it grew. */
+	int32 GetTreeGeneration() const { return TreeGeneration; }
+	/** The loaded save is from before one tree per stage (version 1 or 2). */
+	bool WasLegacySave() const { return bLegacySave; }
+
+	/** Milestone indices 0..2 use the current recruit and one-tree flags. Spending cannot undo them. */
 	bool HasReachedMilestone(int32 Index) const;
 	int32 GetReachedMilestoneCount() const;
 	/** Past the last milestone and the end card not yet shown (survives quitting at the recap). */
@@ -71,11 +102,16 @@ private:
 		float StaminaDrain;
 	};
 	void ApplyAntTuning(AAntPawn* Ant, const FAntBaseTuning& Base) const;
+	/** Loads the slot (or starts a fresh colony), migrating older versions. */
+	bool LoadColony();
 	void RefreshAntUpgrades();
 
 	UPROPERTY(Transient) TObjectPtr<ULeaflineSaveGame> Colony;
 	FString SaveSlot = TEXT("Leafline");
 	bool bRecruitsEnabled = true;
+	bool bOneTree = true;
+	bool bLegacySave = false;
+	int32 TreeGeneration = 0;
 	/** Weak keys let old worlds/workers be collected normally. */
 	TMap<TWeakObjectPtr<AAntPawn>, FAntBaseTuning> AntBases;
 };

@@ -14,10 +14,15 @@ namespace
 	const int32 Costs[] = { 14, 32, 68, 144, 304, 640 };
 	const float MilestonesWithRecruits[] = { 20.f, 95.f, 240.f };
 	const float MilestonesByHand[] = { 5.f, 30.f, 80.f };
+	// One tree per stage (FDayTuning::bOneTree): placeholders until Tools/econ_sim.py retunes them.
+	const float MilestonesOneTreeWithRecruits[] = { 50.f, 155.f, 505.f };
+	const float MilestonesOneTreeByHand[] = { 5.f, 60.f, 95.f };
 	static_assert(UE_ARRAY_COUNT(Table) == LeaflineUpgrades::Count);
 	static_assert(UE_ARRAY_COUNT(Costs) == LeaflineUpgrades::MaxLevel);
 	static_assert(UE_ARRAY_COUNT(MilestonesWithRecruits) == LeaflineUpgrades::MilestoneCount);
 	static_assert(UE_ARRAY_COUNT(MilestonesByHand) == LeaflineUpgrades::MilestoneCount);
+	static_assert(UE_ARRAY_COUNT(MilestonesOneTreeWithRecruits) == LeaflineUpgrades::MilestoneCount);
+	static_assert(UE_ARRAY_COUNT(MilestonesOneTreeByHand) == LeaflineUpgrades::MilestoneCount);
 }
 
 const FLeaflineUpgradeInfo* LeaflineUpgrades::Get(int32 Index)
@@ -36,8 +41,9 @@ float LeaflineUpgrades::GetEffect(int32 Index, int32 Level)
 	return Info ? Info->Effects[FMath::Clamp(Level, 0, MaxLevel)] : 0.f;
 }
 
-float LeaflineUpgrades::GetMilestoneThreshold(int32 Index, bool bRecruits)
+float LeaflineUpgrades::GetMilestoneThreshold(int32 Index, bool bRecruits, bool bOneTree)
 {
 	if (Index < 0 || Index >= MilestoneCount) return 0.f;
+	if (bOneTree) return bRecruits ? MilestonesOneTreeWithRecruits[Index] : MilestonesOneTreeByHand[Index];
 	return bRecruits ? MilestonesWithRecruits[Index] : MilestonesByHand[Index];
 }
