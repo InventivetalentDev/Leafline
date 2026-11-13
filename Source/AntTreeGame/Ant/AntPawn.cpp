@@ -85,6 +85,12 @@ void AAntPawn::BeginPlay()
 {
 	Super::BeginPlay();
 	CarrySocket->SetRelativeLocation(MandibleOffset);
+	// SM_Ant2: the same generator with a neck joining head and thorax (playtest, 13 Nov: "ant's head is floating"),
+	// imported under a new name because the tools cannot reimport over SM_Ant. Loaded by path; SM_Ant is the fallback.
+	if (UStaticMesh* WithNeck = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/Leafline/Meshes/SM_Ant2.SM_Ant2"), nullptr, LOAD_NoWarn | LOAD_Quiet))
+	{
+		AntMesh = WithNeck;
+	}
 
 	if (AntMesh)
 	{
@@ -496,11 +502,13 @@ void AAntPawn::UpdateCutVisuals(float Dt)
 	const float Feel = Wind ? FMath::Clamp(Wind->GetStrength(), 0.f, 1.f) * FeltExposure : 0.f;
 	WindFeel = FMath::FInterpTo(WindFeel, Feel, Dt, 3.f);
 	const EAntState VisState = Movement ? Movement->GetState() : EAntState::Walking;
+	// The origin rides RideHeight above the surface; the mesh is drawn MeshSinkCm lower so its feet touch the bark.
+	const float Sink = (Movement && AntMesh) ? Movement->Tuning.MeshSinkCm : 0.f;
 
 	if (Body)
 	{
 		FRotator Rot = FRotator::ZeroRotator;
-		FVector Loc = FVector::ZeroVector;
+		FVector Loc(0.f, 0.f, -Sink);
 		FVector Scale = FVector::OneVector;
 		// Sawing: while cutting, the body nods quickly and sweeps slowly from side to side, as if working along the arc.
 		if (IsCutting())
@@ -527,7 +535,7 @@ void AAntPawn::UpdateCutVisuals(float Dt)
 		// Gripping: pressed flat to the bark with the legs spread, trembling with the wind.
 		if (VisState == EAntState::Gripping)
 		{
-			Loc.Z -= 1.2f;
+			Loc.Z = FMath::Min(Loc.Z, -1.2f); // 1.2 cm down in all, as before the sink (most of it is the sink now)
 			Scale = FVector(1.06f, 1.14f, 0.78f);
 			Rot.Roll += (0.6f + 2.f * WindFeel) * FMath::Sin(VisTime * 2.f * PI * 9.f);
 		}
@@ -540,6 +548,12 @@ void AAntPawn::UpdateCutVisuals(float Dt)
 		}
 		Body->SetRelativeLocationAndRotation(Loc, Rot);
 		Body->SetRelativeScale3D(Scale);
+	}
+	// The carried piece is held in the jaws, so its socket goes down with the mesh (not with the sway, as before).
+	if (CarrySocket)
+	{
+		const FVector SocketLoc = MandibleOffset - FVector(0.f, 0.f, Sink);
+		if (!CarrySocket->GetRelativeLocation().Equals(SocketLoc, 0.01f)) CarrySocket->SetRelativeLocation(SocketLoc);
 	}
 
 	// The carried piece shakes in the wind like a small sail: barely in shelter, hard on an exposed face in a gust.

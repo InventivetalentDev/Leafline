@@ -163,10 +163,14 @@ def uvset(u0, v0, part, side, pair=0.0):
 def build():
     # head ---------------------------------------------------------------
     ellipsoid((0.070, 0, 0.054), (0.024, 0.021, 0.019), uvset(0, 0, P_HEAD, 0), pitch=0.12, deform=heart)
-    # thorax: pronotum + mesonotum/propodeum, narrow two-segment waist, gaster
+    # thorax: neck, pronotum + mesonotum/propodeum, narrow two-segment waist, gaster
     b = uvset(0, 0, P_BODY, 0)
     ellipsoid((0.017, 0, 0.054), (0.018, 0.015, 0.016), b)
     ellipsoid((-0.010, 0, 0.053), (0.022, 0.012, 0.014), b)
+    # neck: the pronotum ends at x 0.035 and the notched back of the head at 0.050..0.053, so without it the head
+    # floated in front of the thorax (owner's playtest, 13 Nov). Both ends are buried; nothing else moves, so the
+    # scale, the bounds and the mandible attach point stay as they were.
+    ellipsoid((0.044, 0, 0.0548), (0.016, 0.0070, 0.0080), b)
     ellipsoid((-0.040, 0, 0.054), (0.0075, 0.0055, 0.0075), b)   # petiole
     ellipsoid((-0.050, 0, 0.056), (0.0075, 0.0060, 0.0080), b)   # postpetiole
     ellipsoid((-0.084, 0, 0.056), (0.032, 0.023, 0.022), b, pitch=-0.10)  # gaster

@@ -34,8 +34,11 @@ struct FAntMoveTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Orientation") float TurnRate = 10.f;
 	/** Exponential rate at which the body's up follows the surface normal (1/s). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Orientation") float UpRate = 14.f;
-	/** Height of the ant's origin (its feet) above the field surface (cm). */
+	/** Height of the ant's origin above the field surface (cm); the mesh's feet are drawn MeshSinkCm below it. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Surface") float RideHeight = 1.5f;
+	/** The ant mesh and the carried piece are drawn this far below the origin (cm), so the feet touch the bark instead of
+	 *  hovering RideHeight above it (playtest, 13 Nov). Visual only: RideHeight, the routes and the trail keep theirs. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Surface") float MeshSinkCm = 1.2f;
 	/** Longest move per substep (cm), so thin twigs are never stepped over. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Surface") float MaxSubstep = 10.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stamina") float StaminaDrain = 0.17f;
