@@ -37,6 +37,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trail")
 	float Lift = 1.2f;
 
+	/**
+	 * Smoke look: a second, upright ribbon along the trail, this tall (cm), crossing the flat one so the trail reads as a
+	 * thin haze from the side too. Its UV.x runs 2 (bark) to 3 (top) so M_Trail can tell it from the flat ribbon (0..1).
+	 * 0: no upright ribbon (the flat ribbon only, as before).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trail")
+	float SmokeHeight = 0.f;
+
 	/** A point closer than this to another path's ribbon is not drawn again (cm). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trail")
 	float MergeDistance = 18.f;

@@ -654,6 +654,8 @@ void ADayDirector::UpdateDayFlow()
 			return;
 		}
 		if (!bScoutsMoving) EndDay();
+		// Only scouts walking home are left: their walk plays at the harvest's speed and can be skipped.
+		else if (Tuning.bFastForwardHome) EnterHarvest();
 		return;
 	}
 	if (!bRecruitWork && !bScoutsMoving) EndDay();
@@ -714,6 +716,7 @@ void ADayDirector::EnterHarvest()
 	Phase = EDayPhase::Harvest;
 	bSkippingHarvest = false;
 	HarvestView = 0;
+	bHarvestHomeOnly = !(Lines && Lines->HasWork());
 	if (Lines)
 	{
 		Lines->SetSpeedFactor(Lines->Tuning.HarvestSpeed);
@@ -722,8 +725,9 @@ void ADayDirector::EnterHarvest()
 		{
 			if ((W.State == EWorkerState::Returning || W.State == EWorkerState::BlownOff) && W.Pawn.IsValid()) Lines->AddDrivenAnt(W.Pawn.Get());
 		}
-		UE_LOG(LogLeafline, Log, TEXT("Harvest, day %d: %d recruits out, %d trips left, %d live lines, x%.0f"),
-			Day, Lines->NumOut(), Lines->TripsLeft(), Lines->NumLiveLines(), Lines->GetSpeedFactor());
+		UE_LOG(LogLeafline, Log, TEXT("Harvest, day %d: %d recruits out, %d trips left, %d live lines, x%.0f%s"),
+			Day, Lines->NumOut(), Lines->TripsLeft(), Lines->NumLiveLines(), Lines->GetSpeedFactor(),
+			bHarvestHomeOnly ? TEXT(" (only scouts walking home)") : TEXT(""));
 	}
 	LeafSound::Play(this, TEXT("shift_whoosh"), 0.5f);
 }
@@ -764,6 +768,13 @@ void ADayDirector::UpdateHarvestCamera(float Dt)
 		return;
 	}
 	if (Phase != EDayPhase::Harvest)
+	{
+		Cam->SetOverview(false);
+		return;
+	}
+	// Only scouts walking home: view 0 keeps following the one under control (PossessNext hands over a returning
+	// worker), so the fast-forward shows its walk.
+	if (bHarvestHomeOnly && HarvestView == 0 && Player.IsValid() && Player->GetPawn())
 	{
 		Cam->SetOverview(false);
 		return;

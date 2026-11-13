@@ -44,6 +44,11 @@ public:
 	uint32 GetButtonsHeld() const { return ButtonsHeld; }
 	uint32 GetButtonsPressed() const { return ButtonsPressed; }
 
+	/** Tab / LB held past this long (s) shows the wind map until let go; a shorter tap switches workers. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+	float WindMapHoldSeconds = 0.25f;
+	bool IsWindMapShown() const { return bWindMapShown; }
+
 	/** Degrees of camera turn per mouse count. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	float MouseSensitivity = 0.25f;
@@ -69,6 +74,9 @@ private:
 	void CreateInput();
 	void EnsureCamera();
 	void HandleButtons(uint32 Pressed);
+	/** Tab / LB during play: tap switches workers (on release), hold shows the wind map (AExposureOverlay). */
+	void UpdateWindMapButton(uint32 Pressed);
+	void ShowWindMap(bool bShow);
 	/** Shows the cursor in menus once the mouse moves (hidden again by keys or stick) and tracks the item under it. */
 	void UpdateMenuCursor(bool bMenu, const FVector2D& MouseDelta, int32 Nav);
 	/** Left click in a menu: the item under the cursor (nest row, pause button), or "continue" on the other screens. */
@@ -94,6 +102,8 @@ private:
 
 	uint32 ButtonsHeld = 0;
 	uint32 ButtonsPressed = 0;
+	double CycleDownAt = -1.0;
+	bool bWindMapShown = false;
 	bool bPossessedBefore = false;
 	TWeakObjectPtr<class ADayDirector> Director;
 	float SpareFloat = 0.f;

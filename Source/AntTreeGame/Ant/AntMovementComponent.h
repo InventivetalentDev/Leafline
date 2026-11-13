@@ -56,9 +56,23 @@ struct FAntMoveTuning
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Thin branches") bool bSteeringWheel = true;
 	/** The wheel applies fully on branches up to this radius and fades out by WheelFadeRadius (cm); thicker wood
-	 *  (the trunk) stays camera-relative. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Thin branches") float WheelFullRadius = 90.f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Thin branches") float WheelFadeRadius = 200.f;
+	 *  (the trunk, over 5 m radius where play happens) stays camera-relative. Was 90 / 200: on limbs of 140 to 220 cm
+	 *  the half-faded wheel let camera-relative "right" point into the wood at the far side, and the ant turned back
+	 *  along the limb (Leaf.Orbit 12 150). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Thin branches") float WheelFullRadius = 200.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Thin branches") float WheelFadeRadius = 320.f;
+	/**
+	 * Walking seen from behind (playtest: the legs barely read from there). The body sways with the stride: it wags
+	 * (yaw) and rocks (roll) once per stride as the two tripods alternate, and bobs twice. Scaled by walking speed;
+	 * all zero gives the old rigid body.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gait look") float GaitWagDeg = 3.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gait look") float GaitRollDeg = 4.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gait look") float GaitBobCm = 0.45f;
+	/** Distance walked per leg cycle (cm) and the fastest cycle (Hz). Was 14 cm and no cap: 14 cycles a second at a walk
+	 *  and 28 sprinting, 2 to 4 frames per cycle at 60 fps, so the legs aliased and looked still. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gait look") float GaitStrideCm = 36.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gait look") float GaitMaxHz = 7.f;
 };
 
 /**

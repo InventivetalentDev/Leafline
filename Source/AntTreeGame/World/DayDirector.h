@@ -155,6 +155,8 @@ public:
 	// Harvest: every scout is home or on its way and recruits still have trips; the rest of the day plays fast.
 	bool IsHarvest() const { return Phase == EDayPhase::Harvest; }
 	bool IsSkippingHarvest() const { return bSkippingHarvest; }
+	/** The harvest began with no recruit trips left: only scouts walking home (FDayTuning::bFastForwardHome). */
+	bool IsHomeOnlyHarvest() const { return bHarvestHomeOnly; }
 	/** Finish the harvest at skip speed (same simulation, more steps per frame). */
 	void SkipHarvest();
 	/** Harvest camera: 0 = at the nest looking up the trunk, k = the patch end of the k-th live line. Tab steps. */
@@ -244,6 +246,7 @@ private:
 	int32 NestSelection = 0;
 	bool bEndCardPending = false;
 	bool bSkippingHarvest = false;
+	bool bHarvestHomeOnly = false;
 	int32 HarvestView = 0;
 	int32 Stage = 0;
 	int32 StageStartDay = 1;

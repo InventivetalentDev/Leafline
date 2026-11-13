@@ -185,7 +185,8 @@ Starting numbers, to be tuned by play:
 | Grip (hold) | Space | A |
 | Send home | Q | Y |
 | Follow trail (hold) | F | Right bumper |
-| Cycle ants | Tab | Left bumper |
+| Cycle ants (tap) | Tab | Left bumper |
+| Wind map (hold) | Tab | Left bumper |
 | Pause | Esc | Start |
 
 ## Look and sound

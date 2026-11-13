@@ -260,7 +260,7 @@ Console commands pay for themselves, because verification is done by driving Pla
 | `Leaf.MeshGap` | Evaluate the walking field at every visible bark mesh vertex: mean, worst and how many float more than 1 or 3 cm (the honest check; `SurfaceGap` compares the field with its own frustum model) |
 | `Leaf.GapAt <x> <y> <z>` | At one point: the field distance, and each nearby branch's distance to its visible bark |
 | `Leaf.GoLeaf` / `Leaf.Cut [size]` / `Leaf.SendHome [delay]` | Drive the loop from the console: go beside a random cuttable leaf, cut it at once, send the ant home |
-| `Leaf.Hold <cut\|grip\|follow> <seconds>` | Hold a button for a while, as if pressed (hold-to-cut, grip, riding) |
+| `Leaf.Hold <cut\|grip\|follow\|cycle> <seconds>` | Hold a button for a while, as if pressed (hold-to-cut, grip, riding, the Tab tap and hold) |
 | `Leaf.Aim <heading\|up\|trunk> <pitch>` | Aim the camera toward a world heading (0 = +X), up the trunk or toward it, at a pitch (repeatable screenshots) |
 | `Leaf.Delay <seconds> <command...>` | Run a console command later, also while paused (unattended screenshot runs) |
 | `Leaf.PauseMenu <0\|1> [row]` | Pause and show the pause menu (0) or the options page (1) with a row selected (screenshots) |
@@ -280,7 +280,9 @@ Console commands pay for themselves, because verification is done by driving Pla
 | `Leaf.PatchSurvey [samples]` | Patch sizes over random leaves at templates 0.3 / 0.6 / 1.0, and approach failures by reason |
 | `Leaf.StartDay <day> [seed]` | Start that day now (after `Leaf.ResetSave`, for repeatable tests) |
 | `Leaf.AtSim <seconds> <command...>` | Run a console command at that sim time of the day, between fixed steps (repeatable tests: the same day plays the same) |
-| `Leaf.Cycle` | The cycle button (Tab): next worker in a shift, next view in the harvest |
+| `Leaf.Cycle` | The cycle button (Tab): next worker in a shift, next view in the harvest (in play a tap of Tab switches workers on release; holding it shows the wind map) |
+| `Leaf.Exposure [0\|1]` | Show or hide the wind map (exposure spots on the bark round the ant, the HUD's bands and colours); no argument toggles |
+| `Leaf.Orbit [seconds] [radius cm] [n]` | Hold screen-right and log the turn round the branch every 0.5 s and a summary (laps, half-seconds with under 15 cm of way round); with a radius, first go to the limb or bough point of about that radius on the n-th best match (the tangent-point test) |
 | `Leaf.LineInfo` | Log every line (home, lost, patch left, reserved, recruits on it) and the pool |
 | `Leaf.TestLines <n> [size] [exposed\|sheltered\|any] [seed]` | Scouts lay lines at once to leaves in the lowest leafy band, each with a real walk over the bark from the nest (tests) |
 | `Leaf.AutoPlay <days> [lines] [watch\|skip] [buy] [reload] [report] [quit]` | Unattended days with scripted scouts and random lines (with one tree on, among the lowest leaves left); logs whether every day ends. `reload` reads the save and regrows the tree before each day (the launch path); `report` logs `Leaf.TreeReport` each morning; days without recruits fast-forward the scouts' walk home |

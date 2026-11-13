@@ -100,7 +100,7 @@ void ALeaflineHUD::DrawHUD()
 		DrawColonyCounter(D, Scale, Dt);
 		DrawLineRows(D, Lines, Scale);
 		DrawDeliveryPops(Lines, Scale);
-		if (Lines && Lines->IsActive()) DrawHarvest(D, Lines, Scale);
+		if (Lines && (Lines->IsActive() || D->IsHomeOnlyHarvest())) DrawHarvest(D, Lines, Scale);
 		return;
 	}
 	if (D) DrawDayInfo(D, Scale);
@@ -290,6 +290,24 @@ void ALeaflineHUD::DrawDayInfo(const ADayDirector* D, float Scale)
 			const FLinearColor EC = bSheltered ? FLinearColor(0.6f, 0.95f, 0.5f) : (bPartly ? FLinearColor(1.f, 0.8f, 0.35f) : StaminaLockedColor);
 			const TCHAR* EL = bSheltered ? TEXT("Here: sheltered") : (bPartly ? TEXT("Here: partly exposed") : TEXT("Here: exposed"));
 			DrawCrisp(Canvas, EL, EC, GX, GY + GH + 10.f * Scale, Font, 1.0f * Scale);
+		}
+		// The wind map (hold Tab / LB): its legend while shown, otherwise a quiet reminder that it exists (in play only:
+		// in the harvest Tab steps the views).
+		if (M && D->GetPhase() == EDayPhase::Shift)
+		{
+			const ALeaflinePlayerController* LPC = Cast<ALeaflinePlayerController>(PC);
+			const float LY = GY + GH + 32.f * Scale;
+			if (LPC && LPC->IsWindMapShown())
+			{
+				DrawCrisp(Canvas, TEXT("Wind map:"), TextColor, GX, LY, Font, 0.9f * Scale);
+				DrawCrisp(Canvas, TEXT("green sheltered"), FLinearColor(0.6f, 0.95f, 0.5f), GX, LY + 20.f * Scale, Font, 0.9f * Scale);
+				DrawCrisp(Canvas, TEXT("amber partly exposed"), FLinearColor(1.f, 0.8f, 0.35f), GX, LY + 38.f * Scale, Font, 0.9f * Scale);
+				DrawCrisp(Canvas, TEXT("red exposed"), StaminaLockedColor, GX, LY + 56.f * Scale, Font, 0.9f * Scale);
+			}
+			else
+			{
+				DrawCrisp(Canvas, TEXT("Hold Tab / LB: wind map"), FLinearColor(TextColor.R, TextColor.G, TextColor.B, 0.55f), GX, LY, Font, 0.85f * Scale);
+			}
 		}
 	}
 }
@@ -548,15 +566,18 @@ void ALeaflineHUD::DrawHarvest(const ADayDirector* D, const ALineSystem* Lines, 
 	UFont* Font = GEngine->GetMediumFont();
 	const float CX = Canvas->ClipX * 0.5f;
 	float Y = 120.f * Scale;
-	DrawTextCentered(TEXT("Harvest: the colony brings in the rest"), CX, Y, AccentColor, 1.4f * Scale, Font);
+	// Only scouts walking home (no recruit trips): the same fast-forward, about the walk home.
+	const bool bHomeOnly = D->IsHomeOnlyHarvest();
+	DrawTextCentered(bHomeOnly ? TEXT("Fast-forward: the last workers head home") : TEXT("Harvest: the colony brings in the rest"), CX, Y, AccentColor, 1.4f * Scale, Font);
 	Y += 40.f * Scale;
 	FString Speed = D->IsSkippingHarvest() ? FString(TEXT("skipping...")) : FString::Printf(TEXT("Speed \u00D7%d"), FMath::RoundToInt(Lines ? Lines->GetSpeedFactor() : 1.f));
-	if (Lines)
+	if (Lines && !bHomeOnly)
 	{
 		Speed += FString::Printf(TEXT("      Recruits out: %d      Trips left: %d"), Lines->NumOut(), Lines->TripsLeft());
 	}
 	DrawTextCentered(Speed, CX, Y, TextColor, 1.1f * Scale, Font);
-	const FString Controls = D->IsSkippingHarvest() ? FString() : FString(TEXT("Space / A: skip      Tab / LB: next line"));
+	const bool bLineViews = Lines && Lines->NumLiveLines() > 0;
+	const FString Controls = D->IsSkippingHarvest() ? FString() : FString(bLineViews ? TEXT("Space / A: skip      Tab / LB: next line") : TEXT("Space / A: skip"));
 	if (!Controls.IsEmpty())
 	{
 		const FVector2D Size = MeasureCrisp(Controls, Font, 1.15f * Scale);
@@ -758,7 +779,8 @@ void ALeaflineHUD::DrawTitle(const ADayDirector* D, float Scale)
 	const TArray<FString> Controls = {
 		TEXT("Move: WASD / left stick      Look: mouse / right stick      Sprint: Shift / LT"),
 		TEXT("Cut (hold): E or left mouse / X      Send home: Q / Y      Follow a trail (hold): F / RB"),
-		TEXT("Grip in a gust (hold): Space / A      Switch ant: Tab / LB      Pause: Esc or P / Start"),
+		TEXT("Grip in a gust (hold): Space / A      Switch ant (tap): Tab / LB      Wind map (hold): Tab / LB"),
+		TEXT("Pause: Esc or P / Start"),
 	};
 	for (const FString& C : Controls)
 	{

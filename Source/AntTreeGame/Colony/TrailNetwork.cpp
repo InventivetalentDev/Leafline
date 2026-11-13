@@ -255,6 +255,19 @@ void ATrailNetwork::RebuildChunk(int32 PathIndex, int32 Chunk)
 		};
 		AddTri(Base, Base + 1, Base + 2);
 		AddTri(Base + 1, Base + 3, Base + 2);
+		if (SmokeHeight > 0.f)
+		{
+			// The upright ribbon: from the flat one up along the normal, two-sided in the material.
+			const float H = SmokeHeight * FMath::Lerp(0.6f, 1.f, Fade);
+			const FVector SideN = SideA.GetSafeNormal();
+			const int32 U = V.Num();
+			V.Append({ A.Pos + A.Normal * PathLift, A.Pos + A.Normal * (PathLift + H), B.Pos + B.Normal * PathLift, B.Pos + B.Normal * (PathLift + H) });
+			N.Append({ SideN, SideN, SideN, SideN });
+			UV.Append({ FVector2D(2.0, Along), FVector2D(3.0, Along), FVector2D(2.0, Along + SegLen), FVector2D(3.0, Along + SegLen) });
+			Col.Append({ Tint, Tint, Tint, Tint });
+			Tan.Append({ FProcMeshTangent(Dir, false), FProcMeshTangent(Dir, false), FProcMeshTangent(Dir, false), FProcMeshTangent(Dir, false) });
+			Tri.Append({ U, U + 1, U + 2, U + 1, U + 3, U + 2 });
+		}
 		Along += SegLen;
 	}
 	int32* Found = ChunkSection.Find(FIntPoint(PathIndex, Chunk));

@@ -269,13 +269,14 @@ void AAntPawn::StepLogic(float DeltaSeconds, bool bVisuals)
 	UpdateWind(DeltaSeconds);
 	if (bVisuals) UpdateSounds();
 
-	// Gait: the legs cycle with distance walked (about 1.5 strides per body length) and settle when the ant stops.
+	// Gait: the legs cycle with distance walked (GaitStrideCm per cycle, at most GaitMaxHz) and settle when the ant stops.
 	if (BodyMID)
 	{
 		const EAntState GaitState = Movement->GetState();
 		const bool bLegsStill = GaitState == EAntState::Falling || GaitState == EAntState::Gripping || GaitState == EAntState::Cutting;
 		const float Speed = bLegsStill ? 0.f : (float)Movement->GetVelocity().Size();
-		GaitPhase = FMath::Fmod(GaitPhase + Speed * DeltaSeconds * (2.f * PI / 14.f), 2.f * PI);
+		const float CycleHz = FMath::Min(Speed / FMath::Max(Movement->Tuning.GaitStrideCm, 1.f), FMath::Max(Movement->Tuning.GaitMaxHz, 0.1f));
+		GaitPhase = FMath::Fmod(GaitPhase + CycleHz * DeltaSeconds * 2.f * PI, 2.f * PI);
 		GaitAmount = FMath::FInterpTo(GaitAmount, FMath::Clamp(Speed / 120.f, 0.f, 1.f), DeltaSeconds, 8.f);
 		if (bVisuals)
 		{
@@ -512,6 +513,16 @@ void AAntPawn::UpdateCutVisuals(float Dt)
 		else
 		{
 			SawTime = 0.f;
+		}
+		// Walking: the body wags and rocks with the stride (one cycle per GaitPhase turn, as the tripods alternate) and
+		// bobs twice per cycle, so the walk reads from behind, where the legs are mostly hidden by the body.
+		if (Movement && GaitAmount > 0.01f && !IsCutting() && VisState != EAntState::Gripping)
+		{
+			const FAntMoveTuning& T = Movement->Tuning;
+			const float S = FMath::Sin(GaitPhase);
+			Rot.Yaw += T.GaitWagDeg * GaitAmount * S;
+			Rot.Roll += T.GaitRollDeg * GaitAmount * FMath::Sin(GaitPhase + 0.6f);
+			Loc.Z += T.GaitBobCm * GaitAmount * FMath::Abs(FMath::Cos(GaitPhase));
 		}
 		// Gripping: pressed flat to the bark with the legs spread, trembling with the wind.
 		if (VisState == EAntState::Gripping)

@@ -8,6 +8,7 @@
 #include "Game/Upgrades.h"
 #include "UI/LeaflineHUD.h"
 #include "World/DayDirector.h"
+#include "World/ExposureOverlay.h"
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedPlayerInput.h"
 #include "InputAction.h"
@@ -188,6 +189,7 @@ void ALeaflinePlayerController::PlayerTick(float DeltaTime)
 	if (LeafDebug::HoldCut > 0.f) { Held |= LeafButtons::Cut; LeafDebug::HoldCut -= DeltaTime; }
 	if (LeafDebug::HoldGrip > 0.f) { Held |= LeafButtons::Grip; LeafDebug::HoldGrip -= DeltaTime; }
 	if (LeafDebug::HoldFollow > 0.f) { Held |= LeafButtons::Follow; LeafDebug::HoldFollow -= DeltaTime; }
+	if (LeafDebug::HoldCycle > 0.f) { Held |= LeafButtons::Cycle; LeafDebug::HoldCycle -= DeltaTime; }
 	if (bSwallowClick)
 	{
 		if (IsInputKeyDown(EKeys::LeftMouseButton)) Held &= ~LeafButtons::Cut;
@@ -245,7 +247,41 @@ void ALeaflinePlayerController::PlayerTick(float DeltaTime)
 		}
 		Ant->SetActionInput(!bMenu && (Held & LeafButtons::Cut) != 0, (Held & LeafButtons::Follow) != 0, (Held & LeafButtons::Grip) != 0);
 	}
+	UpdateWindMapButton(ButtonsPressed);
 	if (ButtonsPressed) HandleButtons(ButtonsPressed);
+}
+
+void ALeaflinePlayerController::UpdateWindMapButton(uint32 Pressed)
+{
+	if (!Director.IsValid()) Director = ADayDirector::Get(this);
+	ADayDirector* D = Director.Get();
+	const bool bPlay = D && !IsPaused() && !D->IsMenuPhase() && !D->IsHarvest();
+	if (!bPlay)
+	{
+		CycleDownAt = -1.0;
+		ShowWindMap(false);
+		return;
+	}
+	const double Now = FPlatformTime::Seconds();
+	if (Pressed & LeafButtons::Cycle) CycleDownAt = Now;
+	if (CycleDownAt < 0.0) return;
+	if (ButtonsHeld & LeafButtons::Cycle)
+	{
+		if (!bWindMapShown && Now - CycleDownAt >= WindMapHoldSeconds) ShowWindMap(true);
+		return;
+	}
+	// Let go: a short tap switches workers; after a hold it only hides the map.
+	if (!bWindMapShown) D->CycleWorker();
+	ShowWindMap(false);
+	CycleDownAt = -1.0;
+}
+
+void ALeaflinePlayerController::ShowWindMap(bool bShow)
+{
+	if (bShow == bWindMapShown) return;
+	bWindMapShown = bShow;
+	if (AExposureOverlay* Overlay = AExposureOverlay::Get(GetWorld())) Overlay->SetShown(bShow);
+	UE_LOG(LogLeafline, Log, TEXT("Wind map %s"), bShow ? TEXT("shown (Tab held)") : TEXT("hidden"));
 }
 
 void ALeaflinePlayerController::UpdateMenuCursor(bool bMenu, const FVector2D& MouseDelta, int32 Nav)
@@ -493,5 +529,5 @@ void ALeaflinePlayerController::HandleButtons(uint32 Pressed)
 		return;
 	}
 	if (Pressed & LeafButtons::SendHome) D->SendHome(GetAnt());
-	if (Pressed & LeafButtons::Cycle) D->CycleWorker();
+	// Cycle (Tab / LB) during play is UpdateWindMapButton's: a tap switches workers on release, a hold shows the wind map.
 }

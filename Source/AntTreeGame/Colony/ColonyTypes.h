@@ -143,6 +143,9 @@ struct FDayTuning
 	 *  moves at the second and third milestones. Off: a new tree every day with the rising leafy height, as before.
 	 *  Leaf.OneTree 0|1 toggles it (from the next day). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day") bool bOneTree = true;
+	/** When the last scout heads home and no recruits have trips, its walk home plays at the harvest's speed and can be
+	 *  skipped (playtest: "fast-forward for 'worker x heads home'"). Off: it walks home at normal speed, as before. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day") bool bFastForwardHome = true;
 	/** One tree on: fractional rise of the wind's peak force per day on the same tree. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day") float GustPerDayOnTree = 0.06f;
 	/** One tree on: the trees in order; the last repeats. Shapes go old giant, spreading giant, tall spire, leaning elder. */

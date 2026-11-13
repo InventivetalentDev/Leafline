@@ -19,4 +19,5 @@ namespace LeafDebug
 	extern float HoldCut;
 	extern float HoldGrip;
 	extern float HoldFollow;
+	extern float HoldCycle;
 }

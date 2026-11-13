@@ -30,6 +30,7 @@ namespace LeafDebug
 	float HoldCut = 0.f;
 	float HoldGrip = 0.f;
 	float HoldFollow = 0.f;
+	float HoldCycle = 0.f;
 }
 
 namespace
@@ -242,7 +243,7 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs CmdHold(
 		TEXT("Leaf.Hold"),
-		TEXT("Leaf.Hold <cut|grip|follow> <seconds>: hold that button for a while, as if pressed (tests hold-to-cut, grip and riding)."),
+		TEXT("Leaf.Hold <cut|grip|follow|cycle> <seconds>: hold that button for a while, as if pressed (tests hold-to-cut, grip, riding and the Tab tap / hold)."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld*)
 		{
 			if (Args.Num() < 1) return;
@@ -250,6 +251,7 @@ namespace
 			if (Args[0].Equals(TEXT("cut"), ESearchCase::IgnoreCase)) LeafDebug::HoldCut = Seconds;
 			else if (Args[0].Equals(TEXT("grip"), ESearchCase::IgnoreCase)) LeafDebug::HoldGrip = Seconds;
 			else if (Args[0].Equals(TEXT("follow"), ESearchCase::IgnoreCase)) LeafDebug::HoldFollow = Seconds;
+			else if (Args[0].Equals(TEXT("cycle"), ESearchCase::IgnoreCase)) LeafDebug::HoldCycle = Seconds;
 			UE_LOG(LogLeafline, Log, TEXT("Leaf.Hold %s %.1f s"), *Args[0], Seconds);
 		}));
 
@@ -666,4 +668,160 @@ namespace
 			if (!PC) return;
 			PC->DebugShowPauseMenu(Args.Num() > 0 ? FCString::Atoi(*Args[0]) : 0, Args.Num() > 1 ? FCString::Atoi(*Args[1]) : 0);
 		}));
+
+	/**
+	 * Leaf.Orbit: hold "screen right" for a while and log how far the ant gets round the branch it is on (playtest:
+	 * "still occasionally get stuck at the tangent point"). With a radius, first put the ant on the limb or bough point
+	 * whose radius is nearest to it.
+	 */
+	struct FOrbitState
+	{
+		FTSTicker::FDelegateHandle Handle;
+		TWeakObjectPtr<UWorld> World;
+		double Start = 0.0, NextLog = 0.0, Duration = 0.0;
+		int32 Branch = INDEX_NONE, Samples = 0, Stalls = 0;
+		float Radius = 0.f, LastAngle = 0.f, Total = 0.f, SinceLog = 0.f;
+		FVector Ref = FVector::ZeroVector;
+	};
+	FOrbitState Orbit;
+
+	/** Angle (deg) of P round branch B at its nearest sample, against a reference fixed while on that branch. */
+	bool OrbitAngle(const FTreeBranch& B, const FVector& P, FVector& Ref, float& OutAngle, float& OutRadius)
+	{
+		if (B.Samples.Num() < 2) return false;
+		int32 Best = 0;
+		double BestD = TNumericLimits<double>::Max();
+		for (int32 i = 0; i < B.Samples.Num(); ++i)
+		{
+			const double D = FVector::DistSquared(B.Samples[i], P);
+			if (D < BestD) { BestD = D; Best = i; }
+		}
+		const int32 Lo = FMath::Max(Best - 1, 0), Hi = FMath::Min(Best + 1, B.Samples.Num() - 1);
+		const FVector Axis = (B.Samples[Hi] - B.Samples[Lo]).GetSafeNormal();
+		const FVector R = FVector::VectorPlaneProject(P - B.Samples[Best], Axis).GetSafeNormal();
+		if (Ref.IsNearlyZero()) Ref = R;
+		const FVector RefHere = FVector::VectorPlaneProject(Ref, Axis).GetSafeNormal();
+		OutAngle = FMath::RadiansToDegrees(FMath::Atan2(FVector::DotProduct(R, FVector::CrossProduct(Axis, RefHere)), FVector::DotProduct(R, RefHere)));
+		OutRadius = B.SampleRadius[Best];
+		return true;
+	}
+
+	bool OrbitTick(float)
+	{
+		UWorld* World = Orbit.World.Get();
+		AAntPawn* Ant = PlayerAnt(World);
+		ATreeActor* Tree = ATreeActor::Get(World);
+		if (!World || !Ant || !Tree || !Ant->GetAntMovement())
+		{
+			LeafDebug::AutoStrafe = 0.f;
+			Orbit.Handle.Reset();
+			return false;
+		}
+		const double Now = World->GetRealTimeSeconds();
+		const UAntMovementComponent* M = Ant->GetAntMovement();
+		int32 Branch = INDEX_NONE;
+		Tree->GetField().Distance(M->GetSurfacePosition(), &Branch);
+		const TArray<FTreeBranch>& Branches = Tree->GetSkeleton().Branches;
+		float Angle = 0.f, Radius = 0.f;
+		if (Branches.IsValidIndex(Branch))
+		{
+			if (Branch != Orbit.Branch)
+			{
+				Orbit.Branch = Branch;
+				Orbit.Ref = FVector::ZeroVector;
+				OrbitAngle(Branches[Branch], M->GetSurfacePosition(), Orbit.Ref, Angle, Radius);
+				Orbit.LastAngle = Angle;
+			}
+			else if (OrbitAngle(Branches[Branch], M->GetSurfacePosition(), Orbit.Ref, Angle, Radius))
+			{
+				const float Step = FMath::FindDeltaAngleDegrees(Orbit.LastAngle, Angle);
+				Orbit.Total += Step;
+				Orbit.SinceLog += Step;
+				Orbit.LastAngle = Angle;
+			}
+			Orbit.Radius = Radius;
+		}
+		if (Now >= Orbit.NextLog)
+		{
+			Orbit.NextLog = Now + 0.5;
+			++Orbit.Samples;
+			// Stalled: under 15 cm of way round the branch in the half-second (about 15 % of walking speed).
+			const float Arc = FMath::DegreesToRadians(FMath::Abs(Orbit.SinceLog)) * Radius;
+			if (Arc < 15.f) ++Orbit.Stalls;
+			UE_LOG(LogLeafline, Log, TEXT("Orbit %.1f s: branch %d (level %d, radius %.0f cm), angle %.0f, %+.0f deg (%.0f cm) in 0.5 s, total %+.0f, state %s"),
+				Now - Orbit.Start, Branch, Branches.IsValidIndex(Branch) ? Branches[Branch].Level : -9, Radius, Angle, Orbit.SinceLog, Arc, Orbit.Total,
+				*UEnum::GetValueAsString(M->GetState()));
+			Orbit.SinceLog = 0.f;
+		}
+		if (Now - Orbit.Start >= Orbit.Duration)
+		{
+			LeafDebug::AutoStrafe = 0.f;
+			UE_LOG(LogLeafline, Log, TEXT("Orbit done: %.0f s, last radius %.0f cm, total %+.0f deg (%.1f laps), %d of %d half-seconds with under 15 cm round"),
+				Orbit.Duration, Orbit.Radius, Orbit.Total, Orbit.Total / 360.f, Orbit.Stalls, Orbit.Samples);
+			Orbit.Handle.Reset();
+			return false;
+		}
+		return true;
+	}
+
+	void StartOrbit(UWorld* World, const TArray<FString>& Args)
+	{
+		AAntPawn* Ant = PlayerAnt(World);
+		ATreeActor* Tree = ATreeActor::Get(World);
+		if (!Ant || !Tree || !Ant->GetAntMovement()) return;
+		if (Orbit.Handle.IsValid()) FTSTicker::GetCoreTicker().RemoveTicker(Orbit.Handle);
+		if (Args.Num() > 1)
+		{
+			// The limb or bough point whose radius is nearest the one asked for, away from the ends.
+			const float Want = FCString::Atof(*Args[1]);
+			const TArray<FTreeBranch>& Branches = Tree->GetSkeleton().Branches;
+			int32 BestB = INDEX_NONE;
+			float BestT = 0.5f, BestErr = TNumericLimits<float>::Max();
+			const int32 Skip = Args.Num() > 2 ? FCString::Atoi(*Args[2]) : 0; // the n-th best spot, for another limb
+			TArray<TPair<float, TPair<int32, float>>> Spots;
+			for (int32 b = 0; b < Branches.Num(); ++b)
+			{
+				const FTreeBranch& B = Branches[b];
+				if (B.Level < 1 || B.Samples.Num() < 8 || B.Length() <= 0.f) continue;
+				float BErr = TNumericLimits<float>::Max();
+				float BT = 0.5f;
+				for (int32 i = B.Samples.Num() / 4; i < B.Samples.Num() * 3 / 4; ++i)
+				{
+					// Only where the bark round this sample belongs to this branch (not inside the trunk's blend).
+					const FVector Out = B.Samples[i] + FVector::UpVector * (B.SampleRadius[i] + 5.0);
+					int32 Nearest = INDEX_NONE;
+					Tree->GetField().Distance(Out, &Nearest);
+					if (Nearest != b) continue;
+					const float Err = FMath::Abs(B.SampleRadius[i] - Want);
+					if (Err < BErr) { BErr = Err; BT = B.SampleDist[i] / B.Length(); }
+				}
+				if (BErr < TNumericLimits<float>::Max()) Spots.Add(TPair<float, TPair<int32, float>>(BErr, TPair<int32, float>(b, BT)));
+			}
+			Spots.Sort([](const auto& A, const auto& B) { return A.Key < B.Key; });
+			if (Spots.Num() > 0)
+			{
+				const auto& Pick = Spots[FMath::Clamp(Skip, 0, Spots.Num() - 1)];
+				BestErr = Pick.Key;
+				BestB = Pick.Value.Key;
+				BestT = Pick.Value.Value;
+			}
+			if (BestB != INDEX_NONE && Ant->GetAntMovement()->PlaceOnBranch(BestB, BestT))
+			{
+				SnapCamera(World);
+				UE_LOG(LogLeafline, Log, TEXT("Leaf.Orbit: on branch %d (level %d) at t %.2f, %.0f cm from the %.0f cm asked for"), BestB, Branches[BestB].Level, BestT, BestErr, Want);
+			}
+		}
+		Orbit = FOrbitState();
+		Orbit.World = World;
+		Orbit.Start = World->GetRealTimeSeconds();
+		Orbit.NextLog = Orbit.Start + 0.5;
+		Orbit.Duration = Args.Num() > 0 ? FMath::Max(FCString::Atof(*Args[0]), 1.f) : 15.0;
+		LeafDebug::AutoStrafe = 1.f;
+		Orbit.Handle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateStatic(&OrbitTick), 0.f);
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs CmdOrbit(
+		TEXT("Leaf.Orbit"),
+		TEXT("Leaf.Orbit [seconds] [radius cm] [n]: hold screen-right and log the turn round the branch every 0.5 s (with a radius: first go to the limb point of about that radius on the n-th best limb, 0 first)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World) { StartOrbit(World, Args); }));
 }
