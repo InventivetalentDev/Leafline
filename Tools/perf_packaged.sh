@@ -4,6 +4,7 @@
 # Each run walks the ant with Leaf.AutoMove and a wandering camera, captures FRAMES frames with the CSV profiler, then
 # the game quits by itself. Runs go through the Unreal lock, so close the editor first, and nobody may be playing the
 # packaged build meanwhile (its save and settings are backed up and restored). Takes about 5 minutes.
+# EXTRA_CMDS="scalability 0" adds console commands to every run (Low quality; "Leaf.Bark 0" for the old bark).
 set -u
 ROOT=/mnt/d/UnrealProjects/AntTreeGame
 EXE='D:\UnrealProjects\AntTreeGame\Build\Windows\AntTreeGame.exe'
@@ -13,7 +14,7 @@ FRAMES=${FRAMES:-2400}
 SEED=${SEED:-517192}
 
 run() {
-	local name=$1 extra=$2 place=$3
+	local name=$1 extra=$2 place=$3${EXTRA_CMDS:+,$EXTRA_CMDS}
 	local before after
 	before=$(ls -t "$CSVDIR"/*.csv 2>/dev/null | head -1)
 	(cd /mnt/c && timeout 400 "$ROOT/Scripts/unreal-lock.sh" "perf-$name" -- cmd.exe /c "$EXE" -windowed -ResX=1920 -ResY=1080 $extra \

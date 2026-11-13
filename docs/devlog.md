@@ -96,3 +96,12 @@ Leafline is made by one person directing AI agents. Claude (Anthropic) does plan
 - When the last scout heads home with no recruit trips (day 1, for one), its walk home now plays fast and can be skipped.
 - Scent trails got a first smoke look: a soft drifting haze with an upright ribbon, fading with distance.
 - Housekeeping: 45 files had been committed as executable because Windows-made files look executable on the WSL mount; GitHub Desktop listed them all as changed.
+
+## 2026-11-13 (Fri evening): look pass
+
+- A new brief from an art review of three of the owner's screenshots (`docs/briefs/look-pass.md`): the black wedges under the ant, bark that read as drawn-on outlines, a hazy amber wash on near bark, small HUD text.
+- The black wedge was bark buried inside the neighbouring branch at a junction, seen through the camera cutaway and lit by nothing. The tree mesh now writes, per vertex, how deep it lies inside another branch, and the new bark material hides what is buried. The amber wash was not haze at all: the camera sat 12 cm above the trunk and the cutaway dug a trench under it, so the player looked past the trunk. It now keeps 60 cm from thick wood.
+- New bark (`M_TreeBark2`, the old one stays behind `Leaf.Bark 0`): long ridges and wide soft furrows, each ridge its own tone, relief in the lighting only, fine grain up close, moss in patches. The first try was Voronoi plates, which looked like paving; stretching them twelve times along the branch made ridges. A layer of small cracks drew looping outlines again and was dropped. The shader code lives in `Tools/materials/` and goes into the asset over MCP.
+- Cooler, stronger sky fill for shadowed bark; exposure up a little; the camera a little closer (170 cm) and a little higher. The dark morning sky in the owner's shots is the low first-shift sun and the exposure metering on sunlit bark, not a bug.
+- The HUD has one style table: panels behind each group, text at least 1.85% of the screen height, worker states by name, a labelled stamina bar.
+- Work split: a Claude agent took the reference shots, tuned the lighting and diagnosed the wedge (`docs/reviews/look-shots.md`); Codex restyled the HUD in a worktree; a smaller Claude agent wrote the buried-bark pass in the mesh builder; the main session wrote the bark shader, the camera changes and the material over MCP.

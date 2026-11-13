@@ -189,3 +189,60 @@ The bough view (`fr*-bough-rt.png`) is not useful for framing: big leaves cover 
 - **Shared output.** The main session runs `ref_shots.sh` too. The log `Saved/Logs/RefShot.log` is shared, so a log read right after a run can already belong to the other session's next run. Screenshots are told apart by label.
 - **Lost screenshots.** Both sessions touch the same `Saved/RefShots/.marker`, and a run decides which screenshot is its own by comparing against that file. So a concurrent run can make yours report "no screenshot"; that is the likely reason for the one missing `SHIFT=3` shot. The script's `timeout 240` also counts time spent waiting for the lock, so a long queue can lose a run as well. The script header lists `SHIFT=3` as an option, but it is unverified.
 - **I broke two of the main session's runs.** I edited `ref_shots.sh` in place while those runs were executing, and two of them broke mid-edit. I will not edit it in place again.
+
+## After (M_TreeBark2 and the new defaults)
+
+Taken 17:14 to 17:27 on the build of 17:14. The new bark is on (no `Leaf.Bark 0`). The adopted defaults are `WoodClearance` 60, `SkyLightIntensity` 3, `SkyLightColor` (0.75, 0.85, 1.15), `ExposureBias` 0.2, `BoomLength` 170 and `DefaultPitch` −25. There is no `LOOK` except where noted. The sets:
+
+- `look1-*`: the five views, both modes;
+- `sw1-*`: the sweeps, ray tracing only;
+- `sig1-*`: the signal shots, ray tracing only, plus the variants `sig1b`, `sig1c` and `sig1d`.
+
+### The five views
+
+| View | Before | After | What I see |
+|---|---|---|---|
+| trunk | `look0-trunk-rt.png` | `look1-trunk-rt.png` | No wedge, and the ant is larger. The bark has no black lines: fissures are soft, darker grooves; the plates run long along the trunk with varying tones; the moss lies in patches, not rings. Looking up shows little sky: 19.0% of the upper frame against 48.7% before. Sky luminance is 64 against 70, with sunlit bark the same (157 against 156). |
+| canopy | `look0-canopy-rt.png` | `look1-canopy-rt.png` | Leaves as before. The pale rich leaf under the ant (cream) and the deep greens read clearly. A white cut-highlight outline at the bottom right runs on past the leaf's visible edge, where that leaf has faded near the camera. The same ghost outline appears in `sig1c` at the lower left, but I didn't check whether it is new. |
+| base | `look0-base-rt.png` | `look1-base-rt.png` | Much the same. The trunk base shows the new plates. Haze toward the low sun is as strong as before, and the near ground keeps its colour. |
+| junction | `look0-junction-rt.png` | `look1-junction-rt.png` | No black wedge: where it was, you now see the bark of the farther limb. New: the wood near the camera blurs into grey streaks (depth of field); shadowed bark is slate grey-green, not brown; and the right-hand surface shows big light/dark triangles that read like folds or facets. |
+| sunward | `look0-sunward-rt.png` | `look1-sunward-rt.png` | The ant stands on brown bark with plates and its own shadow, clearly apart from the haze (acceptance test 3). The far ground separates by haze: rgb(49,34,12) before, rgb(95,77,44) after. Sun glare is down: sun-area luminance 241 to 194, detail contrast 14 to 55. |
+
+Mean absolute difference between ray tracing on and off, per channel out of 255: trunk 5, canopy 5, base 2, sunward 3, junction 10. That is as close as before, and the junction is again the largest.
+
+### Acceptance test 2: pitch sweeps
+
+The files are `sw1-{junction,bough}-p{-80,-45,-10,25,60}-rt.png`.
+
+**Junction.** No pitch shows a black area or the dark inner walls of a limb.
+
+- −80 and −45: clean, but with the grey streaks and fold-like triangles described above.
+- −10 and +25: the cutaway shows as a visible hole in the trunk wall next to the ant, with leaves and sky seen through the bark. At +25 the hole's upper edge is still fairly hard.
+- +60: as before (`sw0-junction-p60`), the camera is under the limb. Large grey planes of the underside end in a hard curved edge, and the ant stands on that edge against the sky. The edge is softer (dithered) on the left. The thin strip of bark between two holes is gone.
+
+**Bough.** No black area and no view into a limb's interior at any pitch. The branch between the camera and the ant renders dark slate grey-green and heavily blurred.
+
+### Acceptance test 5: signals
+
+- **Wind map, `sig1-trunk-rt.png`** (`Leaf.Exposure 1`, `trunk` view): green and amber spots on the bark round the ant, readable against the new bark. The HUD's "Here: partly exposed" is amber, the same colour as the spots. Red (exposed) is not in frame at this pose.
+- **Leaves, `sig1c-canopy-rt.png`** (`Leaf.Strip 133.8`, `canopy` view): stripped leaves show as brown stalks, clearly different from the green leaves beside them.
+- **Leaves, the rich one:** the two leaves left in `sig1c` are both light green. The pale cream rich leaf shows next to deep plain greens in `sig1d-canopy-rt.png` (`Leaf.Strip 133`) and in `look1-canopy-rt.png`, but those have no stalks in frame. `sig1-canopy` (134.5) and `sig1b` (136) strip the whole twig.
+- **Missing:** a single shot with rich, plain and brown together. A strip height between 133 and 133.8 (for example 133.4) should give it, once the lock is free.
+
+### Still wrong, or for the owner to judge
+
+1. **Shadowed new bark reads slate grey-green rather than brown**: at the junction, on the bough, and most strongly on wood near the camera. Sunlit bark is a good tan. Likely causes are the cool sky light (×3, blue tint) on the new base colour, or the moss. I haven't tested which. The next test: `LOOK="Leaf.Tune look SkyLightColor (R=1;G=1;B=1;A=1)"` on `junction` and `bough`, then `SkyLightIntensity 2`.
+2. **Blur near the camera.** Depth of field now focuses on the ant's real distance, and the boom is 170. Wood within about half a metre of the camera smears into streaks at the junction and on the bough. The route ahead stays readable in `trunk`, `canopy` and `sunward`.
+3. **Fold-like light/dark triangles** on bark seen at a low angle at the junction (`look1-junction`, `sw1-junction-p-80` and `p-45`). This could be the plate normals under grazing light, or mesh facets; stills can't tell which.
+4. **Cutaway holes are still visible** at the junction (−10, +25, +60). They are no longer black and are soft on some sides, but hard at the top at +25 and on the right at +60.
+5. **The ghost leaf outline** (canopy).
+6. **What stills can't judge:** shimmer, and the bark's fine grain in motion; those need the package.
+
+Nothing I saw contradicts the other targets: no black fissure outlines, no haze on near bark in `sunward`, and the leaf and wind-map colours read as listed in the brief.
+
+### Missing shots
+
+- The three-signal leaf shot (rich, plain and brown together), as above.
+- `SHIFT=3` (evening), never verified.
+
+Everything else was taken: `look1` 10 of 10, `sw1` 10 of 10, and both `sig1` shots, plus the strip variants.

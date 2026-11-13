@@ -94,7 +94,34 @@ Scripts/unreal-lock.sh --no-wait|--timeout <min>|--break-stale ...
 
 ## Reference screenshots (`Tools/ref_shots.sh`)
 
-`Tools/ref_shots.sh <label>` takes three fixed views on seed 517192 from the editor binaries (no packaging): up the trunk into the crown (framed like concept image 01), in the canopy, and from the nest at the trunk base. Each runs with hardware ray tracing and with `-noraytracing`. Files land in `Saved/RefShots/<label>-<view>-<rt|nort>.png`. `ONLY=<view>` takes one view, `NO_NORT=1` skips the runs without ray tracing; `TRUNK_T`, `TRUNK_PITCH`, `CANOPY_BRANCH`, `CANOPY_HEADING`, `BASE_HEADING` move the views. The editor must be closed (it goes through the Unreal lock). About 25 s per shot.
+`Tools/ref_shots.sh <label>` takes five fixed views on seed 517192 (day 1, morning shift) from the editor binaries, without packaging. Each view runs with hardware ray tracing and with `-noraytracing`. Files land in `Saved/RefShots/<label>-<view>-<rt|nort>.png`. The views:
+
+- `trunk`: up the trunk into the crown, framed like concept image 01.
+- `canopy`: on a twig in the canopy.
+- `base`: from the nest at the trunk base.
+- `junction`: limb 21 where it leaves the trunk, looking down at −80°. This was the black wedge of the look pass.
+- `sunward`: the trunk's lee side, looking along the bark toward the low sun. This was the amber wash of the owner's shot 1.
+- `bough` (sweeps only, not in the default set): bough 55, 30 cm radius.
+
+Every run uses the save slot `RefShot` (`-LeafSlot=RefShot`), never the owner's colony. The script stops with exit code 3 if `Saved/SaveGames/Leafline.sav` changes while it runs. The editor must be closed: runs go through the Unreal lock. About 30 s per shot.
+
+Options (environment variables):
+
+- `ONLY="junction sunward"` takes those views only. `NO_NORT=1` skips the runs without ray tracing.
+- `LOOK="Leaf.Bark 0,Leaf.Tune look SkyLightIntensity 3"` runs any console commands before the view is placed. Write colours with semicolons, e.g. `(R=0.75;G=0.85;B=1.15;A=1)`.
+- `PITCHES="-80 -45 -10 25 60"` sweeps the camera pitch at each view. Files are named `<label>-<view>-p<pitch>-<mode>.png`.
+- `SHIFT=2` takes the views at noon by sending the first worker home with a fragment first. `SHIFT=3` (evening) is in the script but unverified.
+- `TRUNK_T`, `TRUNK_PITCH`, `CANOPY_BRANCH`, `CANOPY_HEADING`, `BASE_HEADING`, `BASE_PITCH`, `JUNCTION_BRANCH`, `JUNCTION_T`, `JUNCTION_HEADING`, `JUNCTION_PITCH`, `SUN_HEADING`, `SUN_PITCH`, `BOUGH_BRANCH`, `BOUGH_T`, `BOUGH_HEADING` and `BOUGH_PITCH` move the views.
+
+`Tools/ref_shots.sh --probe "<commands>" [seconds]` runs the game once with those commands and no screenshot, then prints the `LogLeafline` lines. Examples: a teleport's branch radius, or `Leaf.LightInfo`. After a teleport, `Leaf.LightInfo` logs the camera position and yaw, which gives the branch heading.
+
+Parallel use:
+
+- All runs share `Saved/Logs/RefShot.log`.
+- All runs share `Saved/RefShots/.marker`, which a run uses to pick out its own screenshot. A concurrent run can therefore lose its screenshot ("no screenshot").
+- Bash reads the script while it runs, so don't edit it in place while a run may be executing. Write a new file and move it into place.
+
+Findings and values from the look pass: `docs/reviews/look-shots.md`.
 
 ## Material code (`Tools/materials`)
 

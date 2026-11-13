@@ -55,8 +55,9 @@ const float DOME = 1.5;         // ridge rounding
 const float GRAIN_DEPTH = 0.12; // fine grain depth
 const float MOSS_AMOUNT = 1.0;
 // Colour (linear)
-const float3 PLATE_DARK = float3(0.13, 0.105, 0.082);
-const float3 PLATE_LIGHT = float3(0.30, 0.25, 0.195);
+// Warmer than first tried (13 Nov): with red/blue about 1.5 shadowed bark read slate grey-green; 2.2 keeps it brown.
+const float3 PLATE_DARK = float3(0.14, 0.095, 0.062);
+const float3 PLATE_LIGHT = float3(0.32, 0.23, 0.145);
 const float3 YOUNG = float3(0.22, 0.15, 0.10);
 const float FISSURE_SHADE = 0.42; // furrow colour as a fraction of the ridge colour beside it
 const float3 MOSS_A = float3(0.085, 0.13, 0.035);
@@ -131,7 +132,7 @@ float m2 = B.VN(qw / float3(20.0, 20.0, 35.0) + 9.0).x;
 float3 Nn = normalize(N.xyz);
 float up = saturate(Nn.z);
 float mossField = m1 * 0.7 + m2 * 0.3 + 0.12 * fis + 0.15 * up + 0.08 * (1.0 - VC.b);
-float moss = smoothstep(0.66, 0.8, mossField) * MOSS_AMOUNT * (1.0 - 0.7 * smallness);
+float moss = smoothstep(0.69, 0.83, mossField) * MOSS_AMOUNT * (1.0 - 0.7 * smallness);
 
 float tone = 0.15 + 0.8 * id;
 float3 plate = lerp(PLATE_DARK, PLATE_LIGHT, tone);
