@@ -15,7 +15,7 @@ namespace
 	const float MilestonesWithRecruits[] = { 20.f, 95.f, 240.f };
 	const float MilestonesByHand[] = { 5.f, 30.f, 80.f };
 	// One tree per stage (FDayTuning::bOneTree): placeholders until Tools/econ_sim.py retunes them.
-	const float MilestonesOneTreeWithRecruits[] = { 50.f, 155.f, 505.f };
+	const float MilestonesOneTreeWithRecruits[] = { 25.f, 155.f, 270.f };
 	const float MilestonesOneTreeByHand[] = { 5.f, 60.f, 95.f };
 	static_assert(UE_ARRAY_COUNT(Table) == LeaflineUpgrades::Count);
 	static_assert(UE_ARRAY_COUNT(Costs) == LeaflineUpgrades::MaxLevel);

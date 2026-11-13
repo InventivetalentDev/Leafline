@@ -149,6 +149,34 @@ Spec: `docs/briefs/the-line.md`; work split and interfaces: `docs/briefs/line-co
   - Seen in the runs: from about day 6 the gusts (peak +15 % a day, lines over 100 m) blow off nearly every laden recruit unless Grip is high. That is the existing difficulty curve; the owner should decide whether to cap it.
 - [x] Leaf colour by richness in `M_Leaf`: base colour blends toward pale young green (0.32, 0.56, 0.11) by vertex alpha × 0.9 (`Constant3Vector_4`, `Multiply_12`, `LinearInterpolate_2`). Subtle in a first look from the trunk; the owner may want it stronger.
 
+## M5c: One tree (Fri; owner's verdict Friday evening, with the line)
+
+Spec: `docs/briefs/one-tree.md`; work split: `docs/briefs/one-tree-contract.md`. Tagged `pre-one-tree` before it started; commits start with `Tree:`. If the owner rejects it, `FDayTuning::bOneTree` ships off and nothing is reverted. It comes before the bird, which moves to Game Off unless this is kept and finished early.
+
+- [x] Persistent tree across days, the flag (`Leaf.OneTree`, latched at dawn), leaves that can no longer be cut (bare stalk, or bitten blade with vertex R = 0 for brown).
+- [x] Saving and loading: bites and the day's routes written with the day's haul at day end, save version 3 (versions 1 and 2 load as 0 and migrate), one leaf-mesh build on load, leaf-count check.
+- [x] Density by height (sparse ×12 over 55 m on tree 1, ×8 over 45 m on trees 2 and 3), stage scaling (`FDayTuning::Stages`), moves at the second and third milestones (one a day), the move card, the climb hint on each tree's first day, "Stripped. Fresh leaves are higher up.", the colony meter's "new tree" marks.
+- [x] Yesterday's trails: faint, ridable, no recruits, gone after the second night and on a move.
+- [x] Wind: direction turns 70–290° a day; within a stage peak force ×(1 + 6 % per day on the tree), the stage's gust multiplier on a move.
+- [x] Codex review of the save and load paths and the day start: 6 findings (mid-day flag toggle, debug purchases saving mid-day haul, stale tree after switching off, reset then day end, recruits-off migration stage, debug move skipping a tree), then 3 more on the fixes (all debug paths); all fixed.
+- [x] Economy numbers from the measured trees (`Tools/econ_sim.py`, `docs/economy.md`): one-tree thresholds 25 / 155 / 270 with recruits, 5 / 60 / 95 by hand.
+- [ ] `M_Leaf`: brown for vertex R = 0 (needs the editor).
+- Acceptance tests (`Tools/tree_test.sh`, slot `TreeTest`; Fri morning):
+  1. Two days, quit, relaunch: same tree (seed 675856), same 6 bites (22,620 pieces left), day 3. Pass.
+  2. Twenty scripted days (lowest leaves first, bough by bough, Brood first to level 2): the 30–40 m band was empty from the morning of day 4 and the lowest cuts climbed from 32.4 m (days 1–3) to 41 m (day 4) and on. Of the six lowest boughs, the ones whose leaves sit below 40 m were bare on day 4; the second-lowest bough's single leaf sits just above 41 m and went on later days. Pass in substance; the low boughs hold two to three days of scout cuts.
+  3. Lowest cut height by day on tree 1: 32.4, 32.4, 32.4, 41.1, 41.1, 44.3 m and up to 58 m before the move; mean height rose with one dip of 0.2 m. On tree 2: 46.1, 49.8, 51.7, 53.2, 59.0, 60.8, 63.3 m. Pass.
+  4. Seven days with 100 haul given each morning: milestone 1 on day 1 did not move the colony; milestone 2 on day 2 moved it to the spreading giant on day 3 (card, fresh leaves, no trails); milestone 3 on day 5 showed the end card and moved it to the tall spire on day 6; play continued there. Pass.
+  5. Economy model on the measured trees (`Tools/econ_sim.py`, `Tools/tree_bands_measured.txt`): with recruits, thresholds 25 / 155 / 270, four days on tree 1, one on tree 2, end card on day 5 at 17.1 min (15.8 skipping harvests); by hand 5 / 60 / 95, four days on tree 1, end card at 18.6 min. Pass (model; needs the owner's play).
+  6. Day start with a kept tree 1–2 ms, with a grown one 300–460 ms. Pass.
+  7. Twenty unattended days with the save read again and the tree regrown from it before every day (`Leaf.AutoPlay 20 3 skip buy reload report`), three runs: every day ended; one run moved twice (tree 2 on day 13, the third milestone on day 20). Pass.
+  8. A copy of the owner's packaged version-2 save (day 12, Grip 2, Brood 1): migrated to version 3 with day, levels and haul kept, a fresh tree for stage 1, and the day played and saved. Pass.
+  9. One tree off: day 1 (seed 517192) 8140 leaves in 21 chunks, richness median 1.74, mean 1.73; day 2 (seed 103900, spreading giant, 27 m) 6731 leaves: identical to `pre-one-tree`, with the old milestone sets. Pass.
+  10. Yesterday's routes load next morning ("3 yesterday's routes", 2839 points after a relaunch), drawn at 0.3, no lines on them, and are replaced the next night and dropped on a move ("0 yesterday's routes" on each move day). Pass (looks: screenshot pending).
+  11. Wind direction on one tree, days 1 to 7 of the first run: 166, 87, 10, 239, 205, 67, 68 degrees: different every day, but 67 and 68 is no change at all, so the direction now turns 70 to 290 degrees a day, rebuilt from the tree's first day. Pass.
+  12. Sparse tree, pool 3 (Brood level 2), lines to the lowest leaves: patches of 1–2 leaves (2–5 pieces); one line 9.0, three lines 36.7. From 60 m up (after `Leaf.Strip 60`): patches of 2–3 leaves (5–7 pieces); one line 19.9, three 41.1. Pass.
+  13. Recruits off with one tree on, twenty scripted days: milestone 2 moved the colony to tree 2, milestone 3 showed the end card on day 14 and moved it to tree 3. All four flag combinations, seven days with 100 haul given each morning: every one reached the end card; with one tree on and recruits off both moves fell due on day 1, and the second followed a day later. Pass.
+  14. Three cuts mid-day, quit, relaunch: day 3 again with 22,620 pieces and 6 bites, mass unchanged (20.39). Pass.
+
 ## M6: Stretch (only if M0–M5b are complete before the freeze; the bird waits for the owner to keep the line)
 
 1. Bird: perches, notices exposed ants, swoops; dropping a food item distracts it. Needs a model (Blender script), simple state machine, and a food pickup. Nothing harmful is shown happening to the bird.

@@ -11,6 +11,7 @@
 #   strip      Leaf.Strip 40, report, Leaf.Move, report (debug commands, move)
 #   auto20     twenty unattended days, buying, save reloaded and tree regrown before each day (tests 2, 3, 4, 7, 11)
 #   moves      seven days with 100 haul given each morning: both moves and the end card (test 4)
+#   combo      OT=0|1 RC=0|1: seven days with 100 haul given each morning, to the end card (all four flag combinations)
 #   recoff     recruits off, twenty days (test 13)
 #   offauto    one tree off, twenty days        offrecoff   one tree and recruits off, twenty days
 #   v2         a copy of a real version-2 save (Saved/SaveGames/TreeTestV2.sav.orig) loads and plays a day (test 8)
@@ -31,6 +32,7 @@ case "$SCEN" in
 	strip)     CMDS="$FRESH,Leaf.Delay 3 Leaf.TreeReport before,Leaf.Delay 4 Leaf.Strip 40,Leaf.Delay 5 Leaf.TreeReport stripped,Leaf.Delay 7 Leaf.Move,Leaf.Delay 10 Leaf.TreeReport moved"; T=${2:-30} ;;
 	auto20)    CMDS="$FRESH,Leaf.Delay 2 Leaf.AutoPlay 20 3 skip buy reload report quit"; T=${2:-2400} ;;
 	moves)     CMDS="$FRESH,Leaf.Delay 2 Leaf.AutoPlay 7 3 skip buy report give100 quit"; T=${2:-900} ;;
+	combo)     CMDS="Leaf.ResetSave,Leaf.OneTree ${OT:-1},Leaf.Recruits ${RC:-1},Leaf.StartDay 1,Leaf.Delay 2 Leaf.AutoPlay 7 3 skip buy give100 quit"; T=${2:-900}; LOGSUF="-ot${OT:-1}-rc${RC:-1}" ;;
 	recoff)    CMDS="Leaf.ResetSave,Leaf.OneTree 1,Leaf.Recruits 0,Leaf.StartDay 1,Leaf.Delay 2 Leaf.AutoPlay 20 3 skip buy report quit"; T=${2:-2400} ;;
 	offauto)   CMDS="Leaf.ResetSave,Leaf.OneTree 0,Leaf.Recruits 1,Leaf.StartDay 1,Leaf.Delay 2 Leaf.AutoPlay 20 3 skip buy quit"; T=${2:-2400} ;;
 	offrecoff) CMDS="Leaf.ResetSave,Leaf.OneTree 0,Leaf.Recruits 0,Leaf.StartDay 1,Leaf.Delay 2 Leaf.AutoPlay 20 3 skip buy quit"; T=${2:-2400} ;;
@@ -40,7 +42,7 @@ case "$SCEN" in
 	custom)    CMDS="${TCMDS:?set TCMDS to the commands}"; T=${2:-60} ;;
 	*) echo "unknown scenario $SCEN"; exit 1 ;;
 esac
-LOG=TreeTest-$SCEN.log
+LOG=TreeTest-$SCEN${LOGSUF:-}.log
 MARK=$ROOT/Saved/RefShots/.tree-marker
 mkdir -p "$ROOT/Saved/RefShots" && touch "$MARK"
 (cd /mnt/c && timeout $((T + 120)) "$ROOT/Scripts/unreal-lock.sh" "treetest-$SCEN" -- cmd.exe /c "D:\\UnrealProjects\\AntTreeGame\\Scripts\\RunGame.bat" "$LOG" \

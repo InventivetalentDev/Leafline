@@ -62,7 +62,8 @@
   - Done: walking on another worker's scent trail is now 1.7 times as fast (your own trail under your feet does not count); it eases in and out. Riding with F is still there for now; say if it should go. In the package of 13 Nov 09:16.
 - [ ] the walking animation is basically invisible from behind, just looks static
 - [ ] the wind risk is really hard to judge from just the UI, maybe some kind of overlay vision while holding Tab that colors in green-red how exposed an area is?
-- [ ] potentially get rid of the whole "new day new tree" thing and make gathering more tricky as time goes on that way; needing to go further up the tree each day
+- [x] potentially get rid of the whole "new day new tree" thing and make gathering more tricky as time goes on that way; needing to go further up the tree each day
+  - Done (brief `docs/briefs/one-tree.md`): the colony keeps one tree; cut leaves stay cut, across quitting too, and never grow back. The low boughs are sparse and run out in a few days, so you climb into more wind. The colony moves to a new, taller tree at the second and third milestones. Off switch: `Leaf.OneTree 0`. Not in a package yet.
 
 ## To revisit: thin-branch controls (2026-11-12)
 

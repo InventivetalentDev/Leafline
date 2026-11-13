@@ -6,9 +6,9 @@ Run the deterministic, standard-library-only model from the project root:
 python3 Tools/econ_sim.py --check-cpp
 ```
 
-It prints each day's wall-clock time, cumulative time, expected haul, lifetime haul, recruit pool, recruit trips, expected pieces lost, unreserved patch pieces left, harvest simulation seconds, and purchases. The optional `--check-cpp` also reads `Upgrades.cpp` and checks its costs, milestones, and every effect ladder against the recommendation. The script never starts Unreal or accesses a save.
+It prints each day's wall-clock time, cumulative time, expected haul, lifetime haul, recruit pool, recruit trips, expected pieces lost, unreserved patch pieces left, harvest simulation seconds, and purchases. It then prints the one-tree campaigns, including tree/day, cut height, and remaining low-band supply. The optional `--check-cpp` reads `Upgrades.cpp` and `ColonyTypes.h` to check costs, all four milestone sets, effect ladders, stage defaults, and the within-tree gust rise. The script never starts Unreal or accesses a save.
 
-The current recommendation meets the pacing and haul-growth targets in this model:
+With one tree **off**, the unchanged recommendation meets the pacing and haul-growth targets in this model:
 
 | Mode | End-card day | Played time | Day-one haul | Final-day haul | Haul growth |
 |---|---:|---:|---:|---:|---:|
@@ -30,7 +30,7 @@ All five upgrades have six purchasable levels. Costs for levels 1–6 are **14 /
 | Stamina, sprint-drain multiplier | 1 | 0.8 | 0.65 | 0.5 | 0.4 | 0.32 | 0.25 |
 | Brood, shared recruit pool | 0 | 2 | 3 | 4 | 6 | 8 | 10 |
 
-Lifetime-haul milestones are **20 / 95 / 240** with recruits and **5 / 30 / 80** by hand. Spending never reduces lifetime haul. Scouts remain three per day at every Brood level. High upgrade levels remain available after the end card; a fresh campaign does not need to max them.
+With one tree off, lifetime-haul milestones are **20 / 95 / 240** with recruits and **5 / 30 / 80** by hand. The separate one-tree sets are described below. Spending never reduces lifetime haul. Scouts remain three per day at every Brood level. High upgrade levels remain available after the end card; a fresh campaign does not need to max them.
 
 The script evaluates the six steep cost ladders in `COST_CANDIDATES`. For each, it runs both modes from an empty colony. It chooses the day end nearest 17.5 minutes, rejects candidates outside the pacing/growth windows, then scores the survivors by time error plus logarithmic error from 10× haul growth. Milestones are 10%, 40%, and 100% of that final cumulative haul, rounded down to multiples of five. The final threshold must fall above the previous day's haul and within the selected day's haul.
 
@@ -101,10 +101,38 @@ In the separate day-four comparison, the other four upgrades are level 1 and the
 
 ## Save and integration notes
 
-`ULeaflineSaveGame::CurrentVersion` is 2. A version-1 colony keeps its balance, lifetime haul, day, seed, end-card flag, and existing upgrade levels (clamped to 0–6); the new best-day record starts at zero because the old file has no day-haul history. Loading v1 sanitizes it and attempts to save v2 immediately. Unsupported versions start fresh. Brood levels keep their numeric level and now represent recruits.
+The line economy used save version 2. In that migration, a version-1 colony kept its balance, lifetime haul, day, seed, end-card flag, and existing upgrade levels (clamped to 0–6); the new best-day record started at zero because the old file had no day-haul history. Brood levels kept their numeric level and began representing recruits. The one-tree work raises the save version again and adds bites and stage state; its save implementation and migration are owned by the main session. This simulator neither reads saves nor verifies migration.
 
 `BestDayHaul` is saved. `RecordDayHaul` accepts a higher finite haul, broadcasts the change, and leaves persistence to `SaveNow`. The recruit flag defaults to true and remains runtime-only; `SetRecruitsEnabled` broadcasts changes, and the pool and milestone queries use the current flag. `GetWorkersPerDay(Base)` always returns `Base`.
 
 For integration tests, launch with a unique option such as `-LeafSlot=LineEconomyTest`. Loading, purchases, reset, migration, and explicit saves all use that selected slot; the default remains `Leafline`, user index zero. `Leaf.Give <mass>`, `Leaf.Buy <0..4>`, `Leaf.ResetSave`, and `Leaf.Upgrades` keep their existing syntax. `Leaf.Upgrades` reports levels through 6, pool, best day, and the current milestone set. `Leaf.ResetSave` resets the selected slot.
 
 C++ compilation, actual save migration, state-machine termination, and runtime performance remain for the main session's Unreal verification. No engine build or launch was used to produce these recommendations.
+
+## One tree per stage
+
+With `FDayTuning::bOneTree` on, measured supply gives these thresholds. Costs, upgrade effects, and one-tree-off tuning stay unchanged.
+
+| Mode | Lifetime-haul thresholds | Days on tree 1 / tree 2 | End-card day | Watched harvest | Skipped harvest |
+|---|---|---|---:|---:|---:|
+| Recruits enabled | **25 / 155 / 270** | 4 / 1 | 5 | **17.13 min** | 15.83 min |
+| By hand | **5 / 60 / 95** | 4 / 1 | 5 | **18.57 min** | 18.57 min |
+
+Both modes move to tree 2 on day 5 and start tree 3 on day 6 when continuing after the end card. Only the second and third milestones trigger moves, at most one per dawn. Tuning targets day four for the second milestone and an end day nearest 17.5 minutes within 15–20 minutes, rounding lifetime-haul thresholds down to five.
+
+Retain the updated stage defaults. Configured leafy height is a generation parameter; actual first leaves appear higher.
+
+| Tree | Trunk multiplier | Configured leafy height | Observed first leaves | Richness multiplier | Gust multiplier | Sparse spacing / blend |
+|---|---:|---:|---:|---:|---:|---|
+| Old giant | 1.0 | 20 m | 32.4 m | 1.0 | 1.0 | 12 / 55 m |
+| Spreading giant | 1.4 | 26 m | about 36 m | 1.3 | 1.2 | 8 / 45 m |
+| Tall spire | 1.15 | 32 m | about 33 m | 1.6 | 1.4 | 8 / 45 m |
+
+Assumptions and limits:
+
+- `TREE_SUPPLY` loads [the measured reports](../Tools/tree_bands_measured.txt): **22,626 / 19,392 / 29,820** template-0.5 pieces. Absolute 10 m bands use the observed first-leaf height initially and lower edges thereafter. Results represent these three seeds.
+- Low patches use 1/2/3 leaves; higher patches retain the old estimate. Bands pool supply and reserve distinct scout patches. Cuts consume one unit, or 1.5 above size 0.6, including lost pieces. Uncut supply survives overnight; bite geometry and patch reach remain approximate.
+- Learning, purchases, routes, and shelter remain player estimates. Yesterday's trails provide 55% shared-route riding; move cards cost four seconds. Gust peaks rise 6% per day on a tree with stage multipliers. Skipping harvest preserves cuts, losses, supply, and haul.
+- Scripted lowest cuts plateau before reaching 57.9 m on day 13. Its random 0.3–0.95 sizes and days losing every recruit trip are not the modeled player's choices or expected losses. Strictly rising daily height and exact bough depletion remain unverified.
+
+`python3 Tools/econ_sim.py --check-cpp` validates all four milestone sets, stage defaults, finite supply/trips, deferred moves, continuation, and harvest equivalence. One-tree-off simulation results remain unchanged.
