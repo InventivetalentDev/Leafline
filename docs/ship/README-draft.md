@@ -28,7 +28,8 @@ Made by one person (team `inventivetalent`) for the Epic AI MegaJam 2026 (theme:
 | Grip (hold, in a gust) | Space | A (bottom face button) |
 | Send home | Q | Y (top face button) |
 | Follow a trail (hold) | F | Right bumper |
-| Switch ant | Tab | Left bumper |
+| Switch ant (tap) | Tab | Left bumper |
+| Wind map (hold): bark dots, green sheltered to red exposed | Tab | Left bumper |
 | Pause | Esc or P | Start |
 
 The pause menu has options for mouse sensitivity, inverted look, volume and graphics quality. On thin branches W and S walk along the branch and A and D walk round it.

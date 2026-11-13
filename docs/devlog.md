@@ -87,3 +87,12 @@ Leafline is made by one person directing AI agents. Claude (Anthropic) does plan
 - Leaves that can no longer be cut look bare from a distance: the blade goes and the stalk stays.
 - Work split: the main session wrote the day flow, save and wind; a Claude agent did the leaf density, bare stalks, saved bites and a tree report; two smaller Claude agents did yesterday's trails and the HUD (move card, hints, meter marks); Codex rebuilt the economy model on the measured trees (end card at 17 minutes with recruits, 18.6 by hand, four days on the first tree) and reviewed the save, load and day start: nine findings over two passes, all fixed.
 - Testing needed a scripted colony that behaves a little like a player: it now buys recruits first and cuts the lowest leaves left, bough by bough. In twenty such days the mean height of the day's cuts on the first tree climbed from 37 m to 60 m before the move, and the three lowest boughs were bare by the fourth morning.
+
+## 2026-11-13 (Fri afternoon): playtest notes
+
+- Wind map: hold Tab (LB on a pad) and the bark round the ant fills with coloured dots, green sheltered to red exposed, from the same exposure test as the HUD's "Here: ..." line. A tap of Tab still switches workers. A Claude agent wrote the overlay from a brief; the main session did the input, HUD and material.
+- Walking round mid-size limbs could stall at the far side: a new test (`Leaf.Orbit`) showed the ant turning back along a 140 cm limb, where the A/D steering wheel was only half on. It now applies on every limb; only the trunk stays camera-relative.
+- The walk was invisible from behind because the legs cycled 14 to 28 times a second, which aliases at 60 fps. Slower strides, higher steps and a body sway with each stride.
+- When the last scout heads home with no recruit trips (day 1, for one), its walk home now plays fast and can be skipped.
+- Scent trails got a first smoke look: a soft drifting haze with an upright ribbon, fading with distance.
+- Housekeeping: 45 files had been committed as executable because Windows-made files look executable on the WSL mount; GitHub Desktop listed them all as changed.

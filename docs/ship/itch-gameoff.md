@@ -27,7 +27,7 @@ You are a leafcutter ant on an enormous tree. You climb, lay a scent trail and c
 3. At a leaf, hold the cut button. An arc shows the size of the piece, coloured by the wind risk for that size. Release to cut.
 4. Press Send home. The loaded ant walks back along its trail and you take over the next worker.
 5. Recruits follow the line your piece makes, cut pieces from the leaves around your cut and carry them home. Patches run dry, so lay new lines.
-6. When a gust warning sounds, hold Grip or move to the side of the tree away from the wind arrow. A large piece on an exposed spot is blown off.
+6. When a gust warning sounds, hold Grip or move to the side of the tree away from the wind arrow. A large piece on an exposed spot is blown off. Hold Tab to see the wind map: dots on the bark around you, green where it is sheltered, red where it is exposed.
 7. After the day, read the recap, then spend leaf mass at the nest on Mandibles, Strength, Grip, Stamina and Brood.
 8. Cut leaves stay cut and do not grow back, so you climb higher and meet stronger wind. After the third milestone an end card appears and play continues.
 
@@ -42,7 +42,8 @@ You are a leafcutter ant on an enormous tree. You climb, lay a scent trail and c
 | Grip (hold) | Space | A |
 | Send home | Q | Y |
 | Follow a trail (hold) | F | Right bumper |
-| Switch ant | Tab | Left bumper |
+| Switch ant (tap) | Tab | Left bumper |
+| Wind map (hold): bark dots, green sheltered to red exposed | Tab | Left bumper |
 | Pause | Esc or P | Start |
 
 ## What is procedural

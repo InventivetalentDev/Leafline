@@ -178,6 +178,20 @@ Spec: `docs/briefs/one-tree.md`; work split: `docs/briefs/one-tree-contract.md`.
   13. Recruits off with one tree on, twenty scripted days: milestone 2 moved the colony to tree 2, milestone 3 showed the end card on day 14 and moved it to tree 3. All four flag combinations, seven days with 100 haul given each morning: every one reached the end card; with one tree on and recruits off both moves fell due on day 1, and the second followed a day later. Pass.
   14. Three cuts mid-day, quit, relaunch: day 3 again with 22,620 pieces and 6 bites, mass unchanged (20.39). Pass; re-run on the final build after the review fixes: pass (mass 18.69 before and after).
 
+## Playtest round, Fri 13 Nov afternoon
+
+From `docs/playtest-notes.md`; each feel change has an off switch for the owner's verdict tonight.
+
+- [x] Wind map on held Tab / LB (`AExposureOverlay`, brief `docs/briefs/exposure-overlay.md`, `M_Exposure`); tap still switches workers. 1,459 to 1,940 dots within 7 m, filled in 0.9 to 1.4 s.
+- [x] Steering wheel full up to 200 cm radius, fading by 320 cm (was 90 / 200). `Leaf.Orbit`: the 140 cm limb that turned the ant back now 2.6 laps in 12 s, three runs; 40 cm 9 laps, 90 cm 4.1, trunk unchanged.
+- [x] Gait: 36 cm per leg cycle, at most 7 Hz (was 14 cm, 14 to 28 Hz); body rocks 4°, wags 3°, bobs 0.45 cm; `M_Ant` lift 2.2 cm, swing 2.8 cm. Stills only.
+- [x] Walk-home fast-forward (`FDayTuning::bFastForwardHome`): seven scripted days with recruits off and seven with recruits on all ended, every recruits-off day and day 1 with recruits on through it.
+- [x] Smoke trails (`M_TrailSmoke`, `SmokeHeight` 6 cm, `Leaf.Smoke 0|1`). Stills only.
+- [x] One tree off still identical (seed 517192: 8140 leaves; 103900: 6731).
+- [x] Package and zip from f92ca3b (13 Nov 12:52, 463.5 MB); packaged smoke test in slot `PackSmoke`: two days with the fast-forward and the wind map, no fatal lines.
+- [ ] Owner's verdict on all of the above, the line and one tree.
+- [ ] Still open: key and pad icons (owner: the Xelu pack, Xbox-style buttons for every pad), trail outlines, PS5 audio check. Aiming stays as it is (owner).
+
 ## M6: Stretch (only if M0–M5b are complete before the freeze; the bird waits for the owner to keep the line)
 
 1. Bird: perches, notices exposed ants, swoops; dropping a food item distracts it. Needs a model (Blender script), simple state machine, and a food pickup. Nothing harmful is shown happening to the bird.
