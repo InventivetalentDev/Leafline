@@ -114,7 +114,7 @@ void ALeaflineHUD::DrawHUD()
 		const UAntMovementComponent* M = Ant->GetAntMovement();
 		FString Goal;
 		// Leaves grow on boughs and twigs above LowestLeafyHeight, and the first limbs start at LimbStartHeight.
-		const float LeavesFrom = D->GetTree() ? FMath::Max(D->GetTree()->Params.LowestLeafyHeight, D->GetTree()->Params.LimbStartHeight) : 3000.f;
+		const float LeavesFrom = D->GetLowestLeafyHeight();
 		const bool bLow = M && M->GetSurfacePosition().Z < LeavesFrom - 600.f;
 		if (bTreeFirstDay && Ant->GetWorkerIndex() == 0 && D->GetStats().Fragments == 0 && !Ant->IsCarrying() && M && M->GetState() == EAntState::Walking && bLow)
 		{
@@ -126,7 +126,7 @@ void ALeaflineHUD::DrawHUD()
 		}
 		if (!Goal.IsEmpty())
 		{
-			DrawTextCentered(Goal, Canvas->ClipX * 0.5f, 40.f * Scale, AccentColor, 1.2f * Scale, GEngine->GetMediumFont());
+			DrawTextCentered(Goal, Canvas->ClipX * 0.5f, 118.f * Scale, AccentColor, 1.2f * Scale, GEngine->GetMediumFont());
 		}
 	}
 	if (Ant)

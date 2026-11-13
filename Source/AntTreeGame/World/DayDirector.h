@@ -137,7 +137,8 @@ public:
 	bool HasMovedToday() const { return bMovedToday; }
 	/** "The colony moves to a tall spire" (the move card). */
 	FString GetMoveCardText() const;
-	/** Lowest leafy branch of today's tree (cm). */
+	/** Where today's leaves start (cm): with one tree on, the lowest leaf that could be cut when the tree was grown; else the
+	 *  lowest leafy branch. */
 	float GetLowestLeafyHeight() const;
 	/** The next day starts on a new tree (set at day end, when the second or third milestone was reached). */
 	bool IsMoveDue() const;

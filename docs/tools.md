@@ -24,6 +24,12 @@ py Tools\strip_image_metadata.py                 # from Windows
 
 `Tools/line_test.sh <scenario>` runs one unattended day (or twenty) of the line from the editor binaries, in its own save slot (`-LeafSlot=LineTest`), and prints the day summaries from the log. The editor must be closed (runs go through the Unreal lock). Scenarios: `smoke`, `watch` / `skip` and `windwatch` / `windskip` (a watched versus a skipped harvest of the same day; use `DAYN=2` for losses), `lines1` / `lines3`, `exposed` / `sheltered` / `small`, `dry` (a patch runs dry while scouts wait), `shots` (HUD screenshots into `Saved/RefShots/line-shots-*.png`), `perfbase` / `perfpool` / `perfharvest` (frame times with the CSV profiler), `migrate` (loads `Saved/SaveGames/LineTestV1.sav`), `auto` (twenty days with `Leaf.AutoPlay`). Environment: `SEED`, `POOL`, `DAYN`. Logs: `Saved/Logs/LineTest-<scenario>.log`.
 
+Since one tree per stage (13 Nov) is on by default, the recorded line numbers (seed 517192, the old tree) need `Leaf.OneTree 0` before `Leaf.StartDay`; without it the same commands run on that seed's sparse one-tree version.
+
+## tree_test.sh
+
+`Tools/tree_test.sh <scenario>` runs the one-tree acceptance tests (`docs/briefs/one-tree.md`) from the editor binaries in the save slot `TreeTest` (the editor must be closed). Scenarios: `flagoff` (one tree off, days 1 and 2, compare leaf counts with `pre-one-tree`), `fresh` (tree report and patch survey of a fresh first tree), `play2` then `relaunch` (two days, then load the slot), `midquit` then `relaunch` (cut mid-day, quit, reload: the day restarts with nothing from it), `strip` (`Leaf.Strip`, `Leaf.Move`), `moves` (seven days with 100 haul given each morning: both moves and the end card), `auto20` (twenty days, save reloaded and tree regrown every morning, tree report each morning), `recoff`, `offauto`, `offrecoff`, `combo` (with `OT=0|1 RC=0|1`: each flag combination to the end card), `v2` (a copy of a real version-2 save, `Saved/SaveGames/TreeTestV2.sav.orig`), `shots`, `custom` (the commands in `$TCMDS`). Logs: `Saved/Logs/TreeTest-<scenario>.log`. `Tools/tree_bands_measured.txt` holds the measured supply per stage that `Tools/econ_sim.py` reads.
+
 ## econ_sim.py
 
 `python3 Tools/econ_sim.py [--check-cpp]` (Codex) models a fresh save to the end card with the line on and off, and prints a per-day table and the recommended upgrade costs and milestones; `--check-cpp` checks `Game/Upgrades.cpp` against them. Assumptions are named constants at the top; details in `docs/economy.md`.

@@ -155,7 +155,27 @@ FString ADayDirector::GetMoveCardText() const
 
 float ADayDirector::GetLowestLeafyHeight() const
 {
-	return Tree ? FMath::Max(Tree->Params.LowestLeafyHeight, Tree->Params.LimbStartHeight) : 3000.f;
+	if (!Tree) return 3000.f;
+	const float FromParams = FMath::Max(Tree->Params.LowestLeafyHeight, Tree->Params.LimbStartHeight);
+	if (!Tuning.bOneTree) return FromParams;
+	// One tree per stage: the sparse low zone puts the first leaves well above LowestLeafyHeight, so this is the lowest leaf
+	// that can still be cut, found once per grown tree (seed and leaf count).
+	static int32 CachedSeed = -1;
+	static int32 CachedCount = -1;
+	static float CachedZ = 0.f;
+	const FLeafSet& Leaves = Tree->GetLeaves();
+	if (CachedSeed != Tree->GetSeed() || CachedCount != Leaves.Num())
+	{
+		float Z = TNumericLimits<float>::Max();
+		for (int32 i = 0; i < Leaves.Num(); ++i)
+		{
+			if (Leaves.Get(i).CanCut()) Z = FMath::Min(Z, (float)Leaves.Get(i).Base.Z);
+		}
+		CachedZ = Z < TNumericLimits<float>::Max() ? Z : FromParams;
+		CachedSeed = Tree->GetSeed();
+		CachedCount = Leaves.Num();
+	}
+	return CachedZ;
 }
 
 bool ADayDirector::IsMoveDue() const
