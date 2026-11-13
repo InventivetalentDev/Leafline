@@ -3,6 +3,8 @@
 #include "Engine/World.h"
 #include "Game/LeaflineGameInstance.h"
 #include "HAL/IConsoleManager.h"
+#include "Colony/TrailNetwork.h"
+#include "EngineUtils.h"
 #include "Tree/TreeActor.h"
 #include "World/DayDirector.h"
 
@@ -79,6 +81,21 @@ namespace
 		D->DebugForceRegrow();
 		D->StartDay(D->GetDay());
 	}
+
+	/** Leaf.Smoke [0|1]: the trails' smoke look or the plain ribbon (toggle with no argument). */
+	void Smoke(UWorld* World, const TArray<FString>& Args)
+	{
+		if (!World) return;
+		for (TActorIterator<ATrailNetwork> It(World); It; ++It)
+		{
+			It->SetSmoke(Args.Num() > 0 ? FCString::Atoi(*Args[0]) != 0 : !It->IsSmoke());
+		}
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs CmdSmoke(
+		TEXT("Leaf.Smoke"),
+		TEXT("Leaf.Smoke [0|1]: scent trails as a thin haze with an upright ribbon (1, default) or the plain flat ribbon (0); no argument toggles."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World) { Smoke(World, Args); }));
 
 	FAutoConsoleCommandWithWorldAndArgs CmdStage(
 		TEXT("Leaf.Stage"),

@@ -16,7 +16,26 @@ ATrailNetwork::ATrailNetwork()
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> BasicMat(TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
 	if (BasicMat.Succeeded()) FallbackMaterial = BasicMat.Object;
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> TrailMat(TEXT("/Game/Leafline/Materials/M_Trail.M_Trail"));
-	if (TrailMat.Succeeded()) TrailMaterial = TrailMat.Object;
+	if (TrailMat.Succeeded()) PlainMaterial = TrailMat.Object;
+	// The smoke look (playtest: "more like 3d smoke, and only faintly visible far away"); Leaf.Smoke 0 goes back.
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> SmokeMat(TEXT("/Game/Leafline/Materials/M_TrailSmoke.M_TrailSmoke"));
+	if (SmokeMat.Succeeded()) SmokeMaterial = SmokeMat.Object;
+	TrailMaterial = SmokeMaterial ? SmokeMaterial.Get() : PlainMaterial.Get();
+	if (!SmokeMaterial) SmokeHeight = 0.f;
+}
+
+void ATrailNetwork::SetSmoke(bool bOn)
+{
+	TrailMaterial = bOn && SmokeMaterial ? SmokeMaterial.Get() : PlainMaterial.Get();
+	SmokeHeight = bOn && SmokeMaterial ? SmokeLookHeight : 0.f;
+	MaterialInUse = nullptr;
+	for (int32 p = 0; p < Paths.Num(); ++p)
+	{
+		const int32 LastChunk = FMath::Max(Paths[p].Points.Num() - 2, 0) / ChunkSize;
+		for (int32 c = 0; c <= LastChunk; ++c) RebuildChunk(p, c);
+	}
+	UE_LOG(LogLeafline, Log, TEXT("Trails: %s look (%s, upright ribbon %.0f cm)"), bOn ? TEXT("smoke") : TEXT("plain"),
+		TrailMaterial ? *TrailMaterial->GetName() : TEXT("none"), SmokeHeight);
 }
 
 FIntVector ATrailNetwork::Cell(const FVector& P) const

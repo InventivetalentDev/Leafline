@@ -281,6 +281,7 @@ Console commands pay for themselves, because verification is done by driving Pla
 | `Leaf.StartDay <day> [seed]` | Start that day now (after `Leaf.ResetSave`, for repeatable tests) |
 | `Leaf.AtSim <seconds> <command...>` | Run a console command at that sim time of the day, between fixed steps (repeatable tests: the same day plays the same) |
 | `Leaf.Cycle` | The cycle button (Tab): next worker in a shift, next view in the harvest (in play a tap of Tab switches workers on release; holding it shows the wind map) |
+| `Leaf.Smoke [0\|1]` | Scent trails as a thin haze (`M_TrailSmoke` plus an upright ribbon, the default) or the plain flat ribbon (`M_Trail`); no argument toggles |
 | `Leaf.Exposure [0\|1]` | Show or hide the wind map (exposure spots on the bark round the ant, the HUD's bands and colours); no argument toggles |
 | `Leaf.Orbit [seconds] [radius cm] [n]` | Hold screen-right and log the turn round the branch every 0.5 s and a summary (laps, half-seconds with under 15 cm of way round); with a radius, first go to the limb or bough point of about that radius on the n-th best match (the tangent-point test) |
 | `Leaf.LineInfo` | Log every line (home, lost, patch left, reserved, recruits on it) and the pool |

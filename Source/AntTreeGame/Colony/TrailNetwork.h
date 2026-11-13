@@ -43,7 +43,14 @@ public:
 	 * 0: no upright ribbon (the flat ribbon only, as before).
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trail")
-	float SmokeHeight = 0.f;
+	float SmokeHeight = 6.f;
+	/** SmokeHeight that SetSmoke(true) restores. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trail")
+	float SmokeLookHeight = 6.f;
+
+	/** Smoke look (M_TrailSmoke and the upright ribbon) or the plain ribbon (M_Trail, no upright); rebuilds every chunk. */
+	void SetSmoke(bool bOn);
+	bool IsSmoke() const { return SmokeMaterial && TrailMaterial == SmokeMaterial; }
 
 	/** A point closer than this to another path's ribbon is not drawn again (cm). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trail")
@@ -129,4 +136,8 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UMaterialInterface> FallbackMaterial;
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInterface> PlainMaterial;
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInterface> SmokeMaterial;
 };

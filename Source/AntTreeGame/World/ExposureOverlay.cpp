@@ -43,6 +43,9 @@ AExposureOverlay::AExposureOverlay()
 	Mesh->SetVisibility(false);
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> VertexColorMat(TEXT("/Engine/EngineDebugMaterials/VertexColorMaterial.VertexColorMaterial"));
 	if (VertexColorMat.Succeeded()) FallbackMaterial = VertexColorMat.Object;
+	// Unlit soft dots in the band colours (the fallback is lit and washes them out to pastels).
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> SpotMat(TEXT("/Game/Leafline/Materials/M_Exposure.M_Exposure"));
+	if (SpotMat.Succeeded()) SpotMaterial = SpotMat.Object;
 }
 
 AExposureOverlay* AExposureOverlay::Get(UWorld* World)
@@ -76,9 +79,11 @@ FLinearColor AExposureOverlay::BandColor(int32 Band)
 {
 	switch (Band)
 	{
-	case 0: return FLinearColor(0.6f, 0.95f, 0.5f);
-	case 1: return FLinearColor(1.f, 0.8f, 0.35f);
-	default: return FLinearColor(0.85f, 0.35f, 0.25f); // the HUD's StaminaLockedColor
+	// The HUD's three colours raised to the power 2.2: same hues, but as linear emissive on the bark the HUD values
+	// came out pastel (pink, cream, mint), so the map read weakly.
+	case 0: return FLinearColor(0.32f, 0.89f, 0.22f);
+	case 1: return FLinearColor(1.f, 0.61f, 0.10f);
+	default: return FLinearColor(0.70f, 0.10f, 0.05f); // the HUD's StaminaLockedColor (0.85, 0.35, 0.25)
 	}
 }
 
