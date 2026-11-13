@@ -153,6 +153,14 @@ namespace
 	 */
 	constexpr float BuriedDepthPerRadius = 0.2f;
 
+	/**
+	 * Hide a parent's bark inside a child's base (the trunk column seen inside a limb through the cutaway: the black
+	 * wedge of look pass 1). Off since look pass 2: across coarse triangles it cut visible holes in limbs and roots three
+	 * times, and the cutaway now opens only when wood really hides the ant, so the wedge rarely shows. Child bark buried
+	 * in its parent is still hidden.
+	 */
+	constexpr bool bMaskParentInChild = false;
+
 	/** First index whose SampleDist is >= S (NS if none). */
 	int32 FirstSampleAtLeast(const FTreeBranch& B, float S)
 	{
@@ -282,7 +290,7 @@ void TreeMeshBuilder::Build(const FTreeSkeleton& S, FTreeMeshData& Out)
 		// The parent's rings near the junction against the child's base.
 		const float WinC = 3.f * Rc0 + 60.f + BuriedMargin;
 		int32 CLo, CHi;
-		if (bBaseSealed && SegmentWindow(Child, 0.f, 2.f * (Rp + Rc0) + 60.f + BuriedMargin, CLo, CHi)
+		if (bMaskParentInChild && bBaseSealed && SegmentWindow(Child, 0.f, 2.f * (Rp + Rc0) + 60.f + BuriedMargin, CLo, CHi)
 			&& SegmentWindow(Par, Sp - WinC, Sp + WinC, SegLo, SegHi))
 		{
 			const int32 RV = Ranges[p].M + 1;

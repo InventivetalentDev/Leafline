@@ -5,6 +5,14 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "UObject/ConstructorHelpers.h"
 
+namespace
+{
+	// SM_Nest (Tools/blender/make_nest.py) is authored for the default mound, 120 cm radius and 7 cm high, with its origin
+	// at the mound centre on the ground. Its surface follows the walking field there; other sizes scale it.
+	constexpr float NestMeshRadius = 120.f;
+	constexpr float NestMeshHeight = 7.f;
+}
+
 ANestActor::ANestActor()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -37,6 +45,7 @@ ANestActor::ANestActor()
 void ANestActor::BeginPlay()
 {
 	Super::BeginPlay();
+	if (EnsureNestMesh()) return;
 	if (SoilMaterial && DarkMaterial)
 	{
 		Mound->SetMaterial(0, SoilMaterial);
@@ -53,8 +62,49 @@ void ANestActor::BeginPlay()
 	}
 }
 
+bool ANestActor::EnsureNestMesh()
+{
+	if (bNestMeshTried) return NestMesh != nullptr;
+	bNestMeshTried = true;
+	// Loaded by path (the folder is always cooked) so a missing asset only falls back to the sphere and disc.
+	NestMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/Leafline/Meshes/SM_Nest.SM_Nest"), nullptr, LOAD_NoWarn | LOAD_Quiet);
+	if (!NestMesh)
+	{
+		UE_LOG(LogLeafline, Warning, TEXT("SM_Nest not found; the nest uses the sphere and disc"));
+		return false;
+	}
+	Mound->SetStaticMesh(NestMesh);
+	Mound->SetRelativeLocation(FVector::ZeroVector);
+	// Slot 0 soil, slot 1 the leaf scraps lying on the mound.
+	UMaterialInterface* Soil = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Leafline/Materials/M_NestSoil.M_NestSoil"), nullptr, LOAD_NoWarn | LOAD_Quiet);
+	if (!Soil)
+	{
+		UE_LOG(LogLeafline, Warning, TEXT("M_NestSoil not found; the nest uses M_Ground"));
+		Soil = SoilMaterial;
+	}
+	if (Soil) Mound->SetMaterial(0, Soil);
+	if (UMaterialInterface* Leaf = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Leafline/Materials/M_Leaf.M_Leaf"), nullptr, LOAD_NoWarn | LOAD_Quiet))
+	{
+		Mound->SetMaterial(1, Leaf);
+	}
+	// The entrance is in the mesh's vertex colours; the disc goes.
+	Hole->SetVisibility(false);
+	MoundScale = FVector(MoundRadius / NestMeshRadius, MoundRadius / NestMeshRadius, MoundHeight / NestMeshHeight);
+	Mound->SetRelativeScale3D(MoundScale);
+	UE_LOG(LogLeafline, Log, TEXT("Nest: SM_Nest for a %.0f x %.0f cm mound"), MoundRadius, MoundHeight);
+	return true;
+}
+
 void ANestActor::SetMoundSize(float Radius, float Height)
 {
+	MoundRadius = Radius;
+	MoundHeight = Height;
+	if (EnsureNestMesh())
+	{
+		MoundScale = FVector(Radius / NestMeshRadius, Radius / NestMeshRadius, Height / NestMeshHeight);
+		Mound->SetRelativeScale3D(MoundScale);
+		return;
+	}
 	// The engine sphere has a 50 cm radius.
 	MoundScale = FVector(Radius / 50.f, Radius / 50.f, Height / 50.f);
 	Mound->SetRelativeScale3D(MoundScale);
@@ -72,6 +122,9 @@ void ANestActor::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 	if (Pulse <= 0.f) return;
 	Pulse = FMath::Max(0.f, Pulse - DeltaTime * 1.5f);
-	const float S = 1.f + 0.12f * FMath::Sin(Pulse * PI) * Pulse;
+	// SM_Nest follows the walking surface: a sideways pulse lifts the rim off it (about 1 cm even at 0.05), and deposits
+	// come in a stream during the harvest, so the mesh does not pulse; the deposit sound and the "+N" still mark it.
+	const float Amp = NestMesh ? 0.f : 0.12f;
+	const float S = 1.f + Amp * FMath::Sin(Pulse * PI) * Pulse;
 	Mound->SetRelativeScale3D(MoundScale * FVector(S, S, 1.f));
 }
