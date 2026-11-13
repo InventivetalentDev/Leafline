@@ -233,7 +233,12 @@ Tagged `pre-look` before it started. Commits start `Look:` (and `HUD:` for the H
 - [x] Nest checks (test 7, a Claude agent): the ant neither floats nor sinks from four sides. First import had dropped the vertex colours (black mound, bleached ground through exposure, glowing scraps): fixed with SM_Nest2, lighter soil, plain green scraps.
 - [x] Package and zip from 0dfba20 (13 Nov 20:16): packaged smoke test with and without ray tracing (two days each, no fatal lines); Epic 4.0 to 4.2 ms GPU (unchanged).
 - [x] Owner playtest notes (13 Nov evening): the broken limb cut back to a stump after growth (it was 5 to 12 m, "a weird huge stump"); camera pitch range -65 to 80 (was -80 to 60: looking up stopped too soon on big wood, looking nearly straight down went through the wood above the ant). The `junction` reference view's -80 is now clamped to -65.
-- [ ] Fillets (owner, branch junctions and trunk/roots into the ground): in progress in the worktree `leafline-fillet`. Carried-piece veins: not done.
+- [x] Fillets (owner): junction fillets in the walking field and skirts on the mesh, on by default (`bFillets`, `Leaf.Fillets`), by a Claude agent in a worktree. Leaf counts equal with and without (leaves are placed against a field without fillets), `Leaf.MeshGap` unchanged, 60 to 100 ms more per tree build.
+- [ ] Fillets, still open:
+  - **Seam lines.** The bark pattern switches with a hard line where the crease was (child to parent), and bark switches to ground at the foot. A shader cross-fade would need the second branch's coordinates in spare vertex channels (UV0 is unused by M_TreeBark2; vertex alpha is free).
+  - **Ground fillet (off by default).** With `Leaf.Fillets 1 -1 -1 -1 80`, ground columns are dropped when they do not start on the tree, end on the ground and stay within 3 radii of their outline point. Neighbours are not joined across sharp outline corners (seed 675856: 17 of 489 columns dropped round a small island of root at the ground; 517192 and 377994: 1 each; 2 to 5 unjoined pairs per tree). A lip remains where a root meets the trunk at the ground (shots `ground-artifact-*`).
+  - **`Leaf.SurfaceGap`** compares the field with the tubes only, so it now reports the root fillets as gaps (seed 517192: mean 3.26 cm, worst 36.5 cm with fillets; 0.07 / 10.3 cm without). `Leaf.MeshGap` checks the tubes' vertices only (unchanged: mean -0.001, worst 0.00 cm); `Leaf.FilletCheck` checks the skirts.
+- [ ] Carried-piece veins: not done.
 
 ## M6: Stretch (only if M0–M5b are complete before the freeze; the bird waits for the owner to keep the line)
 
