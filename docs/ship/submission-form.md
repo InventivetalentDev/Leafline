@@ -30,7 +30,7 @@ You decide how much to cut from each leaf: that size is the central trade-off of
 - Blender 5.1: a Python script generates the ant mesh.
 - A Python script synthesises all audio; the earshot audio analysis tool was used to check it.
 
-All game content was created by the owner directing these tools on or after 12 November 2026. The tree, bark, leaves, ground, sky, trail and effects are procedural geometry and shaders, with no textures and no hand-made tree models.
+All game content except the CC0 button prompt icons (see Sourced assets) was created by the owner directing these tools on or after 12 November 2026. The tree, bark, leaves, ground, sky, trail and effects are procedural geometry and shaders, with no textures and no hand-made tree models. <!-- Owner: confirm the MegaJam rules accept a pre-existing CC0 asset that is listed. -->
 
 ## Sourced assets
 
