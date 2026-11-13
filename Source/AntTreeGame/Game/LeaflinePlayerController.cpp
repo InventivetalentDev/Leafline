@@ -248,6 +248,11 @@ void ALeaflinePlayerController::PlayerTick(float DeltaTime)
 		}
 		Ant->SetActionInput(!bMenu && (Held & LeafButtons::Cut) != 0, (Held & LeafButtons::Follow) != 0, (Held & LeafButtons::Grip) != 0);
 	}
+	if (bInputVizKey && WasInputKeyJustPressed(EKeys::F3))
+	{
+		LeafDebug::bInputViz = !LeafDebug::bInputViz;
+		UE_LOG(LogLeafline, Log, TEXT("Input view %s (F3)"), LeafDebug::bInputViz ? TEXT("on") : TEXT("off"));
+	}
 	UpdateWindMapButton(ButtonsPressed);
 	if (ButtonsPressed) HandleButtons(ButtonsPressed);
 }

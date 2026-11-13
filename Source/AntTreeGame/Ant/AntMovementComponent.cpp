@@ -5,6 +5,8 @@
 #include "Debug/LeafDebug.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/Engine.h"
+#include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
 
 namespace
 {
@@ -40,6 +42,21 @@ namespace
 		bool bInit = false;
 	};
 	TMap<const UAntMovementComponent*, FTelemetryScratch> GTelemetry;
+
+	/** Control trace state per ant (file-local, like GTelemetry). */
+	struct FControlTrace
+	{
+		int32 LastBranch = INDEX_NONE;
+		float LastRadius = 0.f;
+		FString LastRule;
+		FVector2D LastFwdScreen = FVector2D::ZeroVector;
+		FVector LastCamForward = FVector::ForwardVector;
+		double OffSince = -1.0;
+		double LastOffLog = -10.0;
+		double LastJunctionLog = -10.0;
+		int32 JunctionLogsThisSecond = 0;
+	};
+	TMap<const UAntMovementComponent*, FControlTrace> GControlTrace;
 }
 
 UAntMovementComponent::UAntMovementComponent()
@@ -204,6 +221,272 @@ FVector UAntMovementComponent::ComputeWish(const FVector& N) const
 	return (Fwd * (MoveInput.Y * FwdGain) + Right * MoveInput.X).GetClampedToMaxSize(1.0);
 }
 
+void UAntMovementComponent::MakeScreenBasis(const FVector& N, FVector& OutFwd, FVector& OutRight) const
+{
+	// Up on screen: screen-up projected onto the surface, plus a little "away from the camera" (the third-person habit
+	// that W walks away), so a surface seen edge-on still has an up. Right on screen: screen-right projected.
+	const FVector CamRight = FVector::CrossProduct(CamUp, CamForward);
+	const FVector UpGoal = CamUp + CamForward * Tuning.ScreenDepthWeight;
+	FVector F = ProjectOnPlane(UpGoal, N);
+	FVector R = ProjectOnPlane(CamRight, N);
+	if (F.SizeSquared() < 0.01 && R.SizeSquared() < 0.01)
+	{
+		F = ProjectOnPlane(Forward, N);
+		R = FVector::CrossProduct(N, F.GetSafeNormal());
+	}
+	else if (R.SizeSquared() < 0.01)
+	{
+		// The screen's right points into the wood (left or right edge of a branch): right is round the branch, toward the
+		// far side on the right edge and toward the near side on the left edge.
+		R = FVector::CrossProduct(N, F.GetSafeNormal());
+		const double Side = FVector::DotProduct(N, CamRight) >= 0.0 ? 1.0 : -1.0;
+		if (FVector::DotProduct(R, CamRight) * 10.0 + Side * FVector::DotProduct(R, CamForward) < 0.0) R = -R;
+	}
+	else if (F.SizeSquared() < 0.01)
+	{
+		F = FVector::CrossProduct(R.GetSafeNormal(), N);
+		if (FVector::DotProduct(F, UpGoal) < 0.0) F = -F;
+	}
+	OutFwd = F.GetSafeNormal();
+	OutRight = R.GetSafeNormal();
+}
+
+void UAntMovementComponent::UpdateHeldInput(float Dt, const FVector& N)
+{
+	if (State != EAntState::Walking)
+	{
+		HeldFwd = HeldRight = FVector::ZeroVector;
+		SnapChoice = -1;
+		HeldIdle = 0.f;
+		return;
+	}
+	if (MoveInput.SizeSquared() <= 0.01)
+	{
+		// Released: a short dip (a flick through the centre) keeps the snapshot; a pause drops it.
+		HeldIdle += Dt;
+		if (HeldIdle >= Tuning.PauseSeconds)
+		{
+			HeldFwd = HeldRight = FVector::ZeroVector;
+			SnapChoice = -1;
+		}
+		return;
+	}
+	HeldIdle = 0.f;
+	const FVector2D Dir = MoveInput.GetSafeNormal();
+	// A sudden jump of the stick (W to D, a reversal) is a new input: read the camera again. Gradual turns steer
+	// within the snapshot.
+	const bool bNew = HeldFwd.IsNearlyZero() ||
+		FVector2D::DotProduct(Dir, HeldStickDir) < FMath::Cos(FMath::DegreesToRadians(Tuning.NewInputAngleDeg));
+	if (bNew)
+	{
+		MakeScreenBasis(N, HeldFwd, HeldRight);
+		SnapChoice = -1;
+	}
+	HeldStickDir = Dir;
+}
+
+int32 UAntMovementComponent::ChooseSnap(const FVector& Dir, const FVector& A, const FVector& Around, int32 Current) const
+{
+	const FVector Cands[4] = { A, -A, Around, -Around };
+	int32 Best = 0;
+	double BestScore = -2.0;
+	for (int32 k = 0; k < 4; ++k)
+	{
+		const double S = FVector::DotProduct(Dir, Cands[k]);
+		if (S > BestScore)
+		{
+			BestScore = S;
+			Best = k;
+		}
+	}
+	if (Current >= 0 && Current < 4 && BestScore <= FVector::DotProduct(Dir, Cands[Current]) + Tuning.SnapStickiness) return Current;
+	return Best;
+}
+
+FVector UAntMovementComponent::PreviewWish(const FVector2D& Input, const FVector& N, const FVector& Axis, float BranchBlend, float RadiusHere, float DistToEnd) const
+{
+	const double InputMag = FMath::Min(Input.Size(), 1.0);
+	if (InputMag < 0.05) return FVector::ZeroVector;
+	FVector AP = Axis.IsNearlyZero() ? FVector::ZeroVector : ProjectOnPlane(Axis, N);
+	const double APLen = AP.Size();
+	const FVector A = APLen > 1e-3 ? AP / APLen : FVector::ZeroVector;
+	const double TipFade = FMath::Clamp(APLen / 0.6, 0.0, 1.0);
+	const double AroundRate = FMath::Clamp(RadiusHere / 30.0, 0.2, 1.0);
+	if (Tuning.ControlStyle == 0)
+	{
+		FVector F = HeldFwd, R = HeldRight;
+		if (F.IsNearlyZero()) MakeScreenBasis(N, F, R);
+		const FVector Raw = (F * Input.Y + R * Input.X).GetSafeNormal() * InputMag;
+		if (BranchBlend <= 0.f || A.IsNearlyZero() || !Tuning.bSnapOnBranches) return Raw;
+		const FVector Around = FVector::CrossProduct(N, A).GetSafeNormal();
+		// The live snap applies to the live stick; a pretend input picks its own.
+		const int32 Choice = ChooseSnap(Raw.GetSafeNormal(), A, Around, Input.Equals(MoveInput, 0.05) ? SnapChoice : -1);
+		FVector Target;
+		if (Choice <= 1) Target = A * ((Choice == 0 ? 1.0 : -1.0) * InputMag * TipFade * (Choice == 0 ? FMath::Clamp(DistToEnd / 50.0, 0.15, 1.0) : 1.0));
+		else Target = Around * ((Choice == 2 ? 1.0 : -1.0) * InputMag * AroundRate * TipFade);
+		return FMath::Lerp(Raw, Target, (double)BranchBlend);
+	}
+	// Steering wheel (ControlStyle 1): camera-relative, with W along the branch end picked at press and A/D round it.
+	FVector2D Saved = Input;
+	const double Facing = FMath::Clamp(-FVector::DotProduct(CamForward, N) * 2.0, 0.0, 1.0);
+	const FVector RawFwd = ProjectOnPlane(CamForward, N) + ProjectOnPlane(CamUp, N) * Facing;
+	const FVector CamRight = FVector::CrossProduct(CamUp, CamForward);
+	FVector Fwd = RawFwd.GetSafeNormal(), Right = FVector::CrossProduct(N, Fwd);
+	if (FVector::DotProduct(Right, CamRight) < 0.0) Right = -Right;
+	const FVector Cam = (Fwd * (Saved.Y * FMath::Clamp(RawFwd.Size() / 0.35, 0.0, 1.0)) + Right * Saved.X).GetClampedToMaxSize(1.0);
+	if (BranchBlend <= 0.f || A.IsNearlyZero()) return Cam;
+	FVector Away = WheelAway;
+	if (Away.IsNearlyZero())
+	{
+		double S = FVector::DotProduct(Axis, CamForward) + 0.7 * FVector::DotProduct(Axis, CamUp);
+		if (FMath::Abs(S) < 0.15) S = FVector::DotProduct(Axis, Forward);
+		Away = S >= 0.0 ? Axis : -Axis;
+	}
+	double X = Saved.X, Y = Saved.Y;
+	if (FMath::Abs(X) < 0.35 * FMath::Abs(Y)) X = 0.0;
+	if (FMath::Abs(Y) < 0.35 * FMath::Abs(Saved.X)) Y = 0.0;
+	const int32 Sense = (Saved.Y >= 0.0 ? 1 : -1) * (FVector::DotProduct(Away, Axis) >= 0.0 ? 1 : -1);
+	const FVector Clockwise = FVector::CrossProduct(N, Away).GetSafeNormal();
+	return FMath::Lerp(Cam, A * (Sense * FMath::Abs(Y) * TipFade) + Clockwise * (X * AroundRate * TipFade), (double)BranchBlend);
+}
+
+void UAntMovementComponent::UpdateInputViz(float Dt, const FVector& Axis, float RadiusHere, float ThinBlend, float BranchBlend, bool bWheel, bool bWantsMove,
+	const FVector& LastWish, const FVector& LastIntent, float DistToEnd)
+{
+	const APawn* PawnOwner = Cast<APawn>(GetOwner());
+	if (!PawnOwner || !PawnOwner->IsPlayerControlled()) return;
+	APlayerController* PC = Cast<APlayerController>(PawnOwner->GetController());
+	UWorld* World = GetWorld();
+	if (!World || !PC) return;
+	FControlTrace& T = GControlTrace.FindOrAdd(this);
+	const double Now = World->GetTimeSeconds();
+	const FVector N = SurfaceNormal;
+	const bool bWalking = State == EAntState::Walking;
+	const bool bScreen = Tuning.ControlStyle == 0;
+	int32 Level = -9;
+	if (Tree.IsValid() && Tree->GetSkeleton().Branches.IsValidIndex(CurrentBranch)) Level = Tree->GetSkeleton().Branches[CurrentBranch].Level;
+
+	// The rule in charge, in words and colour.
+	FString Rule;
+	FColor RuleColor = FColor::Cyan;
+	if (bScreen)
+	{
+		const TCHAR* Snap = (SnapChoice == 0 || SnapChoice == 1) ? TEXT("along") : (SnapChoice >= 2 ? TEXT("around") : TEXT("free"));
+		if (BranchBlend >= 0.99f) { Rule = FString::Printf(TEXT("screen direction, branch: %s"), Snap); RuleColor = FColor::Orange; }
+		else if (BranchBlend > 0.01f) { Rule = FString::Printf(TEXT("screen direction, %d%% branch (%s)"), FMath::RoundToInt(BranchBlend * 100.f), Snap); RuleColor = FColor::Yellow; }
+		else { Rule = TEXT("screen direction, free"); }
+	}
+	else if (bWantsMove && !bWheel && ThinBlend > 0.01f) { Rule = TEXT("thin-branch rules (gentle stick)"); RuleColor = FColor::Magenta; }
+	else if (BranchBlend >= 0.99f) { Rule = TEXT("steering wheel"); RuleColor = FColor::Orange; }
+	else if (BranchBlend > 0.01f) { Rule = FString::Printf(TEXT("mix: wheel %d%%, camera %d%%"), FMath::RoundToInt(BranchBlend * 100.f), 100 - FMath::RoundToInt(BranchBlend * 100.f)); RuleColor = FColor::Yellow; }
+	else { Rule = TEXT("camera-relative"); }
+	if (!bWalking) { Rule = FString::Printf(TEXT("%s (no stick control)"), *UEnum::GetValueAsString(State)); RuleColor = FColor::Silver; }
+
+	auto ScreenDir = [&](const FVector& Dir) -> FVector2D
+	{
+		FVector2D S0, S1;
+		if (Dir.IsNearlyZero() || !PC->ProjectWorldLocationToScreen(Pos, S0) || !PC->ProjectWorldLocationToScreen(Pos + Dir.GetSafeNormal() * 30.0, S1)) return FVector2D::ZeroVector;
+		return (S1 - S0).GetSafeNormal();
+	};
+	auto Angle2D = [](const FVector2D& P, const FVector2D& Q) -> double
+	{
+		if (P.IsNearlyZero() || Q.IsNearlyZero()) return 0.0;
+		return FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(FVector2D::DotProduct(P, Q), -1.0, 1.0)));
+	};
+	const FVector FwdPreview = bWalking ? PreviewWish(FVector2D(0.0, 1.0), N, Axis, BranchBlend, RadiusHere, DistToEnd) : FVector::ZeroVector;
+	const FVector2D FwdScreen = ScreenDir(FwdPreview);
+	const double CamTurn = Dt > 0.f ? FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(FVector::DotProduct(CamForward, T.LastCamForward), -1.0, 1.0))) / Dt : 0.0;
+	T.LastCamForward = CamForward;
+
+	// Control trace 1: every junction crossing while the stick is held (at most three lines a second).
+	if (CurrentBranch != T.LastBranch)
+	{
+		if (bWantsMove && bWalking && T.LastBranch != INDEX_NONE && CurrentBranch != INDEX_NONE)
+		{
+			if (Now - T.LastJunctionLog >= 1.0)
+			{
+				T.LastJunctionLog = Now;
+				T.JunctionLogsThisSecond = 0;
+			}
+			if (++T.JunctionLogsThisSecond <= 3)
+			{
+				UE_LOG(LogLeafline, Log, TEXT("Control trace: onto branch %d (level %d, r %.0f cm, %s) from branch %d (r %.0f cm, %s); forward moved %.0f deg on screen; stick (%.2f, %.2f)"),
+					CurrentBranch, Level, RadiusHere, *Rule, T.LastBranch, T.LastRadius, *T.LastRule, Angle2D(T.LastFwdScreen, FwdScreen), MoveInput.X, MoveInput.Y);
+			}
+		}
+		T.LastBranch = CurrentBranch;
+	}
+	T.LastRadius = RadiusHere;
+	T.LastRule = Rule;
+	T.LastFwdScreen = FwdScreen;
+
+	// Control trace 2: the ant has moved more than 60 degrees away from the stick's direction on screen for a third of
+	// a second (at most a line a second).
+	const FVector2D StickScreen = FVector2D(MoveInput.X, -MoveInput.Y).GetSafeNormal();
+	const FVector2D MoveScreen = ScreenDir(Velocity.SizeSquared() > 100.0 ? Velocity : FVector::ZeroVector);
+	const double Off = Angle2D(StickScreen, MoveScreen);
+	if (bWantsMove && bWalking && !MoveScreen.IsNearlyZero() && Off > 60.0)
+	{
+		if (T.OffSince < 0.0) T.OffSince = Now;
+		if (Now - T.OffSince > 0.33 && Now - T.LastOffLog > 1.0)
+		{
+			T.LastOffLog = Now;
+			UE_LOG(LogLeafline, Log, TEXT("Control trace: moving %.0f deg off the stick's screen direction for %.1f s: %s, branch %d (level %d, r %.0f cm), stick (%.2f, %.2f), snapshot %s, camera turning %.0f deg/s"),
+				Off, Now - T.OffSince, *Rule, CurrentBranch, Level, RadiusHere, MoveInput.X, MoveInput.Y, HeldFwd.IsNearlyZero() ? TEXT("none") : TEXT("held"), CamTurn);
+		}
+	}
+	else
+	{
+		T.OffSince = -1.0;
+	}
+
+	LeafDebug::InputVizLines.Reset();
+	LeafDebug::InputVizLabels.Reset();
+	if (!LeafDebug::bInputViz) return;
+	// The view: where W / A / S / D would go from here (short paths over the bark), the live stick (white), the held
+	// direction before the branch rules (thin cyan) and the actual movement (green).
+	const FTreeField* Field = Tree.IsValid() ? &Tree->GetField() : nullptr;
+	auto DrawPath = [&](const FVector& Dir, const FColor& Col, float Radius, const TCHAR* Label)
+	{
+		if (Dir.IsNearlyZero() || !Field) return;
+		FVector P = Pos, Nn = N, D = Dir.GetSafeNormal();
+		const double StepLen = 10.0 * FMath::Clamp(Dir.Size(), 0.2, 1.0);
+		for (int32 i = 0; i < 6; ++i)
+		{
+			FVector Q = P + D * StepLen, Qn;
+			double Err = 0.0;
+			if (!Field->Project(Q, Qn, Tuning.RideHeight, &Err)) break;
+			DrawDebugLine(World, P + Nn * 1.5, Q + Qn * 1.5, Col, false, -1.f, SDPG_Foreground, 0.8f);
+			D = ProjectOnPlane(FQuat::FindBetweenNormals(Nn, Qn).RotateVector(D), Qn).GetSafeNormal();
+			P = Q;
+			Nn = Qn;
+		}
+		DrawDebugSphere(World, P + Nn * 1.5, Radius, 8, Col, false, -1.f, SDPG_Foreground, 0.6f);
+		if (Label) LeafDebug::InputVizLabels.Add({ P + Nn * (Radius + 4.0), Label, Col });
+	};
+	if (bWalking)
+	{
+		const FColor Dim(RuleColor.R / 2 + 40, RuleColor.G / 2 + 40, RuleColor.B / 2 + 40);
+		DrawPath(FwdPreview, RuleColor, 4.f, TEXT("W"));
+		DrawPath(PreviewWish(FVector2D(0.0, -1.0), N, Axis, BranchBlend, RadiusHere, DistToEnd), Dim, 2.5f, TEXT("S"));
+		DrawPath(PreviewWish(FVector2D(-1.0, 0.0), N, Axis, BranchBlend, RadiusHere, DistToEnd), Dim, 2.5f, TEXT("A"));
+		DrawPath(PreviewWish(FVector2D(1.0, 0.0), N, Axis, BranchBlend, RadiusHere, DistToEnd), Dim, 2.5f, TEXT("D"));
+		if (bWantsMove)
+		{
+			DrawPath(LastWish, FColor::White, 5.f, nullptr);
+			DrawDebugLine(World, Pos + N * 2.0, Pos + N * 2.0 + LastIntent * 35.0, FColor::Cyan, false, -1.f, SDPG_Foreground, 0.4f);
+		}
+	}
+	DrawDebugLine(World, Pos + N * 2.5, Pos + N * 2.5 + Velocity * 0.25, FColor::Green, false, -1.f, SDPG_Foreground, 1.2f);
+	LeafDebug::InputVizColor = RuleColor;
+	LeafDebug::InputVizLines.Add(FString::Printf(TEXT("Input view (F3): %s"), *Rule));
+	LeafDebug::InputVizLines.Add(FString::Printf(TEXT("branch %d (level %d), radius %.0f cm   branch rules %d%%   snapshot %s"),
+		CurrentBranch, Level, RadiusHere, FMath::RoundToInt(BranchBlend * 100.f), bScreen ? (HeldFwd.IsNearlyZero() ? TEXT("none (live camera)") : TEXT("held")) : TEXT("n/a")));
+	LeafDebug::InputVizLines.Add(FString::Printf(TEXT("stick (%.2f, %.2f)   camera turning %.0f deg/s   ControlStyle %d, snap on branches %s"),
+		MoveInput.X, MoveInput.Y, CamTurn, Tuning.ControlStyle, Tuning.bSnapOnBranches ? TEXT("on") : TEXT("off")));
+	LeafDebug::InputVizLines.Add(TEXT("white: your stick   cyan: held direction   green: actual movement   W/A/S/D: where each would go"));
+}
+
 void UAntMovementComponent::TickWalking(float Dt)
 {
 	const FTreeField* F = GetField();
@@ -260,7 +543,22 @@ void UAntMovementComponent::TickWalking(float Dt)
 	}
 	// Steering wheel: fix which way along the branch W means when the stick is first held on a thin branch and keep it
 	// until the stick is let go. Onto the next branch it carries over by continuity.
-	if (Tuning.bSteeringWheel && WheelBlend > 0.f && MoveInput.SizeSquared() > 0.04 && !Axis.IsNearlyZero())
+	// Screen-direction controls (ControlStyle 0): branches resolve the held screen direction into along or around over
+	// the same radii as the wheel; the snapshot of the camera is taken or kept here, once a frame.
+	const bool bScreen = Tuning.ControlStyle == 0;
+	const float BranchBlend = bScreen
+		? 1.f - FMath::SmoothStep(Tuning.SnapFullRadius, FMath::Max(Tuning.SnapFadeRadius, Tuning.SnapFullRadius + 1.f), RadiusHere)
+		: WheelBlend;
+	if (bScreen)
+	{
+		UpdateHeldInput(Dt, N);
+	}
+	else
+	{
+		HeldFwd = HeldRight = FVector::ZeroVector;
+		SnapChoice = -1;
+	}
+	if (!bScreen && Tuning.bSteeringWheel && WheelBlend > 0.f && MoveInput.SizeSquared() > 0.04 && !Axis.IsNearlyZero())
 	{
 		if (WheelAway.IsNearlyZero())
 		{
@@ -278,11 +576,28 @@ void UAntMovementComponent::TickWalking(float Dt)
 		WheelAway = FVector::ZeroVector;
 	}
 	const bool bWheel = !WheelAway.IsNearlyZero();
+	FVector LastWish = FVector::ZeroVector, LastIntent = FVector::ZeroVector;
 
 	for (int32 s = 0; s < Steps; ++s)
 	{
-		FVector Wish = State == EAntState::WalkingHome ? HomeWish(N) : ComputeWish(N);
-		if ((ThinBlend > 0.f || bWheel) && bWantsMove && State == EAntState::Walking)
+		FVector Wish;
+		if (State == EAntState::WalkingHome)
+		{
+			Wish = HomeWish(N);
+		}
+		else if (bScreen && !HeldFwd.IsNearlyZero())
+		{
+			// The held screen direction, carried along the bark since the stick was pushed.
+			const FVector Raw = HeldFwd * MoveInput.Y + HeldRight * MoveInput.X;
+			Wish = Raw.SizeSquared() > 1e-4 ? Raw.GetSafeNormal() * FMath::Min(MoveInput.Size(), 1.0) : ComputeWish(N);
+		}
+		else
+		{
+			Wish = ComputeWish(N);
+		}
+		LastIntent = Wish;
+		const bool bBranchRules = bScreen ? (BranchBlend > 0.f && !Axis.IsNearlyZero()) : (ThinBlend > 0.f || bWheel);
+		if (bBranchRules && bWantsMove && State == EAntState::Walking)
 		{
 			// At a branch tip the axis turns into the surface normal; fade the push there so the ant comes to rest at
 			// the tip instead of overshooting the apex back and forth.
@@ -317,6 +632,33 @@ void UAntMovementComponent::TickWalking(float Dt)
 				else if (SpareFloat > 0.f)
 				{
 					SpareInt = -1;
+				}
+				else if (bScreen)
+				{
+					// Screen direction on a branch: along or around, whichever is closer to the held direction.
+					const FVector Ar = FVector::CrossProduct(N, A).GetSafeNormal();
+					if (Tuning.bSnapOnBranches && TipFade >= 1.0)
+					{
+						SnapChoice = ChooseSnap(Wish.GetSafeNormal(), A, Ar, SnapChoice);
+						// Walking along: the held direction bends with the twig, so a curving twig stays "along" and the next
+						// twig is joined by continuity (it is not re-judged against a direction the twig has turned away from).
+						if (SnapChoice <= 1 && !HeldFwd.IsNearlyZero())
+						{
+							const FVector Cand = SnapChoice == 0 ? A : -A;
+							const FQuat Align = FQuat::Slerp(FQuat::Identity, FQuat::FindBetweenNormals(Wish.GetSafeNormal(), Cand), (double)BranchBlend);
+							HeldFwd = ProjectOnPlane(Align.RotateVector(HeldFwd), N).GetSafeNormal();
+							HeldRight = ProjectOnPlane(Align.RotateVector(HeldRight), N).GetSafeNormal();
+						}
+					}
+					if (SnapChoice == 0 || SnapChoice == 1)
+					{
+						SpareInt = SnapChoice == 0 ? 1 : -1;
+					}
+					else if (SpareInt == 0)
+					{
+						SpareInt = FVector::DotProduct(Wish, A) >= 0.0 ? 1 : -1;
+					}
+					if (SpareInt > 0 && TipFade < 0.3 && SnapChoice <= 1) SpareVector = FVector(Stick.X, Stick.Y, 1.0);
 				}
 				else if (bWheel)
 				{
@@ -379,7 +721,17 @@ void UAntMovementComponent::TickWalking(float Dt)
 				// view) round five times a second.
 				const double AroundRate = FMath::Clamp(RadiusHere / 30.0, 0.2, 1.0);
 				const double AlongMag = InputMag * (1.0 - Keep) + FMath::Abs(AlongPart) * Keep;
-				if (bWheel)
+				if (bScreen)
+				{
+					// At the rounded tip the snap holds (the axis turns into the normal there); the latch decides the sense.
+					const bool bLatch = SpareVector.Z > 0.5 || SpareFloat > 0.f;
+					FVector Target;
+					if (bLatch || SnapChoice == 0 || SnapChoice == 1) Target = A * (SpareInt * InputMag * Fade * TipSlow);
+					else if (SnapChoice >= 2) Target = Around * ((SnapChoice == 2 ? 1.0 : -1.0) * InputMag * AroundRate * TipFade);
+					else Target = Wish.GetSafeNormal() * InputMag; // no snapping: the held direction as it is
+					Wish = FMath::Lerp(Wish, Target, (double)BranchBlend);
+				}
+				else if (bWheel)
 				{
 					// Steering wheel: Y along, X round (clockwise looking along WheelAway, i.e. as seen from behind). Each
 					// axis is dropped when it is a small part of the input, so W alone never spirals and D alone never drifts.
@@ -416,6 +768,7 @@ void UAntMovementComponent::TickWalking(float Dt)
 
 		// A faded-out wish (at a tip, or where the camera direction vanishes) means "stay": stop cleanly.
 		if (Wish.SizeSquared() < 0.01) Wish = FVector::ZeroVector;
+		LastWish = Wish;
 		const FVector Target = Wish * Speed;
 		float Rate = Wish.IsNearlyZero() ? Tuning.Deceleration : Tuning.Acceleration;
 		// Brake hard when the wish turns against the motion, so the ant never swings back and forth over a point.
@@ -435,8 +788,15 @@ void UAntMovementComponent::TickWalking(float Dt)
 			continue;
 		}
 		MaxErr = FMath::Max(MaxErr, Err);
-		// Carry the velocity over the curve into the new tangent plane without losing speed.
-		Velocity = ProjectOnPlane(FQuat::FindBetweenNormals(N, NewN).RotateVector(Velocity), NewN);
+		// Carry the velocity over the curve into the new tangent plane without losing speed; the held screen directions
+		// ride along the same way, so a held stick keeps going straight over the bark.
+		const FQuat Turn = FQuat::FindBetweenNormals(N, NewN);
+		Velocity = ProjectOnPlane(Turn.RotateVector(Velocity), NewN);
+		if (!HeldFwd.IsNearlyZero())
+		{
+			HeldFwd = ProjectOnPlane(Turn.RotateVector(HeldFwd), NewN).GetSafeNormal();
+			HeldRight = ProjectOnPlane(Turn.RotateVector(HeldRight), NewN).GetSafeNormal();
+		}
 		N = NewN;
 	}
 
@@ -445,6 +805,7 @@ void UAntMovementComponent::TickWalking(float Dt)
 	F->Distance(Pos, &CurrentBranch);
 	UpdateOrientation(Dt);
 	UpdateTelemetry(Dt, FVector::Dist(Start, Pos), bWantsMove);
+	UpdateInputViz(Dt, Axis, RadiusHere, ThinBlend, BranchBlend, bWheel, bWantsMove, LastWish, LastIntent, DistToEnd);
 }
 
 void UAntMovementComponent::StartFollow(const TArray<FTrailPoint>& Points, int32 StartIndex, int32 Direction, EAntState FollowState)

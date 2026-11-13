@@ -204,6 +204,7 @@ From `docs/playtest-notes.md`; each feel change has an off switch for the owner'
 ## M7: Ship (Sunday)
 
 - [ ] Bug fixing from Saturday's playtest.
+- [ ] Before the final package: `bInputVizKey=False` in `Config/DefaultGame.ini` (the F3 input view stays out of players' reach; `Leaf.InputViz` remains as a console command).
 - [ ] Final packaged Windows **development** build. Run it from a path with spaces and from a fresh folder.
 - [ ] Zip as `inventivetalent_Leafline.zip`; confirm it is under 1 GB.
 - [ ] Owner records a 30–60 s gameplay video at 1920x1080 or higher and uploads it.

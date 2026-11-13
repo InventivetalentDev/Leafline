@@ -25,7 +25,7 @@ namespace LeafButtons
 }
 
 /** Creates input in code (no input assets), owns the ant camera and feeds input to the controlled ant. */
-UCLASS()
+UCLASS(Config = Game)
 class ANTTREEGAME_API ALeaflinePlayerController : public APlayerController
 {
 	GENERATED_BODY()
@@ -52,6 +52,10 @@ public:
 	/** Tab / LB held past this long (s) shows the wind map until let go; a shorter tap switches workers. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	float WindMapHoldSeconds = 0.25f;
+
+	/** F3 toggles the input view (LeafDebug::bInputViz). Set False in DefaultGame.ini before the submission build. */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadWrite, Category = "Debug")
+	bool bInputVizKey = true;
 	bool IsWindMapShown() const { return bWindMapShown; }
 
 	/** Degrees of camera turn per mouse count. */

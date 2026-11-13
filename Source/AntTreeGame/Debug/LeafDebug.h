@@ -22,4 +22,16 @@ namespace LeafDebug
 	extern float HoldCycle;
 	/** Prompt icons: -1 follow the device in use, 0 always keyboard and mouse, 1 always pad (Leaf.PadIcons). */
 	extern int32 ForcePadIcons;
+	/** Input view: where each direction would take the ant, the rule in charge, and the control trace in the log (Leaf.InputViz, F3). */
+	extern bool bInputViz;
+	/** What the input view shows this frame, filled by the player's ant and drawn by the HUD. */
+	struct FInputVizLabel
+	{
+		FVector Pos = FVector::ZeroVector;
+		FString Text;
+		FColor Color = FColor::White;
+	};
+	extern TArray<FString> InputVizLines;
+	extern FColor InputVizColor;
+	extern TArray<FInputVizLabel> InputVizLabels;
 }

@@ -55,6 +55,27 @@ struct FAntMoveTuning
 	 * it is let go, so the camera's slow roll cannot change it mid-move. Off: camera-relative with the sideways snap.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Thin branches") bool bSteeringWheel = true;
+	/**
+	 * 0: screen direction everywhere (owner's choice, 13 Nov). The stick is a direction on screen, read from the camera
+	 * when you start pushing and kept (carried along the bark) while you hold it, so the camera is free meanwhile. On
+	 * branches it snaps to along or around, whichever is closer. 1: the older steering wheel on branches under
+	 * WheelFadeRadius, camera-relative elsewhere.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") int32 ControlStyle = 0;
+	/** Screen direction: on thin twigs a diagonal snaps to along or around (no fast corkscrews). False: diagonals go diagonally. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") bool bSnapOnBranches = true;
+	/** Screen direction: the snap applies fully on wood up to this radius and fades out by SnapFadeRadius (cm). Thicker wood
+	 *  keeps the held direction free, so you can steer onto a twig (a snap on limbs turned the ant round curving boughs). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") float SnapFullRadius = 25.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") float SnapFadeRadius = 60.f;
+	/** Screen direction: the stick centred this long (s) counts as a pause, and the next push reads the camera again. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") float PauseSeconds = 0.15f;
+	/** Screen direction: a jump of the stick direction larger than this (deg, frame to frame) is a new input: the camera is read again. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") float NewInputAngleDeg = 40.f;
+	/** Screen direction: how much "away from the camera" counts as up on screen, besides screen-up itself. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") float ScreenDepthWeight = 0.35f;
+	/** Screen direction: another of along / around must fit the held direction this much better (dot) before the snap changes. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") float SnapStickiness = 0.15f;
 	/** The wheel applies fully on branches up to this radius and fades out by WheelFadeRadius (cm); thicker wood
 	 *  (the trunk, over 5 m radius where play happens) stays camera-relative. Was 90 / 200: on limbs of 140 to 220 cm
 	 *  the half-faded wheel let camera-relative "right" point into the wood at the far side, and the ant turned back
@@ -168,6 +189,17 @@ private:
 	void TickFalling(float Dt);
 	FVector HomeWish(const FVector& N) const;
 	FVector ComputeWish(const FVector& N) const;
+	/** Screen-direction controls: take or keep the snapshot of the camera (the held basis) for this frame. */
+	void UpdateHeldInput(float Dt, const FVector& N);
+	/** The surface directions that "up" and "right" on screen mean at a point with normal N, from the live camera. */
+	void MakeScreenBasis(const FVector& N, FVector& OutFwd, FVector& OutRight) const;
+	/** Along / around candidates on a branch for a direction, with the current snap kept unless another fits clearly better. */
+	int32 ChooseSnap(const FVector& Dir, const FVector& A, const FVector& Around, int32 Current) const;
+	/** What a pretend stick input would do here, without changing any state (the input view). */
+	FVector PreviewWish(const FVector2D& Input, const FVector& N, const FVector& Axis, float BranchBlend, float RadiusHere, float DistToEnd) const;
+	/** Input view drawing and the control trace in the log (player's ant only). */
+	void UpdateInputViz(float Dt, const FVector& Axis, float RadiusHere, float ThinBlend, float BranchBlend, bool bWheel, bool bWantsMove,
+		const FVector& LastWish, const FVector& LastIntent, float DistToEnd);
 	void UpdateOrientation(float Dt);
 	void UpdateStamina(float Dt, bool bWantsMove);
 	void UpdateTelemetry(float Dt, double Moved, bool bHadInput);
@@ -234,6 +266,15 @@ private:
 
 	// Steering wheel: the world direction along the branch that W means while the stick is held; zero when released.
 	FVector WheelAway = FVector::ZeroVector;
+
+	// Screen-direction controls: the surface directions that screen-up and screen-right meant when the stick was pushed,
+	// carried along the bark while it is held (zero when released for PauseSeconds); the last stick direction; the snap
+	// on a branch (0 / 1 along +axis / -axis, 2 / 3 around, -1 none).
+	FVector HeldFwd = FVector::ZeroVector;
+	FVector HeldRight = FVector::ZeroVector;
+	FVector2D HeldStickDir = FVector2D::ZeroVector;
+	float HeldIdle = 0.f;
+	int32 SnapChoice = -1;
 
 	float FollowWait = 0.f;
 	double FollowLag = 0.0;

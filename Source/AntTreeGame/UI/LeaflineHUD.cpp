@@ -95,6 +95,26 @@ void ALeaflineHUD::DrawHUD()
 		}
 	}
 	bWasRecap = false;
+	// Input view (F3 / Leaf.InputViz): the rule in charge and labels at the ends of the W/A/S/D paths.
+	if (LeafDebug::bInputViz && LeafDebug::InputVizLines.Num() > 0)
+	{
+		UFont* VizFont = GEngine->GetMediumFont();
+		float VY = Canvas->ClipY * 0.36f;
+		for (int32 i = 0; i < LeafDebug::InputVizLines.Num(); ++i)
+		{
+			const FLinearColor C = i == 0 ? FLinearColor(LeafDebug::InputVizColor) : TextColor;
+			DrawCrisp(Canvas, LeafDebug::InputVizLines[i], C, 30.f * Scale, VY, VizFont, (i == 0 ? 1.1f : 0.85f) * Scale);
+			VY += (i == 0 ? 30.f : 22.f) * Scale;
+		}
+		if (const APlayerController* VPC = GetOwningPlayerController())
+		{
+			for (const LeafDebug::FInputVizLabel& L : LeafDebug::InputVizLabels)
+			{
+				FVector2D SP;
+				if (VPC->ProjectWorldLocationToScreen(L.Pos, SP)) DrawCrisp(Canvas, L.Text, FLinearColor(L.Color), SP.X - 6.f * Scale, SP.Y - 12.f * Scale, VizFont, 1.2f * Scale);
+			}
+		}
+	}
 	const ALineSystem* Lines = D ? D->GetLineSystem() : nullptr;
 	if (D && D->IsHarvest())
 	{

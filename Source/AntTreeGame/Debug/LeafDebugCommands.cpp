@@ -32,6 +32,10 @@ namespace LeafDebug
 	float HoldFollow = 0.f;
 	float HoldCycle = 0.f;
 	int32 ForcePadIcons = -1;
+	bool bInputViz = false;
+	TArray<FString> InputVizLines;
+	FColor InputVizColor = FColor::White;
+	TArray<FInputVizLabel> InputVizLabels;
 }
 
 namespace
@@ -679,7 +683,7 @@ namespace
 	{
 		FTSTicker::FDelegateHandle Handle;
 		TWeakObjectPtr<UWorld> World;
-		double Start = 0.0, NextLog = 0.0, Duration = 0.0;
+		double Start = 0.0, NextLog = 0.0, Duration = 0.0, StrafeAt = 0.0;
 		int32 Branch = INDEX_NONE, Samples = 0, Stalls = 0;
 		float Radius = 0.f, LastAngle = 0.f, Total = 0.f, SinceLog = 0.f;
 		FVector Ref = FVector::ZeroVector;
@@ -719,6 +723,16 @@ namespace
 			return false;
 		}
 		const double Now = World->GetRealTimeSeconds();
+		// After a teleport the camera needs a moment to settle behind the ant before "right" is pressed (the controls read
+		// the camera when the stick is first pushed).
+		if (Orbit.StrafeAt > 0.0 && Now >= Orbit.StrafeAt)
+		{
+			LeafDebug::AutoStrafe = 1.f;
+			Orbit.StrafeAt = 0.0;
+			Orbit.Start = Now;
+			Orbit.NextLog = Now + 0.5;
+		}
+		if (Orbit.StrafeAt > 0.0) return true;
 		const UAntMovementComponent* M = Ant->GetAntMovement();
 		int32 Branch = INDEX_NONE;
 		Tree->GetField().Distance(M->GetSurfacePosition(), &Branch);
@@ -817,9 +831,19 @@ namespace
 		Orbit.Start = World->GetRealTimeSeconds();
 		Orbit.NextLog = Orbit.Start + 0.5;
 		Orbit.Duration = Args.Num() > 0 ? FMath::Max(FCString::Atof(*Args[0]), 1.f) : 15.0;
-		LeafDebug::AutoStrafe = 1.f;
+		LeafDebug::AutoStrafe = 0.f;
+		Orbit.StrafeAt = Orbit.Start + 0.6;
 		Orbit.Handle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateStatic(&OrbitTick), 0.f);
 	}
+
+	FAutoConsoleCommandWithWorldAndArgs CmdInputViz(
+		TEXT("Leaf.InputViz"),
+		TEXT("Leaf.InputViz [0|1]: show where W/A/S/D and the stick would take the ant, the actual movement and the rule in charge (also F3 in dev builds); no argument toggles."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld*)
+		{
+			LeafDebug::bInputViz = Args.Num() > 0 ? FCString::Atoi(*Args[0]) != 0 : !LeafDebug::bInputViz;
+			UE_LOG(LogLeafline, Log, TEXT("Input view %s"), LeafDebug::bInputViz ? TEXT("on") : TEXT("off"));
+		}));
 
 	FAutoConsoleCommandWithWorldAndArgs CmdPadIcons(
 		TEXT("Leaf.PadIcons"),

@@ -186,8 +186,11 @@ Starting numbers, to be tuned by play:
 | Send home | Q | Y |
 | Follow trail (hold) | F | Right bumper |
 | Cycle ants (tap) | Tab | Left bumper |
+| Input view (debug, dev builds) | F3 | |
 | Wind map (hold) | Tab | Left bumper |
 | Pause | Esc | Start |
+
+The stick is a direction on screen everywhere (13 Nov): up/away and right, read from the camera when you start pushing and kept while you hold it, so the camera is free meanwhile. On thin twigs it snaps to along or around. See `tech.md`, Movement.
 
 ## Look and sound
 
