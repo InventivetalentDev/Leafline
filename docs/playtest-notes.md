@@ -77,6 +77,8 @@
 - [ ] low-ish priority: tweak the camera clamp on the main trunk or let the camera get closer to the ant as you look "up" to tree and see the branches; currently impossible to look up to properly see where the branch is and how many leaves there are (or just undo the earlier clamp that prevented the camera going in the main trunk as a cheap alternative)
 - [ ] polish: smooth transitions/blending of branch intersections
 - [ ] ant's head is floating
+- [ ] potentially make the cutaway only semi-transparent so you don't get the look of a floating ant when the wood is hidden
+- [ ] all sounds play at once and over each other when fast-forwarding at the end (all playing at once might be fine, just need to decrease volume I think, and maybe play the end jingle separately still)
 
 - [x] controls not intuitive: sometimes walks where I'm looking, sometimes in circles; input style switches on smaller branches; W flipped after circling a branch without moving the camera (13 Nov, with screenshots)
   - Cause, from the code: on all wood under 2 m (since this morning; under 90 cm before) A/D meant "go round the branch" whatever the branch looked like on screen, W's end was picked at press from the camera and fell back to the ant's facing when the camera looked along the branch (the flip), and the meaning changed at the trunk-limb junction.
