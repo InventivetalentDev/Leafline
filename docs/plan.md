@@ -193,7 +193,7 @@ From `docs/playtest-notes.md`; each feel change has an off switch for the owner'
 - [x] Key and pad icons: Xelu's CC0 pack, light keys and Xbox-style buttons for every pad (owner's choice), drawn from tokens in HUD text for the device used last (`UI/PromptIcons.*`, `Leaf.PadIcons`).
 - [x] Package and zip from 6865416 (13 Nov 13:10, 463.6 MB, 48 files, no saves); packaged smoke test: two days, wind map, icons load from the pak, no fatal lines.
 - [x] Package and zip from f9d8b6d (13 Nov 13:33, 463.6 MB, no saves): the stronger smoke ribbon. Packaged smoke test: two days, wind map (one 3.5 ms tick logged), no fatal lines.
-- [ ] Still open: trail outlines, PS5 audio check. Aiming stays as it is (owner).
+- [ ] Still open: PS5 audio check (needs the owner's pad). Aiming stays as it is (owner).
 
 ## M6: Stretch (only if M0–M5b are complete before the freeze; the bird waits for the owner to keep the line)
 

@@ -18,7 +18,7 @@
   - The leaf the ant would cut now has a pulsing outline, so you can see the target before pressing cut. Picking still takes the leaf nearest the ant's mouth; tell me if it should follow the camera instead. In the package of 12 Nov 18:28.
   - Owner (13 Nov): leave it as is (nearest to the mouth).
 - [x] eventually make selection outlines for leaves etc, instead of just showing an UI overlay
-  - Leaves done (outline on the targeted leaf, and since 13 Nov a fainter outline on the other leaves of its patch). Trails not yet.
+  - Done: outline on the targeted leaf, and since 13 Nov a fainter outline on the other leaves of its patch. (Owner, 13 Nov: the note was about leaf outlines only.)
 - [x] low priority: leaf cutting animation would be nice
   - First pass: while cutting the ant saws (quick nod, slow side-to-side sweep), and a pale line on the leaf shows where the piece will tear, growing with the cut. On release the piece tears out there and swings up onto the ant's back in about half a second; the tear and the landing each have their sound. Bites now start nearest the stalk, so the piece comes out about 90 cm from the ant instead of 180. Seen in still screenshots only; reopen if it needs more. In the package of 13 Nov 09:16.
 - [x] low priority: if you're already halfway back down the tree and you engage the auto-return, ideally it should just follow the scent line if you're close to it from that location, instead of walking strictly back (and going back up the tree etc.)
