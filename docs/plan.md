@@ -195,7 +195,8 @@ From `docs/playtest-notes.md`; each feel change has an off switch for the owner'
 - [x] Package and zip from f9d8b6d (13 Nov 13:33, 463.6 MB, no saves): the stronger smoke ribbon. Packaged smoke test: two days, wind map (one 3.5 ms tick logged), no fatal lines.
 - [x] Controls: the stick is a screen direction everywhere with a camera snapshot (owner's design, 13 Nov afternoon); input view F3 / `Leaf.InputViz`; control trace in the log. Explainer page for the owner: https://claude.ai/artifact/GiZG9aHE4z9zALjSjgUvSB. Package and zip from 8563559 (13 Nov 14:40, 463.6 MB); packaged smoke test: input view, two days, no fatal lines.
 - [x] Controls follow-ups (owner): twig snap off by default, the stick read against the branch's on-screen direction, one lap a second; package and zip from 4f356c2 (13 Nov 15:37); packaged smoke test passed.
-- [ ] Still open: the owner's verdict on the new controls; PS5 audio check (needs the owner's pad). Aiming stays as it is (owner).
+- [x] Owner on the new controls (13 Nov, 15:37 package): "that feels pretty good now".
+- [ ] Still open: PS5 audio check (needs the owner's pad). Aiming stays as it is (owner).
 
 ## M6: Stretch (only if M0–M5b are complete before the freeze; the bird waits for the owner to keep the line)
 

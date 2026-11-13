@@ -81,8 +81,11 @@
   - Now, as agreed: the stick is a screen direction everywhere (up/away, right), read from the camera when you start pushing and kept while you hold it, carried along the bark, so the camera is free meanwhile; a pause of 0.15 s or a sudden stick change reads the camera again. On thin twigs (under 25 cm, fading by 60 cm) it snaps to along or around. Tests: D with the camera along a branch still circles (10 cm 5.5 laps in 6 s, 20 cm 5.9, 40 cm 4.1, 90 cm 2.0); with the branch across the screen D walks along it; a 40 s walk with the camera wandering went straight up the trunk. Old controls: `Leaf.Tune move ControlStyle 1`; free diagonals on twigs: `Leaf.Tune move bSnapOnBranches False`.
   - Input view: F3 (or `Leaf.InputViz`) shows where W/A/S/D would go, the actual movement and the rule in charge; the log records junction crossings and moments the ant goes against the stick. F3 is turned off before the submission build (`plan.md`, M7). In the package of 13 Nov 14:40.
   - Follow-ups the same afternoon (owner): diagonals did not work on branches (the twig snap): snap now off by default (`bSnapOnBranches`). On the side of a branch running away from the camera, W went over the top (screen-up on that patch of bark): on branches the stick is now read against how the whole branch lies on screen, with perspective, so W walks along a branch that runs up or away on screen and A/D along one that runs across it, wherever the ant is round it. Going round is limited to one lap a second (`MaxLapsPerSecond`), walking along is not. The input view draws its paths with depth, so a path that goes over an edge disappears there. In the package of 13 Nov 15:37.
+  - Owner (13 Nov, after the 15:37 package): "that feels pretty good now".
 
 ## To revisit: thin-branch controls (2026-11-12)
+
+Superseded on 13 Nov by the screen-direction controls above (the steering wheel stays as `Leaf.Tune move ControlStyle 1`).
 
 Controls are camera-relative, but on thin branches two rules override them: input is snapped to "along the branch" unless it is clearly sideways (more than about 27 degrees off the branch on screen), and clearly sideways input walks the ant round the branch, with the circling direction locked while the stick holds still. Both can make "right" move the ant up on screen. Options:
 
