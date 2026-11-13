@@ -110,6 +110,29 @@ namespace
 		TEXT("Leaf.Bark [0|1]: the look-pass bark M_TreeBark2 (1, default) or the older M_TreeBark (0); no argument toggles."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World) { Bark(World, Args); }));
 
+	/** Leaf.Collars [0|1]: branch collars on or off (toggle with no argument), then today's tree grows again, fresh. */
+	void Collars(UWorld* World, const TArray<FString>& Args)
+	{
+		ADayDirector* D = ADayDirector::Get(World);
+		ATreeActor* Tree = ATreeActor::Get(World);
+		ULeaflineGameInstance* GI = World ? Cast<ULeaflineGameInstance>(World->GetGameInstance()) : nullptr;
+		if (!D || !Tree || !GI) return;
+		const bool bOn = Args.Num() > 0 ? FCString::Atoi(*Args[0]) != 0 : !ATreeActor::AreBranchCollarsOn(Tree->Params);
+		ATreeActor::SetBranchCollarsOverride(bOn);
+		Tree->Params.bBranchCollars = bOn;
+		UE_LOG(LogLeafline, Log, TEXT("Leaf.Collars: branch collars %s; growing tree %d again, fresh"), bOn ? TEXT("on") : TEXT("off"), D->GetStage() + 1);
+		// Same as Leaf.Stage: the same stage and seed, saved bites dropped.
+		GI->SetTree(D->GetStage(), GI->GetTreeSeed(), GI->GetStageStartDay());
+		GI->SetTreeState({}, 0, {}, 0);
+		D->DebugForceRegrow();
+		D->StartDay(D->GetDay());
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs CmdCollars(
+		TEXT("Leaf.Collars"),
+		TEXT("Leaf.Collars [0|1]: branches swell where they leave their parent (1, default) or not (0); no argument toggles. Grows today's tree again, fresh."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World) { Collars(World, Args); }));
+
 	FAutoConsoleCommandWithWorldAndArgs CmdStage(
 		TEXT("Leaf.Stage"),
 		TEXT("Leaf.Stage <sparse|blend|drop|leafy|height|rich|gust> <value>: change today's stage tuning and grow its tree again, fresh (metres for blend and leafy)."),

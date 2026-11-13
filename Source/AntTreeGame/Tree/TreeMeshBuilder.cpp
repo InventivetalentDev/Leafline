@@ -4,6 +4,7 @@
 namespace
 {
 	constexpr int32 CapRings = 4;
+	constexpr float NoOverlap = 10000.f; // UV3.y of a vertex that was not tested against another branch
 
 	/** UV2 = (Hi, Lo): Along split so both halves are exact in half floats; Hi + Lo = Along. */
 	FVector2D SplitAlong(double Along)
@@ -51,10 +52,11 @@ namespace
 		Range.bValid = true;
 
 		// Alpha = 1: not buried in another branch (the overlap pass in Build lowers it).
+		auto BarkAt = [&](int32 i) { return B.BarkRadius.Num() == NS ? B.BarkRadius[i] : B.SampleRadius[i]; };
 		const FLinearColor BaseColor(FMath::Clamp(B.Level, 0, 3) / 3.f, B.Random, 0.f, 1.f);
 		const float TreeH = FMath::Max(P.TrunkHeight, 1.f);
 
-		auto AddRing = [&](const FVector& Center, const FVector& Tan, const FVector& Nrm, float Radius, float NormalTilt, float Along)
+		auto AddRing = [&](const FVector& Center, const FVector& Tan, const FVector& Nrm, float Radius, float NormalTilt, float Along, float BarkR)
 		{
 			const FVector Bin = FVector::CrossProduct(Tan, Nrm);
 			for (int32 j = 0; j <= M; ++j)
@@ -67,6 +69,7 @@ namespace
 				Out.Normals.Add((Dir * FMath::Cos(NormalTilt) + Tan * FMath::Sin(NormalTilt)).GetSafeNormal());
 				Out.UV0.Add(FVector2D(Theta * FMath::Max(Radius, 1.f), Along));
 				Out.UV2.Add(SplitAlong(Along));
+				Out.UV3.Add(FVector2D(BarkR, NoOverlap));
 				Out.UV1.Add(FVector2D(C * Radius, S * Radius));
 				FLinearColor Col = BaseColor;
 				Col.B = FMath::Clamp((float)V.Z / TreeH, 0.f, 1.f);
@@ -92,7 +95,7 @@ namespace
 			const float DS = B.SampleDist[Hi] - B.SampleDist[Lo];
 			const float DRDS = DS > UE_SMALL_NUMBER ? (B.SampleRadius[Hi] - B.SampleRadius[Lo]) / DS : 0.f;
 			const int32 Ring = Out.Vertices.Num();
-			AddRing(B.Samples[i], T[i], N[i], B.SampleRadius[i], FMath::Atan(-DRDS), B.SampleDist[i]);
+			AddRing(B.Samples[i], T[i], N[i], B.SampleRadius[i], FMath::Atan(-DRDS), B.SampleDist[i], BarkAt(i));
 			if (PrevRing != INDEX_NONE) Stitch(PrevRing, Ring);
 			PrevRing = Ring;
 		}
@@ -106,7 +109,7 @@ namespace
 		{
 			const float Phi = 0.5f * PI * k / CapRings;
 			const int32 Ring = Out.Vertices.Num();
-			AddRing(TipC + TipT * (TipR * FMath::Sin(Phi)), TipT, N.Last(), TipR * FMath::Cos(Phi), Phi, TipAlong + TipR * Phi);
+			AddRing(TipC + TipT * (TipR * FMath::Sin(Phi)), TipT, N.Last(), TipR * FMath::Cos(Phi), Phi, TipAlong + TipR * Phi, BarkAt(NS - 1));
 			Stitch(PrevRing, Ring);
 			PrevRing = Ring;
 		}
@@ -115,6 +118,7 @@ namespace
 		Out.Normals.Add(TipT);
 		Out.UV0.Add(FVector2D(0.0, TipAlong + TipR * 0.5f * PI));
 		Out.UV2.Add(SplitAlong(TipAlong + TipR * 0.5f * PI));
+		Out.UV3.Add(FVector2D(BarkAt(NS - 1), NoOverlap));
 		Out.UV1.Add(FVector2D::ZeroVector);
 		FLinearColor TipCol = BaseColor;
 		TipCol.B = FMath::Clamp((float)(TipC.Z / TreeH), 0.f, 1.f);
@@ -128,15 +132,26 @@ namespace
 	}
 
 	/** Signed distance from P to the surface of the tube around segment i of B (negative inside). */
-	FORCEINLINE float SegSignedDist(const FVector& P, const FTreeBranch& B, int32 i)
+	FORCEINLINE float SegSignedDist(const FVector& P, const FTreeBranch& B, int32 i, float* OutRadius = nullptr)
 	{
 		const FVector& A = B.Samples[i];
 		const FVector AB = B.Samples[i + 1] - A;
 		const double L2 = AB.SizeSquared();
 		const double T = L2 > UE_DOUBLE_SMALL_NUMBER ? FMath::Clamp(FVector::DotProduct(P - A, AB) / L2, 0.0, 1.0) : 0.0;
 		const float R = FMath::Lerp(B.SampleRadius[i], B.SampleRadius[i + 1], (float)T);
+		if (OutRadius) *OutRadius = R;
 		return (float)FVector::Dist(P, A + AB * T) - R;
 	}
+
+	/**
+	 * UV3.y is the buried distance plus this fraction of the radius of the branch the vertex is buried in; the bark
+	 * hides UV3.y below -BuriedDepth (15 cm, MPC_View). Across the 200 to 300 cm triangles of big branches the linearly
+	 * interpolated distance dips far below the true one (the flare is bell-shaped and branches bend, so the solids are
+	 * not convex): on the owner's tree a root lost visible bark up to about 200 cm "inside" the trunk (1100 cm radius).
+	 * Scaling with the radius keeps a depth of about 235 cm by the trunk and about 33 cm inside a 90 cm limb, where the
+	 * buried trunk bark made the black wedge.
+	 */
+	constexpr float BuriedDepthPerRadius = 0.2f;
 
 	/** First index whose SampleDist is >= S (NS if none). */
 	int32 FirstSampleAtLeast(const FTreeBranch& B, float S)
@@ -163,7 +178,8 @@ namespace
 	// A = 0.5 + d / BuriedRange. The range must be wide: alpha is interpolated linearly across triangles of up to about
 	// 60 cm, and a clamped end value moves the cut outward on both surfaces of a junction, which opened holes there (owner,
 	// 13 Nov, with a range of 50 cm and a margin of 25). 400 cm keeps a step of 1.6 cm per 8-bit level.
-	constexpr float BuriedMargin = 200.f; // distances are measured up to this far outside; beyond it the vertex keeps 1
+	constexpr float BuriedMargin = 400.f; // rings and segments within this far outside the other tube are tested (UV3.y is unclamped)
+	constexpr float AlphaClamp = 200.f;   // the vertex alpha (no longer read by the material) still clamps distances here
 	constexpr float BuriedRange = 400.f;  // cm per full alpha range
 
 	/**
@@ -183,11 +199,21 @@ namespace
 		{
 			const int32 V = FirstVert + j;
 			const FVector& Pt = Out.Vertices[V];
-			float D = BuriedMargin;
-			for (int32 s : Near) D = FMath::Min(D, SegSignedDist(Pt, Other, s));
-			const float A = FMath::Clamp(0.5f + D / BuriedRange, 0.f, 1.f);
+			float D = TNumericLimits<float>::Max(), RAt = 0.f;
+			for (int32 s : Near)
+			{
+				float Rs;
+				const float Ds = SegSignedDist(Pt, Other, s, &Rs);
+				if (Ds < D)
+				{
+					D = Ds;
+					RAt = Rs;
+				}
+			}
+			const float A = FMath::Clamp(0.5f + FMath::Min(D, AlphaClamp) / BuriedRange, 0.f, 1.f);
 			float& Alpha = Out.Colors[V].A;
 			Alpha = FMath::Min(Alpha, A);
+			Out.UV3[V].Y = FMath::Min((double)Out.UV3[V].Y, (double)(D + BuriedDepthPerRadius * RAt));
 		}
 		return true;
 	}
@@ -268,9 +294,9 @@ void TreeMeshBuilder::Build(const FTreeSkeleton& S, FTreeMeshData& Out)
 	}
 	const double OverlapMs = (FPlatformTime::Seconds() - OverlapStart) * 1000.0;
 	int32 Buried = 0;
-	for (const FLinearColor& Col : Out.Colors)
+	for (const FVector2D& Uv : Out.UV3)
 	{
-		if (Col.A < 0.5f - 15.f / BuriedRange) ++Buried;
+		if (Uv.Y < -15.0) ++Buried;
 	}
 
 	UE_LOG(LogLeafline, Log, TEXT("TreeMeshBuilder: %d vertices, %d triangles, %.1f ms (overlap pass %.1f ms, %d buried vertices, %d child bases not sealed in their parent)"),

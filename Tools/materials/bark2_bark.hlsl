@@ -1,6 +1,7 @@
 // M_TreeBark2, Custom node "Bark" (look pass, 13 Nov). Source of truth for the node's Code; Tools/materials/build_bark2.py
 // pastes it in over unreal-mcp. Inputs: UV1 (R cos, R sin in cm), UV2 (distance along the branch split hi/lo, see
-// TreeMeshBuilder.h), VC (vertex colour: level/3, per-branch random, height on tree, buried), WP (world position),
+// TreeMeshBuilder.h), UV3 (x: the bark radius, the branch radius without the trunk flare and branch collars; 0 on
+// meshes without it), VC (vertex colour: level/3, per-branch random, height on tree, buried), WP (world position),
 // N (vertex normal WS), T (vertex tangent WS, the direction of increasing angle round the branch), Cam (MPC_View CamPos).
 // Returns the base colour; additional outputs Rough, NormalW (world-space normal) and AO.
 // Bark lives on a cylinder per branch: q = (UV1, along * ALONG). Plates are Voronoi cells of q (longer along the
@@ -67,7 +68,11 @@ float R = max(length(UV1.xy), 0.001);
 float2 radial = UV1.xy / R;
 float2 aroundQ = float2(-radial.y, radial.x);
 float along = UV2.x + UV2.y;
-float3 q = float3(UV1.xy, along * ALONG + VC.g * 2000.0);   // ridge space (along compressed)
+// Ridge space (along compressed). Its cylinder uses the bark radius: where the radius changes fast along the branch (the
+// flare, collars) a cylinder of the true radius sweeps radially through the cells and the ridges turned into paving.
+float Rq = UV3.x > 0.5 ? UV3.x : R;
+float aroundScale = Rq / R; // q units per cm round the branch
+float3 q = float3(radial * Rq, along * ALONG + VC.g * 2000.0);
 float3 qw = float3(UV1.xy, along + VC.g * 5000.0);           // true proportions, for colour, moss and grain
 // Pixel footprint (cm per pixel at 1080p and 75 degrees): fades detail that would shimmer.
 float fp = distance(WP.xyz, Cam.xyz) * 0.0008;
@@ -149,6 +154,6 @@ AO = lerp(1.0, 0.55, fis * reliefFade * (1.0 - 0.5 * moss));
 
 float3 Tt = normalize(T.xyz - Nn * dot(T.xyz, Nn));
 float3 Aa = cross(Nn, Tt);
-float3 G = (Tt * dot(gq.xy + gw.xy, aroundQ) + Aa * (gq.z * ALONG + gw.z)) * (1.0 - 0.6 * moss);
+float3 G = (Tt * (dot(gq.xy, aroundQ) * aroundScale + dot(gw.xy, aroundQ)) + Aa * (gq.z * ALONG + gw.z)) * (1.0 - 0.6 * moss);
 NormalW = normalize(Nn - G);
 return col;

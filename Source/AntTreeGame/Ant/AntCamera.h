@@ -49,6 +49,9 @@ struct FAntCameraTuning
 	/** Bark nearer the camera than this is gone; it fades back in by NearFadeEnd (cm). M_TreeBark2. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float NearFadeStart = 8.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float NearFadeEnd = 35.f;
+	/** M_TreeBark2 hides bark buried more than this (cm) plus 0.2 x the other branch's radius inside another branch
+	 *  (UV3.y, see TreeMeshBuilder.cpp). From outside, buried bark is covered by the other branch anyway. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float BuriedDepth = 15.f;
 	/** The camera never goes lower than this above the ground (cm). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float GroundClearance = 15.f;
 	/** The camera never sits inside wood this thick (radius, cm: the trunk, roots, big limbs); it slides out to

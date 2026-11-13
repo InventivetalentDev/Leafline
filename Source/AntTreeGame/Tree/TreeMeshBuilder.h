@@ -14,6 +14,8 @@ struct FTreeMeshData
 	TArray<FVector2D> UV1;
 	/** Bark only: distance along the branch (the value in UV0.y) as (Hi, Lo), Hi = floor(Along / 256) * 256, Lo = Along - Hi. */
 	TArray<FVector2D> UV2;
+	/** Bark only: (radius without flare and collar, buried distance). See the namespace comment. */
+	TArray<FVector2D> UV3;
 	TArray<FLinearColor> Colors;
 	TArray<FProcMeshTangent> Tangents;
 
@@ -25,6 +27,7 @@ struct FTreeMeshData
 		UV0.Reset();
 		UV1.Reset();
 		UV2.Reset();
+		UV3.Reset();
 		Colors.Reset();
 		Tangents.Reset();
 	}
@@ -36,6 +39,12 @@ struct FTreeMeshData
  * bark on a seamless cylinder for 3D noise (no seam around, physical scale everywhere, tips close to a point).
  * UV2 = (Hi, Lo) split of UV0.y: Hi = floor(along / 256) * 256, Lo = along - Hi. Both are exact in half floats and Hi + Lo
  * interpolates linearly, giving the along distance at sub-millimetre precision.
+ * UV3 = (bark radius, buried distance) for the bark shader. x is the branch's BarkRadius at the ring (the radius without the
+ * trunk's ground flare and without the collar; SampleRadius when BarkRadius is empty; cap rings and the tip use the last
+ * sample's). y is the true signed distance in cm from the vertex to the surface of the branch it overlaps (its parent for a
+ * child, its children's bases for a parent whose child's base ring lies wholly inside it), negative inside, NOT clamped:
+ * an unclamped distance to a convex tube interpolates conservatively across the 300 cm triangles of the trunk. 10000 where
+ * nothing is tested. The material hides y < -15. Values are half floats on the GPU.
  * Colour = (level/3, per-branch random, height on tree, buried). Alpha is a signed distance to the other branches the
  * vertex overlaps (its parent for a child, its children's bases for a parent): A = clamp(0.5 + d / 400, 0, 1), d in cm,
  * negative inside the other branch; 1 where nothing overlaps. The material treats A < 0.4625 (more than 15 cm inside)

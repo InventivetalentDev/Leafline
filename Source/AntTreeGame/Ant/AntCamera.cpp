@@ -61,6 +61,7 @@ void AAntCamera::PublishView(const FVector& CamPos, const FVector& AntFocus, boo
 	UKismetMaterialLibrary::SetScalarParameterValue(this, ViewCollection, TEXT("CutawayBand"), FMath::Clamp(Tuning.CutawayBand, 0.02f, 1.f));
 	UKismetMaterialLibrary::SetScalarParameterValue(this, ViewCollection, TEXT("CutawayTaper"), FMath::Max(Tuning.CutawayTaper, 0.05f));
 	UKismetMaterialLibrary::SetScalarParameterValue(this, ViewCollection, TEXT("NearFadeStart"), Tuning.NearFadeStart);
+	UKismetMaterialLibrary::SetScalarParameterValue(this, ViewCollection, TEXT("BuriedDepth"), FMath::Max(Tuning.BuriedDepth, 0.f));
 	UKismetMaterialLibrary::SetScalarParameterValue(this, ViewCollection, TEXT("NearFadeEnd"), FMath::Max(Tuning.NearFadeEnd, Tuning.NearFadeStart + 1.f));
 }
 

@@ -440,6 +440,17 @@ void ATreeActor::Grow(int32 Seed)
 namespace
 {
 	bool GNewBark = true;
+	int32 GCollarsOverride = -1; // -1: FTreeParams::bBranchCollars decides; 0/1: Leaf.Collars
+}
+
+void ATreeActor::SetBranchCollarsOverride(bool bOn)
+{
+	GCollarsOverride = bOn ? 1 : 0;
+}
+
+bool ATreeActor::AreBranchCollarsOn(const FTreeParams& P)
+{
+	return GCollarsOverride >= 0 ? GCollarsOverride != 0 : P.bBranchCollars;
 }
 
 bool ATreeActor::IsNewBark()
@@ -480,6 +491,7 @@ bool ATreeActor::GrowWithBites(int32 Seed, const TArray<FSavedLeaf>& Bites, int3
 
 void ATreeActor::GrowShape(int32 Seed)
 {
+	Params.bBranchCollars = AreBranchCollarsOn(Params);
 	TreeSkeleton::Grow(Skeleton, Params, Seed);
 	Field.Build(Skeleton);
 	BranchChildren.Reset();
@@ -495,7 +507,7 @@ void ATreeActor::GrowShape(int32 Seed)
 
 	if (!WoodMesh) WoodMesh = MakeMeshComponent(this, RootComponent, TEXT("WoodMesh"));
 	WoodMesh->ClearAllMeshSections();
-	WoodMesh->CreateMeshSection_LinearColor(0, Data.Vertices, Data.Triangles, Data.Normals, Data.UV0, Data.UV1, Data.UV2, {},
+	WoodMesh->CreateMeshSection_LinearColor(0, Data.Vertices, Data.Triangles, Data.Normals, Data.UV0, Data.UV1, Data.UV2, Data.UV3,
 		Data.Colors, Data.Tangents, false, false);
 
 	UMaterialInterface* Mat = PickBark();
@@ -1077,7 +1089,7 @@ void ATreeActor::BuildGrove()
 	}
 	GroveMesh->ClearAllMeshSections();
 	if (Data.Vertices.Num() == 0) return;
-	GroveMesh->CreateMeshSection_LinearColor(0, Data.Vertices, Data.Triangles, Data.Normals, Data.UV0, Data.UV1, Data.UV2, {},
+	GroveMesh->CreateMeshSection_LinearColor(0, Data.Vertices, Data.Triangles, Data.Normals, Data.UV0, Data.UV1, Data.UV2, Data.UV3,
 		Data.Colors, Data.Tangents, false, false);
 	if (UMaterialInterface* Mat = WoodMesh ? WoodMesh->GetMaterial(0) : nullptr) GroveMesh->SetMaterial(0, Mat);
 	UE_LOG(LogLeafline, Log, TEXT("Grove: %d distant trunks, %d triangles"), Count, Data.Triangles.Num() / 3);

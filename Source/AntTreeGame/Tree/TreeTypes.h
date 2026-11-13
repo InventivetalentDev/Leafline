@@ -18,6 +18,9 @@ struct FTreeBranch
 	/** Dense samples of the Catmull-Rom curve through Nodes. Field segments and mesh rings sit on these. */
 	TArray<FVector> Samples;
 	TArray<float> SampleRadius;
+	/** Radius without the trunk's ground flare and without the branch collar, one per sample, for the bark shader (its
+	 *  cylinder-coordinate noise must not stretch with either). Empty means "use SampleRadius". */
+	TArray<float> BarkRadius;
 	/** Arc length from the branch start to each sample (cm). */
 	TArray<float> SampleDist;
 
@@ -134,6 +137,14 @@ struct FTreeParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh") float AroundSpacing = 30.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh") int32 MaxAroundVerts = 128;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh") int32 MinAroundVerts = 7;
+
+	// Collars: a branch swells where it leaves its parent (draws no random numbers; the tree stays the same tree).
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh") bool bBranchCollars = true;
+	/** Extra radius at the point where the branch leaves its parent, as a fraction of the branch's base radius (roots and
+	 *  limbs; boughs get 0.8x, twigs 0.5x). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh") float CollarAmount = 0.45f;
+	/** How far the swelling fades out along the branch, in base radii. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh") float CollarLength = 1.2f;
 };
 
 /** A bitten leaf, for the colony save (one tree per stage). Leaf indices are only stable for the same seed, params and

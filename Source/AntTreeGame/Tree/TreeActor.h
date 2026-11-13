@@ -132,6 +132,10 @@ public:
 	void SetNewBark(bool bOn);
 	static bool IsNewBark();
 
+	/** Branch collars (Leaf.Collars): overrides FTreeParams::bBranchCollars for every tree grown from now on. */
+	static void SetBranchCollarsOverride(bool bOn);
+	static bool AreBranchCollarsOn(const FTreeParams& P);
+
 private:
 	/** M_TreeBark2 if the new bark is on and the asset exists, else BarkMaterial. */
 	UMaterialInterface* PickBark();

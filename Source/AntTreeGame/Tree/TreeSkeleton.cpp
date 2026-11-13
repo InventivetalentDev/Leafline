@@ -344,6 +344,106 @@ FVector TreeSkeleton::SampleAt(const FTreeBranch& B, float T, float* OutRadius, 
 	return FMath::Lerp(B.Samples[Lo], B.Samples[Hi], (double)F);
 }
 
+namespace
+{
+	/** Signed distance from P to the tube around segment i of the polyline (negative inside); same model as the mesh. */
+	double TubeSegDist(const FVector& P, const TArray<FVector>& S, const TArray<float>& R, int32 i)
+	{
+		const FVector& A = S[i];
+		const FVector AB = S[i + 1] - A;
+		const double L2 = AB.SizeSquared();
+		const double T = L2 > UE_DOUBLE_SMALL_NUMBER ? FMath::Clamp(FVector::DotProduct(P - A, AB) / L2, 0.0, 1.0) : 0.0;
+		return FVector::Dist(P, A + AB * T) - FMath::Lerp(R[i], R[i + 1], (float)T);
+	}
+
+	int32 FirstDistAtLeast(const TArray<float>& Dist, float S)
+	{
+		int32 Lo = 0, Hi = Dist.Num();
+		while (Lo < Hi)
+		{
+			const int32 Mid = (Lo + Hi) / 2;
+			if (Dist[Mid] < S) Lo = Mid + 1; else Hi = Mid;
+		}
+		return Lo;
+	}
+
+	/**
+	 * After all branches are grown (draws no random numbers): fills BarkRadius, and when bBranchCollars is on swells every
+	 * branch with a parent where it leaves that parent. s_exit is the arc length of the child's first sample outside the
+	 * parent's tube; the swelling ramps in over [s_exit / 2, s_exit] (so the base ring buried in the parent does not grow
+	 * and cannot poke out) and decays beyond it.
+	 */
+	void FinishRadii(FTreeSkeleton& S, const FTreeParams& P)
+	{
+		const int32 NB = S.Branches.Num();
+		// The radii as grown: the parents' tubes are measured with these, not with collared radii.
+		TArray<TArray<float>> Orig;
+		Orig.SetNum(NB);
+		for (int32 b = 0; b < NB; ++b)
+		{
+			FTreeBranch& B = S.Branches[b];
+			Orig[b] = B.SampleRadius;
+			B.BarkRadius = B.SampleRadius;
+			if (B.Level == 0)
+			{
+				// Undo the flare applied in TrunkRadiusAt, from each sample's height.
+				for (int32 i = 0; i < B.BarkRadius.Num(); ++i)
+				{
+					const float Hc = FMath::Max((float)B.Samples[i].Z, 0.f);
+					B.BarkRadius[i] /= 1.f + P.FlareMul * FMath::Exp(-Hc / FMath::Max(P.FlareHeight, 1.f));
+				}
+			}
+		}
+		if (!P.bBranchCollars) return;
+
+		for (int32 c = 0; c < NB; ++c)
+		{
+			FTreeBranch& B = S.Branches[c];
+			if (B.Parent == INDEX_NONE || !S.Branches.IsValidIndex(B.Parent) || B.Parent == c || B.Samples.Num() < 2) continue;
+			const FTreeBranch& Par = S.Branches[B.Parent];
+			const TArray<float>& ParR = Orig[B.Parent];
+			const int32 NSp = Par.Samples.Num();
+			if (NSp < 2) continue;
+			const float R0 = Orig[c][0];
+			// Twigs carry leaves from 15% of their length: a collar there could move or drop a leaf, and one-tree saves store
+			// bites by leaf index. Twig collars would hardly show anyway.
+			const float Amount = P.CollarAmount * (B.Level == 3 ? 0.f : B.Level == 2 ? 0.8f : 1.f);
+			if (Amount <= 0.f || R0 <= 0.f) continue;
+
+			// Parent segments within a window round the junction.
+			const float Sp = FMath::Clamp(B.ParentT, 0.f, 1.f) * Par.Length();
+			const float Rp = ParR[FMath::Clamp(FirstDistAtLeast(Par.SampleDist, Sp), 0, NSp - 1)];
+			const float Win = 3.f * (Rp + R0) + 200.f;
+			const int32 SegLo = FMath::Clamp(FirstDistAtLeast(Par.SampleDist, Sp - Win) - 1, 0, NSp - 2);
+			const int32 SegHi = FMath::Clamp(FirstDistAtLeast(Par.SampleDist, Sp + Win), 0, NSp - 2);
+
+			float SExit = B.Length();
+			for (int32 i = 0; i < B.Samples.Num(); ++i)
+			{
+				double D = TNumericLimits<double>::Max();
+				for (int32 sg = SegLo; sg <= SegHi; ++sg) D = FMath::Min(D, TubeSegDist(B.Samples[i], Par.Samples, ParR, sg));
+				if (D >= 0.0)
+				{
+					SExit = B.SampleDist[i];
+					break;
+				}
+			}
+
+			const float Decay = FMath::Max(P.CollarLength * R0, 1.f);
+			const float Ramp0 = 0.5f * SExit;
+			B.Bounds = FBox(ForceInit);
+			for (int32 i = 0; i < B.Samples.Num(); ++i)
+			{
+				const float Sd = B.SampleDist[i];
+				const float Ramp = SExit - Ramp0 > UE_SMALL_NUMBER ? FMath::SmoothStep(Ramp0, SExit, Sd) : (Sd >= SExit ? 1.f : 0.f);
+				const float Extra = Amount * R0 * Ramp * FMath::Exp(-FMath::Max(0.f, Sd - SExit) / Decay);
+				B.SampleRadius[i] = Orig[c][i] + Extra;
+				B.Bounds += FBox(B.Samples[i] - FVector(B.SampleRadius[i]), B.Samples[i] + FVector(B.SampleRadius[i]));
+			}
+		}
+	}
+}
+
 void TreeSkeleton::Grow(FTreeSkeleton& Out, const FTreeParams& Params, int32 Seed)
 {
 	const double StartTime = FPlatformTime::Seconds();
@@ -358,6 +458,7 @@ void TreeSkeleton::Grow(FTreeSkeleton& Out, const FTreeParams& Params, int32 See
 	G.GrowLimbs(Limbs);
 	G.GrowChildren(Limbs, 2, Boughs);
 	G.GrowChildren(Boughs, 3, Twigs);
+	FinishRadii(Out, Params);
 
 	int32 Samples = 0;
 	for (const FTreeBranch& B : Out.Branches) Samples += B.Samples.Num();
