@@ -216,6 +216,8 @@ Tagged `pre-look` before it started. Commits start `Look:` (and `HUD:` for the H
 - [x] Owner playtest of the 17:28 package: holes where roots and big limbs meet the trunk. Caused by the buried-bark mask (clamped distances across 300 cm trunk triangles; parents masked inside children whose open base ring pokes out). Fixed: unclamped distance in UV3.y, parents masked only inside sealed bases. A/B with `Leaf.Bark 0` on the owner's tree (the root at the nest) by a Claude agent.
 - [x] Faint bottom-left build and position line with a pasteable `Leaf.Goto` (owner's idea); `Tools/write_buildinfo.sh` before packaging.
 - [x] Branch collars (owner's polish note, smoother junctions): `bBranchCollars`, `Leaf.Collars 0|1`; no twig collars, leaf count unchanged. Bark ridges follow a bark radius without flare and collars, so the trunk flare no longer reads as paving stones.
+- [x] Package and zip from 8e4b36e (13 Nov 18:42, 463.8 MB, no saves): packaged smoke test with and without ray tracing (two days each, no fatal lines); the corner line shows the commit. Concept comparison shots on this build: `Saved/RefShots/concept-compare/` (six pairs and a README, for a Codex review).
+- [ ] Still open from the shots: roots keep small cobble-like plates (their radius tapers fast near the base, which the bark radius does not smooth yet); dark cutaway views can still happen near junctions while walking (a frame from the 02 walk).
 - [ ] Part 5 (trail near the camera, leaf tone variation, framing foliage on the grove) only if time remains before the freeze.
 
 ## M6: Stretch (only if M0–M5b are complete before the freeze; the bird waits for the owner to keep the line)
