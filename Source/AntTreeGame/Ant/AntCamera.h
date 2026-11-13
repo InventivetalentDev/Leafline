@@ -52,6 +52,15 @@ struct FAntCameraTuning
 	/** M_TreeBark2 hides bark buried more than this (cm) plus 0.2 x the other branch's radius inside another branch
 	 *  (UV3.y, see TreeMeshBuilder.cpp). From outside, buried bark is covered by the other branch anyway. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float BuriedDepth = 15.f;
+	/**
+	 * The bark's cutaway opens only when wood really lies between the camera and the ant (look pass 2): the line to the
+	 * ant is traced through the tree field each frame, and the bark's cutaway radius scales with how deep it runs through
+	 * wood, from 0 (clear) to full at CutawayDepthFull cm. It eases in at CutawayEaseIn and out at CutawayEaseOut (1/s),
+	 * so the hole does not flicker while walking. Leaves and the near-camera fade are unaffected.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float CutawayDepthFull = 25.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float CutawayEaseIn = 8.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float CutawayEaseOut = 3.f;
 	/** The camera never goes lower than this above the ground (cm). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float GroundClearance = 15.f;
 	/** The camera never sits inside wood this thick (radius, cm: the trunk, roots, big limbs); it slides out to
@@ -135,6 +144,11 @@ private:
 	TObjectPtr<UMaterialParameterCollection> ViewCollection;
 
 	void PublishView(const FVector& CamPos, const FVector& AntFocus, bool bCutaway);
+	/** How deep (cm) the segment runs through wood, ignoring EndSkip cm at its far end (the ant stands on the bark). */
+	float OcclusionDepth(const FVector& From, const FVector& To, float EndSkip) const;
+	/** The bark's cutaway factor (0 clear .. 1 full), eased; published to MPC_View as BarkCut. */
+	float BarkCut = 0.f;
+	float CutLogTimer = 0.f;
 
 	TWeakObjectPtr<AAntPawn> Target;
 	TWeakObjectPtr<class ATreeActor> Tree;

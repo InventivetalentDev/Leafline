@@ -2,11 +2,12 @@
 // Inputs: WP, Cam, Ant (MPC_View CamPos, AntFocus), R (CutawayRadius), On (CutawayOn), Band (CutawayBand, rim width as
 // a fraction of the radius), Taper (CutawayTaper, narrowing toward the ant), NearA/NearB (NearFadeStart/End),
 // VC (UV3: y is the signed distance in cm to the branch this bark overlaps, negative inside; see TreeMeshBuilder.h),
-// Depth (MPC_View BuriedDepth).
+// Depth (MPC_View BuriedDepth), Cut (MPC_View BarkCut: 0 when no wood lies between camera and ant, 1 when it does;
+// scales only the cutaway radius, so the near-camera fade keeps working).
 float3 c = Cam.xyz;
 float3 d = Ant.xyz - c;
 float t = saturate(dot(WP.xyz - c, d) / (dot(d, d) + 1.0));
-float r = R * pow(saturate(1.0 - t), Taper);
+float r = R * saturate(Cut) * pow(saturate(1.0 - t), Taper);
 float cut = smoothstep(r * (1.0 - Band), r + 0.5, distance(WP.xyz, c + d * t));
 float nearCam = smoothstep(NearA, NearB, distance(WP.xyz, c));
 float keep = step(-Depth, VC.y); // hidden when more than Depth (MPC_View BuriedDepth, cm) inside another branch

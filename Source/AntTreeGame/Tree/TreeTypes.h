@@ -139,7 +139,7 @@ struct FTreeParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh") int32 MinAroundVerts = 7;
 
 	// Collars: a branch swells where it leaves its parent (draws no random numbers; the tree stays the same tree).
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh") bool bBranchCollars = true;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh") bool bBranchCollars = false;
 	/** Extra radius at the point where the branch leaves its parent, as a fraction of the branch's base radius (roots and
 	 *  limbs; boughs get 0.8x, twigs 0.5x). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh") float CollarAmount = 0.45f;

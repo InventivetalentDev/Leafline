@@ -7,6 +7,8 @@
 #include "Kismet/KismetMaterialLibrary.h"
 #include "Materials/MaterialParameterCollection.h"
 #include "UObject/ConstructorHelpers.h"
+#include "HAL/IConsoleManager.h"
+#include "AntTreeGame.h"
 
 namespace
 {
@@ -61,8 +63,41 @@ void AAntCamera::PublishView(const FVector& CamPos, const FVector& AntFocus, boo
 	UKismetMaterialLibrary::SetScalarParameterValue(this, ViewCollection, TEXT("CutawayBand"), FMath::Clamp(Tuning.CutawayBand, 0.02f, 1.f));
 	UKismetMaterialLibrary::SetScalarParameterValue(this, ViewCollection, TEXT("CutawayTaper"), FMath::Max(Tuning.CutawayTaper, 0.05f));
 	UKismetMaterialLibrary::SetScalarParameterValue(this, ViewCollection, TEXT("NearFadeStart"), Tuning.NearFadeStart);
+	UKismetMaterialLibrary::SetScalarParameterValue(this, ViewCollection, TEXT("BarkCut"), BarkCut);
 	UKismetMaterialLibrary::SetScalarParameterValue(this, ViewCollection, TEXT("BuriedDepth"), FMath::Max(Tuning.BuriedDepth, 0.f));
 	UKismetMaterialLibrary::SetScalarParameterValue(this, ViewCollection, TEXT("NearFadeEnd"), FMath::Max(Tuning.NearFadeEnd, Tuning.NearFadeStart + 1.f));
+}
+
+namespace
+{
+	/** Leaf.CutLog: log the bark cutaway's depth and factor every quarter second (acceptance test of look pass 2). */
+	bool GCutLog = false;
+	FAutoConsoleCommand CmdCutLog(
+		TEXT("Leaf.CutLog"),
+		TEXT("Leaf.CutLog [0|1]: log how deep the line from the camera to the ant runs through wood and the bark's cutaway factor, every 0.25 s; no argument toggles."),
+		FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
+		{
+			GCutLog = Args.Num() > 0 ? FCString::Atoi(*Args[0]) != 0 : !GCutLog;
+		}));
+}
+
+float AAntCamera::OcclusionDepth(const FVector& From, const FVector& To, float EndSkip) const
+{
+	const FTreeField* Field = Tree.IsValid() ? &Tree->GetField() : nullptr;
+	if (!Field || !Field->IsValid()) return 0.f;
+	const FVector Seg = To - From;
+	const double Len = Seg.Size() - EndSkip;
+	if (Len <= 1.0) return 0.f;
+	const FVector Dir = Seg.GetSafeNormal();
+	// Sphere-trace through air, fixed small steps through wood; the deepest point inside wood is the answer.
+	double T = 0.0, Deepest = 0.0;
+	for (int32 i = 0; i < 64 && T < Len; ++i)
+	{
+		const double D = Field->Distance(From + Dir * T);
+		if (D < 0.0) Deepest = FMath::Max(Deepest, -D);
+		T += D > 0.0 ? FMath::Max(D, 2.0) : FMath::Clamp(-D, 2.0, 8.0);
+	}
+	return (float)Deepest;
 }
 
 void AAntCamera::SetTarget(AAntPawn* NewTarget, bool bGlide)
@@ -373,6 +408,16 @@ void AAntCamera::Tick(float DeltaTime)
 	SetActorLocationAndRotation(CamPos, FRotationMatrix::MakeFromXZ(LookDir, CamUp).ToQuat());
 	// The cutaway aims at the ant's body, not at the look-at point: that one sits above the ant and lags behind it on a
 	// spring, so the see-through hole in the bark was often beside the ant (owner note).
+	{
+		const float Depth = OcclusionDepth(CamPos, AntPos + AntUp * 3.0, 10.f);
+		const float WantCut = FMath::SmoothStep(2.f, FMath::Max(Tuning.CutawayDepthFull, 3.f), Depth);
+		BarkCut = FMath::FInterpTo(BarkCut, WantCut, (float)Dt, WantCut > BarkCut ? Tuning.CutawayEaseIn : Tuning.CutawayEaseOut);
+		if (GCutLog && (CutLogTimer -= (float)Dt) <= 0.f)
+		{
+			CutLogTimer = 0.25f;
+			UE_LOG(LogLeafline, Log, TEXT("Cutaway: line to the ant %.0f cm deep in wood, bark cutaway %.2f"), Depth, BarkCut);
+		}
+	}
 	PublishView(CamPos, AntPos + AntUp * 3.0, true);
 	Camera->SetFieldOfView(Tuning.FieldOfView);
 	FPostProcessSettings& PP = Camera->PostProcessSettings;

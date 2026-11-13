@@ -49,9 +49,11 @@ FBark2 B;
 
 // Shape (cm unless noted)
 const float PLATE = 14.0;       // ridge width across the branch
-const float ALONG = 0.085;      // along compression: ridges about twelve times longer along the branch than across
-const float FIS_W = 0.5;        // soft width of a furrow (cell units): wide valleys, rounded ridges, no outlines
-const float FIS_DEPTH = 2.6;    // furrow depth
+const float ALONG = 0.13;       // along compression: plates about eight times longer along the branch than across, so they end
+// Narrower than first tried (0.5): the furrow slope is the gradient of F2 - F1, which jumps where the second-nearest cell
+// point switches; with wide furrows those switch lines sat on visible slopes and drew straight creases (look pass 2).
+const float FIS_W = 0.3;        // soft width of a furrow (cell units): wide valleys, rounded ridges, no outlines
+const float FIS_DEPTH = 1.8;    // furrow depth
 const float DOME = 1.5;         // ridge rounding
 const float GRAIN_DEPTH = 0.12; // fine grain depth
 const float MOSS_AMOUNT = 1.0;
@@ -61,8 +63,9 @@ const float3 PLATE_DARK = float3(0.14, 0.095, 0.062);
 const float3 PLATE_LIGHT = float3(0.32, 0.23, 0.145);
 const float3 YOUNG = float3(0.22, 0.15, 0.10);
 const float FISSURE_SHADE = 0.42; // furrow colour as a fraction of the ridge colour beside it
-const float3 MOSS_A = float3(0.085, 0.13, 0.035);
-const float3 MOSS_B = float3(0.12, 0.16, 0.05);
+// Darker and duller than any leaf (leaf colour is information: richness, brown): olive grey, not lime.
+const float3 MOSS_A = float3(0.05, 0.062, 0.03);
+const float3 MOSS_B = float3(0.075, 0.085, 0.042);
 
 float R = max(length(UV1.xy), 0.001);
 float2 radial = UV1.xy / R;
@@ -156,4 +159,13 @@ float3 Tt = normalize(T.xyz - Nn * dot(T.xyz, Nn));
 float3 Aa = cross(Nn, Tt);
 float3 G = (Tt * (dot(gq.xy, aroundQ) * aroundScale + dot(gw.xy, aroundQ)) + Aa * (gq.z * ALONG + gw.z)) * (1.0 - 0.6 * moss);
 NormalW = normalize(Nn - G);
+// Debug views (look pass 2, finding the triangular seams): 0 normal; 1 vertex normal; 2 vertex tangent; 3 UV1 and UV2
+// stripes; 4 UV3.x (bark radius); 5 no relief (vertex normal only); 6 the perturbed normal.
+const int DEBUG_VIEW = 0;
+if (DEBUG_VIEW == 1) { NormalW = Nn; return Nn * 0.5 + 0.5; }
+if (DEBUG_VIEW == 2) { NormalW = Nn; return normalize(T.xyz) * 0.5 + 0.5; }
+if (DEBUG_VIEW == 3) { NormalW = Nn; return float3(frac(UV1.x / 20.0), frac(along / 20.0), frac(UV1.y / 20.0)); }
+if (DEBUG_VIEW == 4) { NormalW = Nn; return frac(UV3.x / 50.0).xxx; }
+if (DEBUG_VIEW == 5) { NormalW = Nn; return col; }
+if (DEBUG_VIEW == 6) { return NormalW * 0.5 + 0.5; }
 return col;
