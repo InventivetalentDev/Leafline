@@ -220,6 +220,17 @@ Tagged `pre-look` before it started. Commits start `Look:` (and `HUD:` for the H
 - [ ] Still open from the shots: roots keep small cobble-like plates (their radius tapers fast near the base, which the bark radius does not smooth yet); dark cutaway views can still happen near junctions while walking (a frame from the 02 walk).
 - [ ] Part 5 (trail near the camera, leaf tone variation, framing foliage on the grove) only if time remains before the freeze.
 
+## M5e: Look pass 2 (Fri evening; brief `docs/briefs/look-pass-2.md`)
+
+- [x] Item 1: the bark's cutaway opens only when the line from the camera to the ant runs through wood (`BarkCut`, `Leaf.CutLog`); leaves and the near-camera fade unchanged.
+- [x] The hard-edged dark area at the gathering pose was not the cutaway but a hole from the buried-bark mask; hiding a parent's bark inside a child is now off (`bMaskParentInChild`).
+- [x] Item 2: nest generated in Blender (owner's OK) with `M_NestSoil`; ground litter spots rarer, smaller, ochre. Root flare: long ridges since the bark radius.
+- [x] Item 3: bark furrows narrower and shallower, plates that end, moss olive grey; the triangular seams were the relief (F2 gradient switches), found with debug views.
+- [ ] Item 3, carried piece veins: not done (needs a C++ UV change and a visual check; first to cut).
+- [x] Re-tests after collars: `Leaf.MeshGap` worst 0.00 cm (collars on and off); a pre-look save loads with all 12 bites.
+- [x] Collars off by default: the owner saw square intersections and wants fillets (the walking surface's smooth blend shown on the mesh). Fillets: a Claude agent in the worktree `leafline-fillet` (branch `fillets`).
+- [ ] Acceptance tests 2 to 7 on the final build, frame times, packaged smoke test, package.
+
 ## M6: Stretch (only if M0–M5b are complete before the freeze; the bird waits for the owner to keep the line)
 
 1. Bird: perches, notices exposed ants, swoops; dropping a food item distracts it. Needs a model (Blender script), simple state machine, and a food pickup. Nothing harmful is shown happening to the bird.
