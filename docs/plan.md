@@ -161,8 +161,9 @@ Spec: `docs/briefs/one-tree.md`; work split: `docs/briefs/one-tree-contract.md`.
 - [x] Codex review of the save and load paths and the day start: 6 findings (mid-day flag toggle, debug purchases saving mid-day haul, stale tree after switching off, reset then day end, recruits-off migration stage, debug move skipping a tree), then 3 more on the fixes (all debug paths); all fixed.
 - [x] Economy numbers from the measured trees (`Tools/econ_sim.py`, `docs/economy.md`): one-tree thresholds 25 / 155 / 270 with recruits, 5 / 60 / 95 by hand.
 - [x] `M_Leaf`: vertex R = 0 turns a leaf brown: `OneMinus_2` on `VertexColor_0.R` drives `LinearInterpolate_3` (base colour toward 0.20, 0.115, 0.04, `Constant3Vector_5`) and `LinearInterpolate_4` (backlight toward 0.30, 0.15, 0.035, `Constant3Vector_6`). R was unused before (G is colour variation, A richness). Wiring checked over MCP; no close-up screenshot of a brown leaf yet. Screenshots: `Saved/RefShots/tree-movecard.png` (the card over the new trunk), `tree-bare-low-bough.png` (a bare low bough on the first tree).
+- [x] Package and zip from 852145d (13 Nov 11:28, `Build/inventivetalent_Leafline.zip`, 463 MB); packaged smoke test in slot `PackSmoke`: two days on a kept tree, no fatal lines.
 - Acceptance tests (`Tools/tree_test.sh`, slot `TreeTest`; Fri morning):
-  1. Two days, quit, relaunch: same tree (seed 675856), same 6 bites (22,620 pieces left), day 3. Pass.
+  1. Two days, quit, relaunch: same tree (seed 675856), same 6 bites (22,620 pieces left), day 3. Pass; re-run on the final build after the review fixes: pass.
   2. Twenty scripted days (lowest leaves first, bough by bough, Brood first to level 2, save reloaded every morning): on the morning of day 4 the three lowest boughs (33.0, 35.5 and 37.5 m) had no live leaf left, and the 30–40 m band was empty. Pass.
   3. Mean height of the day's cuts on tree 1, days 1–12: 36.7, 36.7, 36.7, 46.6, 46.5, 49.5, 54.2, 57.5, 61.1, 59.1, 59.5, 59.7 m (lowest cut 32.4 m on days 1–3, 41.1 on days 4–5, then 44–59 m); on tree 2, days 1–8: 45.8, 45.8, 53.1, 53.6, 54.6, 58.5, 60.7, 63.5 m. It rises within each stage, with two dips on tree 1 (0.1 m on day 5, 2 m on day 10 after a day of high picks). Pass, with those dips.
   4. Seven days with 100 haul given each morning: milestone 1 on day 1 did not move the colony; milestone 2 on day 2 moved it to the spreading giant on day 3 (card, fresh leaves, no trails); milestone 3 on day 5 showed the end card and moved it to the tall spire on day 6; play continued there. Pass.
@@ -175,7 +176,7 @@ Spec: `docs/briefs/one-tree.md`; work split: `docs/briefs/one-tree-contract.md`.
   11. Wind direction on one tree, final code: tree 1 days 1–12 at 133, 325, 216, 23, 201, 70, 334, 130, 225, 33, 210, 312 degrees; consecutive days differ by 95 to 193 degrees (an earlier run had 67 then 68, which led to the 70–290 degree daily turn). Pass.
   12. Sparse tree, pool 3 (Brood level 2), lines to the lowest leaves: patches of 1–2 leaves (2–5 pieces); one line 9.0, three lines 36.7. From 60 m up (after `Leaf.Strip 60`): patches of 2–3 leaves (5–7 pieces); one line 19.9, three 41.1. Pass.
   13. Recruits off with one tree on, twenty scripted days: milestone 2 moved the colony to tree 2, milestone 3 showed the end card on day 14 and moved it to tree 3. All four flag combinations, seven days with 100 haul given each morning: every one reached the end card; with one tree on and recruits off both moves fell due on day 1, and the second followed a day later. Pass.
-  14. Three cuts mid-day, quit, relaunch: day 3 again with 22,620 pieces and 6 bites, mass unchanged (20.39). Pass.
+  14. Three cuts mid-day, quit, relaunch: day 3 again with 22,620 pieces and 6 bites, mass unchanged (20.39). Pass; re-run on the final build after the review fixes: pass (mass 18.69 before and after).
 
 ## M6: Stretch (only if M0–M5b are complete before the freeze; the bird waits for the owner to keep the line)
 

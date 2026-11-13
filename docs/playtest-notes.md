@@ -63,7 +63,9 @@
 - [ ] the walking animation is basically invisible from behind, just looks static
 - [ ] the wind risk is really hard to judge from just the UI, maybe some kind of overlay vision while holding Tab that colors in green-red how exposed an area is?
 - [x] potentially get rid of the whole "new day new tree" thing and make gathering more tricky as time goes on that way; needing to go further up the tree each day
-  - Done (brief `docs/briefs/one-tree.md`): the colony keeps one tree; cut leaves stay cut, across quitting too, and never grow back. The low boughs are sparse and run out in a few days, so you climb into more wind. The colony moves to a new, taller tree at the second and third milestones. Off switch: `Leaf.OneTree 0`. Not in a package yet.
+  - Done (brief `docs/briefs/one-tree.md`): the colony keeps one tree; cut leaves stay cut, across quitting too, and never grow back. The low boughs are sparse and run out in a few days, so you climb into more wind. The colony moves to a new, taller tree at the second and third milestones. Off switch: `Leaf.OneTree 0`. In the package of 13 Nov 11:28.
+- [ ] fast-forward for "worker x heads home" might be nice too
+- [ ] polish: give the scent lines a visual overhaul so it's more like "3d smoke", and only faintly visible far away
 
 ## To revisit: thin-branch controls (2026-11-12)
 
