@@ -16,7 +16,7 @@ Facts I could not confirm from the named sources, and choices that belong to the
 
 ## Facts I could not confirm
 
-10. **Sourced assets.** `docs/sourced-assets.md` does not exist (the task and `CLAUDE.md` name it). `design.md` and the audio brief say audio is synthesised and CC0 samples "may be added later". I found no record of any sourced asset, so every page says "none". Please confirm no CC0 sample, font or other file was added. The engine's default font is used (`tech.md`).
+10. **Sourced assets.** Since this draft, `docs/sourced-assets.md` exists with one entry: Xelu's CC0 button prompts (13 Nov, owner's choice). The pages now name it. Check whether the MegaJam form wants the licence text or only the name and link.
 11. **Final zip size and name of the executable folder.** The latest recorded zip is 463 MB (`plan.md`, 13 Nov 11:28); an earlier note says 0.43 GB. The zip has everything under a `Leafline/` folder with `AntTreeGame.exe` (`tools.md`, `Build/Windows`). The itch pages say "about 0.46 GB"; update after the final package.
 12. **System requirements.** Not documented. `tools.md` says the build was not tested on another PC, players may need the Visual C++ Redistributable 2015-2022 x64, and Windows SmartScreen may warn about the unsigned exe. (`package_win64.bat` passes `-prereqs`, which adds Unreal's prerequisites installer.) Performance was measured only on the owner's NVIDIA GPU at 60 fps and 1920x1080; mid-range GPUs are unchecked. I put no requirements on the pages.
 13. **Play length.** The end card is *targeted* at about 15-20 minutes into a fresh save; the model gives 17.1 minutes with recruits and 18.6 by hand (`economy.md`). That is a model, and the owner's play has not confirmed it. The pages do not state a play time.

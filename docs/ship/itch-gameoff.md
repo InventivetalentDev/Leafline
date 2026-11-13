@@ -73,3 +73,5 @@ On 1-2 November the author made a quick prototype of a tree-climbing ant game in
 ## Credits
 
 Design and direction: inventivetalent. Everything else is listed under Tools.
+
+Button prompt icons: "Xelu's FREE Controller Prompts" by Nicolae (Xelu) Berbece, updated by Paul Paun, CC0 (https://thoseawesomeguys.com/prompts/).

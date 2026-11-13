@@ -64,7 +64,7 @@ Xbox and PlayStation controllers work. Progress is saved between sessions.
 
 ## Sourced assets
 
-None listed. <!-- Confirm in open-questions.md. -->
+- Button prompt icons: "Xelu's FREE Controller Prompts" by Nicolae (Xelu) Berbece, updated by Paul Paun, CC0 (https://thoseawesomeguys.com/prompts/). 26 icons (keyboard keys, mouse, Xbox-style buttons), resized.
 
 ## Earlier prototype
 

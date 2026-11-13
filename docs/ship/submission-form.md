@@ -34,7 +34,7 @@ All game content was created by the owner directing these tools on or after 12 N
 
 ## Sourced assets
 
-None. (No marketplace content, no third-party samples, textures or models. Content made with AI tools is not counted as sourced.) <!-- Confirm in open-questions.md. -->
+Button prompt icons: "Xelu's FREE Controller Prompts" by Nicolae (Xelu) Berbece, updated by Paul Paun, CC0 (https://thoseawesomeguys.com/prompts/). 26 icons (keyboard keys, mouse, Xbox-style buttons), resized. No marketplace content, no other third-party samples, textures or models. (Content made with AI tools is not counted as sourced.)
 
 ## Note about the earlier prototype
 
