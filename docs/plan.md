@@ -232,7 +232,8 @@ Tagged `pre-look` before it started. Commits start `Look:` (and `HUD:` for the H
 - [x] Acceptance (shots agent, `Saved/RefShots/cutaway2/`): test 2 passes at the concept pose (the 6 s pose failed only on the mask hole, since fixed), test 3 passes (factor 0 while the line is clear, up to 1.00 on two stretches 26 and 31 cm deep, back to 0 within about 1 s), test 4 passes; tests 5 and 6 not isolated in a still (leaf and near fade code unchanged). `WoodClearance` 60 no longer needed: 30 now.
 - [x] Nest checks (test 7, a Claude agent): the ant neither floats nor sinks from four sides. First import had dropped the vertex colours (black mound, bleached ground through exposure, glowing scraps): fixed with SM_Nest2, lighter soil, plain green scraps.
 - [x] Package and zip from 0dfba20 (13 Nov 20:16): packaged smoke test with and without ray tracing (two days each, no fatal lines); Epic 4.0 to 4.2 ms GPU (unchanged).
-- [ ] Fillets (owner): in progress in the worktree `leafline-fillet`. Carried-piece veins: not done.
+- [x] Owner playtest notes (13 Nov evening): the broken limb cut back to a stump after growth (it was 5 to 12 m, "a weird huge stump"); camera pitch range -65 to 80 (was -80 to 60: looking up stopped too soon on big wood, looking nearly straight down went through the wood above the ant). The `junction` reference view's -80 is now clamped to -65.
+- [ ] Fillets (owner, branch junctions and trunk/roots into the ground): in progress in the worktree `leafline-fillet`. Carried-piece veins: not done.
 
 ## M6: Stretch (only if M0–M5b are complete before the freeze; the bird waits for the owner to keep the line)
 

@@ -32,8 +32,10 @@ struct FAntCameraTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float FollowFrequency = 8.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float GlideFrequency = 3.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float GlideTime = 1.f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float PitchMin = -80.f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float PitchMax = 60.f;
+	/** -65 and 80 since the owner's playtest (13 Nov evening, were -80 and 60): looking up stopped too soon on big wood,
+	 *  where the camera's up follows the bark, and looking nearly straight down went through the wood above the ant. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float PitchMin = -65.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float PitchMax = 80.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float DefaultPitch = -25.f;
 	/**
 	 * Pull the boom in when the trunk or a big limb blocks the view. Off by default: the camera passes through wood
