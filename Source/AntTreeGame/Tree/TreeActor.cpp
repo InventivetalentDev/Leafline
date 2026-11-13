@@ -437,6 +437,37 @@ void ATreeActor::Grow(int32 Seed)
 	UE_LOG(LogLeafline, Log, TEXT("Tree grown: seed %d in %.0f ms"), Seed, (FPlatformTime::Seconds() - StartTime) * 1000.0);
 }
 
+namespace
+{
+	bool GNewBark = true;
+}
+
+bool ATreeActor::IsNewBark()
+{
+	return GNewBark;
+}
+
+UMaterialInterface* ATreeActor::PickBark()
+{
+	if (GNewBark && !NewBarkMaterial)
+	{
+		// Loaded by path (the folder is always cooked) so a missing asset only falls back to M_TreeBark.
+		NewBarkMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Leafline/Materials/M_TreeBark2.M_TreeBark2"), nullptr, LOAD_NoWarn | LOAD_Quiet);
+		if (!NewBarkMaterial) UE_LOG(LogLeafline, Warning, TEXT("M_TreeBark2 not found; the bark uses M_TreeBark"));
+	}
+	return GNewBark && NewBarkMaterial ? NewBarkMaterial.Get() : BarkMaterial.Get();
+}
+
+void ATreeActor::SetNewBark(bool bOn)
+{
+	GNewBark = bOn;
+	UMaterialInterface* Mat = PickBark();
+	if (!Mat) return;
+	if (WoodMesh) WoodMesh->SetMaterial(0, Mat);
+	if (GroveMesh) GroveMesh->SetMaterial(0, Mat);
+	UE_LOG(LogLeafline, Log, TEXT("Bark material: %s"), *Mat->GetName());
+}
+
 bool ATreeActor::GrowWithBites(int32 Seed, const TArray<FSavedLeaf>& Bites, int32 LeafCount)
 {
 	const double StartTime = FPlatformTime::Seconds();
@@ -464,10 +495,10 @@ void ATreeActor::GrowShape(int32 Seed)
 
 	if (!WoodMesh) WoodMesh = MakeMeshComponent(this, RootComponent, TEXT("WoodMesh"));
 	WoodMesh->ClearAllMeshSections();
-	WoodMesh->CreateMeshSection_LinearColor(0, Data.Vertices, Data.Triangles, Data.Normals, Data.UV0, Data.UV1, {}, {},
+	WoodMesh->CreateMeshSection_LinearColor(0, Data.Vertices, Data.Triangles, Data.Normals, Data.UV0, Data.UV1, Data.UV2, {},
 		Data.Colors, Data.Tangents, false, false);
 
-	UMaterialInterface* Mat = BarkMaterial;
+	UMaterialInterface* Mat = PickBark();
 	if (!Mat && FallbackMaterial)
 	{
 		if (!BarkMID) BarkMID = UMaterialInstanceDynamic::Create(FallbackMaterial, this);
@@ -1046,7 +1077,7 @@ void ATreeActor::BuildGrove()
 	}
 	GroveMesh->ClearAllMeshSections();
 	if (Data.Vertices.Num() == 0) return;
-	GroveMesh->CreateMeshSection_LinearColor(0, Data.Vertices, Data.Triangles, Data.Normals, Data.UV0, Data.UV1, {}, {},
+	GroveMesh->CreateMeshSection_LinearColor(0, Data.Vertices, Data.Triangles, Data.Normals, Data.UV0, Data.UV1, Data.UV2, {},
 		Data.Colors, Data.Tangents, false, false);
 	if (UMaterialInterface* Mat = WoodMesh ? WoodMesh->GetMaterial(0) : nullptr) GroveMesh->SetMaterial(0, Mat);
 	UE_LOG(LogLeafline, Log, TEXT("Grove: %d distant trunks, %d triangles"), Count, Data.Triangles.Num() / 3);

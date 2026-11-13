@@ -41,6 +41,13 @@ struct FAntCameraTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") bool bAvoidThickOcclusion = false;
 	/** Radius (cm) of the dithered cutaway along the line from the camera to the ant, narrowing to nothing at the ant. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float CutawayRadius = 55.f;
+	/** Width of the cutaway's dithered rim as a fraction of its radius (1 fades all the way from the centre). M_TreeBark2. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float CutawayBand = 0.5f;
+	/** How the cutaway narrows toward the ant: radius x (1 - t)^Taper, t = 0 at the camera, 1 at the ant. M_TreeBark2. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float CutawayTaper = 1.f;
+	/** Bark nearer the camera than this is gone; it fades back in by NearFadeEnd (cm). M_TreeBark2. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float NearFadeStart = 8.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float NearFadeEnd = 35.f;
 	/** The camera never goes lower than this above the ground (cm). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float GroundClearance = 15.f;
 	/** The camera never sits inside wood this thick (radius, cm: the trunk, roots, big limbs); it slides out to
@@ -56,6 +63,18 @@ struct FAntCameraTuning
 	/** Mild depth of field focused on the ant sells the macro scale; 0 disables it. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float DepthOfFieldFstop = 4.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float ExposureBias = -0.4f;
+	/** Auto exposure range (EV100). Both at -100 leave the level's post-process settings alone. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float ExposureMinEV = -100.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float ExposureMaxEV = -100.f;
+	/**
+	 * Look-up assist (off until the owner has tried it): when pitching up would put the camera under the ant's own
+	 * surface, the camera stays LookUpClearance above that surface on a shorter boom and the view turns upward from
+	 * there, so the ant slides toward the bottom of the frame and the canopy fills the rest.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") bool bLookUpAssist = false;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float LookUpClearance = 10.f;
+	/** Shortest boom the look-up assist may use (cm). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float LookUpMinBoom = 60.f;
 	/** Rate at which the yaw drifts behind the ant while it moves (1/s). 0 = free orbit only. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float AutoAlignRate = 0.f;
 };

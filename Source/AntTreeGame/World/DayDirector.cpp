@@ -93,6 +93,7 @@ void ADayDirector::ApplyLook()
 			if (USkyLightComponent* Sky = Cast<USkyLightComponent>(C))
 			{
 				Sky->SetIntensity(L.SkyLightIntensity);
+				Sky->SetLightColor(L.SkyLightColor);
 			}
 			else if (USkyAtmosphereComponent* Atmo = Cast<USkyAtmosphereComponent>(C))
 			{

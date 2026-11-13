@@ -58,6 +58,10 @@ void AAntCamera::PublishView(const FVector& CamPos, const FVector& AntFocus, boo
 	UKismetMaterialLibrary::SetVectorParameterValue(this, ViewCollection, TEXT("AntFocus"), FLinearColor(AntFocus));
 	UKismetMaterialLibrary::SetScalarParameterValue(this, ViewCollection, TEXT("CutawayOn"), bCutaway && Tuning.CutawayRadius > 0.f ? 1.f : 0.f);
 	UKismetMaterialLibrary::SetScalarParameterValue(this, ViewCollection, TEXT("CutawayRadius"), Tuning.CutawayRadius);
+	UKismetMaterialLibrary::SetScalarParameterValue(this, ViewCollection, TEXT("CutawayBand"), FMath::Clamp(Tuning.CutawayBand, 0.02f, 1.f));
+	UKismetMaterialLibrary::SetScalarParameterValue(this, ViewCollection, TEXT("CutawayTaper"), FMath::Max(Tuning.CutawayTaper, 0.05f));
+	UKismetMaterialLibrary::SetScalarParameterValue(this, ViewCollection, TEXT("NearFadeStart"), Tuning.NearFadeStart);
+	UKismetMaterialLibrary::SetScalarParameterValue(this, ViewCollection, TEXT("NearFadeEnd"), FMath::Max(Tuning.NearFadeEnd, Tuning.NearFadeStart + 1.f));
 }
 
 void AAntCamera::SetTarget(AAntPawn* NewTarget, bool bGlide)
@@ -312,9 +316,34 @@ void AAntCamera::Tick(float DeltaTime)
 
 	FVector CamPos = Focus - View * CurrentBoom;
 	FVector LookDir = View;
+	// Look-up assist: rather than going under the ant's own surface, the camera comes in along the view line until it
+	// is LookUpClearance above that surface (no nearer than LookUpMinBoom), stays above it, and looks along the pitched
+	// view, turned back toward the ant only as far as needed to keep the ant near the bottom of the frame.
+	bool bAssisted = false;
+	if (Tuning.bLookUpAssist)
+	{
+		const double Clear = Tuning.LookUpClearance;
+		if (FVector::DotProduct(CamPos - AntPos, AntUp) < Clear)
+		{
+			const double FocusH = FVector::DotProduct(Focus - AntPos, AntUp);
+			const double Rise = FVector::DotProduct(View, AntUp);
+			double L = CurrentBoom;
+			if (Rise > 0.01) L = FMath::Clamp((FocusH - Clear) / Rise, (double)FMath::Min(Tuning.LookUpMinBoom, CurrentBoom), (double)CurrentBoom);
+			CamPos = Focus - View * L;
+			const double H = FVector::DotProduct(CamPos - AntPos, AntUp);
+			if (H < Clear) CamPos += AntUp * (Clear - H);
+			const FVector ToAnt = (AntPos - CamPos).GetSafeNormal();
+			// Half the vertical field of view at 16:9, less a margin so the ant stays inside the frame.
+			const double HalfV = FMath::Atan(FMath::Tan(FMath::DegreesToRadians(Tuning.FieldOfView * 0.5)) * 9.0 / 16.0);
+			const double MaxOff = HalfV * 0.75;
+			const double Off = FMath::Acos(FMath::Clamp(FVector::DotProduct(ToAnt, View), -1.0, 1.0));
+			LookDir = Off > MaxOff && Off > 1e-3 ? FQuat::Slerp(FQuat::Identity, FQuat::FindBetweenNormals(ToAnt, View), MaxOff / Off).RotateVector(ToAnt).GetSafeNormal() : View;
+			bAssisted = true;
+		}
+	}
 	// Not inside the trunk: looking up the trunk put the camera in the wood, and the cutaway then showed the ant
 	// floating. Where the camera would be inside (or right at) thick wood, it slides out onto the bark instead.
-	if (Tuning.ThickWoodRadius > 0.f && Field && Field->IsValid() && Tree.IsValid())
+	if (!bAssisted && Tuning.ThickWoodRadius > 0.f && Field && Field->IsValid() && Tree.IsValid())
 	{
 		int32 B = INDEX_NONE;
 		if (Field->Distance(CamPos, &B) < Tuning.WoodClearance && Tree->GetSkeleton().Branches.IsValidIndex(B))
@@ -352,6 +381,14 @@ void AAntCamera::Tick(float DeltaTime)
 	PP.DepthOfFieldFstop = FMath::Max(Tuning.DepthOfFieldFstop, 0.7f);
 	PP.bOverride_AutoExposureBias = true;
 	PP.AutoExposureBias = Tuning.ExposureBias;
+	const bool bExposureRange = Tuning.ExposureMinEV > -99.f || Tuning.ExposureMaxEV > -99.f;
+	PP.bOverride_AutoExposureMinBrightness = bExposureRange;
+	PP.bOverride_AutoExposureMaxBrightness = bExposureRange;
+	if (bExposureRange)
+	{
+		PP.AutoExposureMinBrightness = Tuning.ExposureMinEV;
+		PP.AutoExposureMaxBrightness = FMath::Max(Tuning.ExposureMaxEV, Tuning.ExposureMinEV);
+	}
 }
 
 void AAntCamera::DebugAimDirection(const FVector& WorldDir, float NewPitch)

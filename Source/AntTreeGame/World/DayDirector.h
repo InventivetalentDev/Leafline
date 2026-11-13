@@ -38,6 +38,8 @@ struct FLookTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sun") float SunVolumetricScattering = 3.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sky") float SkyLightIntensity = 1.f;
+	/** Tint of the sky light: the fill in shadowed bark. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sky") FLinearColor SkyLightColor = FLinearColor(1.f, 1.f, 1.f, 1.f);
 	/** Aerial perspective distance scale: above 1 hazes distant things sooner (the world is at ant scale). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sky") float AerialPerspectiveScale = 4.f;
 	/** Haze in the sky (Mie scattering) and how tightly it glows around the sun. */

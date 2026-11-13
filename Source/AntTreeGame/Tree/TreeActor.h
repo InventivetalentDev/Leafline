@@ -128,7 +128,17 @@ public:
 	/** The tree in this world, or null. */
 	static ATreeActor* Get(const UObject* WorldContext);
 
+	/** Bark material: M_TreeBark2 (the look pass, default) or the older M_TreeBark. Applies at once, to the grove too. */
+	void SetNewBark(bool bOn);
+	static bool IsNewBark();
+
 private:
+	/** M_TreeBark2 if the new bark is on and the asset exists, else BarkMaterial. */
+	UMaterialInterface* PickBark();
+
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInterface> NewBarkMaterial;
+
 	UPROPERTY(Transient)
 	TObjectPtr<UProceduralMeshComponent> WoodMesh;
 

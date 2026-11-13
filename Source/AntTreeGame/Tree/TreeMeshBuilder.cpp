@@ -5,7 +5,22 @@ namespace
 {
 	constexpr int32 CapRings = 4;
 
-	void BuildBranch(const FTreeBranch& B, const FTreeParams& P, FTreeMeshData& Out)
+	/** UV2 = (Hi, Lo): Along split so both halves are exact in half floats; Hi + Lo = Along. */
+	FVector2D SplitAlong(double Along)
+	{
+		const double Hi = FMath::FloorToDouble(Along / 256.0) * 256.0;
+		return FVector2D(Hi, Along - Hi);
+	}
+
+	/** Where a branch's tube rings sit in the vertex arrays: ring i starts at Start + i * (M + 1). */
+	struct FBranchRange
+	{
+		int32 Start = 0;
+		int32 M = 0;
+		bool bValid = false;
+	};
+
+	void BuildBranch(const FTreeBranch& B, const FTreeParams& P, FTreeMeshData& Out, FBranchRange& Range)
 	{
 		const int32 NS = B.Samples.Num();
 		if (NS < 2) return;
@@ -31,8 +46,12 @@ namespace
 		for (float R : B.SampleRadius) MaxR = FMath::Max(MaxR, R);
 		const int32 M = FMath::Clamp(FMath::RoundToInt(2.f * PI * MaxR / P.AroundSpacing), P.MinAroundVerts, P.MaxAroundVerts);
 		const int32 RingVerts = M + 1; // duplicate seam vertex for continuous UVs
+		Range.Start = Out.Vertices.Num();
+		Range.M = M;
+		Range.bValid = true;
 
-		const FLinearColor BaseColor(FMath::Clamp(B.Level, 0, 3) / 3.f, B.Random, 0.f, 0.f);
+		// Alpha = 1: not buried in another branch (the overlap pass in Build lowers it).
+		const FLinearColor BaseColor(FMath::Clamp(B.Level, 0, 3) / 3.f, B.Random, 0.f, 1.f);
 		const float TreeH = FMath::Max(P.TrunkHeight, 1.f);
 
 		auto AddRing = [&](const FVector& Center, const FVector& Tan, const FVector& Nrm, float Radius, float NormalTilt, float Along)
@@ -47,6 +66,7 @@ namespace
 				Out.Vertices.Add(V);
 				Out.Normals.Add((Dir * FMath::Cos(NormalTilt) + Tan * FMath::Sin(NormalTilt)).GetSafeNormal());
 				Out.UV0.Add(FVector2D(Theta * FMath::Max(Radius, 1.f), Along));
+				Out.UV2.Add(SplitAlong(Along));
 				Out.UV1.Add(FVector2D(C * Radius, S * Radius));
 				FLinearColor Col = BaseColor;
 				Col.B = FMath::Clamp((float)V.Z / TreeH, 0.f, 1.f);
@@ -94,6 +114,7 @@ namespace
 		Out.Vertices.Add(TipC + TipT * TipR);
 		Out.Normals.Add(TipT);
 		Out.UV0.Add(FVector2D(0.0, TipAlong + TipR * 0.5f * PI));
+		Out.UV2.Add(SplitAlong(TipAlong + TipR * 0.5f * PI));
 		Out.UV1.Add(FVector2D::ZeroVector);
 		FLinearColor TipCol = BaseColor;
 		TipCol.B = FMath::Clamp((float)(TipC.Z / TreeH), 0.f, 1.f);
@@ -105,16 +126,129 @@ namespace
 		}
 		(void)RingVerts;
 	}
+
+	/** Signed distance from P to the surface of the tube around segment i of B (negative inside). */
+	FORCEINLINE float SegSignedDist(const FVector& P, const FTreeBranch& B, int32 i)
+	{
+		const FVector& A = B.Samples[i];
+		const FVector AB = B.Samples[i + 1] - A;
+		const double L2 = AB.SizeSquared();
+		const double T = L2 > UE_DOUBLE_SMALL_NUMBER ? FMath::Clamp(FVector::DotProduct(P - A, AB) / L2, 0.0, 1.0) : 0.0;
+		const float R = FMath::Lerp(B.SampleRadius[i], B.SampleRadius[i + 1], (float)T);
+		return (float)FVector::Dist(P, A + AB * T) - R;
+	}
+
+	/** First index whose SampleDist is >= S (NS if none). */
+	int32 FirstSampleAtLeast(const FTreeBranch& B, float S)
+	{
+		int32 Lo = 0, Hi = B.SampleDist.Num();
+		while (Lo < Hi)
+		{
+			const int32 Mid = (Lo + Hi) / 2;
+			if (B.SampleDist[Mid] < S) Lo = Mid + 1; else Hi = Mid;
+		}
+		return Lo;
+	}
+
+	/** Segment index range [OutLo, OutHi] (inclusive) covering the arc length interval [S0, S1]. False if empty. */
+	bool SegmentWindow(const FTreeBranch& B, float S0, float S1, int32& OutLo, int32& OutHi)
+	{
+		const int32 NSeg = B.Samples.Num() - 1;
+		if (NSeg < 1) return false;
+		OutLo = FMath::Clamp(FirstSampleAtLeast(B, S0) - 1, 0, NSeg - 1);
+		OutHi = FMath::Clamp(FirstSampleAtLeast(B, S1), 0, NSeg - 1);
+		return OutHi >= OutLo;
+	}
+
+	constexpr float BuriedMargin = 25.f;  // beyond this outside distance the encoding is already 1
+	constexpr float BuriedRange = 50.f;   // cm per full alpha range: A = 0.5 + d / BuriedRange
+
+	/**
+	 * Lowers the alpha of one ring's vertices by their signed distance to the tubes of Other's segments SegLo..SegHi.
+	 * Returns false when no segment comes within the margin of the ring (nothing to do).
+	 */
+	bool BuryRing(FTreeMeshData& Out, int32 FirstVert, int32 M, const FVector& Center, float RingR,
+		const FTreeBranch& Other, int32 SegLo, int32 SegHi)
+	{
+		TArray<int32, TInlineAllocator<32>> Near;
+		for (int32 s = SegLo; s <= SegHi; ++s)
+		{
+			if (SegSignedDist(Center, Other, s) - RingR < BuriedMargin) Near.Add(s);
+		}
+		if (Near.IsEmpty()) return false;
+		for (int32 j = 0; j <= M; ++j)
+		{
+			const int32 V = FirstVert + j;
+			const FVector& Pt = Out.Vertices[V];
+			float D = BuriedMargin;
+			for (int32 s : Near) D = FMath::Min(D, SegSignedDist(Pt, Other, s));
+			const float A = FMath::Clamp(0.5f + D / BuriedRange, 0.f, 1.f);
+			float& Alpha = Out.Colors[V].A;
+			Alpha = FMath::Min(Alpha, A);
+		}
+		return true;
+	}
 }
 
 void TreeMeshBuilder::Build(const FTreeSkeleton& S, FTreeMeshData& Out)
 {
 	const double StartTime = FPlatformTime::Seconds();
 	Out.Reset();
-	for (const FTreeBranch& B : S.Branches)
+	TArray<FBranchRange> Ranges;
+	Ranges.SetNum(S.Branches.Num());
+	for (int32 b = 0; b < S.Branches.Num(); ++b)
 	{
-		BuildBranch(B, S.Params, Out);
+		BuildBranch(S.Branches[b], S.Params, Out, Ranges[b]);
 	}
-	UE_LOG(LogLeafline, Log, TEXT("TreeMeshBuilder: %d vertices, %d triangles, %.1f ms"),
-		Out.Vertices.Num(), Out.Triangles.Num() / 3, (FPlatformTime::Seconds() - StartTime) * 1000.0);
+
+	// Overlap pass: alpha = clamp(0.5 + d / 50, 0, 1), d = signed distance (cm) to the surface of the parent (for a
+	// child's vertices) or of a child's base (for a parent's vertices); negative inside the other branch.
+	const double OverlapStart = FPlatformTime::Seconds();
+	for (int32 c = 0; c < S.Branches.Num(); ++c)
+	{
+		const FTreeBranch& Child = S.Branches[c];
+		const int32 p = Child.Parent;
+		if (!S.Branches.IsValidIndex(p) || p == c || !Ranges[c].bValid || !Ranges[p].bValid) continue;
+		const FTreeBranch& Par = S.Branches[p];
+		const int32 NSc = Child.Samples.Num(), NSp = Par.Samples.Num();
+		const float Sp = FMath::Clamp(Child.ParentT, 0.f, 1.f) * Par.Length();
+		const float Rc0 = Child.SampleRadius[0];
+		const int32 NearP = FMath::Clamp(FirstSampleAtLeast(Par, Sp), 0, NSp - 1);
+		const float Rp = Par.SampleRadius[NearP];
+
+		// The child's rings against the parent, from the base until a ring is clear of the parent.
+		int32 SegLo, SegHi;
+		const float WinP = 2.f * (Rp + Rc0) + 60.f;
+		if (SegmentWindow(Par, Sp - WinP, Sp + WinP, SegLo, SegHi))
+		{
+			const int32 RV = Ranges[c].M + 1;
+			for (int32 i = 0; i < NSc; ++i)
+			{
+				const int32 First = Ranges[c].Start + i * RV;
+				if (!BuryRing(Out, First, Ranges[c].M, Child.Samples[i], Child.SampleRadius[i], Par, SegLo, SegHi)) break;
+			}
+		}
+
+		// The parent's rings near the junction against the child's base.
+		const float WinC = 3.f * Rc0 + 60.f;
+		int32 CLo, CHi;
+		if (SegmentWindow(Child, 0.f, 2.f * (Rp + Rc0) + 60.f, CLo, CHi)
+			&& SegmentWindow(Par, Sp - WinC, Sp + WinC, SegLo, SegHi))
+		{
+			const int32 RV = Ranges[p].M + 1;
+			for (int32 i = SegLo; i <= FMath::Min(SegHi + 1, NSp - 1); ++i)
+			{
+				BuryRing(Out, Ranges[p].Start + i * RV, Ranges[p].M, Par.Samples[i], Par.SampleRadius[i], Child, CLo, CHi);
+			}
+		}
+	}
+	const double OverlapMs = (FPlatformTime::Seconds() - OverlapStart) * 1000.0;
+	int32 Buried = 0;
+	for (const FLinearColor& Col : Out.Colors)
+	{
+		if (Col.A < 0.44f) ++Buried;
+	}
+
+	UE_LOG(LogLeafline, Log, TEXT("TreeMeshBuilder: %d vertices, %d triangles, %.1f ms (overlap pass %.1f ms, %d buried vertices)"),
+		Out.Vertices.Num(), Out.Triangles.Num() / 3, (FPlatformTime::Seconds() - StartTime) * 1000.0, OverlapMs, Buried);
 }

@@ -97,6 +97,19 @@ namespace
 		TEXT("Leaf.Smoke [0|1]: scent trails as a thin haze with an upright ribbon (1, default) or the plain flat ribbon (0); no argument toggles."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World) { Smoke(World, Args); }));
 
+	/** Leaf.Bark [0|1]: the look-pass bark (M_TreeBark2) or the older M_TreeBark (toggle with no argument). */
+	void Bark(UWorld* World, const TArray<FString>& Args)
+	{
+		ATreeActor* Tree = ATreeActor::Get(World);
+		const bool bOn = Args.Num() > 0 ? FCString::Atoi(*Args[0]) != 0 : !ATreeActor::IsNewBark();
+		if (Tree) Tree->SetNewBark(bOn);
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs CmdBark(
+		TEXT("Leaf.Bark"),
+		TEXT("Leaf.Bark [0|1]: the look-pass bark M_TreeBark2 (1, default) or the older M_TreeBark (0); no argument toggles."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World) { Bark(World, Args); }));
+
 	FAutoConsoleCommandWithWorldAndArgs CmdStage(
 		TEXT("Leaf.Stage"),
 		TEXT("Leaf.Stage <sparse|blend|drop|leafy|height|rich|gust> <value>: change today's stage tuning and grow its tree again, fresh (metres for blend and leafy)."),
