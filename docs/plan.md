@@ -229,7 +229,8 @@ Tagged `pre-look` before it started. Commits start `Look:` (and `HUD:` for the H
 - [ ] Item 3, carried piece veins: not done (needs a C++ UV change and a visual check; first to cut).
 - [x] Re-tests after collars: `Leaf.MeshGap` worst 0.00 cm (collars on and off); a pre-look save loads with all 12 bites.
 - [x] Collars off by default: the owner saw square intersections and wants fillets (the walking surface's smooth blend shown on the mesh). Fillets: a Claude agent in the worktree `leafline-fillet` (branch `fillets`).
-- [ ] Acceptance tests 2 to 7 on the final build, frame times, packaged smoke test, package.
+- [x] Acceptance (shots agent, `Saved/RefShots/cutaway2/`): test 2 passes at the concept pose (the 6 s pose failed only on the mask hole, since fixed), test 3 passes (factor 0 while the line is clear, up to 1.00 on two stretches 26 and 31 cm deep, back to 0 within about 1 s), test 4 passes; tests 5 and 6 not isolated in a still (leaf and near fade code unchanged). `WoodClearance` 60 no longer needed: 30 now.
+- [ ] Nest checks (test 7), frame times, packaged smoke test, package.
 
 ## M6: Stretch (only if M0–M5b are complete before the freeze; the bird waits for the owner to keep the line)
 

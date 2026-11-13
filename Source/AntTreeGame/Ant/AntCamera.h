@@ -67,9 +67,10 @@ struct FAntCameraTuning
 	 *  WoodClearance above the bark, still looking at the ant. Thinner wood it passes through. 0 turns this off. Wood
 	 *  between the camera and the ant is dithered away either way. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float ThickWoodRadius = 120.f;
-	/** At least CutawayRadius: nearer than that, the cutaway digs a trench into the bark the camera sits over (look pass,
-	 *  13 Nov, was 12). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float WoodClearance = 60.f;
+	/** 30 since look pass 2 (60 in look pass 1, 12 before): the bark cutaway now opens only when wood hides the ant, so
+	 *  the trench under a low camera no longer happens; 30 gives back sky when looking up from the trunk (32% of the
+	 *  upper frame against 19% at 60). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float WoodClearance = 30.f;
 	/** Probe radius for keeping the camera out of the tree (cm). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float ProbeRadius = 12.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float BoomShrinkRate = 5.f;
