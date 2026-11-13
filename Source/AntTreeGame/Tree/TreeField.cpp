@@ -5,14 +5,6 @@ namespace
 {
 	constexpr double BigDist = 1.0e12;
 
-	/** Polynomial smooth minimum. k = blend radius; k <= 0 is a hard min. */
-	FORCEINLINE double SMin(double A, double B, double K)
-	{
-		if (K <= 0.0) return FMath::Min(A, B);
-		const double H = FMath::Max(K - FMath::Abs(A - B), 0.0) / K;
-		return FMath::Min(A, B) - H * H * K * 0.25;
-	}
-
 	/** Lower bound of the distance from P to any surface inside Box (very negative when P is inside the box). */
 	FORCEINLINE double BoxLowerBound(const FBox& Box, const FVector& P)
 	{
@@ -27,9 +19,11 @@ void FTreeField::Reset()
 	Segs.Reset();
 	Branches.Reset();
 	Groups.Reset();
+	bAnyFillets = false;
+	bGroundFillet = false;
 }
 
-void FTreeField::Build(const FTreeSkeleton& S)
+void FTreeField::Build(const FTreeSkeleton& S, bool bWithFillets)
 {
 	Reset();
 	GroundK = S.Params.GroundBlend;
@@ -71,6 +65,14 @@ void FTreeField::Build(const FTreeSkeleton& S)
 		Range.Bounds = B.Bounds;
 		Range.K = B.BlendK;
 		MaxK = FMath::Max(MaxK, (double)B.BlendK);
+		if (bWithFillets && B.FilletK > B.BlendK && B.FilletOuter > B.FilletInner)
+		{
+			Range.KBig = B.FilletK;
+			Range.J = B.FilletCenter;
+			Range.RIn = B.FilletInner;
+			Range.ROut = B.FilletOuter;
+			bAnyFillets = true;
+		}
 		Branches.Add(Range);
 	}
 
@@ -89,19 +91,47 @@ void FTreeField::Build(const FTreeSkeleton& S)
 		}
 		Groups[G].Branches.Add(b);
 		Groups[G].Bounds += Branches[b].Bounds;
+		if (Branches[b].KBig > 0.f)
+		{
+			Groups[G].Fillets.Add(b);
+			Groups[G].FilletBounds += FBox(Branches[b].J - FVector(Branches[b].ROut), Branches[b].J + FVector(Branches[b].ROut));
+		}
 	}
 	CullMargin = 3.0 * MaxK;
+	// With fillets the ground blends in wider where the trunk and roots meet it. The cull margin only has to cover that
+	// radius once (a branch farther than ground + k cannot change the blend with the ground), so it stays as it was.
+	if (bWithFillets && S.Params.bFillets && S.Params.FilletGroundK > GroundK)
+	{
+		GroundK = S.Params.FilletGroundK;
+		bGroundFillet = true;
+		CullMargin = FMath::Max(CullMargin, GroundK + 10.0);
+	}
 
-	UE_LOG(LogLeafline, Log, TEXT("TreeField: %d branches, %d segments, %d groups, cull margin %.0f cm"),
-		Branches.Num(), Segs.Num(), Groups.Num(), CullMargin);
+	int32 NumFillets = 0;
+	for (const FGroup& G : Groups) NumFillets += G.Fillets.Num();
+	UE_LOG(LogLeafline, Log, TEXT("TreeField: %d branches, %d segments, %d groups, cull margin %.0f cm, %d fillet zones, ground blend %.0f cm"),
+		Branches.Num(), Segs.Num(), Groups.Num(), CullMargin, NumFillets, GroundK);
 }
 
-double FTreeField::BranchDistance(int32 Branch, const FVector& P) const
+double FTreeField::BlendKAt(int32 Branch, const FVector& P) const
+{
+	const FBranchRange& R = Branches[Branch];
+	if (R.KBig <= 0.f) return R.K;
+	const double D2 = FVector::DistSquared(P, R.J);
+	if (D2 >= (double)R.ROut * R.ROut) return R.K;
+	if (D2 <= (double)R.RIn * R.RIn) return R.KBig;
+	// Smoothstep from the inner to the outer radius: the blend radius, and so the field, stays smooth.
+	const double W = 1.0 - FMath::SmoothStep((double)R.RIn, (double)R.ROut, FMath::Sqrt(D2));
+	return R.K + (R.KBig - R.K) * W;
+}
+
+double FTreeField::BranchDistance(int32 Branch, const FVector& P, int32 SegLo, int32 SegHi) const
 {
 	const FBranchRange& R = Branches[Branch];
 	double Best = BigDist;
-	const FSeg* S = Segs.GetData() + R.First;
-	for (int32 i = 0; i < R.Num; ++i, ++S)
+	const int32 Lo = FMath::Max(SegLo, 0), Hi = FMath::Min(SegHi, R.Num - 1);
+	const FSeg* S = Segs.GetData() + R.First + Lo;
+	for (int32 i = Lo; i <= Hi; ++i, ++S)
 	{
 		const FVector PA = P - S->A;
 		const double TRaw = FVector::DotProduct(PA, S->BA) * S->InvLenSq;
@@ -162,7 +192,12 @@ double FTreeField::GroundDistance(const FVector& P) const
 double FTreeField::Distance(const FVector& P, int32* OutBranch) const
 {
 	++EvalCount;
-	const double Ground = GroundDistance(P);
+	return Eval(P, OutBranch);
+}
+
+double FTreeField::Eval(const FVector& P, int32* OutBranch, bool bGround) const
+{
+	const double Ground = bGround ? GroundDistance(P) : BigDist;
 	if (Groups.Num() == 0)
 	{
 		if (OutBranch) *OutBranch = INDEX_NONE;
@@ -206,8 +241,21 @@ double FTreeField::Distance(const FVector& P, int32* OutBranch) const
 		}
 	}
 
-	// Branches farther than U + 3k cannot change the smooth union.
-	const double Threshold = U + CullMargin;
+	// Branches farther than U + 3k cannot change the smooth union. Inside a fillet zone k is that zone's fillet radius.
+	double Margin = CullMargin;
+	if (bAnyFillets)
+	{
+		for (const FGroup& G : Groups)
+		{
+			if (G.Fillets.IsEmpty() || !G.FilletBounds.IsInsideOrOn(P)) continue;
+			for (int32 b : G.Fillets)
+			{
+				const FBranchRange& R = Branches[b];
+				if (FVector::DistSquared(P, R.J) < (double)R.ROut * R.ROut) Margin = FMath::Max(Margin, 3.0 * R.KBig);
+			}
+		}
+	}
+	const double Threshold = U + Margin;
 	double Res = 0.0;
 	bool bAny = false;
 	int32 Nearest = INDEX_NONE;
@@ -224,10 +272,11 @@ double FTreeField::Distance(const FVector& P, int32* OutBranch) const
 				NearestD = D;
 				Nearest = b;
 			}
-			Res = bAny ? SMin(Res, D, Branches[b].K) : D;
+			Res = bAny ? SMin(Res, D, Branches[b].KBig > 0.f ? BlendKAt(b, P) : Branches[b].K) : D;
 			bAny = true;
 		}
 	}
+	if (!bGround) return bAny ? Res : BigDist;
 	Res = bAny ? SMin(Res, Ground, GroundK) : Ground;
 	if (OutBranch) *OutBranch = NearestD <= Ground ? Nearest : INDEX_NONE;
 	return Res;

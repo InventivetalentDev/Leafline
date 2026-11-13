@@ -441,6 +441,28 @@ namespace
 {
 	bool GNewBark = true;
 	int32 GCollarsOverride = -1; // -1: FTreeParams::bBranchCollars decides; 0/1: Leaf.Collars
+	int32 GFilletsOverride = -1; // -1: FTreeParams::bFillets decides; 0/1: Leaf.Fillets
+	float GFilletFrac = -1.f, GFilletMax = -1.f, GFilletBoughMul = -1.f, GFilletGroundK = -1.f; // < 0: FTreeParams decides
+}
+
+void ATreeActor::SetFilletsOverride(bool bOn, float Frac, float Max, float BoughMul, float GroundK)
+{
+	if (GroundK >= 0.f) GFilletGroundK = GroundK;
+	GFilletsOverride = bOn ? 1 : 0;
+	if (Frac >= 0.f) GFilletFrac = Frac;
+	if (Max >= 0.f) GFilletMax = Max;
+	if (BoughMul >= 0.f) GFilletBoughMul = BoughMul;
+}
+
+FTreeParams ATreeActor::WithFilletOverrides(const FTreeParams& P)
+{
+	FTreeParams Out = P;
+	if (GFilletsOverride >= 0) Out.bFillets = GFilletsOverride != 0;
+	if (GFilletFrac >= 0.f) Out.FilletFrac = GFilletFrac;
+	if (GFilletMax >= 0.f) Out.FilletMax = GFilletMax;
+	if (GFilletBoughMul >= 0.f) Out.FilletBoughMul = GFilletBoughMul;
+	if (GFilletGroundK >= 0.f) Out.FilletGroundK = GFilletGroundK;
+	return Out;
 }
 
 void ATreeActor::SetBranchCollarsOverride(bool bOn)
@@ -492,8 +514,15 @@ bool ATreeActor::GrowWithBites(int32 Seed, const TArray<FSavedLeaf>& Bites, int3
 void ATreeActor::GrowShape(int32 Seed)
 {
 	Params.bBranchCollars = AreBranchCollarsOn(Params);
+	Params = WithFilletOverrides(Params);
 	TreeSkeleton::Grow(Skeleton, Params, Seed);
+	const double FieldStart = FPlatformTime::Seconds();
 	Field.Build(Skeleton);
+	// Leaves are placed against the field without fillets: the skip test reads the field, and leaf count and order must
+	// not depend on fillets (one-tree saves store bites by leaf index).
+	FTreeField LeafField;
+	if (Field.HasFillets()) LeafField.Build(Skeleton, false);
+	const double FieldMs = (FPlatformTime::Seconds() - FieldStart) * 1000.0;
 	BranchChildren.Reset();
 	BranchChildren.SetNum(Skeleton.Branches.Num());
 	for (int32 b = 0; b < Skeleton.Branches.Num(); ++b)
@@ -502,8 +531,18 @@ void ATreeActor::GrowShape(int32 Seed)
 		if (BranchChildren.IsValidIndex(Parent)) BranchChildren[Parent].Add(b);
 	}
 
-	FTreeMeshData Data;
-	TreeMeshBuilder::Build(Skeleton, Data);
+	FTreeMeshData Data, GroundSkirt;
+	TArray<int32> NoSkirt;
+	TreeMeshBuilder::Build(Skeleton, Data, &Field, &NoSkirt, &GroundSkirt);
+	if (NoSkirt.Num() > 0)
+	{
+		// A fillet without a skirt would lift the ant over a crease it cannot see: those junctions keep the plain blend. The
+		// field changes near them, so the other skirts are laid again on the new field.
+		for (int32 b : NoSkirt) Skeleton.Branches[b].FilletK = 0.f;
+		Field.Build(Skeleton);
+		UE_LOG(LogLeafline, Log, TEXT("Tree shape: %d fillets without a skirt removed from the walking field; building the mesh again"), NoSkirt.Num());
+		TreeMeshBuilder::Build(Skeleton, Data, &Field, nullptr, &GroundSkirt);
+	}
 
 	if (!WoodMesh) WoodMesh = MakeMeshComponent(this, RootComponent, TEXT("WoodMesh"));
 	WoodMesh->ClearAllMeshSections();
@@ -518,12 +557,14 @@ void ATreeActor::GrowShape(int32 Seed)
 		Mat = BarkMID;
 	}
 	if (Mat) WoodMesh->SetMaterial(0, Mat);
-	BuildGround();
+	BuildGround(&GroundSkirt);
 	BuildGrove();
 
 	// Leaves: one mesh section per limb, so a cut rebuilds only a small chunk.
-	Leaves.Build(Skeleton, Field);
+	Leaves.Build(Skeleton, Field.HasFillets() ? LeafField : Field);
 	PatchWalkCache.Reset();
+	UE_LOG(LogLeafline, Log, TEXT("Tree shape: fillets %s (frac %.2f, bough x%.2f, max %.0f cm, ground %.0f cm), fields built in %.1f ms"),
+		Field.HasFillets() ? TEXT("on") : TEXT("off"), Params.FilletFrac, Params.FilletBoughMul, Params.FilletMax, Params.FilletGroundK, FieldMs);
 }
 
 void ATreeActor::BuildLeafMeshes()
@@ -1095,7 +1136,7 @@ void ATreeActor::BuildGrove()
 	UE_LOG(LogLeafline, Log, TEXT("Grove: %d distant trunks, %d triangles"), Count, Data.Triangles.Num() / 3);
 }
 
-void ATreeActor::BuildGround()
+void ATreeActor::BuildGround(const FTreeMeshData* Skirt)
 {
 	// A polar disk at the field's ground height, rings spaced wider with distance. Wood mesh section 1.
 	const FVector C(Skeleton.TrunkBase.X, Skeleton.TrunkBase.Y, Field.GroundZ);
@@ -1140,6 +1181,17 @@ void ATreeActor::BuildGround()
 			AddTri(R0 + j, R0 + J1, R1 + j);
 			AddTri(R0 + J1, R1 + J1, R1 + j);
 		}
+	}
+	if (Skirt && Skirt->Vertices.Num() > 0)
+	{
+		// The ground half of the trunk and roots' ground skirt: the ground's own vertex data, already on its surface.
+		const int32 Base = V.Num();
+		V.Append(Skirt->Vertices);
+		N.Append(Skirt->Normals);
+		UV.Append(Skirt->UV0);
+		Col.Append(Skirt->Colors);
+		Tan.Append(Skirt->Tangents);
+		for (int32 Idx : Skirt->Triangles) Tri.Add(Base + Idx);
 	}
 	WoodMesh->CreateMeshSection_LinearColor(1, V, Tri, N, UV, {}, {}, {}, Col, Tan, false, false);
 	if (GroundMaterial)

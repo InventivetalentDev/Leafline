@@ -1,6 +1,7 @@
 #include "Audio/LeaflineAudioSubsystem.h"
 #include "AntTreeGame.h"
 #include "Components/AudioComponent.h"
+#include "HAL/PlatformTime.h"
 #include "HAL/UnrealMemory.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/FileHelper.h"
@@ -149,8 +150,48 @@ TSharedPtr<const FLeaflinePCMData, ESPMode::ThreadSafe> ULeaflineAudioSubsystem:
 	return PCM;
 }
 
+void ULeaflineAudioSubsystem::SetPlaybackSpeed(float Speed)
+{
+	Speed = FMath::Max(1.f, FMath::IsFinite(Speed) ? Speed : 1.f);
+	if (FMath::IsNearlyEqual(Speed, PlaybackSpeed)) return;
+	const bool bWasFast = PlaybackSpeed > 1.5f;
+	PlaybackSpeed = Speed;
+	if (bWasFast && PlaybackSpeed <= 1.5f)
+	{
+		UE_LOG(LogLeafline, Log, TEXT("Audio: fast-forward over, %d sound starts were dropped by the rate limit"), DroppedFast);
+		DroppedFast = 0;
+		RecentStarts.Reset();
+	}
+}
+
 void ULeaflineAudioSubsystem::PlayOneShot(FName Sound, float Volume, float Pitch)
 {
+	if (PlaybackSpeed > 1.5f)
+	{
+		const FString Name = Sound.ToString();
+		const bool bExempt = Name.StartsWith(TEXT("ui_")) || Name == TEXT("milestone") || Name == TEXT("upgrade") || Name == TEXT("day_end");
+		if (!bExempt)
+		{
+			constexpr double Window = 0.25;
+			constexpr int32 MaxPerWindow = 2;
+			const double Now = FPlatformTime::Seconds();
+			// Variants of one sound (step_01..step_06) share one budget.
+			FString Family = Name;
+			int32 Cut = Family.Len();
+			while (Cut > 0 && FChar::IsDigit(Family[Cut - 1])) --Cut;
+			if (Cut < Family.Len() && Cut > 1 && Family[Cut - 1] == TEXT('_')) Family.LeftInline(Cut - 1);
+			TArray<double>& Starts = RecentStarts.FindOrAdd(FName(*Family));
+			Starts.RemoveAll([Now](double T) { return Now - T > Window; });
+			if (Starts.Num() >= MaxPerWindow)
+			{
+				++DroppedFast;
+				return;
+			}
+			Starts.Add(Now);
+			Volume *= FMath::Pow(PlaybackSpeed, -0.7f);
+			UE_LOG(LogLeafline, Log, TEXT("Audio: fast-forward start '%s' at volume %.2f (x%.1f)"), *Name, Volume, PlaybackSpeed);
+		}
+	}
 	CreateVoice(Sound, Volume, Pitch, false);
 }
 

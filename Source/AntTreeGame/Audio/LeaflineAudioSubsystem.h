@@ -44,6 +44,13 @@ public:
 	/** Returns nullptr on load/playback failure. A loop may start at volume zero. */
 	ULeaflineAudioLoop* StartLoop(FName Sound, float Volume = 1.f);
 	void StopAll();
+	/**
+	 * How fast the game is running its day (the harvest's fast-forward, 1 = normal). Above 1 the one-shots are ducked
+	 * (volume x Speed^-0.7, so x5 plays at about a third) and a sound (all its _NN variants together) starts at most twice per 0.25 s, so the many
+	 * deposits, footfalls and whooshes of a fast-forward do not pile up. Exempt: ui_*, milestone, upgrade, day_end.
+	 */
+	void SetPlaybackSpeed(float Speed);
+	float GetPlaybackSpeed() const { return PlaybackSpeed; }
 	virtual void Deinitialize() override;
 
 protected:
@@ -58,4 +65,8 @@ private:
 	UPROPERTY(Transient) TArray<TObjectPtr<ULeaflineAudioLoop>> Active;
 	TMap<FName, TSharedPtr<const FLeaflinePCMData, ESPMode::ThreadSafe>> Cache;
 	bool bDeinitializing = false;
+	float PlaybackSpeed = 1.f;
+	/** Start times (platform seconds) of recent one-shots per sound, for the fast-forward's rate limit. */
+	TMap<FName, TArray<double>> RecentStarts;
+	int32 DroppedFast = 0;
 };

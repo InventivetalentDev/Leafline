@@ -29,6 +29,14 @@ struct FTreeBranch
 	int32 Level = 0;       // 0 trunk, 1 limb, 2 bough, 3 twig, -1 root
 	FBox Bounds = FBox(ForceInit); // sample bounds expanded by radius
 	float BlendK = 0.f;    // smooth-min radius used when this branch joins the field
+	/** Fillet where the branch leaves its parent (FTreeParams::bFillets; limbs, boughs and roots; 0 = none). Inside the
+	 *  junction zone the field blends the branch in with FilletK instead of BlendK: fully within FilletInner of
+	 *  FilletCenter (where the axis leaves the parent), easing back to BlendK at FilletOuter. Set after growth from the
+	 *  grown shape (no random numbers). */
+	float FilletK = 0.f;
+	FVector FilletCenter = FVector::ZeroVector;
+	float FilletInner = 0.f;
+	float FilletOuter = 0.f;
 	float Random = 0.f;    // 0..1, per-branch random for shading
 	bool bLeafy = false;   // leaves may grow here (levels 2 and 3 above LowestLeafyHeight)
 	bool bStub = false;    // a limb broken off short: no boughs grow on it (a landmark)
@@ -145,6 +153,22 @@ struct FTreeParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh") float CollarAmount = 0.45f;
 	/** How far the swelling fades out along the branch, in base radii. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh") float CollarLength = 1.2f;
+
+	// Fillets: where a limb, bough or root leaves its parent, the walking field rounds the corner with a larger blend (only
+	// round the junction), and the mesh gets a skirt lying on that rounded surface, so the ant walks over the curve it sees.
+	// Twigs keep their small blend. Draws no random numbers, and leaves are placed against the field without fillets, so
+	// the tree, its leaf count and leaf order are the same either way (Leaf.Fillets).
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fillets") bool bFillets = true;
+	/** Fillet blend radius as a fraction of the child's base radius (the rounding reaches about this far along each surface). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fillets") float FilletFrac = 0.7f;
+	/** Multiplier on FilletFrac for boughs. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fillets") float FilletBoughMul = 1.f;
+	/** Cap on the fillet blend radius (cm). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fillets") float FilletMax = 150.f;
+	/** Blend radius (cm) where the trunk and roots meet the ground, with fillets on (GroundBlend without), and a skirt there.
+	 *  0 keeps GroundBlend and builds no ground skirt. Off by default (13 Nov): where a root meets the trunk at the ground the
+	 *  ground skirt and the junction skirt overlap and leave a lip; 80 is the tried value (Leaf.Fillets 1 -1 -1 -1 80). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fillets") float FilletGroundK = 0.f;
 };
 
 /** A bitten leaf, for the colony save (one tree per stage). Leaf indices are only stable for the same seed, params and

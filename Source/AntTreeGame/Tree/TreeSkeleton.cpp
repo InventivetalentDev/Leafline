@@ -126,7 +126,9 @@ namespace
 			}
 			if (B.Nodes.Num() < 3) return INDEX_NONE;
 
-			B.BlendK = FMath::Min(P.BlendFrac * BaseR, P.BlendMax); // small: the mesh has no fillets, so a big blend lifts the ant off the visible surface
+			// Small: the tubes have no fillets, so a big blend lifts the ant off the visible surface. The junction's rounding is
+			// FilletK (FinishFillets), used only round the junction, where the mesh builder lays a skirt on it.
+			B.BlendK = FMath::Min(P.BlendFrac * BaseR, P.BlendMax);
 			B.bLeafy = Level >= 2 && Start.Z >= P.LowestLeafyHeight;
 			TreeSkeleton::BuildSamples(B, P);
 			return S.Branches.Add(MoveTemp(B));
@@ -488,6 +490,137 @@ namespace
 	}
 }
 
+namespace
+{
+	/**
+	 * After FinishRadii (draws no random numbers): the fillet zone of every limb, bough and root when bFillets is on. The
+	 * centre is where the child's axis leaves the parent's tube. The crease round the child reaches about R / sin(a) from
+	 * there (a = the angle between the child's axis and the parent's surface) and the blend about FilletK beyond it, so
+	 * the full fillet radius holds to R / sin(a) + 1.5 K and eases back to BlendK over another K. Outside that zone the
+	 * field is exactly the field without fillets.
+	 */
+	void FinishFillets(FTreeSkeleton& S, const FTreeParams& P)
+	{
+		for (FTreeBranch& B : S.Branches)
+		{
+			B.FilletK = 0.f;
+			B.FilletInner = B.FilletOuter = 0.f;
+		}
+		if (!P.bFillets) return;
+		const int32 NB = S.Branches.Num();
+		int32 Shrunk = 0, Dropped = 0;
+		// The field's fold order: groups by their first branch (trunk, each root, each limb with its descendants).
+		TArray<int32> Group;
+		Group.SetNum(NB);
+		for (int32 b = 0; b < NB; ++b)
+		{
+			int32 A = b;
+			while (S.Branches[A].Level > 1 && S.Branches[A].Parent != INDEX_NONE) A = S.Branches[A].Parent;
+			Group[b] = S.Branches[A].Level == 0 ? 0 : A;
+		}
+		for (int32 c = 0; c < NB; ++c)
+		{
+			FTreeBranch& B = S.Branches[c];
+			if (B.Level != 1 && B.Level != 2 && B.Level != -1) continue;
+			// The broken stub is too short for the rounding to end on it (no skirt could be laid), and a broken limb may keep
+			// its sharp edge; its big blend also reached the next limb up.
+			if (B.bStub) continue;
+			if (B.Parent == INDEX_NONE || !S.Branches.IsValidIndex(B.Parent) || B.Parent == c || B.Samples.Num() < 3) continue;
+			const FTreeBranch& Par = S.Branches[B.Parent];
+			const int32 NSp = Par.Samples.Num();
+			if (NSp < 2) continue;
+			const float R0 = B.SampleRadius[0];
+			const float K = FMath::Min(P.FilletFrac * (B.Level == 2 ? P.FilletBoughMul : 1.f) * R0, P.FilletMax);
+			if (K <= B.BlendK + 1.f) continue;
+
+			const float Sp = FMath::Clamp(B.ParentT, 0.f, 1.f) * Par.Length();
+			const float Rp = Par.SampleRadius[FMath::Clamp(FirstDistAtLeast(Par.SampleDist, Sp), 0, NSp - 1)];
+			const float Win = 3.f * (Rp + R0) + 200.f;
+			const int32 SegLo = FMath::Clamp(FirstDistAtLeast(Par.SampleDist, Sp - Win) - 1, 0, NSp - 2);
+			const int32 SegHi = FMath::Clamp(FirstDistAtLeast(Par.SampleDist, Sp + Win), 0, NSp - 2);
+			auto ParDist = [&](const FVector& X)
+			{
+				double D = TNumericLimits<double>::Max();
+				for (int32 sg = SegLo; sg <= SegHi; ++sg) D = FMath::Min(D, TubeSegDist(X, Par.Samples, Par.SampleRadius, sg));
+				return D;
+			};
+
+			// Where the axis leaves the parent: the first sample outside, interpolated with the one before.
+			int32 Exit = INDEX_NONE;
+			double DPrev = ParDist(B.Samples[0]);
+			for (int32 i = 1; i < B.Samples.Num(); ++i)
+			{
+				const double D = ParDist(B.Samples[i]);
+				if (D >= 0.0 && DPrev < 0.0)
+				{
+					const double F = DPrev / (DPrev - D);
+					B.FilletCenter = FMath::Lerp(B.Samples[i - 1], B.Samples[i], F);
+					Exit = i;
+					break;
+				}
+				DPrev = D;
+			}
+			if (Exit == INDEX_NONE) continue; // the base is not inside the parent: nothing to round
+
+			const FVector Tan = (B.Samples[Exit] - B.Samples[Exit - 1]).GetSafeNormal();
+			// The parent's surface normal there: from the nearest point of its axis.
+			FVector Nearest = Par.Samples[SegLo];
+			double BestD = TNumericLimits<double>::Max();
+			for (int32 sg = SegLo; sg <= SegHi; ++sg)
+			{
+				const FVector A = Par.Samples[sg], AB = Par.Samples[sg + 1] - A;
+				const double L2 = AB.SizeSquared();
+				const double T = L2 > UE_DOUBLE_SMALL_NUMBER ? FMath::Clamp(FVector::DotProduct(B.FilletCenter - A, AB) / L2, 0.0, 1.0) : 0.0;
+				const FVector Q = A + AB * T;
+				const double D = FVector::DistSquared(Q, B.FilletCenter);
+				if (D < BestD)
+				{
+					BestD = D;
+					Nearest = Q;
+				}
+			}
+			const FVector Np = (B.FilletCenter - Nearest).GetSafeNormal();
+			const float SinA = FMath::Max(FMath::Abs((float)FVector::DotProduct(Tan, Np)), 0.25f);
+			const float Rc = FMath::Lerp(B.SampleRadius[Exit - 1], B.SampleRadius[Exit], 0.5f);
+
+			// Room: the skirt reaches about R / sin(a) + 1.5 K from the centre. The fillet radius blends the child with every
+			// branch folded into the field before it (TreeField: the trunk, the roots, earlier limb groups, earlier siblings),
+			// so such a branch inside that reach would be webbed to it: the fillet shrinks to fit, or is dropped when it would
+			// be no bigger than the plain blend. Branches folded in later (the child's own boughs) only cross the skirt, as
+			// they cross the tube.
+			const float Crease = Rc / SinA;
+			float Clear = TNumericLimits<float>::Max();
+			const int32 Gc = Group[c];
+			for (int32 o = 0; o < NB; ++o)
+			{
+				const FTreeBranch& Ob = S.Branches[o];
+				if (o == c || o == B.Parent || Ob.Samples.Num() < 2) continue;
+				if (Group[o] > Gc || (Group[o] == Gc && o > c)) continue; // folded in after the child
+				if (FMath::Sqrt(Ob.Bounds.ComputeSquaredDistanceToPoint(B.FilletCenter)) >= FMath::Min(Clear, Crease + 1.5f * K)) continue;
+				for (int32 sg = 0; sg + 1 < Ob.Samples.Num(); ++sg)
+				{
+					Clear = FMath::Min(Clear, (float)TubeSegDist(B.FilletCenter, Ob.Samples, Ob.SampleRadius, sg));
+				}
+			}
+			float KFit = K;
+			if (Clear < Crease + 1.5f * K)
+			{
+				KFit = (Clear - Crease) / 1.5f;
+				++Shrunk;
+				if (KFit <= B.BlendK + 1.f)
+				{
+					++Dropped;
+					continue;
+				}
+			}
+			B.FilletK = KFit;
+			B.FilletInner = Crease + 2.f * KFit;
+			B.FilletOuter = B.FilletInner + KFit;
+		}
+		UE_LOG(LogLeafline, Log, TEXT("TreeSkeleton: fillets: %d shrunk to clear a neighbouring branch, %d of those dropped"), Shrunk, Dropped);
+	}
+}
+
 void TreeSkeleton::Grow(FTreeSkeleton& Out, const FTreeParams& Params, int32 Seed)
 {
 	const double StartTime = FPlatformTime::Seconds();
@@ -504,6 +637,7 @@ void TreeSkeleton::Grow(FTreeSkeleton& Out, const FTreeParams& Params, int32 See
 	G.GrowChildren(Boughs, 3, Twigs);
 	ShortenStubs(Out);
 	FinishRadii(Out, Params);
+	FinishFillets(Out, Params);
 
 	int32 Samples = 0;
 	for (const FTreeBranch& B : Out.Branches) Samples += B.Samples.Num();

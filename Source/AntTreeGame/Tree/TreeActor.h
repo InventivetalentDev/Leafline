@@ -136,6 +136,12 @@ public:
 	static void SetBranchCollarsOverride(bool bOn);
 	static bool AreBranchCollarsOn(const FTreeParams& P);
 
+	/** Junction fillets (Leaf.Fillets): override FTreeParams::bFillets, and FilletFrac / FilletMax / FilletBoughMul / FilletGroundK where
+	 *  the value is >= 0, for every tree grown from now on. */
+	static void SetFilletsOverride(bool bOn, float Frac = -1.f, float Max = -1.f, float BoughMul = -1.f, float GroundK = -1.f);
+	/** P with the fillet overrides applied. */
+	static FTreeParams WithFilletOverrides(const FTreeParams& P);
+
 private:
 	/** M_TreeBark2 if the new bark is on and the asset exists, else BarkMaterial. */
 	UMaterialInterface* PickBark();
@@ -179,7 +185,8 @@ private:
 	bool ApplySavedBites(const TArray<FSavedLeaf>& Bites, int32 LeafCount);
 	/** Whether BuildLeafApproach from CutLeaf's base to Leaf works within MaxWalk (cached for the tree's life). */
 	bool PatchLeafReachable(int32 CutLeaf, int32 Leaf, float MaxWalk) const;
-	void BuildGround();
+	/** Skirt: the ground half of the trunk and roots' ground skirt (TreeMeshBuilder), added to the ground section. */
+	void BuildGround(const FTreeMeshData* Skirt = nullptr);
 	void BuildGrove();
 
 	FTreeSkeleton Skeleton;

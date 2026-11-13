@@ -1,5 +1,7 @@
 #include "Tree/TreeMeshBuilder.h"
 #include "AntTreeGame.h"
+#include "Tree/TreeField.h"
+#include "Async/ParallelFor.h"
 
 namespace
 {
@@ -19,6 +21,8 @@ namespace
 		int32 Start = 0;
 		int32 M = 0;
 		bool bValid = false;
+		/** Per sample: the ring's tangent and its frame's normal (the binormal is T x N), for the skirts' parent lookup. */
+		TArray<FVector> T, N;
 	};
 
 	void BuildBranch(const FTreeBranch& B, const FTreeParams& P, FTreeMeshData& Out, FBranchRange& Range)
@@ -50,6 +54,8 @@ namespace
 		Range.Start = Out.Vertices.Num();
 		Range.M = M;
 		Range.bValid = true;
+		Range.T.Append(T.GetData(), T.Num());
+		Range.N.Append(N.GetData(), N.Num());
 
 		// Alpha = 1: not buried in another branch (the overlap pass in Build lowers it).
 		auto BarkAt = [&](int32 i) { return B.BarkRadius.Num() == NS ? B.BarkRadius[i] : B.SampleRadius[i]; };
@@ -227,8 +233,13 @@ namespace
 	}
 }
 
-void TreeMeshBuilder::Build(const FTreeSkeleton& S, FTreeMeshData& Out)
+#include "Tree/TreeSkirts.inl"
+
+void TreeMeshBuilder::Build(const FTreeSkeleton& S, FTreeMeshData& Out, const FTreeField* Field, TArray<int32>* OutNoSkirt,
+	FTreeMeshData* OutGroundSkirt)
 {
+	if (OutNoSkirt) OutNoSkirt->Reset();
+	if (OutGroundSkirt) OutGroundSkirt->Reset();
 	const double StartTime = FPlatformTime::Seconds();
 	Out.Reset();
 	TArray<FBranchRange> Ranges;
@@ -309,4 +320,9 @@ void TreeMeshBuilder::Build(const FTreeSkeleton& S, FTreeMeshData& Out)
 
 	UE_LOG(LogLeafline, Log, TEXT("TreeMeshBuilder: %d vertices, %d triangles, %.1f ms (overlap pass %.1f ms, %d buried vertices, %d child bases not sealed in their parent)"),
 		Out.Vertices.Num(), Out.Triangles.Num() / 3, (FPlatformTime::Seconds() - StartTime) * 1000.0, OverlapMs, Buried, Unsealed);
+
+	// Junction fillets: a skirt over each crease, lying on the walking field's rounded surface.
+	if (Field && Field->HasFillets()) BuildSkirts(S, *Field, Ranges, Out, OutNoSkirt);
+	// Where the trunk and the roots meet the ground.
+	if (Field && Field->HasGroundFillet() && OutGroundSkirt && CVarSkirts.GetValueOnAnyThread() != 0 && CVarGroundSkirt.GetValueOnAnyThread() != 0) BuildGroundSkirt(S, *Field, Ranges, Out, *OutGroundSkirt);
 }

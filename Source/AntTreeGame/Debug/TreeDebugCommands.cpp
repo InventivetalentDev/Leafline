@@ -6,6 +6,7 @@
 #include "Colony/TrailNetwork.h"
 #include "EngineUtils.h"
 #include "Tree/TreeActor.h"
+#include "Tree/TreeMeshBuilder.h"
 #include "World/DayDirector.h"
 
 namespace
@@ -127,6 +128,180 @@ namespace
 		D->DebugForceRegrow();
 		D->StartDay(D->GetDay());
 	}
+
+	/** Leaf.Fillets [0|1] [frac] [max] [boughmul] [groundk]: junction fillets on or off (toggle with no argument), optionally their
+	 *  size, then today's tree grows again, fresh. */
+	void Fillets(UWorld* World, const TArray<FString>& Args)
+	{
+		ADayDirector* D = ADayDirector::Get(World);
+		ATreeActor* Tree = ATreeActor::Get(World);
+		ULeaflineGameInstance* GI = World ? Cast<ULeaflineGameInstance>(World->GetGameInstance()) : nullptr;
+		if (!D || !Tree || !GI) return;
+		const bool bOn = Args.Num() > 0 ? FCString::Atoi(*Args[0]) != 0 : !Tree->GetField().HasFillets();
+		auto Arg = [&](int32 i) { return Args.Num() > i ? FCString::Atof(*Args[i]) : -1.f; };
+		ATreeActor::SetFilletsOverride(bOn, Arg(1), Arg(2), Arg(3), Arg(4));
+		const FTreeParams P = ATreeActor::WithFilletOverrides(Tree->Params);
+		UE_LOG(LogLeafline, Log, TEXT("Leaf.Fillets: fillets %s (frac %.2f, bough x%.2f, max %.0f cm, ground %.0f cm); growing tree %d again, fresh"),
+			bOn ? TEXT("on") : TEXT("off"), P.FilletFrac, P.FilletBoughMul, P.FilletMax, P.FilletGroundK, D->GetStage() + 1);
+		GI->SetTree(D->GetStage(), GI->GetTreeSeed(), GI->GetStageStartDay());
+		GI->SetTreeState({}, 0, {}, 0);
+		D->DebugForceRegrow();
+		D->StartDay(D->GetDay());
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs CmdFillets(
+		TEXT("Leaf.Fillets"),
+		TEXT("Leaf.Fillets [0|1] [frac] [max] [boughmul] [groundk]: rounded junctions of limbs, boughs and roots, and of the trunk and roots with the ground, in the walking field and the mesh (1, default) or not (0); no argument toggles; optional fillet radius as a fraction of the child's radius, its cap in cm, the bough multiplier, the ground blend in cm (0 keeps the plain one). Grows today's tree again, fresh."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World) { Fillets(World, Args); }));
+
+	/**
+	 * Leaf.FilletCheck: rebuilds the bark mesh with skirts (logs their fit), then compares the walking field with the field
+	 * without fillets at every tube vertex inside a fillet zone. A vertex lifted more than 2 cm more by the fillets is
+	 * covered when it lies on the junction's own child or parent (the skirt is over it); otherwise the fillet has webbed
+	 * an unrelated branch. Also counts leaves the skip test would have dropped against the field with fillets (leaves are
+	 * placed against the one without).
+	 */
+	void FilletCheck(UWorld* World, const TArray<FString>& Args)
+	{
+		ATreeActor* Tree = ATreeActor::Get(World);
+		if (!Tree) return;
+		const FTreeField& Field = Tree->GetField();
+		const FTreeSkeleton& S = Tree->GetSkeleton();
+		if (Args.Num() > 0)
+		{
+			// One junction: its fillet, and a Leaf.Goto that stands on top of the child just outside the fillet zone (so
+			// the ant stands in the same place with fillets on and off) looking back at the junction.
+			const int32 b = FCString::Atoi(*Args[0]);
+			if (!S.Branches.IsValidIndex(b) || S.Branches[b].Samples.Num() < 3) return;
+			const FTreeBranch& B = S.Branches[b];
+			const float Extra = Args.Num() > 1 ? FCString::Atof(*Args[1]) : 0.f; // cm beyond the zone
+			const float Pitch = Args.Num() > 2 ? FCString::Atof(*Args[2]) : -20.f;
+			// Arc length of the zone's centre along the child, then FilletOuter (or 3 blend radii) beyond it.
+			int32 c0 = 0;
+			double BestD = TNumericLimits<double>::Max();
+			for (int32 i = 0; i < B.Samples.Num(); ++i)
+			{
+				const double D = FVector::DistSquared(B.Samples[i], B.FilletCenter);
+				if (D < BestD) { BestD = D; c0 = i; }
+			}
+			const float Beyond = (B.FilletK > 0.f ? B.FilletOuter : B.SampleRadius[0] + 3.f * B.BlendK) + Extra;
+			const float Target = B.SampleDist[c0] + Beyond;
+			int32 i = 1;
+			while (i + 1 < B.Samples.Num() && B.SampleDist[i] < Target) ++i;
+			const FVector T = (B.Samples[i] - B.Samples[i - 1]).GetSafeNormal();
+			FVector Up = FVector::UpVector - T * T.Z;
+			if (Up.SizeSquared() < 1e-4) Up = FVector::ForwardVector;
+			Up.Normalize();
+			FVector P = B.Samples[i] + Up * (B.SampleRadius[i] + 30.f);
+			FVector Look = -T;
+			if (Args.Num() > 3 && FCString::Atoi(*Args[3]) != 0 && S.Branches.IsValidIndex(B.Parent))
+			{
+				// From the parent instead: on top of it, past the junction on the side the child leans to, looking back at
+				// the crotch (the acute side, where the fillet is longest).
+				const FTreeBranch& Par = S.Branches[B.Parent];
+				int32 q = 0;
+				double BestQ = TNumericLimits<double>::Max();
+				for (int32 k = 0; k < Par.Samples.Num(); ++k)
+				{
+					const double D = FVector::DistSquared(Par.Samples[k], B.FilletCenter);
+					if (D < BestQ) { BestQ = D; q = k; }
+				}
+				const FVector Tp = (Par.Samples[FMath::Min(q + 1, Par.Samples.Num() - 1)] - Par.Samples[FMath::Max(q - 1, 0)]).GetSafeNormal();
+				const float Sign = FVector::DotProduct(T, Tp) >= 0.f ? 1.f : -1.f;
+				const float Want = Par.SampleDist[q] + Sign * Beyond;
+				int32 k = q;
+				while (Sign > 0.f ? (k + 1 < Par.Samples.Num() && Par.SampleDist[k] < Want) : (k > 0 && Par.SampleDist[k] > Want)) k += Sign > 0.f ? 1 : -1;
+				const FVector Tk = (Par.Samples[FMath::Min(k + 1, Par.Samples.Num() - 1)] - Par.Samples[FMath::Max(k - 1, 0)]).GetSafeNormal();
+				FVector UpP = FVector::UpVector - Tk * Tk.Z;
+				if (UpP.SizeSquared() < 1e-4) UpP = (B.FilletCenter - Par.Samples[k]).GetSafeNormal();
+				UpP.Normalize();
+				P = Par.Samples[k] + UpP * (Par.SampleRadius[k] + 30.f);
+				Look = (B.FilletCenter - P).GetSafeNormal2D();
+			}
+			const float Heading = FMath::RadiansToDegrees(FMath::Atan2(Look.Y, Look.X));
+			UE_LOG(LogLeafline, Log, TEXT("Leaf.FilletCheck %d: level %d, parent %d, radius %.0f, blend %.1f, fillet %.1f, centre %s, zone %.0f..%.0f cm; view: Leaf.Goto %.0f %.0f %.0f %.0f %.0f"),
+				b, B.Level, B.Parent, B.SampleRadius[0], B.BlendK, B.FilletK, *B.FilletCenter.ToCompactString(), B.FilletInner, B.FilletOuter,
+				P.X, P.Y, P.Z, Heading, Pitch);
+			return;
+		}
+		if (!Field.HasFillets())
+		{
+			UE_LOG(LogLeafline, Log, TEXT("Leaf.FilletCheck: fillets are off"));
+			return;
+		}
+		const double Start = FPlatformTime::Seconds();
+		FTreeMeshData Skirted;
+		TreeMeshBuilder::Build(S, Skirted, &Field);
+		FTreeField Legacy;
+		Legacy.Build(S, false);
+		FTreeMeshData Tubes;
+		TreeMeshBuilder::Build(S, Tubes);
+
+		TArray<int32> Zones;
+		for (int32 b = 0; b < S.Branches.Num(); ++b)
+		{
+			if (S.Branches[b].FilletK > 0.f) Zones.Add(b);
+		}
+		int32 InZone = 0, Lifted = 0, Webbed = 0;
+		double WorstWeb = 0.0, WorstLift = 0.0;
+		FVector WorstWebAt = FVector::ZeroVector;
+		int32 WorstWebZone = INDEX_NONE;
+		for (const FVector& V : Tubes.Vertices)
+		{
+			if (V.Z < Field.GroundZ + 1.2 * Field.GetGroundK() + 20.0) continue; // under the ground, or in the ground's own fillet (its skirt)
+			// Expected here: the field without fillets, or the two tubes of a zone this vertex lies in blended with its
+			// fillet (what that zone's skirt is laid on). Lower than both means a third branch lifts it: webbing.
+			bool bAny = false;
+			int32 FirstZone = INDEX_NONE;
+			const double Old = Legacy.Distance(V);
+			double Expected = Old;
+			for (int32 c : Zones)
+			{
+				const FTreeBranch& B = S.Branches[c];
+				if (FVector::DistSquared(V, B.FilletCenter) >= FMath::Square((double)B.FilletOuter)) continue;
+				bAny = true;
+				if (FirstZone == INDEX_NONE) FirstZone = c;
+				Expected = FMath::Min(Expected, FTreeField::SMin(Field.BranchDistance(B.Parent, V), Field.BranchDistance(c, V), Field.BlendKAt(c, V)));
+			}
+			if (!bAny) continue;
+			++InZone;
+			const double Now = Field.Distance(V);
+			const double Lift = Old - Now;
+			if (Lift > 2.0)
+			{
+				++Lifted;
+				WorstLift = FMath::Max(WorstLift, Lift);
+			}
+			if (Expected - Now <= 2.0) continue;
+			const double Web = Expected - Now;
+			++Webbed;
+			if (Web > WorstWeb)
+			{
+				WorstWeb = Web;
+				WorstWebAt = V;
+				WorstWebZone = FirstZone;
+			}
+		}
+
+		const FLeafSet& Leaves = Tree->GetLeaves();
+		int32 Touching = 0;
+		for (const FTreeLeaf& L : Leaves.Leaves)
+		{
+			if (Field.Distance(L.Point(L.Length * 0.5f, 0.f)) < 8.0 || Field.Distance(L.Point(L.Length, 0.f)) < 8.0 ||
+				Field.Distance(L.Point(L.Length * 0.25f, 0.f)) < 5.0)
+			{
+				++Touching;
+			}
+		}
+		UE_LOG(LogLeafline, Log, TEXT("Leaf.FilletCheck: %d fillet zones; %d tube vertices in them, %d lifted over 2 cm by the fillets (worst %.1f cm), %d lifted over 2 cm more than their own junction's two tubes explain (webbing; worst %.1f cm at %s, zone of branch %d); %d of %d leaves would fail the skip test against the field with fillets; %.0f ms"),
+			Zones.Num(), InZone, Lifted, WorstLift, Webbed, WorstWeb, *WorstWebAt.ToCompactString(), WorstWebZone, Touching, Leaves.Num(),
+			(FPlatformTime::Seconds() - Start) * 1000.0);
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs CmdFilletCheck(
+		TEXT("Leaf.FilletCheck"),
+		TEXT("Leaf.FilletCheck [branch [extra cm] [pitch] [fromparent]]: log the junction skirts' fit to the walking field, tube vertices the fillets lift without a skirt over them (webbing), and leaves touching fillets; with a branch, its fillet and a Leaf.Goto that looks back at its junction from just outside the fillet zone (plus extra cm), on the child or (fromparent 1) on the parent."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World) { FilletCheck(World, Args); }));
 
 	FAutoConsoleCommandWithWorldAndArgs CmdCollars(
 		TEXT("Leaf.Collars"),

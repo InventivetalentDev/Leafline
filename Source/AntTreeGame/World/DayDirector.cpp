@@ -1075,6 +1075,9 @@ void ADayDirector::Tick(float DeltaTime)
 	}
 	UpdateDayFlow();
 	UpdateHarvestCamera(DeltaTime);
+	// The harvest's fast-forward ducks and thins the sound effects; every other phase, and the day_end jingle after it, is at full volume.
+	if (ULeaflineAudioSubsystem* AudioSys = LeafSound::Get(this))
+		AudioSys->SetPlaybackSpeed(Phase == EDayPhase::Harvest && Lines ? Lines->GetSpeedFactor() : 1.f);
 	if (Phase == EDayPhase::AllHome)
 	{
 		PhaseTimer -= DeltaTime;

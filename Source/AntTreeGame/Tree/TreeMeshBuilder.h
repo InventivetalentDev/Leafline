@@ -51,7 +51,25 @@ struct FTreeMeshData
  * as buried; the wide range and the margin keep the linear interpolation across large triangles from cutting real
  * surface at a junction. Colours reach the GPU linearly, so this is the exact 8-bit value.
  */
+class FTreeField;
+
 namespace TreeMeshBuilder
 {
-	void Build(const FTreeSkeleton& Skeleton, FTreeMeshData& Out);
+	/**
+	 * With a field that has fillet zones (FTreeParams::bFillets), each limb, bough and root also gets a skirt over its
+	 * junction: a band from the child's first ring clear of the fillet, over the walking field's rounded surface, to a
+	 * curve on the parent clear of it. It lies on the field (inner rows 0.3 cm outside it), so the tubes' crease is hidden
+	 * behind it and the ant walks on the surface it sees. Both edges share the tubes' surface exactly (the child ring's own
+	 * vertices; points on the parent's facets with its interpolated vertex data), so nothing steps where they meet. The
+	 * child half carries the child's bark data continued down the band (UV1 and bark radius of the ring, along decreasing
+	 * with the distance down), the parent half the parent's, interpolated as its tube does; they switch with a hard seam
+	 * where the surface is equally far from both tubes (where the crease was). UV3.y = 10000 (never buried), alpha 1.
+	 * Without a field (the grove, Leaf.MeshGap) there are no skirts. OutNoSkirt receives the branches whose fillet got no
+	 * skirt (the caller removes those fillets from the field, so the ant never floats over a crease it cannot see).
+	 * With OutGroundSkirt, the trunk and roots also get a skirt where they meet the ground (FTreeParams::FilletGroundK):
+	 * its bark half goes into Out, its ground half into OutGroundSkirt for the ground's mesh section (UV0 = world XY,
+	 * black, the ground's vertex data).
+	 */
+	void Build(const FTreeSkeleton& Skeleton, FTreeMeshData& Out, const FTreeField* Field = nullptr, TArray<int32>* OutNoSkirt = nullptr,
+		FTreeMeshData* OutGroundSkirt = nullptr);
 }
