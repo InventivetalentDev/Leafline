@@ -136,3 +136,7 @@ one unnamed input, and its `Inputs` and `AdditionalOutputs` arrays only take whe
 exactly as read and one element is added per call; the vertex colour node's main output is RGB only (alpha is the `A`
 output); and setting only a node's `Code` did not always mark the package dirty, so nudge a material property before
 `save_assets`.
+
+## Build info (`Tools/write_buildinfo.sh`)
+
+Writes `Content/Leafline/UIRaw/buildinfo.txt` (short commit, `+dirty` if tracked files have uncommitted changes, and the time). The HUD's faint bottom-left line starts with it; without the file it says "dev build". The file is staged with the UIRaw folder and ignored by git. Run it right before `Scripts/package_win64.bat`.

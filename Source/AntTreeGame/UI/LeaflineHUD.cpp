@@ -21,6 +21,10 @@
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Rendering/SlateRenderer.h"
+#include "Ant/AntCamera.h"
+#include "HAL/IConsoleManager.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 
 namespace
 {
@@ -107,6 +111,55 @@ bool ALeaflineHUD::IsHovered(int32 Id) const
 	return PC && PC->bShowMouseCursor && PC->GetMousePosition(X, Y) && MenuItemAt(FVector2D(X, Y)) == Id;
 }
 
+namespace
+{
+	/** -1 follows bShowBuildLine; 0 or 1 from Leaf.BuildLine overrides it. */
+	int32 GBuildLineOverride = -1;
+
+	FAutoConsoleCommand CmdBuildLine(
+		TEXT("Leaf.BuildLine"),
+		TEXT("Leaf.BuildLine [0|1]: show or hide the faint build and position line in the bottom-left corner; no argument toggles."),
+		FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
+		{
+			GBuildLineOverride = Args.Num() > 0 ? (FCString::Atoi(*Args[0]) != 0 ? 1 : 0) : (GBuildLineOverride == 0 ? 1 : 0);
+		}));
+
+	/** Content/Leafline/UIRaw/buildinfo.txt, written by Tools/write_buildinfo.sh before packaging (commit and time). */
+	const FString& BuildInfo()
+	{
+		static FString Info;
+		static bool bRead = false;
+		if (!bRead)
+		{
+			bRead = true;
+			FString Text;
+			const FString Path = FPaths::Combine(FPaths::ProjectContentDir(), TEXT("Leafline/UIRaw/buildinfo.txt"));
+			if (FFileHelper::LoadFileToString(Text, *Path)) Info = Text.TrimStartAndEnd();
+			if (Info.IsEmpty()) Info = TEXT("dev build");
+		}
+		return Info;
+	}
+}
+
+void ALeaflineHUD::DrawBuildLine(const AAntPawn* Ant, const ADayDirector* D, float Scale)
+{
+	const bool bShow = GBuildLineOverride >= 0 ? GBuildLineOverride == 1 : bShowBuildLine;
+	if (!bShow || !Canvas) return;
+	FString Line = BuildInfo();
+	if (D) Line += FString::Printf(TEXT("  |  %s, seed %d, day %d"), *D->GetTreeName(), D->GetSeed(), D->GetDay());
+	const ALeaflinePlayerController* PC = Cast<ALeaflinePlayerController>(GetOwningPlayerController());
+	const AAntCamera* Cam = PC ? PC->GetAntCamera() : nullptr;
+	if (Ant && Ant->GetAntMovement() && Cam)
+	{
+		const FVector P = Ant->GetAntMovement()->GetSurfacePosition();
+		const FVector F = Cam->GetRefForward();
+		const float Heading = FMath::RadiansToDegrees(FMath::Atan2(F.Y, F.X));
+		Line += FString::Printf(TEXT("  |  Leaf.Goto %.0f %.0f %.0f %.0f %.0f"), P.X, P.Y, P.Z, Heading, Cam->GetPitch());
+	}
+	UFont* Font = GEngine->GetSmallFont();
+	DrawCrisp(Canvas, Line, FLinearColor(1.f, 1.f, 1.f, 0.4f), 12.f * Scale, Canvas->ClipY - 26.f * Scale, Font, SecondaryText(Scale) * 0.75f);
+}
+
 void ALeaflineHUD::DrawHUD()
 {
 	Super::DrawHUD();
@@ -117,6 +170,7 @@ void ALeaflineHUD::DrawHUD()
 	const float Dt = GetWorld() ? GetWorld()->GetDeltaSeconds() : 0.016f;
 	const AAntPawn* Ant = Cast<AAntPawn>(GetOwningPawn());
 	const ADayDirector* D = ADayDirector::Get(this);
+	DrawBuildLine(Ant, D, Scale);
 
 	if (GetOwningPlayerController() && GetOwningPlayerController()->IsPaused())
 	{

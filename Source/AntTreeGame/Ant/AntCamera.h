@@ -108,6 +108,9 @@ public:
 	void AddLookInput(const FVector2D& DeltaDegrees) { PendingLook += DeltaDegrees; }
 
 	/** Debug: aim the orbit toward a world heading (degrees, 0 = +X) at a pitch, for repeatable screenshots. */
+	/** Orbit state for the HUD's reproduction line (Leaf.Goto): the reference forward and the pitch above it. */
+	const FVector& GetRefForward() const { return RefForward; }
+	float GetPitch() const { return Pitch; }
 	void DebugAim(float WorldYawDeg, float NewPitch) { DebugAimDirection(FRotator(0.f, WorldYawDeg, 0.f).Vector(), NewPitch); }
 	void DebugAimDirection(const FVector& WorldDir, float NewPitch);
 

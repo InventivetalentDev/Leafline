@@ -599,6 +599,33 @@ namespace
 			UE_LOG(LogLeafline, Log, TEXT("Leaf.Aim heading %s pitch %s"), *Args[0], *Args[1]);
 		}));
 
+	FAutoConsoleCommandWithWorldAndArgs CmdGoto(
+		TEXT("Leaf.Goto"),
+		TEXT("Leaf.Goto <x> <y> <z> [heading] [pitch]: put the ant on the surface nearest that point and aim the camera; the HUD's faint bottom-left line gives the exact command for the view on screen."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			ALeaflinePlayerController* PC = World ? Cast<ALeaflinePlayerController>(World->GetFirstPlayerController()) : nullptr;
+			AAntPawn* Ant = PC ? PC->GetAnt() : nullptr;
+			if (!Ant || !Ant->GetAntMovement() || Args.Num() < 3) return;
+			const FVector P(FCString::Atod(*Args[0]), FCString::Atod(*Args[1]), FCString::Atod(*Args[2]));
+			const float Heading = Args.Num() > 3 ? FCString::Atof(*Args[3]) : 0.f;
+			Ant->GetAntMovement()->TeleportTo(P, FRotator(0.f, Heading, 0.f).Vector());
+			SnapCamera(World);
+			if (Args.Num() > 4)
+			{
+				// The camera snaps behind the ant on its next tick; aim after that.
+				const FString Aim = FString::Printf(TEXT("Leaf.Aim %s %s"), *Args[3], *Args[4]);
+				TWeakObjectPtr<UWorld> Weak(World);
+				FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([Weak, Aim](float)
+				{
+					UWorld* W = Weak.Get();
+					if (APlayerController* C = W ? W->GetFirstPlayerController() : nullptr) C->ConsoleCommand(Aim);
+					return false;
+				}), 0.3f);
+			}
+			UE_LOG(LogLeafline, Log, TEXT("Leaf.Goto %s"), *FString::Join(Args, TEXT(" ")));
+		}));
+
 	FAutoConsoleCommandWithWorldAndArgs CmdDelay(
 		TEXT("Leaf.Delay"),
 		TEXT("Leaf.Delay <seconds> <command...>: run a console command later, also while paused (unattended screenshot runs)."),

@@ -26,6 +26,14 @@ public:
 	static constexpr int32 MenuOptMinus = 1200; // + row: the "<" on a value row
 	static constexpr int32 MenuOptPlus = 1300;  // + row: the ">" on a value row
 
+	/**
+	 * A faint line in the bottom-left corner for reproducing what a screenshot shows: build, tree, seed, day and a
+	 * pasteable Leaf.Goto with the ant's position and the camera's heading and pitch. Set False in DefaultGame.ini
+	 * ([/Script/AntTreeGame.LeaflineHUD]) before the submission build; Leaf.BuildLine toggles it while playing.
+	 */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadWrite, Category = "HUD")
+	bool bShowBuildLine = true;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD")
 	FLinearColor StaminaColor = FLinearColor(0.78f, 0.86f, 0.45f, 0.9f);
 
@@ -79,6 +87,7 @@ private:
 	void DrawTextPanel(const FString& Text, float CX, float Y, const FLinearColor& Color, float TextScale, float Scale,
 		float Alpha = 1.f, float MaxWidth = 900.f);
 	bool UsingPad() const;
+	void DrawBuildLine(const class AAntPawn* Ant, const class ADayDirector* D, float Scale);
 	void DrawArc(float CX, float CY, float Radius, float From01, float To01, const FLinearColor& Color, float Thickness);
 
 	struct FMenuHit

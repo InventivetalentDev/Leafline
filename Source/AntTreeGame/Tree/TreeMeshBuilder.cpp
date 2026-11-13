@@ -160,8 +160,11 @@ namespace
 		return OutHi >= OutLo;
 	}
 
-	constexpr float BuriedMargin = 25.f;  // beyond this outside distance the encoding is already 1
-	constexpr float BuriedRange = 50.f;   // cm per full alpha range: A = 0.5 + d / BuriedRange
+	// A = 0.5 + d / BuriedRange. The range must be wide: alpha is interpolated linearly across triangles of up to about
+	// 60 cm, and a clamped end value moves the cut outward on both surfaces of a junction, which opened holes there (owner,
+	// 13 Nov, with a range of 50 cm and a margin of 25). 400 cm keeps a step of 1.6 cm per 8-bit level.
+	constexpr float BuriedMargin = 200.f; // distances are measured up to this far outside; beyond it the vertex keeps 1
+	constexpr float BuriedRange = 400.f;  // cm per full alpha range
 
 	/**
 	 * Lowers the alpha of one ring's vertices by their signed distance to the tubes of Other's segments SegLo..SegHi.
@@ -201,9 +204,11 @@ void TreeMeshBuilder::Build(const FTreeSkeleton& S, FTreeMeshData& Out)
 		BuildBranch(S.Branches[b], S.Params, Out, Ranges[b]);
 	}
 
-	// Overlap pass: alpha = clamp(0.5 + d / 50, 0, 1), d = signed distance (cm) to the surface of the parent (for a
-	// child's vertices) or of a child's base (for a parent's vertices); negative inside the other branch.
+	// Overlap pass: alpha = clamp(0.5 + d / 400, 0, 1), d = signed distance (cm) to the surface of the parent (for a
+	// child's vertices) or of a child's base (for a parent's vertices, only when the child's base ring is sealed inside
+	// the parent); negative inside the other branch.
 	const double OverlapStart = FPlatformTime::Seconds();
+	int32 Unsealed = 0;
 	for (int32 c = 0; c < S.Branches.Num(); ++c)
 	{
 		const FTreeBranch& Child = S.Branches[c];
@@ -218,8 +223,27 @@ void TreeMeshBuilder::Build(const FTreeSkeleton& S, FTreeMeshData& Out)
 
 		// The child's rings against the parent, from the base until a ring is clear of the parent.
 		int32 SegLo, SegHi;
-		const float WinP = 2.f * (Rp + Rc0) + 60.f;
-		if (SegmentWindow(Par, Sp - WinP, Sp + WinP, SegLo, SegHi))
+		const float WinP = 2.f * (Rp + Rc0) + 60.f + BuriedMargin;
+		const bool bParWindow = SegmentWindow(Par, Sp - WinP, Sp + WinP, SegLo, SegHi);
+		// The child's tube starts with an open ring. Hiding the parent's bark inside the child is only safe when that
+		// ring lies wholly inside the parent: otherwise the open end shows from outside, and with the parent's bark gone
+		// behind it the player looks straight through the tree (owner, 13 Nov: holes where big limbs and roots meet the
+		// trunk, whose base rings are wider than the trunk there).
+		bool bBaseSealed = false;
+		if (bParWindow)
+		{
+			float MaxD = -TNumericLimits<float>::Max();
+			for (int32 j = 0; j <= Ranges[c].M; ++j)
+			{
+				const FVector& Pt = Out.Vertices[Ranges[c].Start + j];
+				float D = TNumericLimits<float>::Max();
+				for (int32 sg = SegLo; sg <= SegHi; ++sg) D = FMath::Min(D, SegSignedDist(Pt, Par, sg));
+				MaxD = FMath::Max(MaxD, D);
+			}
+			bBaseSealed = MaxD < -15.f;
+			Unsealed += bBaseSealed ? 0 : 1;
+		}
+		if (bParWindow)
 		{
 			const int32 RV = Ranges[c].M + 1;
 			for (int32 i = 0; i < NSc; ++i)
@@ -230,9 +254,9 @@ void TreeMeshBuilder::Build(const FTreeSkeleton& S, FTreeMeshData& Out)
 		}
 
 		// The parent's rings near the junction against the child's base.
-		const float WinC = 3.f * Rc0 + 60.f;
+		const float WinC = 3.f * Rc0 + 60.f + BuriedMargin;
 		int32 CLo, CHi;
-		if (SegmentWindow(Child, 0.f, 2.f * (Rp + Rc0) + 60.f, CLo, CHi)
+		if (bBaseSealed && SegmentWindow(Child, 0.f, 2.f * (Rp + Rc0) + 60.f + BuriedMargin, CLo, CHi)
 			&& SegmentWindow(Par, Sp - WinC, Sp + WinC, SegLo, SegHi))
 		{
 			const int32 RV = Ranges[p].M + 1;
@@ -246,9 +270,9 @@ void TreeMeshBuilder::Build(const FTreeSkeleton& S, FTreeMeshData& Out)
 	int32 Buried = 0;
 	for (const FLinearColor& Col : Out.Colors)
 	{
-		if (Col.A < 0.44f) ++Buried;
+		if (Col.A < 0.5f - 15.f / BuriedRange) ++Buried;
 	}
 
-	UE_LOG(LogLeafline, Log, TEXT("TreeMeshBuilder: %d vertices, %d triangles, %.1f ms (overlap pass %.1f ms, %d buried vertices)"),
-		Out.Vertices.Num(), Out.Triangles.Num() / 3, (FPlatformTime::Seconds() - StartTime) * 1000.0, OverlapMs, Buried);
+	UE_LOG(LogLeafline, Log, TEXT("TreeMeshBuilder: %d vertices, %d triangles, %.1f ms (overlap pass %.1f ms, %d buried vertices, %d child bases not sealed in their parent)"),
+		Out.Vertices.Num(), Out.Triangles.Num() / 3, (FPlatformTime::Seconds() - StartTime) * 1000.0, OverlapMs, Buried, Unsealed);
 }

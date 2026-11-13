@@ -37,9 +37,10 @@ struct FTreeMeshData
  * UV2 = (Hi, Lo) split of UV0.y: Hi = floor(along / 256) * 256, Lo = along - Hi. Both are exact in half floats and Hi + Lo
  * interpolates linearly, giving the along distance at sub-millimetre precision.
  * Colour = (level/3, per-branch random, height on tree, buried). Alpha is a signed distance to the other branches the
- * vertex overlaps (its parent for a child, its children's bases for a parent): A = clamp(0.5 + d / 50, 0, 1), d in cm,
- * negative inside the other branch; 1 where nothing overlaps. The material treats A < 0.44 (d below -3 cm) as buried
- * geometry. Colours reach the GPU linearly, so this is the exact 8-bit value.
+ * vertex overlaps (its parent for a child, its children's bases for a parent): A = clamp(0.5 + d / 400, 0, 1), d in cm,
+ * negative inside the other branch; 1 where nothing overlaps. The material treats A < 0.4625 (more than 15 cm inside)
+ * as buried; the wide range and the margin keep the linear interpolation across large triangles from cutting real
+ * surface at a junction. Colours reach the GPU linearly, so this is the exact 8-bit value.
  */
 namespace TreeMeshBuilder
 {

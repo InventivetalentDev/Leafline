@@ -223,6 +223,7 @@ Tagged `pre-look` before it started. Commits start `Look:` (and `HUD:` for the H
 
 ## M7: Ship (Sunday)
 
+- [ ] Set `bShowBuildLine=False` under `[/Script/AntTreeGame.LeaflineHUD]` in `Config/DefaultGame.ini` (the faint build and position line), alongside `bInputVizKey=False`.
 - [ ] Bug fixing from Saturday's playtest.
 - [ ] Before the final package: `bInputVizKey=False` in `Config/DefaultGame.ini` (the F3 input view stays out of players' reach; `Leaf.InputViz` remains as a console command).
 - [ ] Final packaged Windows **development** build. Run it from a path with spaces and from a fresh folder.
