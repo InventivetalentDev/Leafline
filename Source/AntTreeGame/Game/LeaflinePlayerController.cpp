@@ -19,6 +19,7 @@
 #include "AudioDevice.h"
 #include "Audio/LeafSound.h"
 #include "Engine/Engine.h"
+#include "InputKeyEventArgs.h"
 #include "Misc/ConfigCacheIni.h"
 
 ALeaflinePlayerController::ALeaflinePlayerController()
@@ -249,6 +250,26 @@ void ALeaflinePlayerController::PlayerTick(float DeltaTime)
 	}
 	UpdateWindMapButton(ButtonsPressed);
 	if (ButtonsPressed) HandleButtons(ButtonsPressed);
+}
+
+bool ALeaflinePlayerController::InputKey(const FInputKeyEventArgs& Params)
+{
+	// Prompts follow the device in use: a pad button or a clear stick or trigger push switches to pad icons; a key, a
+	// mouse button or a real mouse movement switches back.
+	const FKey& Key = Params.Key;
+	if (Key.IsGamepadKey())
+	{
+		if (Params.Event == IE_Pressed || (Key.IsAnalog() && FMath::Abs(Params.AmountDepressed) > 0.35f)) bUsingGamepad = true;
+	}
+	else if (Key == EKeys::MouseX || Key == EKeys::MouseY)
+	{
+		if (FMath::Abs(Params.AmountDepressed) > 3.f) bUsingGamepad = false;
+	}
+	else if (Params.Event == IE_Pressed && !Params.bIsTouchEvent)
+	{
+		bUsingGamepad = false;
+	}
+	return Super::InputKey(Params);
 }
 
 void ALeaflinePlayerController::UpdateWindMapButton(uint32 Pressed)

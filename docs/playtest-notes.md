@@ -17,14 +17,15 @@
 - [x] aiming to pick leafes is a bit difficult
   - The leaf the ant would cut now has a pulsing outline, so you can see the target before pressing cut. Picking still takes the leaf nearest the ant's mouth; tell me if it should follow the camera instead. In the package of 12 Nov 18:28.
   - Owner (13 Nov): leave it as is (nearest to the mouth).
-- [ ] eventually make selection outlines for leaves etc, instead of just showing an UI overlay
+- [x] eventually make selection outlines for leaves etc, instead of just showing an UI overlay
   - Leaves done (outline on the targeted leaf, and since 13 Nov a fainter outline on the other leaves of its patch). Trails not yet.
 - [x] low priority: leaf cutting animation would be nice
   - First pass: while cutting the ant saws (quick nod, slow side-to-side sweep), and a pale line on the leaf shows where the piece will tear, growing with the cut. On release the piece tears out there and swings up onto the ant's back in about half a second; the tear and the landing each have their sound. Bites now start nearest the stalk, so the piece comes out about 90 cm from the ant instead of 180. Seen in still screenshots only; reopen if it needs more. In the package of 13 Nov 09:16.
 - [x] low priority: if you're already halfway back down the tree and you engage the auto-return, ideally it should just follow the scent line if you're close to it from that location, instead of walking strictly back (and going back up the tree etc.)
   - Done: a worker sent home now starts from the scent line point within 1 m that is nearest the nest (its own line or another worker's), then follows it home and skips its loops (where the line comes back within 35 cm of itself it cuts across). It only cuts across where the straight line stays on the bark, never through the air to another branch. Test: an ant that wandered on the trunk for 45 s went home along 61 m instead of retracing 105 m (both include a 40 m jump from the test's teleport), and reached the nest. That test had only one worker's line, so joining another worker's line is not yet exercised. In the package of 12 Nov 18:28.
-- [ ] add key/controller icons (https://thoseawesomeguys.com/prompts/)
+- [x] add key/controller icons (https://thoseawesomeguys.com/prompts/)
   - Owner (13 Nov): use the Xelu pack, but no PlayStation-specific icons for now; Xbox-style buttons for every pad.
+  - Done: every prompt that named a key now shows its icon (title, prompts, gust warnings, harvest, nest, pause and options), for the device you used last: light keyboard keys and mouse buttons, or Xbox-style buttons on any pad. 26 icons from the pack (CC0, listed in `docs/sourced-assets.md`), loaded at runtime. Checked in screenshots at 1280x720 in both modes (`Leaf.PadIcons 0|1` forces one). In the package of 13 Nov (afternoon).
 - [x] add controller support
   - Xbox pads worked already (XInput). PS5 and PS4 pads now work through Microsoft GameInput, mapped per SDL_GameControllerDB and checked with your DualSense. Right stick looks inverted, as you asked. In the package of 12 Nov 18:28.
 - [x] mouse cursor controls in the UI would be nice

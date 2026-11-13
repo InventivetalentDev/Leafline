@@ -65,7 +65,11 @@ private:
 	void DrawMoveCard(const ADayDirector* D, float Scale);
 	void DrawPause(float Scale);
 	void DrawColonyMeter(float CenterX, float Y, float Width, float Scale);
+	/** Text may hold button tokens ("Hold {Cut}: cut", "{orclick}"): drawn as icons for the device in use (PromptIcons.h). */
 	void DrawTextCentered(const FString& Text, float CenterX, float Y, const FLinearColor& Color, float TextScale, UFont* Font);
+	void DrawTextAt(const FString& Text, float X, float Y, const FLinearColor& Color, float TextScale, UFont* Font);
+	FVector2D MeasureText(const FString& Text, UFont* Font, float TextScale) const;
+	bool UsingPad() const;
 	void DrawArc(float CX, float CY, float Radius, float From01, float To01, const FLinearColor& Color, float Thickness);
 
 	struct FMenuHit

@@ -8,3 +8,4 @@
 *.blend filter=lfs diff=lfs merge=lfs -text
 *.bat text eol=crlf
 *.wavraw filter=lfs diff=lfs merge=lfs -text
+*.pngraw filter=lfs diff=lfs merge=lfs -text

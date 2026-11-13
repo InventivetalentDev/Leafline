@@ -31,6 +31,7 @@ namespace LeafDebug
 	float HoldGrip = 0.f;
 	float HoldFollow = 0.f;
 	float HoldCycle = 0.f;
+	int32 ForcePadIcons = -1;
 }
 
 namespace
@@ -819,6 +820,15 @@ namespace
 		LeafDebug::AutoStrafe = 1.f;
 		Orbit.Handle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateStatic(&OrbitTick), 0.f);
 	}
+
+	FAutoConsoleCommandWithWorldAndArgs CmdPadIcons(
+		TEXT("Leaf.PadIcons"),
+		TEXT("Leaf.PadIcons [-1|0|1]: prompt icons follow the device in use (-1, default), always keys and mouse (0) or always pad (1)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld*)
+		{
+			LeafDebug::ForcePadIcons = Args.Num() > 0 ? FMath::Clamp(FCString::Atoi(*Args[0]), -1, 1) : -1;
+			UE_LOG(LogLeafline, Log, TEXT("Leaf.PadIcons %d"), LeafDebug::ForcePadIcons);
+		}));
 
 	FAutoConsoleCommandWithWorldAndArgs CmdOrbit(
 		TEXT("Leaf.Orbit"),

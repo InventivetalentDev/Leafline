@@ -190,7 +190,8 @@ From `docs/playtest-notes.md`; each feel change has an off switch for the owner'
 - [x] One tree off still identical (seed 517192: 8140 leaves; 103900: 6731).
 - [x] Package and zip from f92ca3b (13 Nov 12:52, 463.5 MB); packaged smoke test in slot `PackSmoke`: two days with the fast-forward and the wind map, no fatal lines.
 - [ ] Owner's verdict on all of the above, the line and one tree.
-- [ ] Still open: key and pad icons (owner: the Xelu pack, Xbox-style buttons for every pad), trail outlines, PS5 audio check. Aiming stays as it is (owner).
+- [x] Key and pad icons: Xelu's CC0 pack, light keys and Xbox-style buttons for every pad (owner's choice), drawn from tokens in HUD text for the device used last (`UI/PromptIcons.*`, `Leaf.PadIcons`).
+- [ ] Still open: trail outlines, PS5 audio check. Aiming stays as it is (owner).
 
 ## M6: Stretch (only if M0–M5b are complete before the freeze; the bird waits for the owner to keep the line)
 

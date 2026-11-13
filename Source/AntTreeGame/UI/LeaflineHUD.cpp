@@ -1,4 +1,7 @@
 #include "UI/LeaflineHUD.h"
+#include "UI/PromptIcons.h"
+#include "Debug/LeafDebug.h"
+#include "Engine/Texture2D.h"
 #include "Game/LeaflinePlayerController.h"
 #include "Ant/AntPawn.h"
 #include "Ant/AntMovementComponent.h"
@@ -122,7 +125,7 @@ void ALeaflineHUD::DrawHUD()
 		}
 		else if (D->GetDay() == 1 && Ant->GetWorkerIndex() == 1 && !Ant->IsCarrying() && M && M->GetState() == EAntState::Walking)
 		{
-			Goal = TEXT("Your first worker walks home on its own. Hold F on the cyan trail to ride it up");
+			Goal = TEXT("Your first worker walks home on its own. Hold {Follow} on the cyan trail to ride it up");
 		}
 		if (!Goal.IsEmpty())
 		{
@@ -176,10 +179,144 @@ void ALeaflineHUD::DrawShiftBanner(const ADayDirector* D, float Scale, float Dt)
 	DrawTextCentered(BannerLine, CX, Y, FLinearColor(TextColor.R, TextColor.G, TextColor.B, A), 1.25f * Scale, GEngine->GetMediumFont());
 }
 
+namespace
+{
+	/** A stretch of prompt text, or the icons of one button token. */
+	struct FKeyRun
+	{
+		FString Text;
+		TArray<UTexture2D*> Icons;
+	};
+
+	/** Width over height of an icon (the icons are cropped to the key's shape, so wide keys are wide). */
+	float IconAspect(const UTexture2D* T)
+	{
+		return T && T->GetSizeY() > 0 ? float(T->GetSizeX()) / float(T->GetSizeY()) : 1.f;
+	}
+
+	/** "Hold {Cut}: cut" -> "Hold ", [E][LMB], ": cut". Unknown tokens stay as text; missing icons fall back to key names. */
+	void SplitKeyRuns(const FString& Text, bool bPad, TArray<FKeyRun>& Out)
+	{
+		FString Cur;
+		int32 i = 0;
+		while (i < Text.Len())
+		{
+			const int32 Close = Text[i] == TEXT('{') ? Text.Find(TEXT("}"), ESearchCase::CaseSensitive, ESearchDir::FromStart, i) : INDEX_NONE;
+			if (Close == INDEX_NONE)
+			{
+				Cur.AppendChar(Text[i++]);
+				continue;
+			}
+			const FString Token = Text.Mid(i + 1, Close - i - 1);
+			i = Close + 1;
+			if (Token.Equals(TEXT("orclick"), ESearchCase::IgnoreCase))
+			{
+				if (!bPad) Cur += TEXT(" or click");
+				continue;
+			}
+			TArray<FString> Names;
+			FString Fallback;
+			if (!LeafPrompts::Expand(Token, bPad, Names, Fallback))
+			{
+				Cur += Token;
+				continue;
+			}
+			TArray<UTexture2D*> Icons;
+			for (const FString& N : Names)
+			{
+				UTexture2D* T = LeafPrompts::Get(N);
+				if (!T)
+				{
+					Icons.Reset();
+					break;
+				}
+				Icons.Add(T);
+			}
+			if (Icons.Num() == 0)
+			{
+				Cur += Fallback;
+				continue;
+			}
+			if (!Cur.IsEmpty()) Out.Add({ Cur, {} });
+			Cur.Reset();
+			Out.Add({ FString(), Icons });
+		}
+		if (!Cur.IsEmpty()) Out.Add({ Cur, {} });
+	}
+}
+
+bool ALeaflineHUD::UsingPad() const
+{
+	if (LeafDebug::ForcePadIcons >= 0) return LeafDebug::ForcePadIcons == 1;
+	const ALeaflinePlayerController* PC = Cast<ALeaflinePlayerController>(GetOwningPlayerController());
+	return PC && PC->IsUsingGamepad();
+}
+
+FVector2D ALeaflineHUD::MeasureText(const FString& Text, UFont* Font, float TextScale) const
+{
+	if (!Text.Contains(TEXT("{"))) return MeasureCrisp(Text, Font, TextScale);
+	TArray<FKeyRun> Runs;
+	SplitKeyRuns(Text, UsingPad(), Runs);
+	const float LineH = MeasureCrisp(TEXT("Ag"), Font, TextScale).Y;
+	const float IconH = LineH * 1.4f;
+	float W = 0.f;
+	bool bIcons = false;
+	for (const FKeyRun& R : Runs)
+	{
+		if (R.Icons.Num() == 0)
+		{
+			W += MeasureCrisp(R.Text, Font, TextScale).X;
+			continue;
+		}
+		bIcons = true;
+		W += 0.2f * IconH + (R.Icons.Num() - 1) * 0.08f * IconH;
+		for (const UTexture2D* T : R.Icons) W += IconH * IconAspect(T);
+	}
+	// A row with icons is as tall as the icons; DrawTextAt centres the text on them.
+	return FVector2D(W, bIcons ? IconH : LineH);
+}
+
+void ALeaflineHUD::DrawTextAt(const FString& Text, float X, float Y, const FLinearColor& Color, float TextScale, UFont* Font)
+{
+	if (!Text.Contains(TEXT("{")))
+	{
+		DrawCrisp(Canvas, Text, Color, X, Y, Font, TextScale);
+		return;
+	}
+	TArray<FKeyRun> Runs;
+	SplitKeyRuns(Text, UsingPad(), Runs);
+	const float LineH = MeasureCrisp(TEXT("Ag"), Font, TextScale).Y;
+	const float IconH = LineH * 1.4f;
+	bool bIcons = false;
+	for (const FKeyRun& R : Runs) bIcons |= R.Icons.Num() > 0;
+	const float TextY = bIcons ? Y + 0.5f * (IconH - LineH) : Y;
+	for (const FKeyRun& R : Runs)
+	{
+		if (R.Icons.Num() == 0)
+		{
+			DrawCrisp(Canvas, R.Text, Color, X, TextY, Font, TextScale);
+			X += MeasureCrisp(R.Text, Font, TextScale).X;
+			continue;
+		}
+		X += 0.1f * IconH;
+		for (int32 k = 0; k < R.Icons.Num(); ++k)
+		{
+			if (UTexture2D* T = R.Icons[k])
+			{
+				FCanvasTileItem Tile(FVector2D(X, Y), T->GetResource(), FVector2D(IconH * IconAspect(T), IconH), FLinearColor(1.f, 1.f, 1.f, Color.A));
+				Tile.BlendMode = SE_BLEND_Translucent;
+				Canvas->DrawItem(Tile);
+			}
+			X += IconH * IconAspect(R.Icons[k]) + (k + 1 < R.Icons.Num() ? 0.08f * IconH : 0.f);
+		}
+		X += 0.1f * IconH;
+	}
+}
+
 void ALeaflineHUD::DrawTextCentered(const FString& Text, float CenterX, float Y, const FLinearColor& Color, float TextScale, UFont* Font)
 {
-	const FVector2D Size = MeasureCrisp(Text, Font, TextScale);
-	DrawCrisp(Canvas, Text, Color, CenterX - Size.X * 0.5f, Y, Font, TextScale);
+	const FVector2D Size = MeasureText(Text, Font, TextScale);
+	DrawTextAt(Text, CenterX - Size.X * 0.5f, Y, Color, TextScale, Font);
 }
 
 void ALeaflineHUD::DrawArc(float CX, float CY, float Radius, float From01, float To01, const FLinearColor& Color, float Thickness)
@@ -306,7 +443,7 @@ void ALeaflineHUD::DrawDayInfo(const ADayDirector* D, float Scale)
 			}
 			else
 			{
-				DrawCrisp(Canvas, TEXT("Hold Tab / LB: wind map"), FLinearColor(TextColor.R, TextColor.G, TextColor.B, 0.55f), GX, LY, Font, 0.85f * Scale);
+				DrawTextAt(TEXT("Hold {Cycle}: wind map"), GX, LY, FLinearColor(TextColor.R, TextColor.G, TextColor.B, 0.55f), 0.85f * Scale, Font);
 			}
 		}
 	}
@@ -577,10 +714,10 @@ void ALeaflineHUD::DrawHarvest(const ADayDirector* D, const ALineSystem* Lines, 
 	}
 	DrawTextCentered(Speed, CX, Y, TextColor, 1.1f * Scale, Font);
 	const bool bLineViews = Lines && Lines->NumLiveLines() > 0;
-	const FString Controls = D->IsSkippingHarvest() ? FString() : FString(bLineViews ? TEXT("Space / A: skip      Tab / LB: next line") : TEXT("Space / A: skip"));
+	const FString Controls = D->IsSkippingHarvest() ? FString() : FString(bLineViews ? TEXT("{Grip}: skip      {Cycle}: next line") : TEXT("{Grip}: skip"));
 	if (!Controls.IsEmpty())
 	{
-		const FVector2D Size = MeasureCrisp(Controls, Font, 1.15f * Scale);
+		const FVector2D Size = MeasureText(Controls, Font, 1.15f * Scale);
 		const float BY = Canvas->ClipY - 130.f * Scale;
 		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.4f), CX - Size.X * 0.5f - 14.f * Scale, BY - 6.f * Scale, Size.X + 28.f * Scale, Size.Y + 12.f * Scale);
 		DrawTextCentered(Controls, CX, BY, TextColor, 1.15f * Scale, Font);
@@ -597,23 +734,23 @@ void ALeaflineHUD::DrawPrompt(const AAntPawn* Ant, const ADayDirector* D, float 
 		const AWindSystem* Wind = D ? D->GetWind() : nullptr;
 		const bool bGustSoon = Wind && (Wind->GetPhase() == EWindPhase::Warning || Wind->IsGustActive());
 		if (S == EAntState::Falling) Prompt = TEXT("Blown off! The fragment is lost");
-		else if (S == EAntState::WalkingHome) Prompt = TEXT("Walking home empty-handed.   Tab: switch ant");
-		else if (S == EAntState::Gripping) Prompt = TEXT("Gripping. Release Space / A when the gust passes");
+		else if (S == EAntState::WalkingHome) Prompt = TEXT("Walking home empty-handed.   {Cycle}: switch ant");
+		else if (S == EAntState::Gripping) Prompt = TEXT("Gripping. Release {Grip} when the gust passes");
 		else if (bGustSoon && (S == EAntState::Walking || S == EAntState::Riding || S == EAntState::Cutting))
 		{
 			// Sheltered spots need no grip; elsewhere say what helps: grip, or the side away from the arrow.
 			Prompt = ExposureShown >= 0.f && ExposureShown < 0.25f ? TEXT("Gust! You are sheltered here")
-				: (Wind->GetPhase() == EWindPhase::Warning ? TEXT("Gust coming: hold Space / A to grip, or get to the side away from the wind arrow")
-				                                           : TEXT("Gust! Hold Space / A to grip"));
+				: (Wind->GetPhase() == EWindPhase::Warning ? TEXT("Gust coming: hold {Grip} to grip, or get to the side away from the wind arrow")
+				                                           : TEXT("Gust! Hold {Grip} to grip"));
 		}
-		else if (S == EAntState::Returning) Prompt = TEXT("Heading home on the trail.   Tab: switch ant");
+		else if (S == EAntState::Returning) Prompt = TEXT("Heading home on the trail.   {Cycle}: switch ant");
 		else if (Ant->IsCutting()) Prompt = TEXT("Release to finish the cut");
-		else if (Ant->IsCarrying()) Prompt = TEXT("Q / Y: send home      or carry it to the nest yourself");
-		else if (Ant->GetLeafInReach() != INDEX_NONE) Prompt = TEXT("Hold E / LMB / X: cut");
+		else if (Ant->IsCarrying()) Prompt = TEXT("{Send}: send home      or carry it to the nest yourself");
+		else if (Ant->GetLeafInReach() != INDEX_NONE) Prompt = TEXT("Hold {Cut}: cut");
 		else if (D && S == EAntState::Walking && M && D->IsNearNest(M->GetSurfacePosition()) && D->GetWorkerState(Ant->GetWorkerIndex()) == EWorkerState::Out && Ant->GetPathIndex() != INDEX_NONE && D->GetTrails() && D->GetTrails()->GetPoints(Ant->GetPathIndex()).Num() > 30)
-			Prompt = TEXT("Q / Y: end this worker's trip");
+			Prompt = TEXT("{Send}: end this worker's trip");
 		else if (S == EAntState::Riding) Prompt = TEXT("Riding the trail.   Move to step off");
-		else if (Ant->IsTrailInReach()) Prompt = TEXT("Hold F / RB: follow the trail");
+		else if (Ant->IsTrailInReach()) Prompt = TEXT("Hold {Follow}: follow the trail");
 	}
 	else if (D && D->GetPhase() == EDayPhase::AllHome)
 	{
@@ -622,7 +759,7 @@ void ALeaflineHUD::DrawPrompt(const AAntPawn* Ant, const ADayDirector* D, float 
 	if (Prompt.IsEmpty()) return;
 	UFont* Font = GEngine->GetMediumFont();
 	const float Y = Canvas->ClipY - 130.f * Scale;
-	const FVector2D Size = MeasureCrisp(Prompt, Font, 1.15f * Scale);
+	const FVector2D Size = MeasureText(Prompt, Font, 1.15f * Scale);
 	const float W = Size.X, H = Size.Y;
 	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.4f), (Canvas->ClipX - W) * 0.5f - 14.f * Scale, Y - 6.f * Scale, W + 28.f * Scale, H + 12.f * Scale);
 	DrawTextCentered(Prompt, Canvas->ClipX * 0.5f, Y, TextColor, 1.15f * Scale, Font);
@@ -729,7 +866,7 @@ void ALeaflineHUD::DrawRecap(const ADayDirector* D, float Scale)
 		DrawTextCentered(TEXT("Tomorrow the colony moves to a new tree"), CX, Y, FLinearColor(0.95f, 0.9f, 0.5f, 1.f), 1.15f * Scale, Medium);
 		Y += 40.f * Scale;
 	}
-	DrawTextCentered(TEXT("Press E / Space / A or click to go into the nest"), CX, Y, AccentColor, 1.2f * Scale, Medium);
+	DrawTextCentered(TEXT("Press {Confirm}{orclick} to go into the nest"), CX, Y, AccentColor, 1.2f * Scale, Medium);
 }
 
 void ALeaflineHUD::DrawColonyMeter(float CX, float Y, float W, float Scale)
@@ -777,10 +914,9 @@ void ALeaflineHUD::DrawTitle(const ADayDirector* D, float Scale)
 	DrawTextCentered(TEXT("Cut a piece of leaf, send the worker home along your scent trail, and take over the next one."), CX, Y, TextColor, 1.1f * Scale, Medium);
 	Y += 70.f * Scale;
 	const TArray<FString> Controls = {
-		TEXT("Move: WASD / left stick      Look: mouse / right stick      Sprint: Shift / LT"),
-		TEXT("Cut (hold): E or left mouse / X      Send home: Q / Y      Follow a trail (hold): F / RB"),
-		TEXT("Grip in a gust (hold): Space / A      Switch ant (tap): Tab / LB      Wind map (hold): Tab / LB"),
-		TEXT("Pause: Esc or P / Start"),
+		TEXT("{Move} move      {Look} look      {Sprint} sprint"),
+		TEXT("{Cut} cut (hold)      {Send} send home      {Follow} follow a trail (hold)"),
+		TEXT("{Grip} grip in a gust (hold)      {Cycle} switch ant (tap), wind map (hold)      {Pause} pause"),
 	};
 	for (const FString& C : Controls)
 	{
@@ -788,7 +924,7 @@ void ALeaflineHUD::DrawTitle(const ADayDirector* D, float Scale)
 		Y += 34.f * Scale;
 	}
 	Y += 50.f * Scale;
-	DrawTextCentered(D->GetDay() > 1 ? FString::Printf(TEXT("Press E / Space / A or click to continue: day %d"), D->GetDay()) : FString(TEXT("Press E / Space / A or click to begin")),
+	DrawTextCentered(D->GetDay() > 1 ? FString::Printf(TEXT("Press {Confirm}{orclick} to continue: day %d"), D->GetDay()) : FString(TEXT("Press {Confirm}{orclick} to begin")),
 		CX, Y, AccentColor, 1.4f * Scale, Medium);
 }
 
@@ -845,7 +981,7 @@ void ALeaflineHUD::DrawNest(const ADayDirector* D, float Scale)
 		DrawTextCentered(TEXT("Tomorrow the colony moves to a new tree"), CX, Y, FLinearColor(0.95f, 0.9f, 0.5f, 1.f), 1.15f * Scale, Medium);
 		Y += 40.f * Scale;
 	}
-	DrawTextCentered(TEXT("W / S, stick or mouse: choose      E / Space / A or click: buy or start      Q / Y: start the next day"), CX, Y, FLinearColor(0.8f, 0.8f, 0.75f, 1.f), 1.0f * Scale, Medium);
+	DrawTextCentered(TEXT("{Choose}: choose      {Confirm}{orclick}: buy or start      {Back}: start the next day"), CX, Y, FLinearColor(0.8f, 0.8f, 0.75f, 1.f), 1.0f * Scale, Medium);
 }
 
 void ALeaflineHUD::DrawMoveCard(const ADayDirector* D, float Scale)
@@ -859,7 +995,7 @@ void ALeaflineHUD::DrawMoveCard(const ADayDirector* D, float Scale)
 	Y += 100.f * Scale;
 	DrawTextCentered(TEXT("A new tree: taller, with richer leaves and stronger gusts."), CX, Y, TextColor, 1.25f * Scale, Medium);
 	Y += 90.f * Scale;
-	DrawTextCentered(FString::Printf(TEXT("Press E / Space / A or click to begin day %d"), D->GetDay()), CX, Y, AccentColor, 1.3f * Scale, Medium);
+	DrawTextCentered(FString::Printf(TEXT("Press {Confirm}{orclick} to begin day %d"), D->GetDay()), CX, Y, AccentColor, 1.3f * Scale, Medium);
 }
 
 void ALeaflineHUD::DrawEndCard(const ADayDirector* D, float Scale)
@@ -875,7 +1011,7 @@ void ALeaflineHUD::DrawEndCard(const ADayDirector* D, float Scale)
 	Y += 42.f * Scale;
 	DrawTextCentered(TEXT("Thank you for playing Leafline. The trees keep growing, and so can the colony."), CX, Y, TextColor, 1.25f * Scale, Medium);
 	Y += 90.f * Scale;
-	DrawTextCentered(TEXT("Press E / Space / A or click to keep playing"), CX, Y, AccentColor, 1.3f * Scale, Medium);
+	DrawTextCentered(TEXT("Press {Confirm}{orclick} to keep playing"), CX, Y, AccentColor, 1.3f * Scale, Medium);
 }
 
 void ALeaflineHUD::DrawPause(float Scale)
@@ -908,7 +1044,7 @@ void ALeaflineHUD::DrawPause(float Scale)
 			Y += RowH + Gap;
 		}
 		Y += 20.f * Scale;
-		DrawTextCentered(TEXT("W / S or stick: choose      E / Space / A or click: select      Esc, P or Start: resume      Q / Y: quit"), CX, Y, TextColor, 1.0f * Scale, Medium);
+		DrawTextCentered(TEXT("{Choose}: choose      {Confirm}{orclick}: select      {Pause}: resume      {Back}: quit"), CX, Y, TextColor, 1.0f * Scale, Medium);
 		return;
 	}
 
@@ -940,5 +1076,5 @@ void ALeaflineHUD::DrawPause(float Scale)
 		Y += RowH + Gap;
 	}
 	Y += 20.f * Scale;
-	DrawTextCentered(TEXT("W / S: choose      A / D or click < >: change      E / Space / A: change or back      Q / Y: back"), CX, Y, TextColor, 1.0f * Scale, Medium);
+	DrawTextCentered(TEXT("{Choose}: choose      {Change}{orclick}: change      {Confirm}: change or back      {Back}: back"), CX, Y, TextColor, 1.0f * Scale, Medium);
 }

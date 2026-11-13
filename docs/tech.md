@@ -247,6 +247,8 @@ Enhanced Input, with `UInputAction` and `UInputMappingContext` objects created i
 
 `Art/Audio/*.wav` are copied to `Content/Leafline/AudioRaw/` with the extension `.wavraw`, so the editor never auto-imports them, and staged into the pak with `+DirectoriesToAlwaysStageAsUFS=(Path="Leafline/AudioRaw")` in `DefaultGame.ini`. `ULeaflineAudioSubsystem` (a world subsystem) loads and caches 48 kHz 16-bit PCM, mono or stereo, and plays 2D sounds through `USoundWaveProcedural`: `PlayOneShot(Name, Volume, Pitch)` and `StartLoop(Name, Volume)` returning a `ULeaflineAudioLoop` with `SetVolume`, `SetPitch` and `Stop`. Loops refill on underflow without a gap. Test with `Leaf.Sound deposit 1 1.2`. After regenerating the audio, copy the files again.
 
+**Button prompt icons** work the same way: 26 PNGs from Xelu's CC0 prompt pack (`docs/sourced-assets.md`), cropped to each key's shape, 64 px tall, in `Content/Leafline/UIRaw/*.pngraw`, staged with `+DirectoriesToAlwaysStageAsUFS=(Path="Leafline/UIRaw")`. `LeafPrompts::Get` (`UI/PromptIcons.*`) loads them with `FImageUtils::ImportBufferAsTexture2D` and caches them. HUD text can hold tokens (`{Cut}`, `{Grip}`, `{Send}`, `{Follow}`, `{Cycle}`, `{Sprint}`, `{Pause}`, `{Confirm}`, `{Back}`, `{Move}`, `{Look}`, `{Choose}`, `{Change}`, and `{orclick}`, which reads " or click" on keyboard and mouse only): `DrawTextCentered` / `DrawTextAt` draw them as icons for the device used last (`ALeaflinePlayerController::IsUsingGamepad`, from `InputKey`), light keyboard keys or Xbox Series buttons for every pad (owner's choice; no PlayStation glyphs). A missing icon falls back to the key's name.
+
 ## Debug tools
 
 Console commands pay for themselves, because verification is done by driving Play In Editor through MCP and reading the log:
@@ -281,6 +283,7 @@ Console commands pay for themselves, because verification is done by driving Pla
 | `Leaf.StartDay <day> [seed]` | Start that day now (after `Leaf.ResetSave`, for repeatable tests) |
 | `Leaf.AtSim <seconds> <command...>` | Run a console command at that sim time of the day, between fixed steps (repeatable tests: the same day plays the same) |
 | `Leaf.Cycle` | The cycle button (Tab): next worker in a shift, next view in the harvest (in play a tap of Tab switches workers on release; holding it shows the wind map) |
+| `Leaf.PadIcons [-1\|0\|1]` | Prompt icons follow the device in use (-1, default), or always show keys and mouse (0) or pad buttons (1); for screenshots without a pad |
 | `Leaf.Smoke [0\|1]` | Scent trails as a thin haze (`M_TrailSmoke` plus an upright ribbon, the default) or the plain flat ribbon (`M_Trail`); no argument toggles |
 | `Leaf.Exposure [0\|1]` | Show or hide the wind map (exposure spots on the bark round the ant, the HUD's bands and colours); no argument toggles |
 | `Leaf.Orbit [seconds] [radius cm] [n]` | Hold screen-right and log the turn round the branch every 0.5 s and a summary (laps, half-seconds with under 15 cm of way round); with a radius, first go to the limb or bough point of about that radius on the n-th best match (the tangent-point test) |

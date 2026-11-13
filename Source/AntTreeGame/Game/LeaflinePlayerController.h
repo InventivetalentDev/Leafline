@@ -36,6 +36,11 @@ public:
 	virtual void BeginPlay() override;
 	virtual void PlayerTick(float DeltaTime) override;
 	virtual void OnPossess(APawn* InPawn) override;
+	/** Watches which device was used last, for the HUD's button icons. */
+	virtual bool InputKey(const FInputKeyEventArgs& Params) override;
+
+	/** The last input came from a gamepad (button, stick or trigger), not the keyboard or mouse: prompts show pad icons. */
+	bool IsUsingGamepad() const { return bUsingGamepad; }
 
 	AAntCamera* GetAntCamera() const { return AntCamera; }
 	AAntPawn* GetAnt() const;
@@ -103,6 +108,7 @@ private:
 	uint32 ButtonsHeld = 0;
 	uint32 ButtonsPressed = 0;
 	double CycleDownAt = -1.0;
+	bool bUsingGamepad = false;
 	bool bWindMapShown = false;
 	bool bPossessedBefore = false;
 	TWeakObjectPtr<class ADayDirector> Director;

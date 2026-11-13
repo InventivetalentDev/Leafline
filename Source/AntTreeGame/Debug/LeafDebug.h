@@ -20,4 +20,6 @@ namespace LeafDebug
 	extern float HoldGrip;
 	extern float HoldFollow;
 	extern float HoldCycle;
+	/** Prompt icons: -1 follow the device in use, 0 always keyboard and mouse, 1 always pad (Leaf.PadIcons). */
+	extern int32 ForcePadIcons;
 }
