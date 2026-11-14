@@ -310,12 +310,12 @@ bool ABirdSystem::ChooseTarget(AAntPawn*& OutAnt, int32& OutBait, float& OutExpo
 	OutExposure = 0.f;
 	OutLaden = 0;
 	if (!Wind) return false;
-	// Candidates on exposed bark, most exposed first (ties keep the fixed order); the first one the bird has a clear way
-	// in to is the target. A piece lying on exposed bark beats every ant.
-	struct FCand { AAntPawn* Ant; int32 Bait; float E; int32 Order; FVector Pos; FVector Normal; };
+	// Candidates on exposed bark, ranked by exposure (the player's own ant plus PlayerPreference; ties keep the fixed
+	// order); the first one the bird has a clear way in to is the target. A piece lying on exposed bark beats every ant.
+	struct FCand { AAntPawn* Ant; int32 Bait; float E; int32 Order; FVector Pos; FVector Normal; float Rank; };
 	auto Pick = [this, &OutAnt, &OutBait, &OutExposure](TArray<FCand>& Cands)
 	{
-		Cands.StableSort([](const FCand& A, const FCand& B) { return A.E > B.E; });
+		Cands.StableSort([](const FCand& A, const FCand& B) { return A.Rank > B.Rank; });
 		for (const FCand& C : Cands)
 		{
 			FVector Dir;
@@ -335,7 +335,7 @@ bool ABirdSystem::ChooseTarget(AAntPawn*& OutAnt, int32& OutBait, float& OutExpo
 		for (int32 i = 0; i < Baits.Num(); ++i)
 		{
 			const float E = Wind->GetExposure(Baits[i].Pos, Baits[i].Normal);
-			if (LeafExposure::IsExposed(E)) BaitCands.Add({ nullptr, i, E, i, Baits[i].Pos, Baits[i].Normal });
+			if (LeafExposure::IsExposed(E)) BaitCands.Add({ nullptr, i, E, i, Baits[i].Pos, Baits[i].Normal, E });
 		}
 		if (Pick(BaitCands)) return true;
 	}
@@ -347,7 +347,8 @@ bool ABirdSystem::ChooseTarget(AAntPawn*& OutAnt, int32& OutBait, float& OutExpo
 	{
 		const UAntMovementComponent* M = Laden[i]->GetAntMovement();
 		const float E = Wind->GetExposure(M->GetSurfacePosition(), M->GetSurfaceNormal());
-		if (LeafExposure::IsExposed(E)) AntCands.Add({ Laden[i], INDEX_NONE, E, i, M->GetSurfacePosition(), M->GetSurfaceNormal() });
+		const float Rank = E + (Laden[i]->IsPlayerControlled() ? FMath::Clamp(Tuning.PlayerPreference, 0.f, 1.f) : 0.f);
+		if (LeafExposure::IsExposed(E)) AntCands.Add({ Laden[i], INDEX_NONE, E, i, M->GetSurfacePosition(), M->GetSurfaceNormal(), Rank });
 	}
 	return Pick(AntCands);
 }
@@ -372,9 +373,22 @@ void ABirdSystem::StartDive(AAntPawn* Ant, int32 BaitIndex)
 		TargetLastPos = Ant->GetAntMovement()->GetSurfacePosition();
 		TargetLastNormal = Ant->GetAntMovement()->GetSurfaceNormal();
 		Exposure = Wind ? Wind->GetExposure(TargetLastPos, TargetLastNormal) : 0.f;
-		UE_LOG(LogLeafline, Log, TEXT("Bird: dives at %s (exposure %.2f, piece %.1f, %s) at %s; pass in %.1f s"),
+		float OtherBest = -1.f;
+		FString OtherName;
+		{
+			TArray<AAntPawn*> Laden;
+			GatherLaden(Laden);
+			for (AAntPawn* A : Laden)
+			{
+				if (A == Ant || !Wind) continue;
+				const float E = Wind->GetExposure(A->GetAntMovement()->GetSurfacePosition(), A->GetAntMovement()->GetSurfaceNormal());
+				if (E > OtherBest) { OtherBest = E; OtherName = Describe(A); }
+			}
+		}
+		UE_LOG(LogLeafline, Log, TEXT("Bird: dives at %s (exposure %.2f, piece %.1f, %s) at %s; pass in %.1f s%s"),
 			*Describe(Ant), Exposure, Ant->GetCarriedMass(), *UEnum::GetValueAsString(Ant->GetAntMovement()->GetState()),
-			*TargetLastPos.ToCompactString(), Tuning.WarnSeconds);
+			*TargetLastPos.ToCompactString(), Tuning.WarnSeconds,
+			OtherBest >= 0.f ? *FString::Printf(TEXT(" (most exposed other laden ant: %s, %.2f)"), *OtherName, OtherBest) : TEXT(""));
 	}
 	DiveSteps = 0;
 	ChooseApproach();

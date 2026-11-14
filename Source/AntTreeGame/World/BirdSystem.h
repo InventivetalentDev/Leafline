@@ -54,6 +54,10 @@ struct FBirdTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Schedule") float BaitAwaySeconds = 45.f;
 	/** Other laden ants this close to the target (cm) face the same test at the pass. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Schedule") float HitRadius = 120.f;
+	/** 0..1: how much the bird prefers the player's own laden ant (if it is on exposed bark with a clear way in). It ranks by
+	 *  exposure plus this, so 1 = always the player when eligible, 0 = the most exposed ant whoever it is. Dropped pieces
+	 *  still come first. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Schedule") float PlayerPreference = 1.f;
 	/** Most ants knocked off in one pass. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Schedule") int32 MaxHitsPerSwoop = 2;
 
