@@ -13,7 +13,7 @@ A game by inventivetalent
 
 # Made with
 Unreal Engine 5.8
-Blender 5.1: the scripted ant mesh
+Blender 5.1: the scripted ant, nest and bird meshes
 Python scripts: asset generation and audio synthesis, checked with earshot
 
 # Built with AI agents
