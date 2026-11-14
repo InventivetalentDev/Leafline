@@ -16,9 +16,9 @@ namespace
 	// Dull on purpose: brown already means "cannot be cut" on the tree. Grass is darker than any leaf on the tree.
 	const FLinearColor MatColors[NumMats] = {
 		FLinearColor(0.050f, 0.028f, 0.015f),  // brown
-		FLinearColor(0.082f, 0.058f, 0.024f),  // dull ochre (sunlit it lifts a lot)
+		FLinearColor(0.052f, 0.046f, 0.024f),  // dull tan-ochre (matte M_Litter lifts it in sun; the first 0.082/0.058/0.024 read orange)
 		FLinearColor(0.038f, 0.044f, 0.016f),  // olive
-		FLinearColor(0.028f, 0.019f, 0.012f),  // dark brown
+		FLinearColor(0.036f, 0.025f, 0.017f),  // dark brown
 		FLinearColor(0.012f, 0.034f, 0.022f),  // dark olive-teal grass
 		FLinearColor(0.030f, 0.023f, 0.017f),  // twigs
 	};
