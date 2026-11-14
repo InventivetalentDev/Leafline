@@ -321,6 +321,7 @@ void ADayDirector::StartDay(int32 InDay, int32 SeedOverride)
 		const int32 Shape = Tuning.TreeShapeOverride >= 0 ? Tuning.TreeShapeOverride % 4 : (Day <= 1 ? 0 : 1 + (Day - 2) % 3);
 		FTreeParams P = ShapeParams(BaseTreeParams, Shape, TreeName);
 		P.LowestLeafyHeight = Tuning.LeafyHeightDay1 + (Day - 1) * Tuning.LeafyHeightPerDay;
+		P.RichnessHeightScale = Tuning.RichnessHeightScale;
 		Tree->Params = P;
 		Tree->Grow(Seed);
 		bGrew = true;
@@ -367,6 +368,7 @@ void ADayDirector::StartDay(int32 InDay, int32 SeedOverride)
 		P.TrunkHeight *= ST.TreeHeightMul;
 		P.LowestLeafyHeight = ST.LowestLeafyHeight;
 		P.RichnessMul = ST.RichnessMul;
+		P.RichnessHeightScale = Tuning.RichnessHeightScale;
 		P.SparseSpacingMul = ST.SparseSpacingMul;
 		P.SparseBlendHeight = ST.SparseBlendHeight;
 		P.SparseTwigDrop = ST.SparseTwigDrop;

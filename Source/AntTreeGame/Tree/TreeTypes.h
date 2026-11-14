@@ -113,6 +113,10 @@ struct FTreeParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Leaves") float SparseTwigDrop = 1.f;
 	/** Multiplier on every leaf's Richness (later trees have richer leaves). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Leaves") float RichnessMul = 1.f;
+	/** How Richness rises with height. 0: linearly over the whole crown (1x at the lowest leaf, the height share of 3x at
+	 *  the top). Above 0: metres over which the height bonus builds up from the lowest leaf, 1 - exp(-dz / scale), so the
+	 *  first layers above the lowest are worth clearly more and the top still reaches 3x. Set from FDayTuning. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Leaves") float RichnessHeightScale = 0.f;
 
 	// Growth
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Growth") float AvoidMargin = 40.f;

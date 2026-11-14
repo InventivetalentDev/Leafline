@@ -203,7 +203,11 @@ void FLeafSet::Build(const FTreeSkeleton& S, const FTreeField& Field)
 		{
 			FTreeLeaf& L = Leaves[i];
 			const FVector2f& CO = ChunkOut[L.Chunk];
-			const float H01 = FMath::Clamp((float)((L.Base.Z - ZMin) / ZSpan), 0.f, 1.f);
+			// Height share: linear over the crown (RichnessHeightScale 0), or building up over the first RichnessHeightScale
+			// metres above the lowest leaf so that climbing a layer or two pays.
+			const float H01 = P.RichnessHeightScale > 0.f
+				? 1.f - FMath::Exp(-(float)((L.Base.Z - ZMin) / (P.RichnessHeightScale * 100.0)))
+				: FMath::Clamp((float)((L.Base.Z - ZMin) / ZSpan), 0.f, 1.f);
 			const float Out01 = FMath::Clamp((Out[i] - CO.X) / FMath::Max(CO.Y - CO.X, 100.f), 0.f, 1.f);
 			// The shape sets the value (vertex alpha keeps only this part, see BuildChunkMesh); the tree's multiplier scales it.
 			L.Richness = (1.f + 2.f * H01 * (0.4f + 0.6f * Out01)) * RichnessMul;
@@ -211,8 +215,9 @@ void FLeafSet::Build(const FTreeSkeleton& S, const FTreeField& Field)
 			Sum += L.Richness;
 		}
 		Sorted.Sort();
-		UE_LOG(LogLeafline, Log, TEXT("LeafSet: richness min %.2f, median %.2f, max %.2f, mean %.2f (multiplier %.2f; leaves from %.0f to %.0f m)"),
-			Sorted[0], Sorted[Sorted.Num() / 2], Sorted.Last(), Sum / Sorted.Num(), RichnessMul, ZMin / 100.0, ZMax / 100.0);
+		UE_LOG(LogLeafline, Log, TEXT("LeafSet: richness min %.2f, median %.2f, max %.2f, mean %.2f (multiplier %.2f; leaves from %.0f to %.0f m; height curve %s)"),
+			Sorted[0], Sorted[Sorted.Num() / 2], Sorted.Last(), Sum / Sorted.Num(), RichnessMul, ZMin / 100.0, ZMax / 100.0,
+			P.RichnessHeightScale > 0.f ? *FString::Printf(TEXT("over %.0f m"), P.RichnessHeightScale) : TEXT("linear"));
 	}
 	if (bSparse)
 	{

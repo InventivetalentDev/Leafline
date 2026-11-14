@@ -1014,11 +1014,14 @@ namespace
 	}
 
 	/** The leaf read-out's value words: the patch's mean richness over the tree's multiplier, as the leaf colour has it
-	 *  (paler is richer). A leaf at 70 m on tree 1 is about 1.1-1.3, at 120 m 1.3-1.7, at 200 m 1.5-2.3. */
-	const TCHAR* ValueWords(float Richness, float TreeMul)
+	 *  (paler is richer). A leaf at 70 m on tree 1 is about 1.1-1.3, at 120 m 1.3-1.7, at 200 m 1.5-2.3. bSteep: the tree's
+	 *  richness rises fast above the lowest leaves (FTreeParams::RichnessHeightScale > 0), so the words start higher
+	 *  (1.4 and 2.0) and the lowest layers stay plain. */
+	const TCHAR* ValueWords(float Richness, float TreeMul, bool bSteep = false)
 	{
 		const float Base = Richness / FMath::Max(TreeMul, 0.01f);
-		return Base >= 1.6f ? TEXT(", each worth much more") : (Base >= 1.25f ? TEXT(", each worth more") : TEXT(""));
+		const float More = bSteep ? 1.4f : 1.25f, Much = bSteep ? 2.f : 1.6f;
+		return Base >= Much ? TEXT(", each worth much more") : (Base >= More ? TEXT(", each worth more") : TEXT(""));
 	}
 }
 
@@ -1096,7 +1099,7 @@ void ALeaflineHUD::DrawPatchPreview(const AAntPawn* Ant, const ALineSystem* Line
 	const float TreeMul = PatchTree ? PatchTree->GetLeaves().GetRichnessMul() : 1.f;
 	const TCHAR* Where = P.Leaves.Num() > 1 ? TEXT("these leaves") : TEXT("this leaf");
 	const FString Text = P.Pieces == 1 ? FString::Printf(TEXT("1 piece left on %s"), Where)
-		: FString::Printf(TEXT("About %d pieces on %s%s"), P.Pieces, Where, ValueWords(P.Richness, TreeMul));
+		: FString::Printf(TEXT("About %d pieces on %s%s"), P.Pieces, Where, ValueWords(P.Richness, TreeMul, PatchTree && PatchTree->Params.RichnessHeightScale > 0.f));
 	DrawTextPanel(Text, Canvas->ClipX * 0.5f, Canvas->ClipY - 250.f * Scale, Lines->GetLineColor(Lines->GetNextLineNumber(), 0.3f), SecondaryText(Scale), Scale);
 }
 
