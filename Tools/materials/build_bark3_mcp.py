@@ -5,8 +5,7 @@
 # a fresh node is grown, never the linked one). The C++ side (leaf.SkirtBlend, set by Leaf.Bark 2) writes the seam
 # cross-fade data into UV0, UV3.y, colour R and alpha; see the header of bark3_bark.hlsl.
 # It is the body of an unreal-mcp ProgrammaticToolset.execute_tool_script call (the main session pastes it; agents never
-# write .uasset files). dup() guesses the duplicate tool's argument names as build_ant2_mcp.py does; if none fits,
-# duplicate M_TreeBark2 to M_TreeBark3 by hand in the content browser and set DUP = False.
+# write .uasset files). dup() uses AssetTools.duplicate; with DUP = False the script expects M_TreeBark3 to exist already.
 # MODE='code' only replaces the Bark3 node's Code on an existing M_TreeBark3 (after editing the HLSL, e.g. its tuning
 # constants or DEBUG_VIEW): never delete and recreate an asset of the same name in one editor session (CLAUDE.md).
 import json
@@ -75,19 +74,8 @@ def con(a, ao, b, bi):
     t(M + 'connect_expressions', {'from_expression': {'refPath': a}, 'from_output_name': ao, 'to_expression': {'refPath': b}, 'to_input_name': bi})
 
 def dup():
-    tries = [
-        {'source_asset_path': SRC, 'destination_path': '/Game/Leafline/Materials/M_TreeBark3'},
-        {'source_path': SRC, 'destination_path': '/Game/Leafline/Materials/M_TreeBark3'},
-        {'asset_path': SRC, 'new_path': '/Game/Leafline/Materials/M_TreeBark3'},
-        {'source': SRC, 'destination': '/Game/Leafline/Materials/M_TreeBark3'},
-    ]
-    last = None
-    for a in tries:
-        try:
-            return t(A + 'duplicate_asset', a)
-        except Exception as ex:
-            last = str(ex)[:600]
-    raise Exception('duplicate_asset failed: ' + str(last))
+    # AssetTools.duplicate (the main session, 14 Nov: there is no duplicate_asset); returns True.
+    return t(A + 'duplicate', {'path': '/Game/Leafline/Materials/M_TreeBark2', 'new_path': '/Game/Leafline/Materials/M_TreeBark3'})
 
 def custom(x, y, desc, inputs, outtype, extra=None):
     e = add('Custom', x, y, {'Code': code(), 'OutputType': outtype, 'Description': desc})
