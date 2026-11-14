@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Engine/Scene.h"
 #include "AntCamera.generated.h"
 
 class UCameraComponent;
@@ -136,8 +137,24 @@ public:
 	FVector GetViewForward() const { return GetActorForwardVector(); }
 	FVector GetViewUp() const { return GetActorUpVector(); }
 
+	/** Recording only: damp input and follow without changing the normal tuning. */
+	void SetCinematic(bool bOn) { bCinematic = bOn; CinematicLook = FVector2D::ZeroVector; }
+	bool IsCinematic() const { return bCinematic; }
+	/** External driver freezes the orbit state and restores the exact incoming view on release. */
+	void BeginExternalDrive();
+	void DriveExternal(const FTransform& View, float FOV, const FVector& LookAt);
+	void EndExternalDrive();
+	float GetFieldOfView() const;
+
 private:
 	void Snap();
+	bool bCinematic = false;
+	FVector2D CinematicLook = FVector2D::ZeroVector;
+	bool bExternalDrive = false;
+	bool bExternalJustReleased = false;
+	FTransform SavedExternalView;
+	float SavedExternalFOV = 75.f;
+	FPostProcessSettings SavedExternalPostProcess;
 
 	UPROPERTY(VisibleAnywhere, Category = "Camera")
 	TObjectPtr<UCameraComponent> Camera;

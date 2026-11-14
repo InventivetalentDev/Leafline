@@ -315,7 +315,7 @@ void ALeaflinePlayerController::UpdateMenuCursor(bool bMenu, const FVector2D& Mo
 	if (!bMenu || Nav != 0) bMenuCursor = false;
 	else if (MouseDelta.SizeSquared() > 1.0) bMenuCursor = true;
 
-	const bool bWant = bMenu && bMenuCursor;
+	const bool bWant = bMenu && bMenuCursor && !(AntCamera && AntCamera->IsCinematic());
 	if (bWant != bCursorShown)
 	{
 		bCursorShown = bWant;

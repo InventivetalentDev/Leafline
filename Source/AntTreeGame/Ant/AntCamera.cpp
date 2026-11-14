@@ -151,6 +151,12 @@ void AAntCamera::SetOverview(bool bOn, const FVector& Location, const FVector& L
 void AAntCamera::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	if (bExternalDrive || bExternalJustReleased)
+	{
+		bExternalJustReleased = false;
+		PendingLook = FVector2D::ZeroVector;
+		return;
+	}
 	if (bOverview)
 	{
 		// Glide (or cut, the first time) to the overview spot; no cutaway, no ant.
@@ -247,6 +253,14 @@ void AAntCamera::Tick(float DeltaTime)
 	if (RefForward.IsNearlyZero()) RefForward = CamAnyPerpendicular(CamUp);
 
 	// 2. Orbit.
+	if (bCinematic)
+	{
+		// Filter angular displacement, retaining the unconsumed part so a mouse gesture keeps its total turn.
+		CinematicLook += PendingLook;
+		const double Alpha = 1.0 - FMath::Exp(-Dt / 0.22);
+		PendingLook = CinematicLook * Alpha;
+		CinematicLook -= PendingLook;
+	}
 	double Yaw = PendingLook.X;
 	const double PitchDelta = PendingLook.Y;
 	PendingLook = FVector2D::ZeroVector;
@@ -286,7 +300,7 @@ void AAntCamera::Tick(float DeltaTime)
 		GlideRemaining -= Dt;
 		Omega = Tuning.GlideFrequency;
 	}
-	SpringDamp(Focus, FocusVelocity, Goal, Omega, Dt);
+	SpringDamp(Focus, FocusVelocity, Goal, bCinematic ? Omega * 0.4 : Omega, Dt);
 
 	const FTreeField* Field = Tree.IsValid() ? &Tree->GetField() : nullptr;
 	const double MinClear = Tuning.TargetHeight * 0.5;
@@ -443,4 +457,45 @@ void AAntCamera::DebugAimDirection(const FVector& WorldDir, float NewPitch)
 	const FVector F = CamProjectOnPlane(WorldDir, CamUp).GetSafeNormal();
 	if (!F.IsNearlyZero()) RefForward = F;
 	Pitch = FMath::Clamp(NewPitch, Tuning.PitchMin, Tuning.PitchMax);
+}
+
+float AAntCamera::GetFieldOfView() const
+{
+	return Camera->FieldOfView;
+}
+
+void AAntCamera::BeginExternalDrive()
+{
+	if (bExternalDrive) return;
+	SavedExternalView = GetActorTransform();
+	SavedExternalFOV = Camera->FieldOfView;
+	SavedExternalPostProcess = Camera->PostProcessSettings;
+	bExternalJustReleased = false;
+	PendingLook = CinematicLook = FVector2D::ZeroVector;
+	bExternalDrive = true;
+}
+
+void AAntCamera::DriveExternal(const FTransform& View, float FOV, const FVector& LookAt)
+{
+	if (!bExternalDrive) return;
+	SetActorTransform(View);
+	Camera->SetFieldOfView(FOV);
+	// Wide tree shots need the crown sharp; restore the normal ant-focused lens when released.
+	Camera->PostProcessSettings.bOverride_DepthOfFieldFstop = true;
+	Camera->PostProcessSettings.bOverride_DepthOfFieldFocalDistance = true;
+	Camera->PostProcessSettings.DepthOfFieldFstop = 16.f;
+	Camera->PostProcessSettings.DepthOfFieldFocalDistance = FMath::Max(10.f, (float)FVector::Dist(View.GetLocation(), LookAt));
+	PublishView(View.GetLocation(), LookAt, false);
+}
+
+void AAntCamera::EndExternalDrive()
+{
+	if (!bExternalDrive) return;
+	bExternalDrive = false;
+	bExternalJustReleased = true;
+	SetActorTransform(SavedExternalView);
+	Camera->SetFieldOfView(SavedExternalFOV);
+	Camera->PostProcessSettings = SavedExternalPostProcess;
+	PendingLook = CinematicLook = FVector2D::ZeroVector;
+	PublishView(GetActorLocation(), Focus, !bOverview);
 }

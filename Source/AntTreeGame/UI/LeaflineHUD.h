@@ -16,6 +16,8 @@ class ANTTREEGAME_API ALeaflineHUD : public AHUD
 
 public:
 	virtual void DrawHUD() override;
+	/** Video recording: suppress every canvas element, including menus and the build line. */
+	bool bHideAll = false;
 
 	/** Menu item under P (viewport pixels) as drawn last frame: a nest row 0..upgrade count, MenuResume or MenuQuit. */
 	int32 MenuItemAt(const FVector2D& P) const;

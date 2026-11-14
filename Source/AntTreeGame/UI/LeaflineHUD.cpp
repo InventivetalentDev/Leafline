@@ -162,9 +162,9 @@ void ALeaflineHUD::DrawBuildLine(const AAntPawn* Ant, const ADayDirector* D, flo
 
 void ALeaflineHUD::DrawHUD()
 {
-	Super::DrawHUD();
 	MenuHits.Reset();
-	if (!Canvas) return;
+	if (bHideAll || !Canvas) return;
+	Super::DrawHUD();
 
 	const float Scale = Canvas->ClipY / 1080.f;
 	const float Dt = GetWorld() ? GetWorld()->GetDeltaSeconds() : 0.016f;
