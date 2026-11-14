@@ -6,6 +6,7 @@
 #include "Colony/TrailNetwork.h"
 #include "World/DayDirector.h"
 #include "World/WindSystem.h"
+#include "World/WindCues.h"
 #include "Colony/NestActor.h"
 #include "Game/LeaflineGameInstance.h"
 #include "Audio/LeafSound.h"
@@ -504,6 +505,7 @@ void AAntPawn::UpdateCutVisuals(float Dt)
 	const EAntState VisState = Movement ? Movement->GetState() : EAntState::Walking;
 	// The origin rides RideHeight above the surface; the mesh is drawn MeshSinkCm lower so its feet touch the bark.
 	const float Sink = (Movement && AntMesh) ? Movement->Tuning.MeshSinkCm : 0.f;
+	GripVisTime = VisState == EAntState::Gripping ? GripVisTime + Dt : 0.f;
 
 	if (Body)
 	{
@@ -538,6 +540,7 @@ void AAntPawn::UpdateCutVisuals(float Dt)
 			Loc.Z = FMath::Min(Loc.Z, -1.2f); // 1.2 cm down in all, as before the sink (most of it is the sink now)
 			Scale = FVector(1.06f, 1.14f, 0.78f);
 			Rot.Roll += (0.6f + 2.f * WindFeel) * FMath::Sin(VisTime * 2.f * PI * 9.f);
+			if (Wind && WindCues::IsEnabled()) WindCues::GripPose(Wind->Tuning, GripVisTime, WindFeel, GetActorTransform().InverseTransformVectorNoScale(Wind->GetDirection()), VisTime, Loc, Rot, Scale);
 		}
 		// Leaning away from the wind where it reaches the ant.
 		else if (Wind && WindFeel > 0.02f && (VisState == EAntState::Walking || VisState == EAntState::Cutting || VisState == EAntState::Riding))
