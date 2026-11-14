@@ -23,7 +23,7 @@ namespace
 		FLinearColor(0.052f, 0.046f, 0.024f),  // dull tan-ochre (matte M_Litter lifts it in sun; the first 0.082/0.058/0.024 read orange)
 		FLinearColor(0.038f, 0.044f, 0.016f),  // olive
 		FLinearColor(0.036f, 0.025f, 0.017f),  // dark brown
-		FLinearColor(0.012f, 0.034f, 0.022f),  // dark olive-teal grass
+		FLinearColor(0.016f, 0.046f, 0.026f),  // dark olive-teal grass
 		FLinearColor(0.030f, 0.023f, 0.017f),  // twigs
 	};
 
@@ -411,16 +411,23 @@ void AForestFloor::Build(const ATreeActor& Tree)
 		{
 			const int32 Target = (T.Tufts * (Sector + 1)) / NumStrata - (T.Tufts * Sector) / NumStrata;
 			int32 Made = 0, Guard = 0;
-			while (Made < Target && Guard++ < Target * 40 + 40)
+			while (Made < Target && Guard++ < Target * 300 + 300)
 			{
 				const float A = (Sector + R.FRand()) * 2.f * PI / NumStrata;
-				const bool bTail = R.FRand() < 0.12f;   // a thin tail out to the litter radius; most clumps stay within GrassRadius
+				const bool bTail = R.FRand() < 0.12f;   // a thin tail out to the litter radius
 				const float Rr = bTail ? TrunkClearR + (Rmax - TrunkClearR) * FMath::Pow(R.FRand(), 1.5f)
-									   : TrunkClearR + (T.GrassRadius - TrunkClearR) * FMath::Pow(R.FRand(), 1.8f);
+									   : TrunkClearR + (T.GrassRadius - TrunkClearR) * R.FRand();
 				const FVector2D Centre = FVector2D(FMath::Cos(A), FMath::Sin(A)) * Rr;
-				for (int32 i = 0; i < 9 && Made < Target; ++i)
+				if (!bTail)
 				{
-					const FVector2D Rel = Centre + FVector2D(Gauss(R), Gauss(R)) * 250.f;
+					// Clumps thin out with the distance from the bare ground (not from the trunk axis), so every side of
+					// the clearing, root spokes included, gets its grass right at the edge.
+					const float Cd = ClearDist(Centre) - (FlatEnd + 150.f);
+					if (Cd < 0.f || R.FRand() > FMath::Exp(-Cd / T.GrassFalloff)) continue;
+				}
+				for (int32 i = 0; i < 8 && Made < Target; ++i)
+				{
+					const FVector2D Rel = Centre + FVector2D(Gauss(R), Gauss(R)) * 280.f;
 					const int32 Bin = FMath::Clamp(int32(Rel.Size() / 1000.f), 0, 19);
 					++TryBins[Bin];
 					if (ClearDist(Rel) < FlatEnd + 150.f) continue;
