@@ -388,6 +388,7 @@ Console commands pay for themselves, because verification is done by driving Pla
 | `Leaf.Gust [0-1]` | Trigger a gust (warning, rise, hold, fall) with that peak |
 | `Leaf.FaceWind exposed\|sheltered` | Put the ant on the windward or lee side of the trunk (wind tests) |
 | `Leaf.Give <mass>` / `Leaf.Buy <index>` | Economy |
+| `Leaf.Milestones [first second third \| 0]` | Session override of the default game's milestone set (one tree per stage, recruits on); 0 restores the built-in set; no argument logs the thresholds |
 | `Leaf.DebugField 0\|1` | Draw normals, projection error, exposure |
 | `Leaf.Carry <size>` | Hand the ant a fragment |
 | `Leaf.PieceVeins [0\|1]` | The carried piece shows the veins and tone of the leaf it was cut from (1, default) or the fixed look of before (0); no argument toggles; rebuilds pieces being carried (same outline) |

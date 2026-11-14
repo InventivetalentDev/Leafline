@@ -23,6 +23,9 @@ namespace
 	static_assert(UE_ARRAY_COUNT(MilestonesByHand) == LeaflineUpgrades::MilestoneCount);
 	static_assert(UE_ARRAY_COUNT(MilestonesOneTreeWithRecruits) == LeaflineUpgrades::MilestoneCount);
 	static_assert(UE_ARRAY_COUNT(MilestonesOneTreeByHand) == LeaflineUpgrades::MilestoneCount);
+	/** Leaf.Milestones (session only): the one-tree-with-recruits set while the third value is above zero. */
+	float MilestoneOverride[] = { 0.f, 0.f, 0.f };
+	static_assert(UE_ARRAY_COUNT(MilestoneOverride) == LeaflineUpgrades::MilestoneCount);
 }
 
 const FLeaflineUpgradeInfo* LeaflineUpgrades::Get(int32 Index)
@@ -44,6 +47,19 @@ float LeaflineUpgrades::GetEffect(int32 Index, int32 Level)
 float LeaflineUpgrades::GetMilestoneThreshold(int32 Index, bool bRecruits, bool bOneTree)
 {
 	if (Index < 0 || Index >= MilestoneCount) return 0.f;
+	if (bOneTree && bRecruits && HasMilestoneOverride()) return MilestoneOverride[Index];
 	if (bOneTree) return bRecruits ? MilestonesOneTreeWithRecruits[Index] : MilestonesOneTreeByHand[Index];
 	return bRecruits ? MilestonesWithRecruits[Index] : MilestonesByHand[Index];
+}
+
+void LeaflineUpgrades::SetMilestoneOverride(float First, float Second, float Third)
+{
+	MilestoneOverride[0] = FMath::Max(First, 0.f);
+	MilestoneOverride[1] = FMath::Max(Second, 0.f);
+	MilestoneOverride[2] = FMath::Max(Third, 0.f);
+}
+
+bool LeaflineUpgrades::HasMilestoneOverride()
+{
+	return MilestoneOverride[2] > 0.f;
 }

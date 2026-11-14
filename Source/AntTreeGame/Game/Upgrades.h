@@ -34,4 +34,8 @@ namespace LeaflineUpgrades
 	ANTTREEGAME_API float GetEffect(int32 Index, int32 Level);
 	/** Milestone indices are 0..2; zero means invalid. Four sets: recruits on/off x one tree per stage on/off. */
 	ANTTREEGAME_API float GetMilestoneThreshold(int32 Index, bool bRecruits, bool bOneTree = false);
+	/** Leaf.Milestones: replaces the one-tree-with-recruits set (the default game) for this session; all zeros clear it.
+	 *  Milestones are compared with the total hauled live, so a change takes effect at once. */
+	ANTTREEGAME_API void SetMilestoneOverride(float First, float Second, float Third);
+	ANTTREEGAME_API bool HasMilestoneOverride();
 }
