@@ -18,7 +18,10 @@
 #   auto      twenty unattended days, harvests skipped (test 7)
 # The log is Saved/Logs/LineTest-<scenario>.log; a summary of the Leafline lines is printed.
 set -u
-ROOT=/mnt/d/UnrealProjects/AntTreeGame
+# ROOT (environment) runs another checkout, e.g. a worktree: ROOT=/mnt/d/UnrealProjects/leafline-bird. PRE: commands run
+# first (e.g. PRE="Leaf.Bird 0"). HOLDER: the name on the Unreal lock.
+ROOT=${ROOT:-/mnt/d/UnrealProjects/AntTreeGame}
+WROOT=$(wslpath -w "$ROOT")
 SCEN=${1:?usage: line_test.sh <scenario> [seconds]}
 SEED=${SEED:-517192}
 POOL=${POOL:-4}
@@ -48,7 +51,8 @@ esac
 LOG=LineTest-$SCEN.log
 MARK=$ROOT/Saved/RefShots/.line-marker
 mkdir -p "$ROOT/Saved/RefShots" && touch "$MARK"
-(cd /mnt/c && timeout $((T + 120)) "$ROOT/Scripts/unreal-lock.sh" "linetest-$SCEN" -- cmd.exe /c "D:\\UnrealProjects\\AntTreeGame\\Scripts\\RunGame.bat" "$LOG" \
+[ -n "${PRE:-}" ] && CMDS="$PRE,$CMDS"
+(cd /mnt/c && timeout $((T + 120)) "$ROOT/Scripts/unreal-lock.sh" "${HOLDER:-linetest-$SCEN}" -- cmd.exe /c "$WROOT\\Scripts\\RunGame.bat" "$LOG" \
 	"$CMDS,Leaf.QuitAfter $T" "-LeafSlot=${SLOT:-LineTest} -unattended" >/dev/null 2>&1)
 F=$ROOT/Saved/Logs/$LOG
 grep -a "LogLeafline" "$F" | grep -a -E "Line [0-9]+ laid|Harvest|all workers home|AutoPlay|Pool [0-9]+:|^.*Line [0-9]+ \(worker|fallback|rescued|lost its ant|not ended|Recruits: pool|TestLines|Error|Warning" | sed 's/^.*LogLeafline: //' | cut -c1-220

@@ -13,13 +13,18 @@
 #   moves      seven days with 100 haul given each morning: both moves and the end card (test 4)
 #   combo      OT=0|1 RC=0|1: seven days with 100 haul given each morning, to the end card (all four flag combinations)
 #   recoff     recruits off, twenty days (test 13)
+#   auto20hold / recoffhold   auto20 / recoff with AutoPlay's hold<S> (HOLD, default 240): the last scout stays out with its
+#              piece for S sim seconds of shift, so the bird (only active in shifts) has time to act (docs/briefs/bird.md)
 #   offauto    one tree off, twenty days        offrecoff   one tree and recruits off, twenty days
 #   v2         a copy of a real version-2 save (Saved/SaveGames/TreeTestV2.sav.orig) loads and plays a day (test 8)
 #   shots      screenshots: move card, stripped bough, faint trails
 #   custom     the commands in $TCMDS (comma-separated)
 # The log is Saved/Logs/TreeTest-<scenario>.log; a summary of the Leafline lines is printed.
 set -u
-ROOT=/mnt/d/UnrealProjects/AntTreeGame
+# ROOT (environment) runs another checkout, e.g. a worktree: ROOT=/mnt/d/UnrealProjects/leafline-bird. PRE: commands run
+# first (e.g. PRE="Leaf.Bird 0"). HOLDER: the name on the Unreal lock.
+ROOT=${ROOT:-/mnt/d/UnrealProjects/AntTreeGame}
+WROOT=$(wslpath -w "$ROOT")
 SCEN=${1:?usage: tree_test.sh <scenario> [seconds]}
 SLOT=${SLOT:-TreeTest}
 FRESH="Leaf.ResetSave,Leaf.OneTree 1,Leaf.Recruits 1,Leaf.StartDay 1"
@@ -31,6 +36,8 @@ case "$SCEN" in
 	midquit)   CMDS="Leaf.Delay 1 Leaf.StartDay ${DAYN:-3},Leaf.Delay 3 Leaf.TestLines 3 0.6 climb 5,Leaf.Delay 6 Leaf.TreeReport mid-day"; T=${2:-20} ;;
 	strip)     CMDS="$FRESH,Leaf.Delay 3 Leaf.TreeReport before,Leaf.Delay 4 Leaf.Strip 40,Leaf.Delay 5 Leaf.TreeReport stripped,Leaf.Delay 7 Leaf.Move,Leaf.Delay 10 Leaf.TreeReport moved"; T=${2:-30} ;;
 	auto20)    CMDS="$FRESH,Leaf.Delay 2 Leaf.AutoPlay 20 3 skip buy reload report quit"; T=${2:-2400} ;;
+	auto20hold) CMDS="$FRESH,Leaf.Delay 2 Leaf.AutoPlay 20 3 skip buy reload report hold${HOLD:-240} quit"; T=${2:-3000} ;;
+	recoffhold) CMDS="Leaf.ResetSave,Leaf.OneTree 1,Leaf.Recruits 0,Leaf.StartDay 1,Leaf.Delay 2 Leaf.AutoPlay 20 3 skip buy report hold${HOLD:-240} quit"; T=${2:-3000} ;;
 	moves)     CMDS="$FRESH,Leaf.Delay 2 Leaf.AutoPlay 7 3 skip buy report give100 quit"; T=${2:-900} ;;
 	combo)     CMDS="Leaf.ResetSave,Leaf.OneTree ${OT:-1},Leaf.Recruits ${RC:-1},Leaf.StartDay 1,Leaf.Delay 2 Leaf.AutoPlay 7 3 skip buy give100 quit"; T=${2:-900}; LOGSUF="-ot${OT:-1}-rc${RC:-1}" ;;
 	recoff)    CMDS="Leaf.ResetSave,Leaf.OneTree 1,Leaf.Recruits 0,Leaf.StartDay 1,Leaf.Delay 2 Leaf.AutoPlay 20 3 skip buy report quit"; T=${2:-2400} ;;
@@ -45,10 +52,11 @@ esac
 LOG=TreeTest-$SCEN${LOGSUF:-}.log
 MARK=$ROOT/Saved/RefShots/.tree-marker
 mkdir -p "$ROOT/Saved/RefShots" && touch "$MARK"
-(cd /mnt/c && timeout $((T + 120)) "$ROOT/Scripts/unreal-lock.sh" "treetest-$SCEN" -- cmd.exe /c "D:\\UnrealProjects\\AntTreeGame\\Scripts\\RunGame.bat" "$LOG" \
+[ -n "${PRE:-}" ] && CMDS="$PRE,$CMDS"
+(cd /mnt/c && timeout $((T + 120)) "$ROOT/Scripts/unreal-lock.sh" "${HOLDER:-treetest-$SCEN}" -- cmd.exe /c "$WROOT\\Scripts\\RunGame.bat" "$LOG" \
 	"$CMDS,Leaf.QuitAfter $T" "-LeafSlot=$SLOT -unattended" >/dev/null 2>&1)
 F=$ROOT/Saved/Logs/$LOG
-grep -a "LogLeafline" "$F" | grep -a -v "Wind: EWindPhase" | grep -a -E "Day [0-9]+ starts|all workers home|Day [0-9]+ cuts|TreeReport|Tree saved|Tree:|Colony loaded|Colony moves|Move card|milestone|AutoPlay:|Migrated|Wind for day|Trails: loaded|LeafSet:|Leaf.Strip|Leaf.Move|One tree|not ended|Error|Warning" | sed 's/^.*LogLeafline: //' | cut -c1-230
+grep -a "LogLeafline" "$F" | grep -a -v "Wind: EWindPhase" | grep -a -E "Day [0-9]+ starts|all workers home|Day [0-9]+ cuts|TreeReport|Tree saved|Tree:|Colony loaded|Colony moves|Move card|milestone|AutoPlay:|Bird: day|Bird: pass|knocked off by the bird|rescued|Migrated|Wind for day|Trails: loaded|LeafSet:|Leaf.Strip|Leaf.Move|One tree|not ended|Error|Warning" | sed 's/^.*LogLeafline: //' | cut -c1-230
 grep -a -E "Fatal|Assertion failed|Unhandled Exception" "$F" | head -5
 if [ -n "${SHOTS:-}" ]; then
 	n=0
