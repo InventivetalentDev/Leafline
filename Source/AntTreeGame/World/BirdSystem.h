@@ -51,7 +51,7 @@ struct FBirdTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Schedule") float WarnSeconds = 2.5f;
 	/** In the last this many seconds before the pass the bird is committed: a piece dropped then does not turn it (the
 	 *  piece stays on the bark as bait for its next look). Earlier drops turn it toward the piece. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Schedule") float CommitSeconds = 0.6f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Schedule") float CommitSeconds = 1.0f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Schedule") float AwaySeconds = 30.f;
 	/** Away after taking a dropped piece. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Schedule") float BaitAwaySeconds = 45.f;
