@@ -146,7 +146,9 @@ public:
 	float DiameterForSize(float Size01) const { return FMath::Lerp(Cut.DiameterMin, Cut.DiameterMax, FMath::Clamp(Size01, 0.f, 1.f)); }
 	void ClearFragment();
 	/** Hands the ant a fragment without cutting (debug). */
-	void GiveFragment(float Size01) { SetFragment(Size01); }
+	void GiveFragment(float Size01) { FragmentLeaf = INDEX_NONE; SetFragment(Size01); }
+	/** Leaf.PieceVeins: rebuild the carried piece's mesh with the same outline after the look switch changed. */
+	void RebuildFragmentLook();
 	/** Cuts the leaf in reach at once with the given size (debug). Returns false if no leaf is in reach. */
 	bool DebugCutNow(float Size01);
 	/** Cuts this leaf at once, wherever the ant is (automated tests). */
@@ -225,7 +227,8 @@ private:
 	/** The dropped piece flutters away downwind, spinning and shrinking, then goes back on the socket hidden. */
 	void UpdateFlutter(float Dt);
 	void ReattachFragment();
-	void BuildFragmentMesh(float Diameter);
+	/** bKeepShape: the same outline and per-piece random as the last build (a look change only). */
+	void BuildFragmentMesh(float Diameter, bool bKeepShape = false);
 	ATreeActor* GetTree();
 	ATrailNetwork* GetTrails();
 	ADayDirector* GetDirector();
@@ -271,6 +274,13 @@ private:
 	float SawTime = 0.f;
 	float SwingTime = -1.f; // < 0: no swing running
 	FRotator FragmentRestRotation = FRotator(12.f, 35.f, 0.f);
+	// Where the carried piece came from, for its look (Leaf.PieceVeins): the leaf and the bite centre on it (leaf-local
+	// along and across, cm); INDEX_NONE for a piece handed over by Leaf.Carry. Outline phase and per-piece random are
+	// kept so a rebuild changes only the look.
+	int32 FragmentLeaf = INDEX_NONE;
+	FVector2f FragmentBite = FVector2f::ZeroVector;
+	float FragmentPhase = 0.f;
+	float FragmentRandom = 0.f;
 	float VanishTime = -1.f;
 	FVector VanishFrom = FVector::ZeroVector;
 	FVector VanishTo = FVector::ZeroVector;

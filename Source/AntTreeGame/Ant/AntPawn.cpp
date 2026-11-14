@@ -21,6 +21,7 @@
 #include "Engine/GameViewportClient.h"
 #include "Engine/Engine.h"
 #include "EngineUtils.h"
+#include "HAL/IConsoleManager.h"
 
 namespace
 {
@@ -458,6 +459,8 @@ void AAntPawn::FinishCut()
 	{
 		if (ADayDirector* D = ADayDirector::Get(this)) D->NoteCut(CuttingLeaf);
 		CarriedRichness = FMath::Max(LeafBefore.Richness, 1.f);
+		FragmentLeaf = CuttingLeaf;
+		FragmentBite = BiteC;
 		SetFragment(CutSize);
 		LastCut.Leaf = CuttingLeaf;
 		LastCut.Branch = Movement->GetCurrentBranch();
@@ -680,9 +683,14 @@ bool AAntPawn::DebugCutNow(float Size01)
 	if (Leaf == INDEX_NONE) return false;
 	const float Size = FMath::Min(Size01, Tree->LeafSizeCap(Leaf, Cut.LeafUsePerCut));
 	const float Richness = FMath::Max(Tree->GetLeaves().Get(Leaf).Richness, 1.f);
+	FVector2f BiteC(0.f, 0.f);
+	float BiteR = 0.f;
+	Tree->GetLeaves().PlanBite(Leaf, DiameterForSize(Size), BiteC, BiteR);
 	if (!Tree->BiteLeaf(Leaf, Size, DiameterForSize(Size), Cut.LeafUsePerCut)) return false;
 	if (ADayDirector* D = ADayDirector::Get(this)) D->NoteCut(Leaf);
 	CarriedRichness = Richness;
+	FragmentLeaf = Leaf;
+	FragmentBite = BiteC;
 	SetFragment(Size);
 	LastCut.Leaf = Leaf;
 	LastCut.Branch = Movement->GetCurrentBranch();
@@ -702,9 +710,14 @@ bool AAntPawn::DebugCutLeaf(int32 Leaf, float Size01)
 	const FTreeLeaf& L = Tree->GetLeaves().Get(Leaf);
 	const float Richness = FMath::Max(L.Richness, 1.f);
 	const int32 Branch = L.Branch;
+	FVector2f BiteC(0.f, 0.f);
+	float BiteR = 0.f;
+	Tree->GetLeaves().PlanBite(Leaf, DiameterForSize(Size), BiteC, BiteR);
 	if (Size < Cut.MinSize || !Tree->BiteLeaf(Leaf, Size, DiameterForSize(Size), Cut.LeafUsePerCut)) return false;
 	if (ADayDirector* D = ADayDirector::Get(this)) D->NoteCut(Leaf);
 	CarriedRichness = Richness;
+	FragmentLeaf = Leaf;
+	FragmentBite = BiteC;
 	SetFragment(Size);
 	LastCut.Leaf = Leaf;
 	LastCut.Branch = Movement->GetCurrentBranch() != INDEX_NONE ? Movement->GetCurrentBranch() : Branch;
@@ -982,7 +995,37 @@ void AAntPawn::ClearFragment()
 	FragmentMesh->SetVisibility(false);
 }
 
-void AAntPawn::BuildFragmentMesh(float Diameter)
+namespace
+{
+	/** Leaf.PieceVeins: the carried piece shows the patch of leaf it was cut from (its veins and tone). */
+	bool GPieceVeins = true;
+
+	FAutoConsoleCommandWithWorldAndArgs CmdPieceVeins(
+		TEXT("Leaf.PieceVeins"),
+		TEXT("Leaf.PieceVeins [0|1]: the carried piece shows the veins and tone of the patch of leaf it was cut from (1, default) or the fixed look of before (0); no argument toggles. Rebuilds pieces being carried."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			GPieceVeins = Args.Num() > 0 ? FCString::Atoi(*Args[0]) != 0 : !GPieceVeins;
+			int32 N = 0;
+			if (World)
+			{
+				for (TActorIterator<AAntPawn> It(World); It; ++It)
+				{
+					if (!It->IsCarrying()) continue;
+					It->RebuildFragmentLook();
+					++N;
+				}
+			}
+			UE_LOG(LogLeafline, Log, TEXT("Leaf.PieceVeins %d (%d carried pieces rebuilt)"), GPieceVeins ? 1 : 0, N);
+		}));
+}
+
+void AAntPawn::RebuildFragmentLook()
+{
+	if (IsCarrying()) BuildFragmentMesh(DiameterForSize(CarriedSize), true);
+}
+
+void AAntPawn::BuildFragmentMesh(float Diameter, bool bKeepShape)
 {
 	// A piece of leaf, upright in the ant's XZ plane, held by its lower edge like a sail. Round where it was bitten out,
 	// with one straight, slightly serrated side where the leaf's own margin ran, and a gentle cup so it is not a flat
@@ -991,10 +1034,46 @@ void AAntPawn::BuildFragmentMesh(float Diameter)
 	constexpr int32 Segs = 28;
 	const float R = Diameter * 0.5f;
 	const FVector Center(-2.f, 0.f, R * 0.95f);
-	const float Phase = FMath::FRandRange(0.f, 2.f * PI);
-	const float Random = FMath::FRand();
+	if (!bKeepShape)
+	{
+		FragmentPhase = FMath::FRandRange(0.f, 2.f * PI);
+		FragmentRandom = FMath::FRand();
+	}
+	const float Phase = FragmentPhase;
+	const float Random = FragmentRandom;
 	const float Height = FMath::Clamp((float)(GetActorLocation().Z / 30000.0), 0.f, 1.f);
 	const float MarginZ = R * 0.62f;
+
+	// Leaf.PieceVeins: the piece's UVs and vertex colours are those of the patch it was cut from, so the leaf material
+	// draws that patch's veins and tone on it (FLeafSet::BuildChunkMesh: UV = (along / length, 0.5 + across / width);
+	// colour = (live, per-leaf random, height, shape richness)). Its straight side is placed at 70% of the half-width
+	// rather than on the margin itself, where the material fades the side veins out, so the piece shows the blade's
+	// veins (the midrib too for big pieces); its tone is the leaf's. A piece handed over (Leaf.Carry) borrows the nearest
+	// leaf; with none near, the fixed look below.
+	ATreeActor* Tree = GetTree();
+	const FTreeLeaf* Src = nullptr;
+	int32 SrcIndex = INDEX_NONE;
+	FVector2f Bite = FragmentBite;
+	float SrcRich = 0.f;
+	if (GPieceVeins && Tree)
+	{
+		const FLeafSet& Leaves = Tree->GetLeaves();
+		SrcIndex = FragmentLeaf >= 0 && FragmentLeaf < Leaves.Num() ? FragmentLeaf : INDEX_NONE;
+		if (SrcIndex == INDEX_NONE)
+		{
+			SrcIndex = Tree->FindLeafNear(GetActorLocation(), 600.f);
+			float BiteR = 0.f;
+			if (SrcIndex != INDEX_NONE) Leaves.PlanBite(SrcIndex, Diameter, Bite, BiteR);
+		}
+		if (SrcIndex != INDEX_NONE)
+		{
+			Src = &Leaves.Get(SrcIndex);
+			SrcRich = FMath::Clamp((Src->Richness / FMath::Max(Leaves.GetRichnessMul(), 0.01f) - 1.f) * 0.5f, 0.f, 1.f);
+		}
+	}
+	const float SrcLen = Src ? FMath::Max(Src->Length, 1.f) : 1.f, SrcWidth = Src ? FMath::Max(Src->Width, 1.f) : 1.f;
+	const float Sign = Bite.Y >= 0.f ? 1.f : -1.f;
+	const float EdgeAt = Src ? 0.70f * Src->HalfWidthAt(FMath::Clamp(Bite.X, 0.f, SrcLen)) : 0.f;
 	TArray<FVector> V, N;
 	TArray<FVector2D> UV;
 	TArray<FLinearColor> Col;
@@ -1005,8 +1084,22 @@ void AAntPawn::BuildFragmentMesh(float Diameter)
 		const float Cup = 0.14f * (X * X + Z * Z) / FMath::Max(R, 1.f);
 		V.Add(Center + FVector(X, Cup, Z));
 		N.Add(FVector::RightVector);
-		UV.Add(FVector2D(0.45f + X / 200.f, 0.78f + Z / 90.f));
-		Col.Add(FLinearColor(1.f, Random, Height, 0.f));
+		if (Src)
+		{
+			const float Along = FMath::Clamp(Bite.X + X, 0.04f * SrcLen, 0.96f * SrcLen);
+			const float Lim = 0.96f * Src->HalfWidthAt(Along);
+			const float Across = FMath::Clamp(Sign * (EdgeAt - (MarginZ - Z)), -Lim, Lim);
+			UV.Add(FVector2D(Along / SrcLen, 0.5f + Across / SrcWidth));
+			// A little tone across the piece: soft lobes of +-0.1 richness, well inside the pale-to-deep range.
+			const float Rim = FMath::Clamp(FMath::Sqrt(X * X + Z * Z) / FMath::Max(R, 1.f), 0.f, 1.f);
+			const float Tone = 0.1f * Rim * FMath::Sin(2.f * FMath::Atan2(Z, X) + 1.7f * Phase);
+			Col.Add(FLinearColor(1.f, (SrcIndex % 97) / 97.f, Height, FMath::Clamp(SrcRich + Tone, 0.f, 1.f)));
+		}
+		else
+		{
+			UV.Add(FVector2D(0.45f + X / 200.f, 0.78f + Z / 90.f));
+			Col.Add(FLinearColor(1.f, Random, Height, 0.f));
+		}
 		Tan.Add(FProcMeshTangent(FVector::ForwardVector, false));
 	};
 	AddVert(0.f, 0.f);
@@ -1029,7 +1122,6 @@ void AAntPawn::BuildFragmentMesh(float Diameter)
 	}
 	FragmentMesh->CreateMeshSection_LinearColor(0, V, Tri, N, UV, {}, {}, {}, Col, Tan, false, false);
 	FragmentMesh->SetRelativeLocationAndRotation(FVector::ZeroVector, FragmentRestRotation); // yawed so the camera behind sees its face, not its edge; leans back slightly over the body
-	const ATreeActor* Tree = GetTree();
 	if (Tree && Tree->LeafMaterial)
 	{
 		FragmentMesh->SetMaterial(0, Tree->LeafMaterial);
