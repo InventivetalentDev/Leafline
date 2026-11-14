@@ -118,7 +118,7 @@ A day should take 4–6 minutes: three trips of roughly 90 seconds.
 - Recruits leave the nest a second and a half apart, so several on one line read as a file. Each picks the live line with the most remaining pieces per recruit already on it. A trip is out, one piece of the line's size, home.
 - Recruits face the same wind test as scouts and never grip. A blown-off recruit loses its piece and that trip; one that finds its patch stripped turns round without using a trip.
 - The trail's brightness shows its patch: bright is full, faint is nearly stripped or no line at all.
-- Before committing, the patch around the leaf in reach is outlined, with what it is worth ("about 8 pieces, rich ×2.1").
+- Before committing, the patch around the leaf in reach is outlined, with what it is worth ("about 8 pieces, "each worth more"").
 
 **Richer leaves**
 - Each leaf has a value multiplier from 1× at the lowest leafy branches to about 3× at high outer tips, from the tree's shape alone. Rich leaves are paler, younger green. A piece's value is its size-based mass times the multiplier; the carried weight that slows the ant is the size-based mass only.

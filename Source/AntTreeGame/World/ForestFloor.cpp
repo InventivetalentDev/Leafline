@@ -555,7 +555,9 @@ void AForestFloor::Build(const ATreeActor& Tree)
 		if (!Base) Base = BasicMaterial;
 		UE_LOG(LogLeafline, Log, TEXT("Forest floor material: %s"), Base ? *Base->GetName() : TEXT("none"));
 		// M_Grass (WPO sway from MPC_Wind, Tools/materials/build_grass_mcp.py) for the blades, M_Litter / the basic material if missing.
-		UMaterialInterface* GrassBase = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Leafline/Materials/M_Grass.M_Grass"), nullptr, LOAD_NoWarn | LOAD_Quiet);
+		// M_Grass2 (backlit foliage shading, dark foot; build_grass_mcp.py MODE build2) first, then M_Grass.
+		UMaterialInterface* GrassBase = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Leafline/Materials/M_Grass2.M_Grass2"), nullptr, LOAD_NoWarn | LOAD_Quiet);
+		if (!GrassBase) GrassBase = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Leafline/Materials/M_Grass.M_Grass"), nullptr, LOAD_NoWarn | LOAD_Quiet);
 		UE_LOG(LogLeafline, Log, TEXT("Forest floor grass material: %s"), GrassBase ? *GrassBase->GetName() : (Base ? *Base->GetName() : TEXT("none")));
 		for (int32 m = 0; Base && m < NumMats; ++m)
 		{
