@@ -24,3 +24,4 @@ Content/Collections/
 *.blend1
 __pycache__/
 Content/Leafline/UIRaw/buildinfo.txt
+docs/rules/
