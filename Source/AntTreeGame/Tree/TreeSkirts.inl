@@ -21,6 +21,10 @@ namespace
 		TEXT("Junction skirts on the bark mesh when fillets are on (1) or not (0, the walking field keeps its fillets: for comparing). Takes effect when the tree next grows (Leaf.Fillets 1)."));
 	TAutoConsoleVariable<int32> CVarGroundSkirt(TEXT("leaf.GroundSkirt"), 1,
 		TEXT("The trunk and roots' skirt at the ground when fillets are on (1) or not (0, the field keeps its ground fillet: for comparing). Takes effect when the tree next grows."));
+	TAutoConsoleVariable<int32> CVarGroundFill(TEXT("leaf.GroundFill"), 1,
+		TEXT("Ground skirt: fill runs of failed columns from their neighbours (1) or leave the gap (0, the strip ends in an open edge there: the old lip). Takes effect when the tree next grows."));
+	TAutoConsoleVariable<int32> CVarGroundClose(TEXT("leaf.GroundClose"), 1,
+		TEXT("Ground skirt: lay the columns at open ends of the strip onto the wall and the ground underneath (1) or leave them on the fillet (0: the strip ends in a raised edge). Takes effect when the tree next grows."));
 	TAutoConsoleVariable<int32> CVarSkirtSeam(TEXT("leaf.SkirtSeam"), 0,
 		TEXT("Where a skirt switches from the child's bark to the parent's: 0 where the surface is equally far from both tubes (the old crease), 1 at its outer edge on the parent (the child's bark over the whole fillet). Takes effect when the tree next grows."));
 
@@ -808,6 +812,8 @@ namespace
 	constexpr double GroundLift = 0.5;     // above the junction skirts' 0.3 where both reach (root-trunk corners)
 	constexpr double GroundSpacing = 30.0; // cm between columns along the outline
 	constexpr double GroundCell = 25.0;    // marching-squares cell
+	constexpr int32 GroundFillMax = 12;   // longest run of failed columns filled from its neighbours (columns)
+	constexpr double GroundFillReach = 30.0; // cm: a filled point may move this far from its neighbours' blend onto the field
 
 	struct FGroundPair
 	{
@@ -826,6 +832,7 @@ namespace
 		FVector E1, E2;
 		bool bValid = false;
 		bool bTopOnWall = true;
+		bool bCollapse = false; // an open end of the strip: laid onto the wall and the ground underneath (no raised edge)
 		int32 Why = 0; // why it failed: 1 normal, 2 origin, 3 top ray, 4 sweep ray, 5 seam, 6 end refine, 7 no end, 8 rows, 9 top off the tree, 10 end off the ground, 11 wandered
 		TArray<FSkirtRay> Tree;   // top .. seam
 		TArray<FSkirtRay> Ground; // seam .. end
@@ -1096,7 +1103,8 @@ namespace
 
 		// Per loop: common row counts, rows, vertex data, two grids.
 		const float TreeH = FMath::Max(S.Params.TrunkHeight, 1.f);
-		int32 Built = 0, Unstitched = 0, Folded = 0;
+		int32 Built = 0, Unstitched = 0, Folded = 0, GroundFilled = 0, GroundClosed = 0;
+		double GroundFillMove = 0.0;
 		for (int32 l = 0; l + 1 < LoopStart.Num(); ++l)
 		{
 			const int32 C0 = LoopStart[l], C1 = LoopStart[l + 1];
@@ -1130,6 +1138,106 @@ namespace
 					return;
 				}
 				Col.RowsG[0] = Col.RowsT[Nt];
+			});
+			// Runs of failed columns between two good ones (round the corner where a root meets the trunk at the ground,
+			// where the sweep wanders onto the root): rows interpolated from the two neighbours and moved onto the field, so
+			// the strip does not end there in an open edge (the lip). Not across a sharp corner of the outline.
+			if (CVarGroundFill.GetValueOnAnyThread() != 0)
+			{
+				for (int32 a = 0; a < NC; ++a)
+				{
+					if (!Cols[C0 + a].bValid || Cols[C0 + (a + 1) % NC].bValid) continue;
+					int32 Run = 1;
+					while (Run <= NC && !Cols[C0 + (a + Run) % NC].bValid) ++Run;
+					if (Run > NC || Run - 1 > GroundFillMax) continue;
+					const FGroundColumn& Ca = Cols[C0 + a];
+					const FGroundColumn& Cb = Cols[C0 + (a + Run) % NC];
+					if (FVector::DotProduct(Ca.N2, Cb.N2) < 0.5) continue;
+					for (int32 m = 1; m < Run; ++m)
+					{
+						FGroundColumn& Col = Cols[C0 + (a + m) % NC];
+						const double T = double(m) / Run;
+						TArray<FVector> RowsT, RowsG;
+						bool bOk = true;
+						auto Lift = [&](const FVector& A, const FVector& B, TArray<FVector>& Dst)
+						{
+							const FVector L = FMath::Lerp(A, B, T);
+							FVector X = L, N;
+							double Err = 0.0;
+							// Far from the blend of its neighbours, the field has something else there (the root's crest): leave the gap.
+							if (!Field.Project(X, N, 0.0, &Err) || FVector::Dist(X, L) > GroundFillReach) bOk = false;
+							Dst.Add(X);
+						};
+						for (int32 r = 0; r <= Nt; ++r) Lift(Ca.RowsT[r], Cb.RowsT[r], RowsT);
+						for (int32 r = 0; r <= Ng; ++r) Lift(Ca.RowsG[r], Cb.RowsG[r], RowsG);
+						if (!bOk) continue;
+						for (int32 r = 0; r <= Nt; ++r) GroundFillMove = FMath::Max(GroundFillMove, FVector::Dist(RowsT[r], FMath::Lerp(Ca.RowsT[r], Cb.RowsT[r], T)));
+						for (int32 r = 0; r <= Ng; ++r) GroundFillMove = FMath::Max(GroundFillMove, FVector::Dist(RowsG[r], FMath::Lerp(Ca.RowsG[r], Cb.RowsG[r], T)));
+						RowsG[0] = RowsT[Nt];
+						Col.RowsT = MoveTemp(RowsT);
+						Col.RowsG = MoveTemp(RowsG);
+						Col.N2 = (Ca.N2 * (1.0 - T) + Cb.N2 * T).GetSafeNormal();
+						Col.bTopOnWall = Ca.bTopOnWall && Cb.bTopOnWall;
+						Col.bValid = true;
+						Col.Why = 0;
+						++GroundFilled;
+					}
+				}
+			}
+			// Which neighbours join (not across a sharp corner of the outline, a root meeting the trunk at the ground, where
+			// their planes cross, nor where their seams or ends lie far apart). A column at an open end of the strip is laid
+			// onto the wall and the ground underneath, so the strip closes onto the mesh below instead of ending in a raised
+			// edge (the lip; and short strips between open ends, the slats, lie flat).
+			TArray<uint8> JoinNext;
+			JoinNext.Init(0, NC);
+			for (int32 k = 0; k < NC; ++k)
+			{
+				const FGroundColumn& Ca = Cols[C0 + k];
+				const FGroundColumn& Cb = Cols[C0 + (k + 1) % NC];
+				JoinNext[k] = Ca.bValid && Cb.bValid && FVector::DotProduct(Ca.N2, Cb.N2) >= 0.8
+					&& FVector::Dist(Ca.RowsT.Last(), Cb.RowsT.Last()) <= 3.0 * GroundSpacing && FVector::Dist(Ca.RowsG.Last(), Cb.RowsG.Last()) <= 4.0 * GroundSpacing;
+			}
+			int32 Collapsed = 0;
+			for (int32 k = 0; k < NC; ++k)
+			{
+				FGroundColumn& Col = Cols[C0 + k];
+				Col.bCollapse = Col.bValid && CVarGroundClose.GetValueOnAnyThread() != 0 && (!JoinNext[k] || !JoinNext[(k + NC - 1) % NC]);
+				Collapsed += Col.bCollapse ? 1 : 0;
+			}
+			GroundClosed += Collapsed;
+			ParallelFor(NC, [&](int32 k)
+			{
+				FGroundColumn& Col = Cols[C0 + k];
+				if (!Col.bValid) return;
+				if (Col.bCollapse)
+				{
+					// Onto the tree alone (a few steps down its gradient), or at ground height onto its foot.
+					auto TreeGrad = [&](const FVector& X)
+					{
+						constexpr double E = 0.5;
+						return FVector(Field.TreeDistanceMT(X + FVector(E, 0, 0)) - Field.TreeDistanceMT(X - FVector(E, 0, 0)),
+							Field.TreeDistanceMT(X + FVector(0, E, 0)) - Field.TreeDistanceMT(X - FVector(0, E, 0)),
+							Field.TreeDistanceMT(X + FVector(0, 0, E)) - Field.TreeDistanceMT(X - FVector(0, 0, E)));
+					};
+					auto OntoTree = [&](FVector X, bool bFoot)
+					{
+						if (bFoot) X.Z = Gz;
+						for (int32 It = 0; It < 8; ++It)
+						{
+							const double D = Field.TreeDistanceMT(X);
+							if (FMath::Abs(D) < 0.05) break;
+							FVector G = TreeGrad(X);
+							if (bFoot) G.Z = 0.0;
+							if (G.SizeSquared() < 1e-12) break;
+							X -= G.GetSafeNormal() * D;
+						}
+						return X;
+					};
+					for (int32 r = 0; r < Nt; ++r) Col.RowsT[r] = OntoTree(Col.RowsT[r], false);
+					Col.RowsT[Nt] = OntoTree(Col.RowsT[Nt], true);
+					Col.RowsG[0] = Col.RowsT[Nt];
+					for (int32 r = 1; r <= Ng; ++r) Col.RowsG[r].Z = Gz;
+				}
 				// Tree half: bark of the nearest tube there.
 				for (int32 r = 0; r <= Nt; ++r)
 				{
@@ -1204,13 +1312,8 @@ namespace
 				for (int32 k = 0; k < NC; ++k)
 				{
 					const int32 k2 = (k + 1) % NC;
-					const FGroundColumn& Ca = Cols[C0 + k];
-					const FGroundColumn& Cb = Cols[C0 + k2];
-					if (!Ca.bValid || !Cb.bValid) continue;
-					// Not across a sharp corner of the outline (a root meeting the trunk at the ground), where neighbouring
-					// columns' planes cross, nor where their seams or ends lie far apart.
-					if (FVector::DotProduct(Ca.N2, Cb.N2) < 0.8 || FVector::Dist(Ca.RowsT.Last(), Cb.RowsT.Last()) > 3.0 * GroundSpacing
-						|| FVector::Dist(Ca.RowsG.Last(), Cb.RowsG.Last()) > 4.0 * GroundSpacing)
+					if (!Cols[C0 + k].bValid || !Cols[C0 + k2].bValid) continue;
+					if (!JoinNext[k])
 					{
 						++Unstitched;
 						continue;
@@ -1248,7 +1351,8 @@ namespace
 			++Valid;
 			for (const FVector& X : Col.RowsG) MinNest = FMath::Min(MinNest, FVector::Dist2D(X, Nest));
 		}
-		UE_LOG(LogLeafline, Log, TEXT("TreeSkirts ground: blend %.0f cm, %d outline loops, %d of %d columns built (%d left out near the nest, %d failed), %d bark and %d ground vertices, nearest to the nest %.0f cm, %.1f ms; %d neighbour pairs not joined (sharp corner or far apart), %d folded triangles left out;%s"),
-			Kg, Built, Valid, Cols.Num(), NearNest, Failed.load(), Out.Vertices.Num() - BarkStart, OutGround.Vertices.Num(), MinNest, (FPlatformTime::Seconds() - Start) * 1000.0, Unstitched / 2, Folded, *FailedAt);
+		UE_LOG(LogLeafline, Log, TEXT("TreeSkirts ground: blend %.0f cm, %d outline loops, %d of %d columns built (%d left out near the nest, %d failed), %d bark and %d ground vertices, nearest to the nest %.0f cm, %.1f ms; %d neighbour pairs not joined (sharp corner or far apart), %d folded triangles left out; %d failed columns filled from their neighbours (largest move onto the field %.1f cm), %d columns at open ends laid onto the wall and ground; still failed:%s"),
+			Kg, Built, Valid, Cols.Num(), NearNest, Failed.load(), Out.Vertices.Num() - BarkStart, OutGround.Vertices.Num(), MinNest, (FPlatformTime::Seconds() - Start) * 1000.0, Unstitched / 2, Folded,
+			GroundFilled, GroundFillMove, GroundClosed, *FailedAt);
 	}
 }
