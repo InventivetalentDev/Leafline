@@ -194,23 +194,31 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs CmdGoLeaf(
 		TEXT("Leaf.GoLeaf"),
-		TEXT("Leaf.GoLeaf: put the controlled ant on a twig beside a random cuttable leaf."),
-		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>&, UWorld* World)
+		TEXT("Leaf.GoLeaf [min m] [max m]: put the controlled ant on a twig beside a random cuttable leaf (between those heights, if given)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 		{
 			AAntPawn* Ant = PlayerAnt(World);
 			ATreeActor* Tree = ATreeActor::Get(World);
 			if (!Ant || !Tree || Tree->GetLeaves().Num() == 0) return;
 			const FLeafSet& Leaves = Tree->GetLeaves();
-			for (int32 Try = 0; Try < 50; ++Try)
+			const double MinZ = Args.Num() > 0 ? FCString::Atod(*Args[0]) * 100.0 : -TNumericLimits<double>::Max();
+			const double MaxZ = Args.Num() > 1 ? FCString::Atod(*Args[1]) * 100.0 : TNumericLimits<double>::Max();
+			TArray<int32> Candidates;
+			for (int32 i = 0; i < Leaves.Num(); ++i)
 			{
-				const int32 i = FMath::RandRange(0, Leaves.Num() - 1);
 				const FTreeLeaf& L = Leaves.Get(i);
-				if (!L.CanCut()) continue;
-				Ant->GetAntMovement()->TeleportTo(L.Base - L.Dir * 15.0, L.Dir);
-				SnapCamera(World);
-				UE_LOG(LogLeafline, Log, TEXT("Leaf.GoLeaf: beside leaf %d on branch %d at z %.0f"), i, L.Branch, L.Base.Z);
+				if (L.CanCut() && L.Base.Z >= MinZ && L.Base.Z <= MaxZ) Candidates.Add(i);
+			}
+			if (Candidates.Num() == 0)
+			{
+				UE_LOG(LogLeafline, Warning, TEXT("Leaf.GoLeaf: no cuttable leaf in that height range"));
 				return;
 			}
+			const int32 i = Candidates[FMath::RandRange(0, Candidates.Num() - 1)];
+			const FTreeLeaf& L = Leaves.Get(i);
+			Ant->GetAntMovement()->TeleportTo(L.Base - L.Dir * 15.0, L.Dir);
+			SnapCamera(World);
+			UE_LOG(LogLeafline, Log, TEXT("Leaf.GoLeaf: beside leaf %d on branch %d at z %.0f (rich x%.2f)"), i, L.Branch, L.Base.Z, L.Richness);
 		}));
 
 	FAutoConsoleCommandWithWorldAndArgs CmdCut(
