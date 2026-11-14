@@ -63,9 +63,11 @@ struct FBirdTuning
 	/** Gap between the bark and the bird's underside at the pass (cm); it also stays PieceClearance above the carried piece. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Look") float PassHeight = 150.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Look") float PieceClearance = 30.f;
-	/** Circle: radius, how far upwind of the trunk its centre starts, lowest height (cm). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Look") float CircleRadius = 2200.f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Look") float CircleDistance = 4000.f;
+	/** Circle: radius, how far upwind of the followed ant its centre starts (pushed out until clear of wood), how far above
+	 *  the ant it flies, lowest height (cm). 2500 / 800 keep it about 17 to 33 m from the player: 80 to 150 px wide at 1280. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Look") float CircleRadius = 800.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Look") float CircleDistance = 2500.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Look") float CircleAbove = 300.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Look") float MinCircleHeight = 1500.f;
 	/** Air kept between the circling bird and any branch (cm; leaves stick out about 200 cm from their twigs). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Look") float ClearMargin = 450.f;
@@ -206,7 +208,8 @@ private:
 
 	// Visible bird.
 	void UpdateVisual(float Dt);
-	void ComputeCircle(float Height);
+	/** The circle round a point upwind of Anchor (the followed ant), clear of wood. */
+	void ComputeCircle(const FVector& Anchor);
 	void BeginVisualDive();
 	void BeginVisualExit();
 	void UpdateExitTangent(const FVector& Normal);
@@ -291,6 +294,7 @@ private:
 	FVector CircleCenter = FVector::ZeroVector;
 	float CircleR = 2000.f;
 	float CircleHeight = -1.f;
+	FVector CircleAnchor = FVector::ZeroVector;
 	float CircleAngle = 0.f;
 	float CircleCheckTimer = 0.f;
 	float CircleSign = 1.f;
