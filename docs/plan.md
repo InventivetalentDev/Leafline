@@ -217,7 +217,8 @@ Tagged `pre-look` before it started. Commits start `Look:` (and `HUD:` for the H
 - [x] Faint bottom-left build and position line with a pasteable `Leaf.Goto` (owner's idea); `Tools/write_buildinfo.sh` before packaging.
 - [x] Branch collars (owner's polish note, smoother junctions): `bBranchCollars`, `Leaf.Collars 0|1`; no twig collars, leaf count unchanged. Bark ridges follow a bark radius without flare and collars, so the trunk flare no longer reads as paving stones.
 - [x] Package and zip from 8e4b36e (13 Nov 18:42, 463.8 MB, no saves): packaged smoke test with and without ray tracing (two days each, no fatal lines); the corner line shows the commit. Concept comparison shots on this build: `Saved/RefShots/concept-compare/` (six pairs and a README, for a Codex review).
-- [ ] Still open from the shots: roots keep small cobble-like plates (their radius tapers fast near the base, which the bark radius does not smooth yet); dark cutaway views can still happen near junctions while walking (a frame from the 02 walk).
+- [x] Roots: cobble-like plates gone on open root (14 Nov night, ui-text, 70f3cf2): each root's bark radius is held near where it leaves the trunk (`Leaf.RootBark`, default on). The arch where a root rises into the trunk keeps roundish plates (cause not found; needs the bark material's radius debug view in the editor).
+- [ ] Still open from the shots: dark cutaway views can still happen near junctions while walking (a frame from the 02 walk).
 - [ ] Part 5 (trail near the camera, leaf tone variation, framing foliage on the grove) only if time remains before the freeze.
 
 ## M5e: Look pass 2 (Fri evening; brief `docs/briefs/look-pass-2.md`)
