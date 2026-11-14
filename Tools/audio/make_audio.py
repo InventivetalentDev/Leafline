@@ -301,21 +301,23 @@ def pad():
 
 # ---------- bird (call and wing rush) ----------
 def bird_call():
-    """Three falling 'tsiu' notes of a small songbird, 3-4.5 kHz: above the gust bed (< 2.5 kHz).
-    Pitch glides down with a rounded curve, a breathy noise band rides on the note, no pure-sine beep."""
-    r = rng_for("bird_call"); n = N(0.9); y = np.zeros(n)
-    for at, f0, f1, dur, a in ((0.03, 4400, 3100, 0.20, 0.8), (0.30, 4100, 2900, 0.21, 1.0), (0.58, 3800, 2650, 0.28, 0.8)):
+    """Four quick falling whistles of a small songbird (3-5 kHz, above the gust bed's < 2.5 kHz).
+    Each note: exponential downward sweep, 45 Hz FM vibrato (+-700 Hz), pitch jitter between notes,
+    a weak 2nd harmonic, a second 'syrinx' voice 18 Hz away, breath noise, soft attack. Variant E of the
+    14 Nov second pass (lowest '8-bit' and highest 'bird chirping' readings of five)."""
+    r = rng_for("bird_call_E"); n = N(0.8); y = np.zeros(n)
+    notes = ((.03, 4800, 3500, .09, .7), (.17, 4600, 3300, .09, .9), (.31, 4300, 3000, .11, 1.0), (.48, 4000, 2800, .14, .8))
+    for i, (at, f0, f1, dur, a) in enumerate(notes):
+        j = 1 + 0.06 * (r.random() - 0.5) * 2
         m = N(dur); t = tarr(m); p = t / dur
-        f = f1 + (f0 - f1) * np.exp(-2.2 * p) + 35 * np.sin(TAU * 17 * t + 1.0) * p
+        f = (f1 + (f0 - f1) * np.exp(-2.0 * p)) * j + 700 * np.sin(TAU * 45 * (1 + .15 * i) * t + r.random() * 6) * np.sin(np.pi * p)
         ph = np.cumsum(TAU * f / SR)
-        s = np.sin(ph) + 0.30 * np.sin(2 * ph + 0.9) + 0.10 * np.sin(3 * ph + 2.1)
-        s *= 1 + 0.10 * np.sin(TAU * 41 * t)                              # slight tremolo
-        br = band(noise(m, r), 2500, 6500, 2) * 0.12                      # breath
-        e = np.sin(np.pi * np.minimum(p * 1.25, 1) / 1.0) ** 0.8 * (1 - 0.5 * p)
-        e = np.minimum(e, np.minimum(t / 0.02, 1))
-        place(y, (s + br) * e * a, at)
-    y += 0.0
-    return norm(fade(y, 0.006, 0.06), -11.0)
+        s = np.sin(ph) + 0.05 * np.sin(2 * ph + .5)
+        s += 0.45 * np.sin(np.cumsum(TAU * (f + 18) / SR))
+        s += 0.2 * band(noise(m, r), 2500, 7000, 2)
+        e = np.minimum(t / 0.006, 1) * np.minimum((dur - t) / 0.03, 1) * (0.7 + 0.3 * np.sin(np.pi * p))
+        place(y, s * e * a, at)
+    return norm(fade(y, 0.006, 0.05), -11.0)
 
 def bird_pass():
     """Soft wing rush ~0.55 s: feathery band noise with a wing-beat flutter, passing by (pitch eases down)."""
