@@ -104,8 +104,8 @@
   - Sent to bd-core (14 Nov 14:35): each line its own colour from a fixed palette (cyan first; no green, amber or red, which mean exposure), trail ribbon and HUD row alike. For the 17:00 package.
 - [ ] there's not much incentive to go further up the tree than like the 2 lowest layers of branches; look into that later
   - Noted for after the freeze (design: richer or bigger leaves higher up, the end card or milestones asking for height, wind risk as the price). Not started.
-- [ ] scent lines should be most visible in a short radius around the player so they don't clutter the screen; fade out with distance.
-  - Sent to the cues agent (14 Nov 16:15): both trail materials fade with distance from the controlled ant (near and far distances tunable), relaxed when the camera is far away (harvest, nest view). Needs an editor session for the material change. For the 20:00 candidate.
+- [x] scent lines should be most visible in a short radius around the player so they don't clutter the screen; fade out with distance.
+  - Done (bb587e0, in the c5d301b candidate): both trail materials are full strength within 5 m of your ant and fade to a faint trace by 18 m (`Leaf.Tune cam TrailFadeNear`/`TrailFadeFar`/`TrailFadeFloor`). The harvest views, the recap and `Leaf.Shot` camera moves show whole routes. Checked in real runs at 18:49: no hard edge, and the far trail keeps about a quarter of its strength.
 - [ ] UI polish: replace a bunch of text with icons and animations (e.g. bird status, wind, ant status)
   - Sent to the ui agent (14 Nov 16:15): icons for the wind group (direction arrow that pulses and shakes with gusts, exposure icon), the bird line (silhouette, diving and flashing in a dive) and the ant status (carrying, gripping), drawn procedurally or made by our own script; short words stay where needed; behind `Leaf.HudIcons`. For the 20:00 candidate.
 - [ ] bird is barely noticable, mostly affects recruits (maybe just keep it like this, doesn't really add much to the gameplay atm)
