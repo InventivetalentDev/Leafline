@@ -91,7 +91,9 @@ struct FBirdTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float NudgeOut = 1.f;
 	/** The nudged view keeps the ant within this fraction of half the vertical field of view (2 or more: no limit; then
 	 *  the bird comes into frame mid-dive but the ant can leave it). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float NudgeKeepAnt = 0.8f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float NudgeKeepAnt = 1.1f;
+	/** The follow camera's boom eases out to this multiple during the nudge (its wood handling may still shorten it). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float NudgeBoomScale = 1.8f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound") float CallVolume = 0.9f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound") float PassVolume = 0.8f;

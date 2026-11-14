@@ -316,25 +316,31 @@ void AAntCamera::Tick(float DeltaTime)
 	// Wood between camera and ant must not make the camera jump. The tree's faces are one-sided, so a camera behind or
 	// inside a branch sees through it, and the bark material dithers away whatever lies along the line to the ant.
 	// Optionally (bAvoidThickOcclusion) a thick occluder pulls the boom in after it has blocked the view for a moment.
-	double Want = Tuning.BoomLength;
+	// The bird (World/BirdSystem.*): while it dives at this ant, the boom eases out and the view turns toward the bird
+	// (below). The wood handling that follows (occlusion, ground, thick wood) stays in charge of the longer boom.
+	FVector NudgeLookAt = FVector::ZeroVector;
+	ABirdSystem* NudgeBird = ABirdSystem::Get(this);
+	const float NudgeW = NudgeBird ? NudgeBird->GetCameraNudge(Target.Get(), (float)Dt, bPlayerLook, NudgeLookAt) : 0.f;
+	const double BoomLen = Tuning.BoomLength * (1.0 + (NudgeBird ? FMath::Max(NudgeBird->Tuning.NudgeBoomScale - 1.f, 0.f) : 0.f) * NudgeW);
+	double Want = BoomLen;
 	float& OccludedTime = SpareFloat;
 	bool bThickOcclusion = false;
 	if (Tuning.bAvoidThickOcclusion && Field && Field->IsValid())
 	{
 		double HitT;
-		if (Field->March(Focus, Focus - View * Tuning.BoomLength, Tuning.ProbeRadius, HitT))
+		if (Field->March(Focus, Focus - View * BoomLen, Tuning.ProbeRadius, HitT))
 		{
-			const double HitDist = HitT * Tuning.BoomLength;
+			const double HitDist = HitT * BoomLen;
 			// Thickness of the obstruction along the ray: step through it until outside again.
 			// March reports contact within 0.5 cm of the probe, so walk while touching or inside.
 			double Exit = HitDist;
-			for (int32 i = 0; i < 40 && Exit < Tuning.BoomLength; ++i)
+			for (int32 i = 0; i < 40 && Exit < BoomLen; ++i)
 			{
 				const double Gap = Field->Distance(Focus - View * Exit) - Tuning.ProbeRadius;
 				if (Gap > 1.0) break;
 				Exit += FMath::Max(FMath::Abs(Gap), 2.0);
 			}
-			if (Exit - HitDist > 60.0 || Exit >= Tuning.BoomLength)
+			if (Exit - HitDist > 60.0 || Exit >= BoomLen)
 			{
 				bThickOcclusion = true;
 				if (OccludedTime > 0.25f) Want = FMath::Max(HitDist - 10.0, (double)Tuning.MinBoomLength);
@@ -409,11 +415,10 @@ void AAntCamera::Tick(float DeltaTime)
 	}
 	// The bird (World/BirdSystem.*): while it dives at this ant, the view turns toward a point between the ant and the bird.
 	// Only the look direction changes, never the camera's position (so its wood clearance holds).
-	if (ABirdSystem* Bird = ABirdSystem::Get(this))
+	if (ABirdSystem* Bird = NudgeBird)
 	{
-		FVector LookAt;
-		const float W = Bird->GetCameraNudge(Target.Get(), (float)Dt, bPlayerLook, LookAt);
-		const FVector ToLook = (LookAt - CamPos).GetSafeNormal();
+		const float W = NudgeW;
+		const FVector ToLook = (NudgeLookAt - CamPos).GetSafeNormal();
 		if (W > 0.f && !ToLook.IsNearlyZero())
 		{
 			LookDir = FQuat::Slerp(FQuat::Identity, FQuat::FindBetweenNormals(LookDir, ToLook), W).RotateVector(LookDir).GetSafeNormal();
