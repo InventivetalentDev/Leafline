@@ -1,0 +1,54 @@
+# Relief off / on (90 m, heights x1) / on at x2, at the owner's pose, 22, 94 and 121 m up, the horizon from the canopy
+# (188 m) and from the nest. Wind held calm, no streaks or cues.
+0|Leaf.Tune wind CalmMin 400
+0|Leaf.Tune wind CalmMax 400
+0|Leaf.Tune wind StreakCount 0
+0|Leaf.Cues 0
+0|Leaf.NewDay 675856
+4|Leaf.Cinematic 1
+5|Leaf.Goto 504 1008 5966 -37 -14
+11|SHOT owner-off
+11.5|Leaf.Relief 1 90 1
+15|SHOT owner-on
+15.5|Leaf.Relief 1 90 2
+19|SHOT owner-on2
+19.5|Leaf.Relief 0 90 1
+20|Leaf.Goto 1198 -903 2200 -37 -14
+26|SHOT h22-off
+26.5|Leaf.Relief 1 90 1
+30|SHOT h22-on
+30.5|Leaf.Relief 1 90 2
+34|SHOT h22-on2
+34.5|Leaf.Relief 0 90 1
+35|Leaf.Teleport 9 0.5
+37|Leaf.Aim -37 -20
+41|SHOT h94-off
+41.5|Leaf.Relief 1 90 1
+45|SHOT h94-on
+45.5|Leaf.Relief 1 90 2
+49|SHOT h94-on2
+49.5|Leaf.Relief 0 90 1
+50|Leaf.Teleport 11 0.5
+52|Leaf.Aim -37 -25
+56|SHOT h121-off
+56.5|Leaf.Relief 1 90 1
+60|SHOT h121-on
+60.5|Leaf.Relief 1 90 2
+64|SHOT h121-on2
+64.5|Leaf.Relief 0 90 1
+65|Leaf.Teleport 17 0.6
+67|Leaf.Aim -37 -4
+71|SHOT canopyhz-off
+71.5|Leaf.Relief 1 90 1
+75|SHOT canopyhz-on
+75.5|Leaf.Relief 1 90 2
+79|SHOT canopyhz-on2
+79.5|Leaf.Relief 0 90 1
+80|Leaf.Goto 1204 3148 2 -60 -4
+86|SHOT nesthz-off
+86.5|Leaf.Relief 1 90 1
+90|SHOT nesthz-on
+90.5|Leaf.Relief 1 90 2
+94|SHOT nesthz-on2
+94.5|Leaf.Relief 0 90 1
+95|Leaf.QuitAfter 1

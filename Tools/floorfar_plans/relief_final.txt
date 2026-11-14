@@ -1,0 +1,75 @@
+# Final relief (defaults baked: Leaf.Relief 1 = from 90 m, near x1, far x4, 250 m rim, ground to 30 km) against off,
+# at every height; then frame time off/on at the owner's pose and the canopy horizon. Wind calm, no streaks or cues.
+0|t.MaxFPS 0
+0|r.VSync 0
+0|Leaf.Tune wind CalmMin 400
+0|Leaf.Tune wind CalmMax 400
+0|Leaf.Tune wind StreakCount 0
+0|Leaf.Cues 0
+0|Leaf.NewDay 675856
+4|Leaf.Cinematic 1
+5|Leaf.Goto 504 1008 5966 -37 -14
+9.5|SHOT owner-off
+10|Leaf.Relief 1
+13|SHOT owner-on
+13.5|Leaf.Relief 0
+14|Leaf.Goto 1198 -903 2200 -37 -14
+18.5|SHOT h22-off
+19|Leaf.Relief 1
+22|SHOT h22-on
+22.5|Leaf.Relief 0
+23|Leaf.Teleport 9 0.5
+25|Leaf.Aim -37 -20
+27.5|SHOT h94-off
+28|Leaf.Relief 1
+31|SHOT h94-on
+31.5|Leaf.Relief 0
+32|Leaf.Teleport 11 0.5
+34|Leaf.Aim -37 -25
+36.5|SHOT h121-off
+37|Leaf.Relief 1
+40|SHOT h121-on
+40.5|Leaf.Relief 0
+41|Leaf.Teleport 17 0.6
+43|Leaf.Aim -37 -4
+45.5|SHOT canopyhz-off
+46|Leaf.Relief 1
+49|SHOT canopyhz-on
+49.5|Leaf.Relief 0
+50|Leaf.Teleport 26 0.6
+52|Leaf.Aim -37 -6
+54.5|SHOT top-off
+55|Leaf.Relief 1
+58|SHOT top-on
+58.5|Leaf.Relief 0
+59|Leaf.Goto 1204 3148 2 -60 -4
+63.5|SHOT nesthz-off
+64|Leaf.Relief 1
+67|SHOT nesthz-on
+67.5|Leaf.Relief 0
+68|Leaf.Goto 1204 3148 2 120 -6
+72.5|SHOT nest-off
+73|Leaf.Relief 1
+76|SHOT nest-on
+76.5|Leaf.Relief 0
+77|Leaf.Goto 0 7000 0 90 2
+81.5|SHOT e90-off
+82|Leaf.Relief 1
+85|SHOT e90-on
+85.5|Leaf.Relief 0
+86|Leaf.Goto 504 1008 5966 -37 -14
+91|CsvProfile START
+101|CsvProfile STOP
+102|Leaf.Relief 1
+104|CsvProfile START
+114|CsvProfile STOP
+115|Leaf.Relief 0
+115.5|Leaf.Teleport 17 0.6
+117.5|Leaf.Aim -37 -4
+120.5|CsvProfile START
+130.5|CsvProfile STOP
+131.5|Leaf.Relief 1
+133.5|CsvProfile START
+143.5|CsvProfile STOP
+144.5|Leaf.Relief 0
+145|Leaf.QuitAfter 1

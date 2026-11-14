@@ -454,8 +454,10 @@ void AForestFloor::Build(const ATreeActor& Tree)
 					TiltDir = R.FRand() * 2.f * PI;
 					Curl = R.FRandRange(0.05f, 0.16f) * W;
 				}
-				const FVector C(Trunk.X + Rel.X, Trunk.Y + Rel.Y, Z0 + T.FlatLift + Layer * 0.06f);
-				AddLeaf(Place(Rel, LeafMat()), C, Yaw, L, W, Tilt, TiltDir, Curl, Z0 + T.FlatLift);
+				// On the visible ground's relief (zero inside its start radius, 90 m by default, and when it is off).
+				const float Lift = LeafRelief::Height(Trunk.X + Rel.X, Trunk.Y + Rel.Y);
+				const FVector C(Trunk.X + Rel.X, Trunk.Y + Rel.Y, Z0 + Lift + T.FlatLift + Layer * 0.06f);
+				AddLeaf(Place(Rel, LeafMat()), C, Yaw, L, W, Tilt, TiltDir, Curl, Z0 + Lift + T.FlatLift);
 				++Made;
 				++NLeaves;
 				if (Out < FlatEnd) ++NFlat;
@@ -481,7 +483,7 @@ void AForestFloor::Build(const ATreeActor& Tree)
 			const float Yaw = R.FRand() * 2.f * PI;
 			const float Lean = R.FRandRange(0.25f, 0.7f);
 			const float Phase = R.FRand();
-			// The foot on the visible ground's relief (zero inside 160 m, so only the far tufts move).
+			// The foot on the visible ground's relief (zero inside its start radius, 90 m by default).
 			const float Lift = LeafRelief::Height(Trunk.X + Foot.X, Trunk.Y + Foot.Y);
 			AddBlade(B, FVector(Trunk.X + Foot.X, Trunk.Y + Foot.Y, Z0 - 0.5f + Lift), Yaw, H, FMath::Max(3.f, 0.022f * H), Lean, Z0, Phase);
 			++NBlades;
@@ -541,7 +543,7 @@ void AForestFloor::Build(const ATreeActor& Tree)
 		const FVector2D Rel = FVector2D(FMath::Cos(A), FMath::Sin(A)) * Rr;
 		if (ClearDist(Rel) < FlatEnd) continue;
 		const float Len = R.FRandRange(40.f, 120.f) * (1.f + Rr / T.LitterRadius);
-		AddTwig(Place(Rel, MTwig), FVector(Trunk.X + Rel.X, Trunk.Y + Rel.Y, Z0), R.FRand() * 2.f * PI, Len, R.FRandRange(0.8f, 1.6f) * (1.f + Rr / T.LitterRadius),
+		AddTwig(Place(Rel, MTwig), FVector(Trunk.X + Rel.X, Trunk.Y + Rel.Y, Z0 + LeafRelief::Height(Trunk.X + Rel.X, Trunk.Y + Rel.Y)), R.FRand() * 2.f * PI, Len, R.FRandRange(0.8f, 1.6f) * (1.f + Rr / T.LitterRadius),
 			R.FRandRange(-0.5f, 0.5f), R.FRandRange(0.f, 0.12f));
 		++Made;
 		++NTwigs;

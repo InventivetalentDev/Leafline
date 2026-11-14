@@ -1234,9 +1234,13 @@ void ATreeActor::BuildGround(const FTreeMeshData* Skirt)
 	// swells have enough of them, and normals and tangents come from the height function, not the plane.
 	const FVector C(Skeleton.TrunkBase.X, Skeleton.TrunkBase.Y, Field.GroundZ);
 	LeafRelief::SetFrame(FVector2D(C.X, C.Y), Skeleton.Seed);
-	const int32 Around = 160;
+	// Twice the segments with the relief on: the far hills' outline is drawn by the rings' segments (200 m apart at 5 km).
+	const int32 Around = LeafRelief::IsOn() ? 320 : 160;
 	TArray<double> Radii;
-	for (double R = 200.0; R < Params.GroundRadius; R *= (R < 8000.0 ? 1.12 : 1.04)) Radii.Add(R);
+	// With the relief on, the rings may reach farther (LeafRelief::GetOuterRadius), so the ground's fogged outline covers
+	// the sky atmosphere's own horizon, which otherwise shows as a flat band above the far hills.
+	const double Outer = LeafRelief::IsOn() && LeafRelief::GetOuterRadius() > 0.f ? double(LeafRelief::GetOuterRadius()) : double(Params.GroundRadius);
+	for (double R = 200.0; R < Outer; R *= (R < 8000.0 ? 1.12 : 1.04)) Radii.Add(R);
 	TArray<FVector> V, N;
 	TArray<FVector2D> UV;
 	TArray<FLinearColor> Col;
