@@ -30,6 +30,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trail")
 	FLinearColor TrailColor = FLinearColor(0.20f, 0.80f, 0.90f);
 
+	/** M_Trail and M_TrailSmoke show vertex RGB times this (vertex colours stop at 1): line colours are written divided by
+	 *  it. Must match the materials' multiplier. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trail")
+	float ColorGain = 1.1f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trail")
 	float Width = 7.f;
 
@@ -101,6 +106,10 @@ public:
 	 * brightness changed are rebuilt.
 	 */
 	void SetLineGlow(const TArray<const TArray<FTrailPoint>*>& Routes, const TArray<float>& Glow, float NoLine);
+	/** The same, also colouring each line's stretches (vertex RGB: Colors parallel to Routes; NoLineColor elsewhere and on
+	 *  yesterday's trails). Where lines share a stretch, the brightest takes it, the lower-numbered on a tie. */
+	void SetLineGlow(const TArray<const TArray<FTrailPoint>*>& Routes, const TArray<float>& Glow, float NoLine,
+		const TArray<FLinearColor>& Colors, const FLinearColor& NoLineColor);
 
 private:
 	struct FPath
@@ -109,6 +118,7 @@ private:
 		TArray<uint8> Drawn;
 		TArray<float> Dist;              // distance along the path to each point (cm)
 		TArray<float> Glow;              // ribbon brightness at each point (SetLineGlow)
+		TArray<FLinearColor> Color;      // ribbon colour at each point: its line's (SetLineGlow), vertex RGB
 		TSet<int32> GlowDirtyChunks;
 		int32 DirtyFromChunk = INDEX_NONE; // only the growing tail is rebuilt
 		bool bYesterday = false;         // loaded from the save: faint, drawn lower, ignored by today's merge test
@@ -127,6 +137,7 @@ private:
 	TMap<FIntVector, TArray<FIntPoint>> Grid; // cell -> (path, point index), every point
 	float CellSize = 60.f;
 	float NoLineGlow = 1.f;
+	FLinearColor NoLineColor = FLinearColor(0.30f, 0.95f, 1.10f);
 	int32 ShownShape = INDEX_NONE;   // the tree shape the Shown points were lifted on (ATreeActor::GetShapeVersion)
 	float RebuildTimer = 0.f;
 

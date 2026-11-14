@@ -52,6 +52,18 @@ struct FLineTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trail") float GlowFull = 1.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trail") float GlowEmpty = 0.3f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trail") float GlowNoLine = 0.25f;
+	/** Each line's colour, in order per day (line 1 the first, repeating): its trail on the bark and its rows on the HUD.
+	 *  No green, amber or red (they mean exposure), nothing near the plain HUD text. Visual only. Emissive units, as the
+	 *  trail materials show them (channels up to ATrailNetwork::ColorGain). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trail") TArray<FLinearColor> LineColors = {
+		FLinearColor(0.30f, 0.95f, 1.10f), // cyan: the trail materials' colour before lines had their own
+		FLinearColor(1.10f, 0.35f, 0.80f), // magenta-pink
+		FLinearColor(0.65f, 0.40f, 1.10f), // violet
+		FLinearColor(0.30f, 0.50f, 1.10f), // blue
+		FLinearColor(0.90f, 1.00f, 1.10f), // ice white
+	};
+	/** Trails on no line (a scout's walk before it lays one, yesterday's trails): the old cyan. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trail") FLinearColor NoLineColor = FLinearColor(0.30f, 0.95f, 1.10f);
 };
 
 /** One line: a scout's loop-free route from the nest to the leaf it cut, plus the patch around that leaf. */
@@ -178,6 +190,10 @@ public:
 
 	// Read-outs for the HUD, recap and camera.
 	const TArray<FColonyLine>& GetLines() const { return Lines; }
+	/** Line Number's colour (1-based, from Tuning.LineColors, repeating); for HUD text, Lighten mixes it toward white. */
+	FLinearColor GetLineColor(int32 Number, float Lighten = 0.f) const;
+	/** The colour the next line laid today will have (the patch read-out before a scout commits). */
+	int32 GetNextLineNumber() const { return Lines.Num() + 1; }
 	int32 NumLiveLines() const;
 	int32 GetPoolSize() const { return Recruits.Num(); }
 	/** Recruits in the nest with trips left and no live line to go to ("4 workers idle: lay a new line"). */
