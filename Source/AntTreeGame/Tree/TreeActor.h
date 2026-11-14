@@ -145,6 +145,15 @@ public:
 	void SetNewBark(bool bOn);
 	static bool IsNewBark();
 
+	/** Ground material (Leaf.Ground): M_Ground2 (the floor pass: a far look of leaf-sized flecks beyond about 20 m, the
+	 *  default when the asset exists) or M_Ground. Applies at once. */
+	void SetGroundLook(bool bNew);
+	static bool IsGroundLook2();
+	/** Sets a scalar parameter on M_Ground2's dynamic instance (tuning without rebuilding the material); false if none. */
+	bool SetGroundParam(FName Name, float Value);
+	/** Rebuilds the ground rings, the grove and its crowns (after Leaf.Relief); the ground skirt is left out. */
+	void RebuildGroundAndGrove();
+
 	/** Branch collars (Leaf.Collars): overrides FTreeParams::bBranchCollars for every tree grown from now on. */
 	static void SetBranchCollarsOverride(bool bOn);
 	static bool AreBranchCollarsOn(const FTreeParams& P);
@@ -163,6 +172,12 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInterface> NewBarkMaterial;
+
+	/** M_Ground2's dynamic instance if the ground look 2 is on and the asset exists, else GroundMaterial. */
+	UMaterialInterface* PickGround();
+
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> Ground2MID;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UProceduralMeshComponent> WoodMesh;
@@ -203,6 +218,8 @@ private:
 	/** Skirt: the ground half of the trunk and roots' ground skirt (TreeMeshBuilder), added to the ground section. */
 	void BuildGround(const FTreeMeshData* Skirt = nullptr);
 	void BuildGrove();
+	/** The grove crowns' mesh from GroveLeaves (made in BuildGrove). */
+	void BuildGroveCrowns();
 
 	FTreeSkeleton Skeleton;
 	FTreeField Field;

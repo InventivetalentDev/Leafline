@@ -7,6 +7,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "UObject/ConstructorHelpers.h"
 #include "EngineUtils.h"
+#include "World/GroundRelief.h"
 
 namespace
 {
@@ -500,6 +501,57 @@ UMaterialInterface* ATreeActor::PickBark()
 	return GNewBark && NewBarkMaterial ? NewBarkMaterial.Get() : BarkMaterial.Get();
 }
 
+namespace
+{
+	bool GGroundLook2 = true;
+}
+
+bool ATreeActor::IsGroundLook2()
+{
+	return GGroundLook2;
+}
+
+UMaterialInterface* ATreeActor::PickGround()
+{
+	if (GGroundLook2 && !Ground2MID)
+	{
+		// Loaded by path (the folder is always cooked) so a missing asset only falls back to M_Ground.
+		if (UMaterialInterface* M2 = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Leafline/Materials/M_Ground2.M_Ground2"), nullptr, LOAD_NoWarn | LOAD_Quiet))
+		{
+			Ground2MID = UMaterialInstanceDynamic::Create(M2, this);
+		}
+		else
+		{
+			UE_LOG(LogLeafline, Warning, TEXT("M_Ground2 not found; the ground uses M_Ground"));
+			GGroundLook2 = false;
+		}
+	}
+	return GGroundLook2 && Ground2MID ? static_cast<UMaterialInterface*>(Ground2MID.Get()) : GroundMaterial.Get();
+}
+
+void ATreeActor::SetGroundLook(bool bNew)
+{
+	GGroundLook2 = bNew;
+	UMaterialInterface* Mat = PickGround();
+	if (Mat && WoodMesh && WoodMesh->GetNumSections() > 1) WoodMesh->SetMaterial(1, Mat);
+	UE_LOG(LogLeafline, Log, TEXT("Ground material: %s"), Mat ? *Mat->GetName() : TEXT("none"));
+}
+
+bool ATreeActor::SetGroundParam(FName Name, float Value)
+{
+	if (!Ground2MID) return false;
+	Ground2MID->SetScalarParameterValue(Name, Value);
+	return true;
+}
+
+void ATreeActor::RebuildGroundAndGrove()
+{
+	if (!WoodMesh) return;
+	BuildGround();
+	BuildGrove();
+	BuildGroveCrowns();
+}
+
 void ATreeActor::SetNewBark(bool bOn)
 {
 	GNewBark = bOn;
@@ -610,7 +662,11 @@ void ATreeActor::BuildLeafMeshes()
 		LeafMaterialInUse = MID;
 	}
 	for (int32 c = 0; c < Leaves.NumChunks(); ++c) BuildLeafChunk(c, false);
+	BuildGroveCrowns();
+}
 
+void ATreeActor::BuildGroveCrowns()
+{
 	// Grove crowns (leaves made in BuildGrove), drawn with the same leaf material.
 	if (!GroveLeafMesh)
 	{
@@ -1068,8 +1124,10 @@ void ATreeActor::BuildGrove()
 	{
 		const float Az = 2.f * PI * k / FMath::Max(Count, 1) + R.FRandRange(-0.18f, 0.18f);
 		const float Dist = R.FRandRange(Params.GroveMinDistance, Params.GroveMaxDistance);
-		const FVector Base = C + FVector(FMath::Cos(Az), FMath::Sin(Az), 0.f) * Dist;
+		FVector Base = C + FVector(FMath::Cos(Az), FMath::Sin(Az), 0.f) * Dist;
 		const float R0 = R.FRandRange(500.f, 1100.f);
+		// On the visible ground's relief, sunk by the drop across the flared foot so its downhill side does not float.
+		Base.Z += LeafRelief::Height(Base.X, Base.Y) - LeafRelief::Slope(Base.X, Base.Y) * R0 * 1.6f * 1.2f;
 		const float H = R.FRandRange(22000.f, 38000.f);
 		const FVector Lean = FVector(R.FRandRange(-1.f, 1.f), R.FRandRange(-1.f, 1.f), 0.f).GetSafeNormal() * R.FRandRange(0.01f, 0.04f);
 		auto RadiusAt = [&](float Z)
@@ -1169,23 +1227,28 @@ void ATreeActor::BuildGrove()
 
 void ATreeActor::BuildGround(const FTreeMeshData* Skirt)
 {
-	// A polar disk at the field's ground height, rings spaced wider with distance. Wood mesh section 1.
+	// A polar disk at the field's ground height, rings spaced wider with distance. Wood mesh section 1. Beyond the ants'
+	// reach the visible ground rises and falls (LeafRelief, Leaf.Relief); the rings there are 4% apart, not 12%, so the
+	// swells have enough of them, and normals and tangents come from the height function, not the plane.
 	const FVector C(Skeleton.TrunkBase.X, Skeleton.TrunkBase.Y, Field.GroundZ);
+	LeafRelief::SetFrame(FVector2D(C.X, C.Y), Skeleton.Seed);
 	const int32 Around = 160;
 	TArray<double> Radii;
-	for (double R = 200.0; R < Params.GroundRadius; R *= 1.12) Radii.Add(R);
+	for (double R = 200.0; R < Params.GroundRadius; R *= (R < 8000.0 ? 1.12 : 1.04)) Radii.Add(R);
 	TArray<FVector> V, N;
 	TArray<FVector2D> UV;
 	TArray<FLinearColor> Col;
 	TArray<FProcMeshTangent> Tan;
 	TArray<int32> Tri;
-	auto AddVert = [&](const FVector& P)
+	auto AddVert = [&](const FVector& Flat)
 	{
-		V.Add(P);
-		N.Add(FVector::UpVector);
-		UV.Add(FVector2D(P.X, P.Y));
+		const float H = LeafRelief::Height(Flat.X, Flat.Y);
+		const FVector Up = H != 0.f ? LeafRelief::Normal(Flat.X, Flat.Y) : FVector::UpVector;
+		V.Add(Flat + FVector(0.0, 0.0, H));
+		N.Add(Up);
+		UV.Add(FVector2D(Flat.X, Flat.Y));
 		Col.Add(FLinearColor::Black);
-		Tan.Add(FProcMeshTangent(FVector::ForwardVector, false));
+		Tan.Add(FProcMeshTangent((FVector::ForwardVector - Up * Up.X).GetSafeNormal(), false));
 	};
 	AddVert(C);
 	for (double R : Radii)
@@ -1225,9 +1288,9 @@ void ATreeActor::BuildGround(const FTreeMeshData* Skirt)
 		for (int32 Idx : Skirt->Triangles) Tri.Add(Base + Idx);
 	}
 	WoodMesh->CreateMeshSection_LinearColor(1, V, Tri, N, UV, {}, {}, {}, Col, Tan, false, false);
-	if (GroundMaterial)
+	if (UMaterialInterface* Ground = PickGround())
 	{
-		WoodMesh->SetMaterial(1, GroundMaterial);
+		WoodMesh->SetMaterial(1, Ground);
 	}
 	else if (FallbackMaterial)
 	{
