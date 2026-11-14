@@ -57,6 +57,41 @@ namespace
 		int32 JunctionLogsThisSecond = 0;
 	};
 	TMap<const UAntMovementComponent*, FControlTrace> GControlTrace;
+
+	/** Leaf.FollowDiag 1: followers and walkers home that make no headway log what each step does (fillet-walk diagnosis). */
+	int32 GFollowDiagOn = 0;
+	FAutoConsoleVariableRef CVarFollowDiag(TEXT("Leaf.FollowDiag"), GFollowDiagOn,
+		TEXT("Leaf.FollowDiag 0|1: followers (recruits, riders) and ants walking home that make no headway log each step's details."));
+	struct FFollowDiag
+	{
+		FVector ProgressPos = FVector::ZeroVector;
+		double Clock = 0.0;
+		double ProgressTime = 0.0;
+		double LastLog = -10.0;
+		int32 Logged = 0;
+	};
+	TMap<const UAntMovementComponent*, FFollowDiag> GFollowDiag;
+
+	/** True when this ant should log now (no 20 cm of headway for 4 s; then every 0.25 s, at most 60 lines a stall). */
+	bool FollowDiagDue(const UAntMovementComponent* M, const FVector& Pos, float Dt)
+	{
+		if (!GFollowDiagOn) return false;
+		FFollowDiag& D = GFollowDiag.FindOrAdd(M);
+		D.Clock += Dt;
+		if (FVector::DistSquared(Pos, D.ProgressPos) > 20.0 * 20.0)
+		{
+			if (D.Logged > 0) UE_LOG(LogLeafline, Log, TEXT("FollowDiag %s: moving again after %d lines"), *M->GetOwner()->GetName(), D.Logged);
+			D.ProgressPos = Pos;
+			D.ProgressTime = D.Clock;
+			D.Logged = 0;
+			return false;
+		}
+		if (D.Clock - D.ProgressTime < 4.0 || D.Logged >= 60) return false;
+		if (D.Logged >= 12 && D.Clock - D.LastLog < 0.25) return false;
+		D.LastLog = D.Clock;
+		++D.Logged;
+		return true;
+	}
 }
 
 UAntMovementComponent::UAntMovementComponent()
@@ -872,6 +907,13 @@ void UAntMovementComponent::TickWalking(float Dt)
 	LastProjError = MaxErr;
 	F->Distance(Pos, &CurrentBranch);
 	UpdateOrientation(Dt);
+	if (State == EAntState::WalkingHome && FollowDiagDue(this, Pos, Dt))
+	{
+		const FVector GP = F->RawGradient(Pos);
+		UE_LOG(LogLeafline, Log, TEXT("FollowDiag %s WalkingHome: pos %s (d %.2f, |g| %.2f, br %d) n %s; wish %s vel %s; steps %d maxerr %.2f fails %d"),
+			*GetOwner()->GetName(), *Pos.ToCompactString(), F->Distance(Pos), GP.Size(), CurrentBranch, *N.ToCompactString(),
+			*LastWish.ToCompactString(), *Velocity.ToCompactString(), Steps, MaxErr, ProjFailCount);
+	}
 	UpdateTelemetry(Dt, FVector::Dist(Start, Pos), bWantsMove);
 	UpdateInputViz(Dt, Axis, RadiusHere, ThinBlend, BranchBlend, bWheel, bWantsMove, LastWish, LastIntent, DistToEnd);
 }
@@ -919,6 +961,17 @@ void UAntMovementComponent::TickFollow(float Dt)
 			? FMath::Lerp(FollowPoints[FollowIndex].Pos, FollowPoints[NextIdx].Pos, FollowFrac)
 			: FollowPoints[FollowIndex].Pos;
 		FollowLag = FVector::Dist(Pos, Cur);
+		// The point followed can lie under the walking surface: a long step between two route points cuts through the wood
+		// (test walks leave steps of metres across a limb), and a fillet covers a route laid on the field without fillets.
+		// The ant then rides on the bark above it, so count only how far it trails that, not the depth. Otherwise the lag
+		// stays over 30 cm, the point waits, and each one-second snap moves it on by one tick (about 1 cm/s: laden recruits
+		// were rescued after 420 s at junctions). Only with fillets, so the field without them walks exactly as before
+		// (where the same creep is shorter).
+		if (F->HasFillets())
+		{
+			const double Buried = Tuning.RideHeight - F->Distance(Cur);
+			if (Buried > 0.0) FollowLag = FMath::Max(FollowLag - Buried, 0.0);
+		}
 		// Pinned for a second (wood between the ant and the point it follows): step onto the route point itself, which
 		// is on the bark. A small jump, rare, and it keeps every follower on its route.
 		if (FollowLag > 30.0 && FollowWait > 1.f)
@@ -933,6 +986,7 @@ void UAntMovementComponent::TickFollow(float Dt)
 		if (bAtEnd && (FollowLag < 20.0 || FollowWait >= 2.f)) bFollowFinished = true;
 	}
 	double Remaining = (FollowLag > 30.0 && FollowWait < 2.f) ? 0.0 : Speed * Dt;
+	const double Remaining0 = Remaining;
 	while (Remaining > 0.0 && !bFollowFinished)
 	{
 		const int32 Next = FollowIndex + FollowDir;
@@ -959,13 +1013,34 @@ void UAntMovementComponent::TickFollow(float Dt)
 	// Ease onto the path (riding starts up to RideReach away), then track it.
 	const FVector Start = Pos;
 	Pos = MoveTowards(Pos, Target, Speed * 2.0 * Dt + 1.0);
+	const FVector Tried = Pos;
 	FVector N;
 	double Err = 0.0;
-	if (!F->Project(Pos, N, Tuning.RideHeight, &Err))
+	const bool bProjOk = F->Project(Pos, N, Tuning.RideHeight, &Err);
+	if (!bProjOk)
 	{
 		++ProjFailCount;
 		Pos = Start;
 		N = SurfaceNormal;
+	}
+	if (FollowDiagDue(this, Pos, Dt))
+	{
+		int32 Br = INDEX_NONE;
+		const double DPos = F->Distance(Pos, &Br);
+		double DTarget = 0.0;
+		const FVector GT = F->RawGradient(Target, &DTarget);
+		const FVector GP = F->RawGradient(Pos);
+		FString Pts;
+		for (int32 k = -2; k <= 2; ++k)
+		{
+			const int32 I = FollowIndex + k * FollowDir;
+			if (!FollowPoints.IsValidIndex(I)) continue;
+			Pts += FString::Printf(TEXT(" [%d %s d%.1f]"), I, *FollowPoints[I].Pos.ToCompactString(), F->Distance(FollowPoints[I].Pos));
+		}
+		UE_LOG(LogLeafline, Log, TEXT("FollowDiag %s %s: pos %s (d %.2f, |g| %.2f, br %d) n %s; target %s (d %.2f, |g| %.2f) idx %d/%d frac %.2f dir %d; lag %.1f wait %.2f rem %.1f; tried %s proj %s err %.2f; snaps %d fails %d;%s"),
+			*GetOwner()->GetName(), *UEnum::GetValueAsString(State), *Pos.ToCompactString(), DPos, GP.Size(), Br, *N.ToCompactString(),
+			*Target.ToCompactString(), DTarget, GT.Size(), FollowIndex, FollowPoints.Num(), FollowFrac, FollowDir, FollowLag, FollowWait, Remaining0,
+			*Tried.ToCompactString(), bProjOk ? TEXT("ok") : TEXT("FAIL"), Err, FollowSnaps, ProjFailCount, *Pts);
 	}
 	SurfaceNormal = N;
 	LastProjError = Err;
@@ -1181,8 +1256,32 @@ void UAntMovementComponent::UpdateTelemetry(float Dt, double Moved, bool bHadInp
 
 void UAntMovementComponent::ApplyTransform()
 {
-	if (AActor* Owner = GetOwner())
+	AActor* Owner = GetOwner();
+	if (!Owner) return;
+	const FQuat Q = FRotationMatrix::MakeFromXZ(Forward, Up).ToQuat();
+	Owner->SetActorLocationAndRotation(Pos, Q, false, nullptr, ETeleportType::TeleportPhysics);
+
+	// Display only: the actor stays at the walking position (everything in the sim reads that); the visuals are lifted
+	// onto a junction's skirt where one covers the ant, and tilted from the walking normal to the skirt's.
+	ShownPos = Pos;
+	ShownUp = Up;
+	FVector P = Pos, N = SurfaceNormal;
+	const bool bLift = State != EAntState::Falling && Tree.IsValid() && Tree->LiftOntoSkirts(P, N, Tuning.RideHeight);
+	USceneComponent* Shown = ShownComponent.Get();
+	if (bLift)
 	{
-		Owner->SetActorLocationAndRotation(Pos, FRotationMatrix::MakeFromXZ(Forward, Up).ToQuat(), false, nullptr, ETeleportType::TeleportPhysics);
+		const FQuat Tilt = FQuat::FindBetweenNormals(SurfaceNormal, N);
+		ShownPos = P;
+		ShownUp = Tilt.RotateVector(Up);
+		if (Shown)
+		{
+			const FQuat Inv = Q.Inverse();
+			Shown->SetRelativeLocationAndRotation(Inv.RotateVector(P - Pos), Inv * Tilt * Q);
+		}
 	}
+	else if (bShownLifted && Shown)
+	{
+		Shown->SetRelativeLocationAndRotation(FVector::ZeroVector, FQuat::Identity);
+	}
+	bShownLifted = bLift;
 }

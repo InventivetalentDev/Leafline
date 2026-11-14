@@ -95,6 +95,12 @@
   - Sent to the cues agent (14 Nov 14:00): far fewer specks, warm dust colours instead of near-white, stretched along the wind; the streaks carry the gust; the dust wall subtler. For the 17:00 package.
 - [ ] polish: add a simple controls overview to the pause menu
   - Sent to the ui agent (14 Nov 14:00): a Controls page in the pause menu with the prompt icons, next to the new Credits page. For the 17:00 package.
+- [ ] small branches should have fillets too
+  - Sent to lk-fillet (14 Nov 14:35): fillet zones and skirts on twigs too, within a triangle and build-time budget; looks only, like the rest since the lift. For the 17:00 package.
+- [ ] polish: make scent lines different colors per run so they're easier to tell apart
+  - Sent to bd-core (14 Nov 14:35): each line its own colour from a fixed palette (cyan first; no green, amber or red, which mean exposure), trail ribbon and HUD row alike. For the 17:00 package.
+- [ ] there's not much incentive to go further up the tree than like the 2 lowest layers of branches; look into that later
+  - Noted for after the freeze (design: richer or bigger leaves higher up, the end card or milestones asking for height, wind risk as the price). Not started.
 
 ## To revisit: thin-branch controls (2026-11-12)
 

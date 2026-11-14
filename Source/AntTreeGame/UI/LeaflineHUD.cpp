@@ -1255,8 +1255,13 @@ void ALeaflineHUD::DrawPause(float Scale)
 		DrawCredits(Scale);
 		return;
 	}
-	float Y = (Page == 0 ? 200.f : 160.f) * Scale;
-	DrawPanel(CX - W * 0.5f, Y, W, (Page == 0 ? 496.f : 580.f) * Scale, Scale);
+	if (Page == ALeaflinePlayerController::ControlsPage)
+	{
+		DrawControls(Scale);
+		return;
+	}
+	float Y = (Page == 0 ? 170.f : 160.f) * Scale;
+	DrawPanel(CX - W * 0.5f, Y, W, (Page == 0 ? 572.f : 580.f) * Scale, Scale);
 	DrawTextCentered(Page == 0 ? TEXT("Paused") : TEXT("Options"), CX, Y, AccentColor, PrimaryText(Scale), Font);
 	Y += 74.f * Scale;
 	const float RowH = Style.MenuRow * Scale, Gap = Style.Gap * Scale;
@@ -1264,8 +1269,9 @@ void ALeaflineHUD::DrawPause(float Scale)
 	{
 		const float BW = 800.f * Scale;
 		constexpr int32 N = ALeaflinePlayerController::NumPauseRows;
-		const TCHAR* Labels[N] = { TEXT("Resume"), TEXT("Options"), TEXT("Credits"), TEXT("Quit") };
-		const int32 Ids[N] = { MenuResume, MenuOptions, MenuCredits, MenuQuit };
+		// In the order of ALeaflinePlayerController's PauseRow constants.
+		const TCHAR* Labels[N] = { TEXT("Resume"), TEXT("Controls"), TEXT("Options"), TEXT("Credits"), TEXT("Quit") };
+		const int32 Ids[N] = { MenuResume, MenuControls, MenuOptions, MenuCredits, MenuQuit };
 		for (int32 b = 0; b < N; ++b)
 		{
 			AddMenuHit(CX - BW * 0.5f, Y, BW, RowH, Ids[b]);
@@ -1401,8 +1407,80 @@ void ALeaflineHUD::DrawCredits(float Scale)
 
 	// Back is the only button, so it is always the selected one.
 	const float BW = 800.f * Scale;
-	AddMenuHit(CX - BW * 0.5f, BackY, BW, BackH, MenuCreditsBack);
+	AddMenuHit(CX - BW * 0.5f, BackY, BW, BackH, MenuPageBack);
 	DrawRect(Style.Selection, CX - BW * 0.5f, BackY, BW, BackH);
 	DrawTextCentered(TEXT("Back"), CX, BackY + Style.Padding * Scale, AccentColor, PrimaryText(Scale), Font);
 	DrawTextCentered(MaxScroll > 0.f ? TEXT("{Choose}: scroll      {Back}: back") : TEXT("{Back}: back"), CX, PromptY, TextColor, TextScale, Font);
+}
+
+void ALeaflineHUD::DrawControls(float Scale)
+{
+	UFont* Font = GEngine->GetMediumFont();
+	const float CX = Canvas->ClipX * 0.5f, W = Style.CardWidth * Scale;
+	const float TextScale = SecondaryText(Scale);
+	const ABirdSystem* Bird = ABirdSystem::Get(this);
+
+	// The buttons come from the prompt tokens, so they show the device in use like every other prompt; PromptIcons.cpp
+	// keeps the tokens in step with the bindings in ALeaflinePlayerController::CreateInput.
+	struct FControlRow
+	{
+		const TCHAR* Keys;
+		const TCHAR* Label;
+	};
+	TArray<FControlRow> Rows = {
+		{ TEXT("{Move}"), TEXT("move") },
+		{ TEXT("{Look}"), TEXT("look") },
+		{ TEXT("{Sprint}"), TEXT("sprint") },
+		{ TEXT("{Cut}"), TEXT("cut (hold)") },
+		{ TEXT("{Send}"), TEXT("send home") },
+		{ TEXT("{Follow}"), TEXT("follow a trail (hold)") },
+		{ TEXT("{Grip}"), Bird && Bird->IsBirdOn() ? TEXT("grip in a gust or a dive (hold)") : TEXT("grip in a gust (hold)") },
+		{ TEXT("{Cycle}"), TEXT("switch ant (tap), wind map (hold)") },
+		{ TEXT("{Pause}"), TEXT("pause") },
+	};
+	if (Bird && Bird->IsBaitOn()) Rows.Add({ TEXT("{Drop}"), TEXT("drop your piece for the bird") });
+
+	// Two columns centred as a block: the buttons right-aligned, the action beside them.
+	const float LineH = MeasureText(TEXT("Ag"), Font, TextScale).Y;
+	float KeysW = 0.f, LabelW = 0.f, RowH = LineH;
+	for (const FControlRow& R : Rows)
+	{
+		const FVector2D K = MeasureText(R.Keys, Font, TextScale);
+		KeysW = FMath::Max(KeysW, float(K.X));
+		RowH = FMath::Max(RowH, float(K.Y));
+		LabelW = FMath::Max(LabelW, float(MeasureText(R.Label, Font, TextScale).X));
+	}
+	const float ColGap = 2.f * Style.Gap * Scale;
+	const float ColX = CX - 0.5f * (KeysW + ColGap + LabelW) + KeysW;
+	const float Step = RowH + Style.Gap * Scale;
+	const FString Device = UsingPad() ? TEXT("Showing the pad. A key or the mouse shows the keyboard.")
+		: TEXT("Showing keyboard and mouse. A pad button shows the pad.");
+	const FString Prompt = TEXT("{Back}: back");
+	const float PromptH = MeasureText(Prompt, Font, TextScale).Y;
+	const float BackH = Style.MenuRow * Scale;
+
+	// Title, the rows, the device line, Back and the prompt: the same steps as drawn below.
+	const float H = (Style.PrimaryHeight + Style.Gap + Style.Row) * Scale + Rows.Num() * Step + 2.f * Style.Row * Scale
+		+ BackH + Style.Padding * Scale + PromptH;
+	float Y = FMath::RoundToFloat((Canvas->ClipY - H) * 0.5f);
+	DrawPanel(CX - W * 0.5f, Y, W, H, Scale);
+	DrawTextCentered(TEXT("Controls"), CX, Y, AccentColor, PrimaryText(Scale), Font);
+	Y += (Style.PrimaryHeight + Style.Gap + Style.Row) * Scale;
+	for (const FControlRow& R : Rows)
+	{
+		DrawTextAt(R.Keys, ColX - MeasureText(R.Keys, Font, TextScale).X, Y, TextColor, TextScale, Font);
+		DrawTextAt(R.Label, ColX + ColGap, Y + 0.5f * (RowH - LineH), TextColor, TextScale, Font);
+		Y += Step;
+	}
+	Y += Style.Row * Scale - Style.Gap * Scale;
+	DrawTextCentered(Device, CX, Y, Style.Muted, TextScale, Font);
+	Y += Style.Row * Scale + Style.Gap * Scale;
+
+	// Back is the only button, so it is always the selected one (as on the credits page).
+	const float BW = 800.f * Scale;
+	AddMenuHit(CX - BW * 0.5f, Y, BW, BackH, MenuPageBack);
+	DrawRect(Style.Selection, CX - BW * 0.5f, Y, BW, BackH);
+	DrawTextCentered(TEXT("Back"), CX, Y + Style.Padding * Scale, AccentColor, PrimaryText(Scale), Font);
+	Y += BackH + Style.Padding * Scale;
+	DrawTextCentered(Prompt, CX, Y, TextColor, TextScale, Font);
 }

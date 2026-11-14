@@ -189,6 +189,12 @@ public:
 	const FVector& GetSurfacePosition() const { return Pos; }
 	const FVector& GetSurfaceNormal() const { return SurfaceNormal; }
 	const FVector& GetBodyUp() const { return Up; }
+	/** Where the ant is drawn: its position and up lifted onto a junction's skirt when one covers it (fillets are looks
+	 *  only, the sim walks on the field without them), else the surface position and body up. Set by ApplyTransform. */
+	const FVector& GetShownPosition() const { return bShownLifted ? ShownPos : Pos; }
+	const FVector& GetShownUp() const { return bShownLifted ? ShownUp : Up; }
+	/** The component holding the ant's visuals (meshes and the carried piece): ApplyTransform moves it onto the skirt. */
+	void SetShownComponent(USceneComponent* C) { ShownComponent = C; }
 	const FVector& GetBodyForward() const { return Forward; }
 	const FVector& GetVelocity() const { return Velocity; }
 	float GetStamina() const { return Stamina; }
@@ -226,6 +232,10 @@ private:
 
 	FVector Pos = FVector::ZeroVector;
 	FVector Up = FVector::UpVector;
+	FVector ShownPos = FVector::ZeroVector;
+	FVector ShownUp = FVector::UpVector;
+	bool bShownLifted = false;
+	TWeakObjectPtr<USceneComponent> ShownComponent;
 	FVector Forward = FVector::ForwardVector;
 	FVector Velocity = FVector::ZeroVector;
 	FVector SurfaceNormal = FVector::UpVector;
