@@ -19,7 +19,7 @@ namespace
 	enum EMat { MBrown, MOchre, MOlive, MDarkBrown, MGrass, MTwig };
 	// Dull on purpose: brown already means "cannot be cut" on the tree. Grass is darker than any leaf on the tree.
 	const FLinearColor MatColors[NumMats] = {
-		FLinearColor(0.050f, 0.028f, 0.015f),  // brown
+		FLinearColor(0.040f, 0.029f, 0.020f),  // brown (greyer: the matte material turned 0.05/0.028/0.015 rust-orange in direct sun)
 		FLinearColor(0.052f, 0.046f, 0.024f),  // dull tan-ochre (matte M_Litter lifts it in sun; the first 0.082/0.058/0.024 read orange)
 		FLinearColor(0.038f, 0.044f, 0.016f),  // olive
 		FLinearColor(0.036f, 0.025f, 0.017f),  // dark brown
@@ -398,7 +398,7 @@ void AForestFloor::Build(const ATreeActor& Tree)
 			const float Yaw = R.FRand() * 2.f * PI;
 			const float Lean = R.FRandRange(0.25f, 0.7f);
 			const float Phase = R.FRand();
-			AddBlade(B, FVector(Trunk.X + Foot.X, Trunk.Y + Foot.Y, Z0 - 0.5f), Yaw, H, FMath::Max(3.f, 0.05f * H), Lean, Z0, Phase);
+			AddBlade(B, FVector(Trunk.X + Foot.X, Trunk.Y + Foot.Y, Z0 - 0.5f), Yaw, H, FMath::Max(3.f, 0.036f * H), Lean, Z0, Phase);
 			++NBlades;
 		}
 		++NTufts;

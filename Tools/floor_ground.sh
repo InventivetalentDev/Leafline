@@ -13,12 +13,14 @@ SHOTDIR=$ROOT/Saved/Screenshots/WindowsEditor
 OUT=$ROOT/Saved/RefShots
 LOG=$ROOT/Saved/Logs/FloorGround.log
 mkdir -p "$SHOTDIR" "$OUT"
+# POSE=goto stands the ant beside the nest (seed 15161, the owner's first nest pose) instead of on the entrance.
+if [ "${POSE:-aim}" = goto ]; then P="Leaf.Goto -547 1550 7"; else P="Leaf.Aim"; fi
 STEPS=(
  "0|Leaf.NewDay $SEED" "4|Leaf.Cinematic 1"
- "6|Leaf.Aim -165 -7" "10|HighResShot 1"
- "11|Leaf.Aim -100 -7" "15|HighResShot 1"
- "16|Leaf.Aim 20 -7" "20|HighResShot 1"
- "21|Leaf.Aim 120 -7" "25|HighResShot 1"
+ "6|$P -165 -7" "10|HighResShot 1"
+ "11|$P -100 -7" "15|HighResShot 1"
+ "16|$P 20 -7" "20|HighResShot 1"
+ "21|$P 120 -7" "25|HighResShot 1"
  "26|Leaf.Goto -2962 903 0 -165 -4" "30|HighResShot 1"
  "31|Leaf.Goto 1802 2405 0 20 -4" "35|HighResShot 1"
  "36|Leaf.Goto -1797 3715 0 120 -4" "40|HighResShot 1"
