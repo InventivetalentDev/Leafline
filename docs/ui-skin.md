@@ -67,22 +67,26 @@ The four numbers are left, top, right, bottom. `scale 2` means "painted at twice
 
 1. In the game's folder, create `AntTreeGame/Saved/Skin/` and put your PNGs and `skin.txt` there.
 2. Start the game. Your images are used wherever they are valid.
-3. While playing, open the console with the key under Esc (`~` / `` ` ``) and type:
+3. While playing, open the console (the engine's Tilde binding: `` ` `` / `~` on a US or UK keyboard; on other
+   layouts it is the key in that position, ask the owner if unsure) and type:
    - `Leaf.ReloadSkin` to read your files again after you changed them (no restart needed);
    - `Leaf.Skin 0` and `Leaf.Skin 1` to compare with the flat panels;
    - `Leaf.PauseMenu 0`, `Leaf.PauseMenu 1`, `Leaf.PauseMenu 2` and `Leaf.PauseMenu 3` to see the pause menu, options,
      credits and controls;
    - `HighResShot 1` to save a screenshot in `AntTreeGame/Saved/Screenshots/`.
-4. If an image does not show, `AntTreeGame/Saved/Logs/AntTreeGame.log` has one line starting with `Skin from` that
-   says, per image, what was used or why it fell back to the flat panel (missing, not a readable PNG, margins
-   missing, do not parse, or do not fit the image).
+4. If an image does not show, `AntTreeGame/Saved/Logs/AntTreeGame.log` has one line starting with `Skin`: either
+   `Skin: none` (no `skin.txt` was found; check the folder name) or `Skin from <folder>` listing, per image, what was
+   used or why it fell back to the flat panel (no image, not a readable PNG, no margins line, margins that do not
+   parse, or margins that do not fit the image).
 
 ## Licence and credit
 
 The game's repository becomes **public** after the jam, and the images go into it. Before anything is added, please
 confirm to the owner in writing that:
 
-- the images are entirely your own work, with no third-party material such as stock images, fonts or brushes with
+- the images are made new for this game, on or after 12 November 2026 (a jam rule: nothing older, including your own
+  earlier work, can go in);
+- they are entirely your own work, with no third-party material such as stock images, fonts or brushes with
   restrictions;
 - you agree to them being published in that repository under the licence the owner chooses for the game's assets;
 - you tell the owner whether you used AI tools for any part, so it can be disclosed with the entry.
