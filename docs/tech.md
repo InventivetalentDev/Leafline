@@ -244,6 +244,22 @@ Brief: `docs/briefs/in-world-cues.md`. `AWindCues` (World/WindCues.*) is spawned
 - **Seen from where.** The front reads best with the wind across the screen or toward the camera (it comes in from the upwind side, the side the HUD's wind arrow points away from). With the camera facing downwind the front comes from behind it; then only the all-round stir shows during the warning, which is weak.
 - **Cost.** `Leaf.CuesStat` over a forced gust (editor binaries, 300 streaks, about 330 specks and 36 × 3 dust-wall quads at the peak): 0.17 to 0.20 ms of game thread on average, 0.146 ms over a 25 s gust-and-calm capture; single frames up to 0.5 to 0.9 ms (measured while another Unreal process shared the machine, so partly preemption). The 0.3 ms budget holds on average, not for every frame. `perfbase` A/B on the same binary (two 25 s captures, each starting with a forced gust, cues off then on, 60 Hz cap): game thread 1.98 / 2.03 ms, GPU 3.20 / 3.21 ms over the whole capture, and 2.12 / 1.99 ms, 3.34 / 3.23 ms in the gust's first 10 s: no difference beyond noise.
 
+### Video recording
+
+`Game/LeaflineShots.*` is a transient actor created only by a video command. Its commands live in `Game/LeaflineVideoCommands.cpp`, available in Development packages. The actor runs before `AAntCamera` in `TG_PostPhysics`, so the camera manager reads the current frame's pose. External drive freezes the player's orbit state and restores transform, FOV and the complete post-process settings on completion or cancellation. The restored view is held for one camera tick before ordinary following resumes. No recording code calls save or economy methods. Cinematic mode is independent of shots; ordinary play retains the existing tuning and creates no shot actor.
+
+| Shot | Move | Horizontal FOV |
+|---|---|---|
+| orbit | One turn in the ant's surface tangent plane, at the usual boom with an outward lift | 65° |
+| crane | Establish the ant in the lower third before rising behind it and tilting into the crown | 72° |
+| dolly | Approach from 1.8 to 1 normal boom length along the branch, 45 cm above bark, ant in the lower third; ground uses a straight approach | 58° |
+| reveal | Choose a fully validated route from 12 away-side azimuths, detouring outside the crown when needed; target one-third camera height and 70% tree height, reach the view by 75% duration and hold it; zero roll throughout | 65° opening, height-dependent finish |
+| follow | Smooth the live ant position and heading for a chase from behind and above, including walking, trail rides and falls | 68° |
+
+Quintic easing brings each move to rest at its ends. Every position is checked against the tree/ground field with 12 cm clearance (the normal camera's probe radius), projected outward if needed, and swept from the previous position. A blocked move slides along the local surface or holds at the last safe position. Other shots use an eased return: direct when clear, retracing recorded clear positions when obstructed. Reveal holds its final view until completion, then restores the exact saved player view as a cut; its final second is no longer a return animation. A starting player view already inside wood is rejected because returning to it would be unsafe. Completion logs report minimum clearance, held/clipped frames, and transform/FOV return errors. Watch clipped frames in a recording: geometric safety does not establish good framing or motion.
+
+The reveal's ending is still being simplified (Sat 14 Nov): it will follow step 4's path and end at its 6 s frame.
+
 ## Colony, days and saving
 
 - `LeaflineGameInstance` holds the persistent colony: leaf mass to spend, total hauled, upgrade levels, day number, base seed. `LeaflineSaveGame` writes it to one slot.
@@ -349,6 +365,10 @@ Console commands pay for themselves, because verification is done by driving Pla
 | `Leaf.CuesStat [seconds]` | Log the cues' game-thread cost (average and worst frame) over the next seconds (default 10) |
 | `Leaf.CuesLog [0\|1]` | Log the wind phase, where the gust front is relative to the ant, the air at the ant, its exposure and calm pocket every 0.5 s |
 | `Leaf.WindAim <deg> <pitch>` | Aim the camera relative to the wind (0 looks downwind, 180 upwind into the coming gust, ±90 across it), for repeatable wind screenshots |
+| `Leaf.Cinematic 0\|1` | Hide every canvas element (menus, hints, build line and input view), the mouse cursor and engine screen messages. Add look and follow damping; gameplay input stays enabled. Off restores the screen-message preference. |
+| `Leaf.Shot <orbit\|crane\|dolly\|reveal\|follow> [seconds]` | Eased shot, default 8 real seconds (2–120), including entrance and return (reveal: move for 75%, hold for 25%, restore at completion). Restore the incoming player view and lens. `Leaf.Shot stop` cancels immediately and clears the queue. |
+| `Leaf.ShotList <name> <name> ...` | Play 1–16 named shots, 8 real seconds each. Blend straight between shots and restore the original player camera after the last. Validate the entire list before interrupting a running shot. |
+| `Leaf.Slomo <factor>` | Global game time dilation, 0.05–4; 1 restores normal speed. Shot durations use real seconds. The helper restores the incoming dilation when its world ends. |
 | `Leaf.Smoke [0\|1]` | Scent trails as a thin haze (`M_TrailSmoke` plus an upright ribbon, the default) or the plain flat ribbon (`M_Trail`); no argument toggles |
 | `Leaf.Exposure [0\|1]` | Show or hide the wind map (exposure spots on the bark round the ant, the HUD's bands and colours); no argument toggles |
 | `Leaf.Orbit [seconds] [radius cm] [n]` | Hold screen-right and log the turn round the branch every 0.5 s and a summary (laps, half-seconds with under 15 cm of way round); with a radius, first go to the limb or bough point of about that radius on the n-th best match (the tangent-point test) |
