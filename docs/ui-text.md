@@ -83,7 +83,7 @@ The text version (`DrawDayInfo`, `Leaf.HudIcons 0`) and the icon version (`DrawW
 | number in the arc, "3.0" | "3.0" with "×1.6" smaller underneath, in one panel (only above ×1.0) | The owner's decision (14 Nov): the large number stays the piece's weight, and the multiplier under it is the leaf's value, the one the haul uses (`AAntPawn::GetCarriedValue`). So "+4.8" on arrival is visibly 3.0 × 1.6. Both show one decimal, so the product can be 0.1 off the "+N". |
 | "This piece: safe in a gust" | "Good size: safe in gusts" | The owner found the label switching from "safe" to a wind warning confusing (playtest 1), and still found "This piece: …" odd. As the arc grows the label now judges the **size**: good size, getting big, too big. The colours stay green, amber, red. |
 | "This piece: risky in a gust" | "Getting big: risky in gusts" | |
-| "This piece: too big for a gust" | "Too big: a gust will blow it away" | Says what happens. The worker walks home unharmed, so "blow it away" is the piece. |
+| "This piece: too big for a gust" | "Too big: gusts blow it off exposed bark" | Says what happens, and where: the prediction assumes a full gust on exposed bark without gripping, so sheltered bark or gripping can keep the piece (night review, 14 Nov). |
 
 ### Leaf read-out, above the prompt (`DrawPatchPreview`)
 

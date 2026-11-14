@@ -864,7 +864,7 @@ void ALeaflineHUD::DrawCutArc(const AAntPawn* Ant, float Scale)
 		DrawTextCentered(Mul, CX, Top + NumH + G, Style.Rich, SecondaryText(Scale), Font);
 	}
 	// The label judges the size being cut as the arc grows (good, getting big, too big), not the ant or the leaf.
-	const TCHAR* Label = Ratio >= 1.f ? TEXT("Too big: a gust will blow it away")
+	const TCHAR* Label = Ratio >= 1.f ? TEXT("Too big: gusts blow it off exposed bark")
 		: (Wind && Ratio >= Wind->Tuning.RiskyRatio ? TEXT("Getting big: risky in gusts") : TEXT("Good size: safe in gusts"));
 	DrawTextPanel(Label, CX, CY + R + 28.f * Scale, Now, SecondaryText(Scale), Scale);
 }
