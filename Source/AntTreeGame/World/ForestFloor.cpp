@@ -373,6 +373,7 @@ void AForestFloor::Build(const ATreeActor& Tree)
 	Leaves(T.OuterLeaves, false, 450.f);
 
 	TArray<FVector2D> TuftPos;
+	int32 TryBins[20] = {}, OkBins[20] = {};
 	// 2. Grass: patches of tufts of three to five curved blades, beyond the flat ring; a few tall, far ones to break the
 	// flat horizon.
 	auto Tuft = [&](const FVector2D& Rel, float HeightScale)
@@ -400,12 +401,17 @@ void AForestFloor::Build(const ATreeActor& Tree)
 			while (Made < Target && Guard++ < Target * 40 + 40)
 			{
 				const float A = (Sector + R.FRand()) * 2.f * PI / NumStrata;
-				const float Rr = TrunkClearR + (Rmax - TrunkClearR) * FMath::Pow(R.FRand(), 3.f);
+				const bool bTail = R.FRand() < 0.12f;   // a thin tail out to the litter radius; most clumps stay within GrassRadius
+				const float Rr = bTail ? TrunkClearR + (Rmax - TrunkClearR) * FMath::Pow(R.FRand(), 1.5f)
+									   : TrunkClearR + (T.GrassRadius - TrunkClearR) * FMath::Pow(R.FRand(), 1.8f);
 				const FVector2D Centre = FVector2D(FMath::Cos(A), FMath::Sin(A)) * Rr;
 				for (int32 i = 0; i < 9 && Made < Target; ++i)
 				{
 					const FVector2D Rel = Centre + FVector2D(Gauss(R), Gauss(R)) * 250.f;
+					const int32 Bin = FMath::Clamp(int32(Rel.Size() / 1000.f), 0, 19);
+					++TryBins[Bin];
 					if (ClearDist(Rel) < FlatEnd + 150.f) continue;
+					++OkBins[Bin];
 					Tuft(Rel, 1.f);
 					TuftPos.Add(Rel);
 					++Made;
@@ -483,6 +489,11 @@ void AForestFloor::Build(const ATreeActor& Tree)
 		UE_LOG(LogLeafline, Log, TEXT("Forest floor grass: %d near tufts by octant %d %d %d %d %d %d %d %d, distance from the trunk axis p10 %.0f m, median %.0f m, p90 %.0f m"),
 			N, Octant[0], Octant[1], Octant[2], Octant[3], Octant[4], Octant[5], Octant[6], Octant[7],
 			N ? Dist[N / 10] : 0.f, N ? Dist[N / 2] : 0.f, N ? Dist[N * 9 / 10] : 0.f);
+	}
+	{
+		FString Bins;
+		for (int32 b = 0; b < 20; ++b) Bins += FString::Printf(TEXT(" %d:%d/%d"), b * 10, OkBins[b], TryBins[b]);
+		UE_LOG(LogLeafline, Log, TEXT("Forest floor grass tries by 10 m of distance (ok/tried):%s"), *Bins);
 	}
 	UE_LOG(LogLeafline, Log, TEXT("Forest floor: seed %d, trunk disc %.0f cm (flared radius %.0f), root reach %.0f, %d leaves (%d flat in the ring), %d tufts (%d blades), %d twigs, %lld triangles, built in %.1f ms"),
 		Sk.Seed, TrunkClearR, TrunkR, Reach, NLeaves, NFlat, NTufts, NBlades, NTwigs, Tris, (FPlatformTime::Seconds() - Start) * 1000.0);

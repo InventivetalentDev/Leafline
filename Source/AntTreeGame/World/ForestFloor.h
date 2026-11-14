@@ -35,6 +35,8 @@ struct FForestFloorTuning
 	/** Fraction of the leaves that are small fragments (8 to 24 cm). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Litter") float FragmentFraction = 0.35f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grass") int32 Tufts = 1300;
+	/** Most grass clumps lie between the clearing and this distance from the trunk axis (cm); 12% reach the litter radius. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grass") float GrassRadius = 7000.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grass") int32 FarTufts = 450;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grass") float FarRadius = 30000.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grass") float BladeHeightMin = 80.f;
