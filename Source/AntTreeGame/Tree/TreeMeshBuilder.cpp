@@ -321,6 +321,12 @@ void TreeMeshBuilder::Build(const FTreeSkeleton& S, FTreeMeshData& Out, const FT
 	UE_LOG(LogLeafline, Log, TEXT("TreeMeshBuilder: %d vertices, %d triangles, %.1f ms (overlap pass %.1f ms, %d buried vertices, %d child bases not sealed in their parent)"),
 		Out.Vertices.Num(), Out.Triangles.Num() / 3, (FPlatformTime::Seconds() - StartTime) * 1000.0, OverlapMs, Buried, Unsealed);
 
+	// Seam cross-fade data (leaf.SkirtBlend, for M_TreeBark3): alpha is the skirt's 1 - weight, so the tubes say 1 (their
+	// old buried alpha is read by no bark material since the buried distance moved to UV3.y).
+	if (CVarSkirtBlend.GetValueOnAnyThread() != 0)
+	{
+		for (FLinearColor& C : Out.Colors) C.A = 1.f;
+	}
 	// Junction fillets: a skirt over each crease, lying on the walking field's rounded surface.
 	if (Field && Field->HasFillets()) BuildSkirts(S, *Field, Ranges, Out, OutNoSkirt);
 	// Where the trunk and the roots meet the ground.

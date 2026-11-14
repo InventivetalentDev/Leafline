@@ -99,17 +99,28 @@ namespace
 		TEXT("Leaf.Smoke [0|1]: scent trails as a thin haze with an upright ribbon (1, default) or the plain flat ribbon (0); no argument toggles."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World) { Smoke(World, Args); }));
 
-	/** Leaf.Bark [0|1]: the look-pass bark (M_TreeBark2) or the older M_TreeBark (toggle with no argument). */
+	/** Leaf.Bark [0|1|2]: the older M_TreeBark (0), the look-pass bark M_TreeBark2 (1), or M_TreeBark3 with the skirt seams
+	 *  cross-faded (2: also turns on leaf.SkirtBlend and rebuilds the bark mesh); toggles 0 and 1 with no argument. */
 	void Bark(UWorld* World, const TArray<FString>& Args)
 	{
 		ATreeActor* Tree = ATreeActor::Get(World);
-		const bool bOn = Args.Num() > 0 ? FCString::Atoi(*Args[0]) != 0 : !ATreeActor::IsNewBark();
-		if (Tree) Tree->SetNewBark(bOn);
+		const int32 V = FMath::Clamp(Args.Num() > 0 ? FCString::Atoi(*Args[0]) : (ATreeActor::IsNewBark() ? 0 : 1), 0, 2);
+		IConsoleVariable* Blend = IConsoleManager::Get().FindConsoleVariable(TEXT("leaf.SkirtBlend"));
+		const bool bWasBlend = Blend && Blend->GetInt() != 0;
+		const bool bBlend = V == 2;
+		ATreeActor::SetBark3(bBlend);
+		if (Blend && bBlend != bWasBlend) Blend->Set(bBlend ? 1 : 0, ECVF_SetByConsole);
+		if (Tree)
+		{
+			if (bBlend != bWasBlend) Tree->RebuildWoodMesh();
+			Tree->SetNewBark(V >= 1);
+		}
+		UE_LOG(LogLeafline, Log, TEXT("Leaf.Bark %d"), V);
 	}
 
 	FAutoConsoleCommandWithWorldAndArgs CmdBark(
 		TEXT("Leaf.Bark"),
-		TEXT("Leaf.Bark [0|1]: the look-pass bark M_TreeBark2 (1, default) or the older M_TreeBark (0); no argument toggles."),
+		TEXT("Leaf.Bark [0|1|2]: the older M_TreeBark (0), the look-pass bark M_TreeBark2 (1, default), or M_TreeBark3 with the skirt seams cross-faded (2: also sets leaf.SkirtBlend 1 and rebuilds the bark mesh with the seam data; M_TreeBark2 while the asset is missing); no argument toggles 0 and 1."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World) { Bark(World, Args); }));
 
 	/** Leaf.Ground [0|1] [Name Value ...]: the floor-pass ground M_Ground2 or the older M_Ground, plus scalar parameters on

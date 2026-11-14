@@ -144,6 +144,12 @@ public:
 	/** Bark material: M_TreeBark2 (the look pass, default) or the older M_TreeBark. Applies at once, to the grove too. */
 	void SetNewBark(bool bOn);
 	static bool IsNewBark();
+	/** Leaf.Bark 2: M_TreeBark3 (the skirt seams cross-faded; falls back to M_TreeBark2 while the asset is missing) when the
+	 *  new bark is on. The mesh needs leaf.SkirtBlend's data: RebuildWoodMesh after changing it. */
+	static void SetBark3(bool bOn);
+	static bool IsBark3();
+	/** Builds the bark mesh (section 0) and the grove again from today's skeleton and field, keeping everything else. */
+	void RebuildWoodMesh();
 
 	/** Ground material (Leaf.Ground): M_Ground2 (the floor pass: a far look of leaf-sized flecks beyond about 20 m, the
 	 *  default when the asset exists) or M_Ground. Applies at once. */
@@ -178,6 +184,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInterface> NewBarkMaterial;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInterface> Bark3Material;
 
 	/** M_Ground2's dynamic instance if the ground look 2 is on and the asset exists, else GroundMaterial. */
 	UMaterialInterface* PickGround();

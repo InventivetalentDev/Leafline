@@ -25,6 +25,8 @@ namespace
 		TEXT("Ground skirt: fill runs of failed columns from their neighbours (1) or leave the gap (0, the strip ends in an open edge there: the old lip). Takes effect when the tree next grows."));
 	TAutoConsoleVariable<int32> CVarGroundClose(TEXT("leaf.GroundClose"), 1,
 		TEXT("Ground skirt: lay the columns at open ends of the strip onto the wall and the ground underneath (1) or leave them on the fillet (0: the strip ends in a raised edge). Takes effect when the tree next grows."));
+	TAutoConsoleVariable<int32> CVarSkirtBlend(TEXT("leaf.SkirtBlend"), 0,
+		TEXT("Skirt seam cross-fade data for M_TreeBark3 (1; Leaf.Bark 2 sets it and regrows the tree) or none (0, as before). Near the seam each skirt vertex also carries the other side's bark: UV0 = its radial direction times its bark radius, UV3.y = its along + 512, colour R = its per-branch random, alpha = 1 - weight (weight 0.5 on the seam, 0 a band away); tube alpha is 1. M_TreeBark2 reads none of these. Takes effect when the tree next grows."));
 	TAutoConsoleVariable<int32> CVarSkirtSeam(TEXT("leaf.SkirtSeam"), 0,
 		TEXT("Where a skirt switches from the child's bark to the parent's: 0 where the surface is equally far from both tubes (the old crease), 1 at its outer edge on the parent (the child's bark over the whole fillet). Takes effect when the tree next grows."));
 
@@ -57,9 +59,19 @@ namespace
 		FVector MoveWorstAt = FVector::ZeroVector;
 		int32 MoveWorstBranch = INDEX_NONE;
 		TArray<int32> Failed;
+		/** leaf.SkirtBlend: vertices carrying the other side's bark, the lowest other along (+512, must stay above
+		 *  -BuriedDepth), how many were clamped, and the worst mismatch on the seam row between one half's "other" data and
+		 *  the other half's own data (bark coordinates in cm, per-branch random). */
+		int32 BlendVerts = 0, BlendClamped = 0;
+		double BlendAlongMin = TNumericLimits<double>::Max(), SeamUVErr = 0.0, SeamAlongErr = 0.0, SeamRandErr = 0.0;
+		double SeamUVErrHalf = 0.0, SeamAlongErrHalf = 0.0;
 
 		void Add(const FSkirtStats& O)
 		{
+			BlendVerts += O.BlendVerts; BlendClamped += O.BlendClamped; BlendAlongMin = FMath::Min(BlendAlongMin, O.BlendAlongMin);
+			SeamUVErr = FMath::Max(SeamUVErr, O.SeamUVErr); SeamAlongErr = FMath::Max(SeamAlongErr, O.SeamAlongErr);
+			SeamRandErr = FMath::Max(SeamRandErr, O.SeamRandErr);
+			SeamUVErrHalf = FMath::Max(SeamUVErrHalf, O.SeamUVErrHalf); SeamAlongErrHalf = FMath::Max(SeamAlongErrHalf, O.SeamAlongErrHalf);
 			Junctions += O.Junctions; Built += O.Built; Vertices += O.Vertices; Triangles += O.Triangles;
 			FailWindow += O.FailWindow; FailRing += O.FailRing; FailOrigin += O.FailOrigin; FailRay += O.FailRay; FailEnd += O.FailEnd;
 			FailCrowded += O.FailCrowded;
@@ -187,7 +199,29 @@ namespace
 		double Along = 0.0;
 		FLinearColor Col = FLinearColor::White;
 		FVector Tan = FVector::ForwardVector;
+		// leaf.SkirtBlend: the other side's bark here (radial direction x bark radius, along, per-branch random) and its
+		// weight, 0.5 on the seam row of both halves (so they mix the same there) easing to 0 a band away from it.
+		FVector2D OtherUV = FVector2D::ZeroVector;
+		double OtherAlong = 0.0;
+		float OtherG = 0.f;
+		float W = 0.f;
 	};
+
+	constexpr double SeamAlongOffset = 512.0; // keeps the other along in UV3.y above -BuriedDepth (the cutaway's buried test)
+	constexpr double SeamBandFrac = 0.85;     // the weight eases to 0 over this fraction of each half's arc length
+
+	/** Bark-cylinder coordinates for the cross-fade: UV1's direction scaled to the bark radius (as M_TreeBark2's ridge space). */
+	FVector2D SeamBarkUV(const FVector2D& UV1, double BarkR)
+	{
+		const double R = UV1.Size();
+		const double Rq = BarkR > 0.5 ? BarkR : R;
+		return R > 1e-3 ? UV1 * (Rq / R) : FVector2D::ZeroVector;
+	}
+
+	float SeamWeight(double Dist, double Band)
+	{
+		return Band > 0.1 ? 0.5f * (1.f - FMath::SmoothStep(0.f, 1.f, (float)FMath::Clamp(Dist / Band, 0.0, 1.0))) : (Dist <= 0.0 ? 0.5f : 0.f);
+	}
 
 	/**
 	 * The parent tube's mesh at X: finds the quad X lies over (by the ring planes, then the angle round the interpolated
@@ -526,6 +560,7 @@ namespace
 		GridC.SetNum((Nc + 1) * RV);
 		GridP.SetNum((Np + 1) * RV);
 		TArray<FVector> HitsC, HitsP;
+		TArray<double> ArcsC; // arc length down a column's child half, per row (seam cross-fade)
 		// Moves an inner point from the two-tube surface onto the whole field; returns its normal. A big move means a third
 		// branch lies in the skirt's way: the skirt is given up (and its fillet removed by the caller).
 		double LocalMove = 0.0;
@@ -573,6 +608,7 @@ namespace
 			const int32 Vi = RC.Start + IOut * RV + j;
 			double Arc = 0.0;
 			FVector PrevHit = HitsC[0];
+			ArcsC.SetNum(Nc + 1);
 			for (int32 r = 0; r <= Nc; ++r)
 			{
 				FSkirtVert& V = GridC[r * RV + j];
@@ -596,8 +632,34 @@ namespace
 				V.Col = Mesh.Colors[Vi];
 				V.Col.A = 1.f;
 				V.Tan = Mesh.Tangents[Vi].TangentX;
+				V.W = 0.f;
+				ArcsC[r] = Arc;
 				if (r == Nc) HitsP[0] = X; // the seam: both halves start from the same moved point
 			}
+			const double ArcC = Arc;
+			// Seam cross-fade data (leaf.SkirtBlend): child rows near the seam also carry the parent's bark there.
+			const bool bBlend = CVarSkirtBlend.GetValueOnAnyThread() != 0 && CVarSkirtSeam.GetValueOnAnyThread() != 1;
+			if (bBlend)
+			{
+				for (int32 r = 0; r <= Nc; ++r)
+				{
+					FSkirtVert& V = GridC[r * RV + j];
+					V.W = SeamWeight(ArcC - ArcsC[r], SeamBandFrac * ArcC);
+					if (V.W <= 1e-3f)
+					{
+						V.W = 0.f;
+						continue;
+					}
+					FSkirtVert Facet;
+					ParentSurfaceAt(Pb, RP, Mesh, Pair.PLo, Pair.PHi, HitsC[r], Facet);
+					V.OtherUV = SeamBarkUV(Facet.UV1, Facet.UV3.X);
+					V.OtherAlong = Facet.Along;
+					V.OtherG = Facet.Col.G;
+				}
+			}
+			double ArcPT = 0.0;
+			for (int32 r = 1; r <= Np; ++r) ArcPT += FVector::Dist(HitsP[r], HitsP[r - 1]);
+			double ArcP = 0.0;
 			// Parent half: the parent tube's data where the point lies over it (seam 0), or the child's continued (seam 1).
 			const bool bChildAll = CVarSkirtSeam.GetValueOnAnyThread() == 1;
 			for (int32 r = 0; r <= Np; ++r)
@@ -610,6 +672,7 @@ namespace
 					if (r == 0)
 					{
 						V = SeamC;
+						V.W = 0.f;
 						PrevHit = X;
 						continue;
 					}
@@ -653,6 +716,34 @@ namespace
 					V.N = Nrm;
 					V.P = X + Nrm * SkirtLift;
 				}
+				// Seam cross-fade data: parent rows near the seam also carry the child's bark continued past it.
+				if (r > 0) ArcP += FVector::Dist(HitsP[r], HitsP[r - 1]);
+				V.W = bBlend ? SeamWeight(ArcP, SeamBandFrac * ArcPT) : 0.f;
+				if (V.W <= 1e-3f)
+				{
+					V.W = 0.f;
+					continue;
+				}
+				V.OtherUV = SeamBarkUV(Mesh.UV1[Vi], Mesh.UV3[Vi].X);
+				V.OtherAlong = Mesh.UV0[Vi].Y - (ArcC + ArcP);
+				V.OtherG = Mesh.Colors[Vi].G;
+			}
+			if (bBlend)
+			{
+				// Check: on the seam row each half's "other" must be the other half's own bark data.
+				const FSkirtVert& C0 = GridC[Nc * RV + j];
+				const FSkirtVert& P0 = GridP[j];
+				St.SeamUVErr = FMath::Max(St.SeamUVErr, (C0.OtherUV - SeamBarkUV(P0.UV1, P0.UV3.X)).Size());
+				St.SeamUVErr = FMath::Max(St.SeamUVErr, (P0.OtherUV - SeamBarkUV(C0.UV1, C0.UV3.X)).Size());
+				St.SeamAlongErr = FMath::Max(St.SeamAlongErr, FMath::Max(FMath::Abs(C0.OtherAlong - P0.Along), FMath::Abs(P0.OtherAlong - C0.Along)));
+				St.SeamRandErr = FMath::Max(St.SeamRandErr, (double)FMath::Max(FMath::Abs(C0.OtherG - P0.Col.G), FMath::Abs(P0.OtherG - C0.Col.G)));
+				// The same after the half-float rounding the mesh's UVs get on the GPU (UV0 and UV3.y carry the other data).
+				auto H = [](double X) { return (double)FFloat16((float)X).GetFloat(); };
+				const FVector2D CUV = SeamBarkUV(P0.UV1, P0.UV3.X), PUV = SeamBarkUV(C0.UV1, C0.UV3.X);
+				St.SeamUVErrHalf = FMath::Max(St.SeamUVErrHalf, FMath::Max(FVector2D(H(C0.OtherUV.X) - CUV.X, H(C0.OtherUV.Y) - CUV.Y).Size(),
+					FVector2D(H(P0.OtherUV.X) - PUV.X, H(P0.OtherUV.Y) - PUV.Y).Size()));
+				St.SeamAlongErrHalf = FMath::Max(St.SeamAlongErrHalf, FMath::Max(FMath::Abs(H(C0.OtherAlong + SeamAlongOffset) - SeamAlongOffset - P0.Along),
+					FMath::Abs(H(P0.OtherAlong + SeamAlongOffset) - SeamAlongOffset - C0.Along)));
 			}
 		}
 		if (LocalMove > SkirtMaxMove)
@@ -684,15 +775,36 @@ namespace
 		auto Emit = [&](const TArray<FSkirtVert>& Grid, int32 Rows)
 		{
 			const int32 Base = Out.Vertices.Num();
+			const bool bBlendOut = CVarSkirtBlend.GetValueOnAnyThread() != 0;
 			for (const FSkirtVert& V : Grid)
 			{
 				Out.Vertices.Add(V.P);
 				Out.Normals.Add(V.N);
-				Out.UV0.Add(V.UV0);
+				FVector2D Uv0 = V.UV0, Uv3 = V.UV3;
+				FLinearColor Col = V.Col;
+				if (bBlendOut)
+				{
+					// The other side's bark in channels M_TreeBark2 does not read (see leaf.SkirtBlend).
+					if (V.W > 0.f)
+					{
+						Uv0 = V.OtherUV;
+						double A3 = V.OtherAlong + SeamAlongOffset;
+						if (A3 < 0.0)
+						{
+							A3 = 0.0;
+							++St.BlendClamped;
+						}
+						Uv3.Y = A3;
+						Col.R = V.OtherG;
+						++St.BlendVerts;
+						St.BlendAlongMin = FMath::Min(St.BlendAlongMin, V.OtherAlong + SeamAlongOffset);
+					}
+					Col.A = 1.f - V.W;
+				}
+				Out.UV0.Add(Uv0);
 				Out.UV1.Add(V.UV1);
 				Out.UV2.Add(SplitAlong(V.Along));
-				Out.UV3.Add(V.UV3);
-				FLinearColor Col = V.Col;
+				Out.UV3.Add(Uv3);
 				Col.B = FMath::Clamp((float)V.P.Z / TreeH, 0.f, 1.f);
 				Out.Colors.Add(Col);
 				Out.Tangents.Add(FProcMeshTangent(V.Tan, false));
@@ -797,6 +909,12 @@ namespace
 		UE_LOG(LogLeafline, Log, TEXT("TreeSkirts fit: field at inner vertices mean %.3f worst %.3f cm; at quad centres (minus the %.1f cm lift) mean %.3f worst %.2f cm (branch %d), %d quads hidden inside a crossing branch; largest move onto the whole field %.1f cm at %s (branch %d); %d inner vertices where the fillet eases off inside the blend"),
 			St.FitCount ? St.FitSum / St.FitCount : 0.0, St.FitWorst, SkirtLift, St.ChordCount ? St.ChordSum / St.ChordCount : 0.0, St.ChordWorst,
 			St.ChordWorstBranch, St.HiddenQuads, St.MoveWorst, *St.MoveWorstAt.ToCompactString(), St.MoveWorstBranch, St.FadeConflicts);
+		if (CVarSkirtBlend.GetValueOnAnyThread() != 0)
+		{
+			UE_LOG(LogLeafline, Log, TEXT("TreeSkirts blend: %d of %d skirt vertices carry the other side's bark; lowest other along +%.0f = %.1f (%d clamped at 0); seam row mismatch: bark coordinates %.4f cm, along %.4f cm, per-branch random %.5f; after the GPU's half-float UVs: bark coordinates %.3f cm, along %.3f cm"),
+				St.BlendVerts, St.Vertices, SeamAlongOffset, St.BlendVerts ? St.BlendAlongMin : 0.0, St.BlendClamped, St.SeamUVErr, St.SeamAlongErr, St.SeamRandErr,
+				St.SeamUVErrHalf, St.SeamAlongErrHalf);
+		}
 	}
 
 	// ---- Ground skirt: where the trunk and the roots meet the ground --------------------------------------------------
