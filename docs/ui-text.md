@@ -111,7 +111,7 @@ The text version (`DrawDayInfo`, `Leaf.HudIcons 0`) and the icon version (`DrawW
 | "Bird diving! Hold {Grip} to grip      {Drop}: drop your piece" | keep | |
 | "Walking home empty-handed.   {Cycle}: switch ant" | keep | |
 | "Gripping. Release {Grip} when the gust passes" | keep | |
-| "Gust! You are sheltered here" | "Gust! You're sheltered here" | Contraction, matches the wind panel. |
+| "Gust! You are sheltered here" (also shown while the gust is still coming) | "Gust coming: you're sheltered here" before the gust, "Gust! You're sheltered here" during it | It said "Gust!" before the gust arrived (seen in the 720p shots). The contraction matches the wind panel. |
 | "Gust coming: hold {Grip} to grip, or get to the side away from the wind arrow" | "Gust coming: hold {Grip} to grip, or move to the sheltered side" | Shorter. Uses the wind panel's word instead of describing the arrow. |
 | "Gust! Hold {Grip} to grip" | keep | |
 | "Heading home on the trail.   {Cycle}: switch ant" | keep | |

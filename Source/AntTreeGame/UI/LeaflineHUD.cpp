@@ -1100,7 +1100,8 @@ void ALeaflineHUD::DrawPrompt(const AAntPawn* Ant, const ADayDirector* D, float 
 		else if (bGustSoon && (S == EAntState::Walking || S == EAntState::Riding || S == EAntState::Cutting))
 		{
 			// Sheltered spots need no grip; elsewhere say what helps: grip, or the side away from the arrow.
-			Prompt = ExposureShown >= 0.f && ExposureShown < Style.ShelteredBelow ? TEXT("Gust! You're sheltered here")
+			Prompt = ExposureShown >= 0.f && ExposureShown < Style.ShelteredBelow
+				? (Wind->GetPhase() == EWindPhase::Warning ? TEXT("Gust coming: you're sheltered here") : TEXT("Gust! You're sheltered here"))
 				: (Wind->GetPhase() == EWindPhase::Warning ? TEXT("Gust coming: hold {Grip} to grip, or move to the sheltered side")
 				                                           : TEXT("Gust! Hold {Grip} to grip"));
 		}
