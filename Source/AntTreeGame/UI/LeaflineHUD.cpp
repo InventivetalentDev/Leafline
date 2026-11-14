@@ -791,10 +791,11 @@ void ALeaflineHUD::DrawCarry(const AAntPawn* Ant, float Scale)
 		DrawCarryIcons(Ant, Scale);
 		return;
 	}
-	const float X = (Style.Edge + Style.Padding + 210.f) * Scale, Y = (Style.Edge + Style.Padding + 84.f) * Scale;
+	// The day panel's third row, from its left edge; the size bar as wide as the panel (440 at least, as in DrawDayInfo).
+	const float X = (Style.Edge + Style.Padding) * Scale, Y = (Style.Edge + Style.Padding + 84.f) * Scale;
 	DrawTextAt(Ant->IsCarrying() ? FString::Printf(TEXT("Carrying %.1f"), Ant->GetCarriedMass()) : FString(TEXT("Carrying nothing")),
 		X, Y, TextColor, SecondaryText(Scale), GEngine->GetMediumFont());
-	const float W = 230.f * Scale, H = Style.Bar * Scale, BY = Y + Style.Row * Scale;
+	const float W = 440.f * Scale, H = Style.Bar * Scale, BY = Y + Style.Row * Scale;
 	DrawRect(Style.Track, X, BY, W, H);
 	if (Ant->IsCarrying()) DrawRect(Style.Leaf, X, BY, W * FMath::Clamp(Ant->GetCarriedSize(), 0.f, 1.f), H);
 }
@@ -1742,11 +1743,11 @@ void ALeaflineHUD::DrawWindIcons(const ADayDirector* D, const AWindSystem* Wind,
 
 void ALeaflineHUD::DrawCarryIcons(const AAntPawn* Ant, float Scale)
 {
-	// Where the text version shows "Carrying ...": a leaf sized by the piece (swaying while carried) and its mass, or a
+	// The text version's "Carrying ..." row, from the panel's left edge: a leaf sized by the piece (swaying while carried) and its mass, or a
 	// faint leaf and "empty"; a claw and "gripping" while the ant grips; the size bar as before.
 	UFont* Font = GEngine->GetMediumFont();
 	const float Now = GetWorld() ? GetWorld()->GetRealTimeSeconds() : 0.f;
-	const float X = (Style.Edge + Style.Padding + 210.f) * Scale, Y = (Style.Edge + Style.Padding + 84.f) * Scale;
+	const float X = (Style.Edge + Style.Padding) * Scale, Y = (Style.Edge + Style.Padding + 84.f) * Scale;
 	const float Icon = 26.f * Scale, ICY = Y + 10.f * Scale, TextX = X + Icon + 6.f * Scale;
 	const bool bCarry = Ant->IsCarrying();
 	const float Size01 = FMath::Clamp(Ant->GetCarriedSize(), 0.f, 1.f);
@@ -1763,11 +1764,11 @@ void ALeaflineHUD::DrawCarryIcons(const AAntPawn* Ant, float Scale)
 	const UAntMovementComponent* M = Ant->GetAntMovement();
 	if (M && M->GetState() == EAntState::Gripping)
 	{
-		const float GXp = X + 112.f * Scale;
+		const float GXp = X + 220.f * Scale;
 		DrawIcon(TEXT("Icon_Grip"), GXp + 0.5f * Icon, ICY, Icon * (1.f + 0.08f * FMath::Sin(Now * 2.f * PI * 3.f)), AccentColor);
 		DrawTextAt(TEXT("gripping"), GXp + Icon + 6.f * Scale, Y, AccentColor, SecondaryText(Scale), Font);
 	}
-	const float W = 230.f * Scale, H = Style.Bar * Scale, BY = Y + Style.Row * Scale;
+	const float W = 440.f * Scale, H = Style.Bar * Scale, BY = Y + Style.Row * Scale;
 	DrawRect(Style.Track, X, BY, W, H);
 	if (bCarry) DrawRect(Style.Leaf, X, BY, W * Size01, H);
 }
