@@ -31,8 +31,8 @@ struct FBirdTuning
 
 	/** The whole feature (Leaf.Bird). Off: no bird, no schedule, no HUD line, no hint, no drop action. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Switch") bool bBird = true;
-	/** Tier 2, dropped pieces as bait (Leaf.Bait). Off until its acceptance test (6) has passed. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Switch") bool bBait = false;
+	/** Tier 2, dropped pieces as bait (Leaf.Bait). First to cut. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Switch") bool bBait = true;
 
 	/** With recruits off the bird first comes on this day (with recruits on: the first day the pool is above zero). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Schedule") int32 FirstBirdDay = 3;
