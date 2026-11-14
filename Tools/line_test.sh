@@ -53,7 +53,7 @@ CMDS="$CMDS${EXTRA:+,$EXTRA}"
 LOG=LineTest-$SCEN${TAG:+-$TAG}.log
 MARK=$ROOT/Saved/RefShots/.line-marker
 mkdir -p "$ROOT/Saved/RefShots" && touch "$MARK"
-(cd /mnt/c && timeout $((T + 120)) "$ROOT/Scripts/unreal-lock.sh" "linetest-$SCEN" -- cmd.exe /c "$WINROOT\\Scripts\\RunGame.bat" "$LOG" \
+(cd /mnt/c && "$ROOT/Scripts/unreal-lock.sh" "linetest-$SCEN" -- timeout $((T + 120)) cmd.exe /c "$WINROOT\\Scripts\\RunGame.bat" "$LOG" \
 	"$CMDS,Leaf.QuitAfter $T" "-LeafSlot=${SLOT:-LineTest} -unattended" >/dev/null 2>&1)
 F=$ROOT/Saved/Logs/$LOG
 grep -a "LogLeafline" "$F" | grep -a -E "Line [0-9]+ laid|Harvest|all workers home|AutoPlay|Pool [0-9]+:|^.*Line [0-9]+ \(worker|fallback|rescued|lost its ant|not ended|Recruits: pool|TestLines|Error|Warning" | sed 's/^.*LogLeafline: //' | cut -c1-220
