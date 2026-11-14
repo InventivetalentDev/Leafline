@@ -16,7 +16,9 @@
 
 You are a leafcutter ant on an enormous tree. Climb, lay a scent trail and cut a piece from a leaf. A bigger piece is worth more, but it is slower to carry and catches the wind like a sail. Send the loaded ant home and shift to the next scout while recruits harvest along your trails.
 
-## Director's Cut
+## The jam theme: Director's Cut (Epic AI MegaJam 2026)
+
+Leafline was made for the Epic AI MegaJam, whose theme is "Director's Cut". Here is how the game plays it:
 
 - **The cut:** choose how much to cut from each leaf. The size trades leaf mass against carrying speed and wind risk.
 - **The director:** your scent trail directs the colony. Recruits follow it without you and harvest around your cut. A sheltered route and a smaller cut can bring more pieces home than a bold, exposed route.
