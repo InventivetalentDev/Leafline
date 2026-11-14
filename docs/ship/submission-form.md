@@ -4,10 +4,10 @@ Refreshed Sat 14 Nov 2026. Fields follow `docs/plan.md`, M7. **The owner submits
 
 | Field | Answer |
 |---|---|
-| Full name | [OWNER'S FULL NAME] |
-| Epic account email | [OWNER'S EPIC ACCOUNT EMAIL] |
-| Game name | Leafline [OWNER: confirm final title] |
-| Team / entrant name | inventivetalent (solo) |
+| Full name | Haylee Schäfer |
+| Epic account email | mail@inventivetalent.org |
+| Game name | Leafline |
+| Team / entrant name | inventivetalent (solo) [TODO: get rid of the solo tag] |
 | Build | `inventivetalent_Leafline.zip`, Windows Development build; [FINAL ZIP SIZE], under 1 GB |
 | Gameplay video | [VIDEO URL — 30–60 s, 1920×1080 or higher, English] |
 | Dev log link (optional) | [DEV LOG URL — public repo file or a copy on itch] |
