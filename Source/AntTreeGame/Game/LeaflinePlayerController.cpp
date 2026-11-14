@@ -12,6 +12,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedPlayerInput.h"
 #include "InputAction.h"
+#include "World/BirdSystem.h"
 #include "InputMappingContext.h"
 #include "InputModifiers.h"
 #include "Engine/LocalPlayer.h"
@@ -55,6 +56,7 @@ void ALeaflinePlayerController::CreateInput()
 	FollowAction = MakeAction(TEXT("IA_Follow"), EInputActionValueType::Boolean);
 	CycleAction = MakeAction(TEXT("IA_Cycle"), EInputActionValueType::Boolean);
 	PauseAction = MakeAction(TEXT("IA_Pause"), EInputActionValueType::Boolean);
+	DropAction = MakeAction(TEXT("IA_Drop"), EInputActionValueType::Boolean);
 	// Resume and quit must still work while the game is paused.
 	PauseAction->bTriggerWhenPaused = true;
 	SendHomeAction->bTriggerWhenPaused = true;
@@ -106,6 +108,9 @@ void ALeaflinePlayerController::CreateInput()
 	Ctx->MapKey(PauseAction, EKeys::Escape);
 	Ctx->MapKey(PauseAction, EKeys::P);
 	Ctx->MapKey(PauseAction, EKeys::Gamepad_Special_Right);
+	// The bird's bait (World/BirdSystem.*): only acts while the bird is about and the ant carries a piece.
+	Ctx->MapKey(DropAction, EKeys::G);
+	Ctx->MapKey(DropAction, EKeys::Gamepad_FaceButton_Right);
 }
 
 void ALeaflinePlayerController::EnsureCamera()
@@ -186,6 +191,7 @@ void ALeaflinePlayerController::PlayerTick(float DeltaTime)
 	if (Input->GetActionValue(FollowAction).Get<bool>()) Held |= LeafButtons::Follow;
 	if (Input->GetActionValue(CycleAction).Get<bool>()) Held |= LeafButtons::Cycle;
 	if (Input->GetActionValue(PauseAction).Get<bool>()) Held |= LeafButtons::Pause;
+	if (DropAction && Input->GetActionValue(DropAction).Get<bool>()) Held |= LeafButtons::Drop;
 	// Debug: buttons held by Leaf.Hold.
 	if (LeafDebug::HoldCut > 0.f) { Held |= LeafButtons::Cut; LeafDebug::HoldCut -= DeltaTime; }
 	if (LeafDebug::HoldGrip > 0.f) { Held |= LeafButtons::Grip; LeafDebug::HoldGrip -= DeltaTime; }
@@ -555,5 +561,9 @@ void ALeaflinePlayerController::HandleButtons(uint32 Pressed)
 		return;
 	}
 	if (Pressed & LeafButtons::SendHome) D->SendHome(GetAnt());
+	if (Pressed & LeafButtons::Drop)
+	{
+		if (ABirdSystem* Bird = ABirdSystem::Get(this)) Bird->DropPiece(GetAnt());
+	}
 	// Cycle (Tab / LB) during play is UpdateWindMapButton's: a tap switches workers on release, a hold shows the wind map.
 }

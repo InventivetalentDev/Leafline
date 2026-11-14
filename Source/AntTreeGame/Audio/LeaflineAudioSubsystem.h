@@ -41,6 +41,8 @@ class ANTTREEGAME_API ULeaflineAudioSubsystem : public UWorldSubsystem
 public:
 	/** Sound is a file name without .wav. All public methods run on the game thread. */
 	void PlayOneShot(FName Sound, float Volume = 1.f, float Pitch = 1.f);
+	/** A one-shot placed in the world (heard from where it is, fading with distance; silent out of earshot). */
+	void PlayOneShotAt(FName Sound, const FVector& Location, float Volume = 1.f, float Pitch = 1.f);
 	/** Returns nullptr on load/playback failure. A loop may start at volume zero. */
 	ULeaflineAudioLoop* StartLoop(FName Sound, float Volume = 1.f);
 	void StopAll();
@@ -58,7 +60,9 @@ protected:
 
 private:
 	friend class ULeaflineAudioLoop;
-	ULeaflineAudioLoop* CreateVoice(FName Sound, float Volume, float Pitch, bool bLooping);
+	ULeaflineAudioLoop* CreateVoice(FName Sound, float Volume, float Pitch, bool bLooping, const FVector* Location = nullptr);
+	/** The fast-forward's rate limit and ducking (see SetPlaybackSpeed). False: drop this start. */
+	bool AllowOneShot(FName Sound, float& Volume);
 	TSharedPtr<const FLeaflinePCMData, ESPMode::ThreadSafe> LoadPCM(FName Sound);
 	void Release(ULeaflineAudioLoop* Voice);
 

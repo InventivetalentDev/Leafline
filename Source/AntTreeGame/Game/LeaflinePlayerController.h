@@ -21,6 +21,7 @@ namespace LeafButtons
 		Follow = 1 << 4,
 		Cycle = 1 << 5,
 		Pause = 1 << 6,
+		Drop = 1 << 7, // the bird's bait (tier 2): put the carried piece down
 	};
 }
 
@@ -108,6 +109,7 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UInputAction> FollowAction;
 	UPROPERTY(Transient) TObjectPtr<UInputAction> CycleAction;
 	UPROPERTY(Transient) TObjectPtr<UInputAction> PauseAction;
+	UPROPERTY(Transient) TObjectPtr<UInputAction> DropAction;
 
 	uint32 ButtonsHeld = 0;
 	uint32 ButtonsPressed = 0;

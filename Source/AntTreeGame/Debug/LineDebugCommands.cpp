@@ -188,15 +188,17 @@ namespace
 	 * Lays test lines at once: each scout's trail is a walk over the bark from the nest to a chosen leaf (the branch-
 	 * graph approach, so recruits have a real route), then it cuts and is sent home. Returns lines laid.
 	 */
-	int32 LayTestLines(UWorld* World, int32 Count, float Size, const FString& Side, int32 Seed)
+	/** HeldOut: if given, the last scout cuts its piece but is not sent home (it stays out under control, so the shift goes on). */
+	int32 LayTestLines(UWorld* World, int32 Count, float Size, const FString& Side, int32 Seed, AAntPawn** HeldOut = nullptr)
 	{
 		ADayDirector* D = ADayDirector::Get(World);
 		ATreeActor* Tree = ATreeActor::Get(World);
 		if (!D || !Tree || !D->GetNest() || !D->GetTrails()) return 0;
 		const TArray<int32> Picks = PickTestLeaves(World, Count, Side, Seed);
 		int32 Laid = 0;
-		for (int32 Leaf : Picks)
+		for (int32 PickIdx = 0; PickIdx < Picks.Num(); ++PickIdx)
 		{
+			const int32 Leaf = Picks[PickIdx];
 			AAntPawn* Ant = D->DebugTakeNextScout();
 			if (!Ant) break;
 			TArray<FTrailPoint> Walk;
@@ -210,6 +212,12 @@ namespace
 			if (!Ant->DebugCutLeaf(Leaf, Size))
 			{
 				UE_LOG(LogLeafline, Warning, TEXT("Leaf.TestLines: could not cut leaf %d"), Leaf);
+				continue;
+			}
+			if (HeldOut && PickIdx == Picks.Num() - 1)
+			{
+				*HeldOut = Ant;
+				UE_LOG(LogLeafline, Log, TEXT("Leaf.TestLines: worker %d stays out at leaf %d with its piece"), Ant->GetWorkerIndex(), Leaf);
 				continue;
 			}
 			D->SendHome(Ant);
@@ -374,6 +382,12 @@ namespace
 		bool bReport = false;
 		/** give<N>: haul added at the start of each day (reaches the milestones quickly; saved at day end like any haul). */
 		float GivePerDay = 0.f;
+		/** hold<S> (the bird's tests): the last scout stays out with its piece for S sim seconds of shift at HoldSpeed, with
+		 *  the other lines already worked, before it is sent home and the harvest starts. 0: the shift ends at once. */
+		float HoldSeconds = 0.f;
+		float HoldSpeed = 8.f;
+		double HoldUntil = -1.0;
+		TWeakObjectPtr<AAntPawn> Held;
 		int32 LaidOnDay = -1;
 		double DayStart = 0.0;
 		double LastGust = 0.0;
@@ -419,8 +433,34 @@ namespace
 				{
 					if (ATreeActor* Tree = ATreeActor::Get(World)) Tree->LogTreeReport(FString::Printf(TEXT("day %d tree %d day %d"), D->GetDay(), D->GetStage() + 1, D->GetDayOnTree()));
 				}
-				LayTestLines(World, Auto.LinesPerDay, Size, D->IsOneTree() ? FString(TEXT("climb")) : FString(Sides[SideIndex]), PickSeed);
-				D->ForceHarvest();
+				AAntPawn* HeldAnt = nullptr;
+				LayTestLines(World, Auto.LinesPerDay, Size, D->IsOneTree() ? FString(TEXT("climb")) : FString(Sides[SideIndex]), PickSeed,
+					Auto.HoldSeconds > 0.f ? &HeldAnt : nullptr);
+				ALineSystem* HL = LinesOf(World);
+				Auto.HoldUntil = -1.0;
+				Auto.Held = HeldAnt;
+				if (HeldAnt && HL)
+				{
+					Auto.HoldUntil = HL->GetSimTime() + Auto.HoldSeconds;
+					HL->SetSpeedFactor(Auto.HoldSpeed);
+					UE_LOG(LogLeafline, Log, TEXT("AutoPlay: worker %d holds the shift open for %.0f sim s at x%.0f"), HeldAnt->GetWorkerIndex(), Auto.HoldSeconds, Auto.HoldSpeed);
+				}
+				else
+				{
+					D->ForceHarvest();
+				}
+			}
+			else if (Auto.HoldUntil >= 0.0)
+			{
+				ALineSystem* HL = LinesOf(World);
+				if (!HL || HL->GetSimTime() >= Auto.HoldUntil)
+				{
+					Auto.HoldUntil = -1.0;
+					AAntPawn* HeldAnt = Auto.Held.Get();
+					UE_LOG(LogLeafline, Log, TEXT("AutoPlay: hold over (worker %s)"), HeldAnt && HeldAnt->IsCarrying() ? TEXT("sent home with its piece") : TEXT("has no piece left"));
+					if (HeldAnt && HeldAnt->IsCarrying()) D->SendHome(HeldAnt);
+					D->ForceHarvest();
+				}
 			}
 			else if (Auto.bSkip && Now - Auto.DayStart > 2.0)
 			{
@@ -509,7 +549,7 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs CmdAutoPlay(
 		TEXT("Leaf.AutoPlay"),
-		TEXT("Leaf.AutoPlay <days> [lines] [watch|skip] [buy] [reload] [report] [give<N>] [quit]: unattended days with scripted scouts and random lines (with one tree on, the lowest leaves left); logs whether every day ends; reload reads the save and regrows the tree before each day; report logs Leaf.TreeReport each morning; quit exits a standalone game when done. 0 stops."),
+		TEXT("Leaf.AutoPlay <days> [lines] [watch|skip] [buy] [reload] [report] [give<N>] [hold<S>] [quit]: unattended days with scripted scouts and random lines (with one tree on, the lowest leaves left); logs whether every day ends; reload reads the save and regrows the tree before each day; report logs Leaf.TreeReport each morning; hold<S> keeps the last scout out with its piece for S sim seconds of shift (x8) before the harvest (the bird's tests); quit exits a standalone game when done. 0 stops."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 		{
 			Auto.World = World;
@@ -521,8 +561,11 @@ namespace
 			Auto.bReload = false;
 			Auto.bReport = false;
 			Auto.GivePerDay = 0.f;
+			Auto.HoldSeconds = 0.f;
+			Auto.HoldUntil = -1.0;
 			for (int32 k = 2; k < Args.Num(); ++k)
 			{
+				if (Args[k].ToLower().StartsWith(TEXT("hold"))) Auto.HoldSeconds = FMath::Max(FCString::Atof(*Args[k].Mid(4)), 0.f);
 				Auto.bBuy |= Args[k].ToLower() == TEXT("buy");
 				Auto.bQuit |= Args[k].ToLower() == TEXT("quit");
 				Auto.bReload |= Args[k].ToLower() == TEXT("reload");

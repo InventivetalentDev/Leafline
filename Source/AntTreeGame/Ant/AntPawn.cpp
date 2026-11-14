@@ -736,12 +736,20 @@ void AAntPawn::UpdateWind(float Dt)
 	if (Force > Hold) BlowOff(Force, Hold, Exposure);
 }
 
-void AAntPawn::BlowOff(float Force, float Hold, float Exposure)
+void AAntPawn::BlowOff(float Force, float Hold, float Exposure, EBlowOffCause Cause)
 {
 	if (!bRecruit) LeafSound::Play(this, TEXT("blown_off"), 0.8f);
 	LeafSound::Stop(CutLoop);
-	UE_LOG(LogLeafline, Log, TEXT("%s: blown off (force %.2f > hold %.2f, exposure %.2f, fragment %.1f, state %s)"),
-		*GetName(), Force, Hold, Exposure, CarriedMass, *UEnum::GetValueAsString(Movement->GetState()));
+	if (Cause == EBlowOffCause::Bird)
+	{
+		UE_LOG(LogLeafline, Log, TEXT("%s: knocked off by the bird (exposure %.2f, fragment %.1f, state %s)"),
+			*GetName(), Exposure, CarriedMass, *UEnum::GetValueAsString(Movement->GetState()));
+	}
+	else
+	{
+		UE_LOG(LogLeafline, Log, TEXT("%s: blown off (force %.2f > hold %.2f, exposure %.2f, fragment %.1f, state %s)"),
+			*GetName(), Force, Hold, Exposure, CarriedMass, *UEnum::GetValueAsString(Movement->GetState()));
+	}
 	if (IsCutting())
 	{
 		CuttingLeaf = INDEX_NONE;
@@ -784,6 +792,16 @@ void AAntPawn::BlowOff(float Force, float Hold, float Exposure)
 	{
 		D->OnBlownOff(this);
 	}
+}
+
+void AAntPawn::DropCarried()
+{
+	if (!IsCarrying()) return;
+	UE_LOG(LogLeafline, Log, TEXT("%s: drops its piece (%.1f) on the bark"), *GetName(), CarriedMass);
+	SwingTime = -1.f;
+	ReattachFragment();
+	ClearFragment();
+	LastCut = FAntCutRecord(); // dropping makes no line; the next cut is the one a send-home builds from
 }
 
 void AAntPawn::UpdateSounds()

@@ -11,6 +11,7 @@ class ANestActor;
 class AWindSystem;
 class ADayDirector;
 class AAntPawn;
+class ABirdSystem;
 
 /** Recruit, line and harvest numbers. */
 USTRUCT(BlueprintType)
@@ -185,6 +186,10 @@ public:
 	/** Trips left across the pool. */
 	int32 TripsLeft() const;
 	ERecruitState GetRecruitState(int32 Index) const { return Recruits.IsValidIndex(Index) ? Recruits[Index].State : ERecruitState::Nest; }
+	/** The recruit's ant while it is out (null in the nest). */
+	AAntPawn* GetRecruitPawn(int32 Index) const { return Recruits.IsValidIndex(Index) ? Recruits[Index].Pawn.Get() : nullptr; }
+	/** The bird (World/BirdSystem.*) steps in the same fixed steps, after the ants. */
+	void SetBird(ABirdSystem* InBird) { Bird = InBird; }
 	/** The patch around a leaf at a template size (cached by leaf and size). False if the leaf is invalid. */
 	bool GetPatchPreview(int32 Leaf, float Template, FPatchPreview& Out) const;
 	/** Deliveries of the last few seconds (scouts and recruits), oldest first. */
@@ -251,6 +256,7 @@ private:
 	UPROPERTY(Transient) TObjectPtr<ANestActor> Nest;
 	UPROPERTY(Transient) TObjectPtr<AWindSystem> Wind;
 	UPROPERTY(Transient) TObjectPtr<ADayDirector> Director;
+	UPROPERTY(Transient) TObjectPtr<ABirdSystem> Bird;
 
 	TArray<FColonyLine> Lines;
 	TArray<FRecruit> Recruits;

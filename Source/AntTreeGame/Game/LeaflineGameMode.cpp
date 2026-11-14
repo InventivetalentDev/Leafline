@@ -7,6 +7,7 @@
 #include "World/DayDirector.h"
 #include "World/WindSystem.h"
 #include "Colony/LineSystem.h"
+#include "World/BirdSystem.h"
 #include "Game/LeaflinePlayerController.h"
 #include "UI/LeaflineHUD.h"
 #include "GameFramework/PlayerController.h"
@@ -42,6 +43,12 @@ void ALeaflineGameMode::InitGame(const FString& MapName, const FString& Options,
 		Director->Init(Tree, Trails, Nest, Wind, Lines);
 	}
 	if (Lines) Lines->Init(Tree, Trails, Nest, Wind, Director);
+	// The bird (docs/briefs/bird.md): stepped by the line system, so it exists before the first StartDay.
+	if (ABirdSystem* Bird = World->SpawnActor<ABirdSystem>(ABirdSystem::StaticClass(), FTransform::Identity, Params))
+	{
+		Bird->Init(Tree, Wind, Director, Lines);
+		if (Lines) Lines->SetBird(Bird);
+	}
 	UE_LOG(LogLeafline, Log, TEXT("LeaflineGameMode: InitGame on %s"), *MapName);
 }
 
