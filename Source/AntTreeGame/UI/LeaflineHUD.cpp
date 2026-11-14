@@ -1614,7 +1614,7 @@ void ALeaflineHUD::DrawWindIcons(const ADayDirector* D, const AWindSystem* Wind,
 	DrawTextAt(Ph == EWindPhase::Calm ? TEXT("calm") : bWarn ? TEXT("gust coming") : Ph == EWindPhase::Falling ? TEXT("easing") : TEXT("GUST!"),
 		GX, Top, C, SecondaryText(Scale), Font);
 	FLinearColor BarC = C;
-	if (bWarn) BarC.A *= 0.55f + 0.45f * Pulse;
+	if (bWarn) BarC.A *= 0.35f + 0.65f * Pulse;
 	DrawRect(Style.Track, GX, GY, GW, GH);
 	DrawRect(BarC, GX, GY, GW * FMath::Clamp(Wind->GetStrength(), 0.f, 1.f), GH);
 
@@ -1634,10 +1634,10 @@ void ALeaflineHUD::DrawWindIcons(const ADayDirector* D, const AWindSystem* Wind,
 			V.Normalize();
 			const FVector2D Side(-V.Y, V.X);
 			FVector2D Ctr(IconX, Top + 26.f * Scale);
-			if (bGust) Ctr += FVector2D(FMath::Sin(Now * 53.f), FMath::Cos(Now * 41.f)) * (1.8f * Scale);
-			const float AR = 14.f * Scale * (bWarn ? 1.f + 0.15f * Pulse : 1.f);
+			if (bGust) Ctr += FVector2D(FMath::Sin(Now * 53.f), FMath::Cos(Now * 41.f)) * (3.5f * Scale);
+			const float AR = 14.f * Scale * (bWarn ? 1.f + 0.3f * Pulse : 1.f);
 			FLinearColor AC = C;
-			if (bWarn) AC.A *= 0.65f + 0.35f * Pulse;
+			if (bWarn) AC.A *= 0.4f + 0.6f * Pulse;
 			const float T = (bGust ? 3.f : 2.f) * Scale;
 			const FVector2D Tip = Ctr + V * AR, Tail = Ctr - V * AR;
 			const FVector2D H1 = Tip - V * (AR * 0.6f) + Side * (AR * 0.45f), H2 = Tip - V * (AR * 0.6f) - Side * (AR * 0.45f);
@@ -1673,7 +1673,7 @@ void ALeaflineHUD::DrawWindIcons(const ADayDirector* D, const AWindSystem* Wind,
 		const bool bSheltered = ExposureShown < Style.ShelteredBelow, bPartly = ExposureShown < Style.PartlyBelow;
 		const FLinearColor EC = bSheltered ? Style.Sheltered : (bPartly ? Style.Partly : StaminaLockedColor);
 		DrawIcon(bSheltered ? TEXT("Icon_Sheltered") : (bPartly ? TEXT("Icon_Partly") : TEXT("Icon_Exposed")), IconX, RowY + 10.f * Scale, IconSize, EC);
-		DrawTextAt(bSheltered ? TEXT("sheltered here") : (bPartly ? TEXT("partly exposed here") : TEXT("exposed here")), GX, RowY, EC, SecondaryText(Scale), Font);
+		DrawTextAt(bSheltered ? TEXT("sheltered") : (bPartly ? TEXT("partly exposed") : TEXT("exposed")), GX, RowY, EC, SecondaryText(Scale), Font);
 	}
 	if (M && D->GetPhase() == EDayPhase::Shift)
 	{
@@ -1696,16 +1696,16 @@ void ALeaflineHUD::DrawWindIcons(const ADayDirector* D, const AWindSystem* Wind,
 			const float BY = LY + ((bMap ? 4.f : 1.f) * Style.Row + 6.f) * Scale, BCY = BY + 10.f * Scale;
 			if (Bird->IsDiving())
 			{
-				const float Blink = FMath::Frac(Now * 4.f) < 0.5f ? 1.f : 0.35f;
-				const float Stoop = FMath::Frac(Now * 2.f) * 4.f * Scale;
+				const float Blink = FMath::Frac(Now * 4.f) < 0.5f ? 1.f : 0.25f;
+				const float Stoop = FMath::Frac(Now * 2.f) * 6.f * Scale;
 				DrawIcon(TEXT("Icon_BirdDive"), IconX, BCY - 2.f * Scale + Stoop, IconSize * 1.1f, FLinearColor(TextColor.R, TextColor.G, TextColor.B, Blink));
-				DrawTextAt(TEXT("bird diving!"), GX, BY, TextColor, SecondaryText(Scale), Font);
+				DrawTextAt(TEXT("diving!"), GX, BY, TextColor, SecondaryText(Scale), Font);
 			}
 			else
 			{
 				const float Bob = FMath::Sin(Now * 2.f * PI * 0.6f);
-				DrawIcon(TEXT("Icon_BirdGlide"), IconX + FMath::Cos(Now * 2.f * PI * 0.3f) * 3.f * Scale, BCY + Bob * 2.5f * Scale, IconSize * 1.1f, TextColor, Bob * 10.f);
-				DrawTextAt(TEXT("bird circling"), GX, BY, TextColor, SecondaryText(Scale), Font);
+				DrawIcon(TEXT("Icon_BirdGlide"), IconX + FMath::Cos(Now * 2.f * PI * 0.3f) * 4.f * Scale, BCY + Bob * 3.f * Scale, IconSize * 1.1f, TextColor, Bob * 12.f);
+				DrawTextAt(TEXT("circling"), GX, BY, TextColor, SecondaryText(Scale), Font);
 			}
 		}
 	}
