@@ -31,8 +31,6 @@ private:
 	void ApplyCinematic();
 	bool StartShot(const FString& Name, float Seconds);
 	void PrepareReveal();
-	bool BuildRevealRail(const FVector& End, TArray<FVector>& OutRail, FString& OutRoute) const;
-	bool ValidateRevealRail(const TArray<FVector>& Rail, double* OutMinClearance = nullptr) const;
 	void TickReveal();
 	bool ClearPosition(FVector& Position) const;
 	bool SweepPosition(FVector& Position) const;
@@ -71,14 +69,8 @@ private:
 	FVector RevealEnd = FVector::ZeroVector;
 	FVector RevealFocus = FVector::ZeroVector;
 	float RevealFOV = 110.f;
-	FBox RevealCrownBounds = FBox(ForceInit);
-	TArray<FVector> RevealRail;
-	TArray<double> RevealDistances;
-	bool bRevealFallback = false;
-	double RevealMinPlannedClearance = 0.0;
 	float RevealMaxRoll = 0.f;
-	int32 RevealStoppedFrames = 0;
-	bool bRevealHoldLogged = false;
+	int32 RevealNextSample = 0;
 	int32 DollyBranch = INDEX_NONE;
 	double DollyFrom = 0.0;
 	double DollyTo = 0.0;

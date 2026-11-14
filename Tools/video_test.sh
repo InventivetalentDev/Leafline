@@ -59,7 +59,7 @@ seed = sys.argv[4]
 out = marker.parent
 failures = []
 labels = ['cinematic'] + [f'{s}-{i}' for s in ('orbit', 'crane', 'dolly', 'reveal') for i in (1, 2, 3)]
-labels += ['reveal-hold-7_5s', 'reveal-player-return-8_5s'] + [f'follow-{i}' for i in (1, 2, 3)]
+labels += ['reveal-moving-7_5s', 'reveal-player-return-8_5s'] + [f'follow-{i}' for i in (1, 2, 3)]
 labels += ['list-orbit-1', 'list-orbit-2', 'list-dolly-1', 'list-dolly-2', 'hud-restored']
 frames = sorted((p for p in (root/'Saved/Screenshots').rglob('*.png') if p.stat().st_mtime >= marker.stat().st_mtime), key=lambda p: (p.stat().st_mtime, p.name))
 for i, p in enumerate(frames):
@@ -72,25 +72,19 @@ for i, p in enumerate(frames):
     print(target)
 log = (root/f'Saved/Logs/VideoTest-Day{day}.log').read_text(errors='replace')
 for line in log.splitlines():
-    if 'LogLeafline:' in line and any(s in line for s in ('Shot ', 'Cinematic ', 'Video slomo', 'Reveal plan:', 'Reveal candidate ', 'Reveal rail:', 'Reveal hold:', 'Reveal playback:')):
+    if 'LogLeafline:' in line and any(s in line for s in ('Shot ', 'Cinematic ', 'Video slomo', 'Reveal plan:', 'Reveal candidate ', 'Reveal timing:', 'Reveal sample:', 'Reveal playback:')):
         print(line)
-plans = re.findall(r'Reveal plan: height ([\d.]+) cm, pullback [\d.]+ cm \(cap 26000\), camera height ([\d.]+) cm \(1/3\), frame height ([\d.]+),', log)
-if not plans: failures.append('missing reveal plan; check the worktree binaries')
-if 'fallback-six 1' not in log:
-    for height, camera_height, span in plans:
-        if abs(float(camera_height) - float(height)/3) > 1 or abs(float(span) - 0.70) > 0.005:
-            failures.append('reveal plan misses the one-third camera height or 70% framing target')
-else:
-    print('Reveal froze the six-second fallback composition; inspect its end hold.')
-playback = re.findall(r'Reveal playback: max roll ([\d.]+) deg, stopped frames (\d+)', log)
-if not playback: failures.append('missing step-5 reveal playback evidence; check the worktree binaries')
-for roll, stopped in playback:
-    if float(roll) > 0.01 or int(stopped): failures.append('reveal rolled or stopped on an invalid planned position')
-hold_positions = re.findall(r'Reveal hold:.*position (V\([^\r\n]+\))', log)
-end_positions = re.findall(r'Reveal playback:.*end (V\([^\r\n]+\));', log)
-if not hold_positions or not end_positions or hold_positions[-1] != end_positions[-1]:
-    failures.append('reveal end hold is missing or moved before handoff')
-if 'entry hold: six-second pose unreachable' in log: failures.append('six-second fallback pose was unreachable')
+if 'Reveal timing: step-4 path trimmed at reference 6/8 seconds' not in log:
+    failures.append('missing step-6 reveal timing; check the worktree binaries')
+playback = re.findall(r'Reveal playback: max roll ([\d.]+) deg, end ', log)
+if not playback: failures.append('missing reveal playback evidence')
+for roll in playback:
+    if float(roll) > 0.01: failures.append('reveal rolled')
+samples = re.findall(r'Reveal sample: ([\d.]+) s, phase ([\d.]+), roll ([\d.]+) deg, position (V\([^\r\n]+\))', log)
+if len(samples) < 5: failures.append('missing reveal motion samples')
+for earlier, later in zip(samples, samples[1:]):
+    if float(later[1]) <= float(earlier[1]) or later[3] == earlier[3]:
+        failures.append('reveal froze or stopped advancing during its duration')
 for blockers in re.findall(r'Reveal plan:.*foreground blockers (\d+)', log):
     if int(blockers): print(f'Reveal used the fewest-blockers fallback ({blockers} foreground trees); inspect the silhouette.')
 if int(day) > 1 and f'Day {day} starts: tree 3 (a tall spire, seed {seed})' not in log:
