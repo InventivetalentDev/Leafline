@@ -28,8 +28,8 @@ struct FForestFloorTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clearing") float FlatRing = 250.f;
 	/** Outer edge of the scattered litter. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Litter") float LitterRadius = 14000.f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Litter") int32 RingLeaves = 3200;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Litter") int32 OuterLeaves = 2400;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Litter") int32 RingLeaves = 2400;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Litter") int32 OuterLeaves = 1800;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Litter") float LeafLengthMin = 55.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Litter") float LeafLengthMax = 150.f;
 	/** Fraction of the leaves that are small fragments (8 to 24 cm). */
