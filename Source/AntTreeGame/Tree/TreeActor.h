@@ -89,7 +89,12 @@ public:
 	int32 CountPiecesLeft(float Template = 0.5f, float UsePerCut = 0.38f) const;
 
 	const FTreeSkeleton& GetSkeleton() const { return Skeleton; }
+	/** The walking field: what the whole sim asks (walking, recruits, trails, falls, wind, exposure, leaf placement). It never
+	 *  has fillets, so the sim is the same with fillets on or off (owner, 14 Nov: the skirts are looks only). */
 	const FTreeField& GetField() const { return Field; }
+	/** The surface the bark mesh shows: with fillets, the field with them (the skirts lie on it); otherwise the walking
+	 *  field. For looks only: the skirts, the camera's bark cutaway, fillet debug. */
+	const FTreeField& GetVisualField() const { return SkirtField.HasFillets() ? SkirtField : Field; }
 	int32 GetSeed() const { return Skeleton.Seed; }
 
 	using FPatchRules = FTreePatchRules;
@@ -191,6 +196,8 @@ private:
 
 	FTreeSkeleton Skeleton;
 	FTreeField Field;
+	/** With fillets on: the field with them, which the skirts are built on (GetVisualField). Empty otherwise. */
+	FTreeField SkirtField;
 	FLeafSet Leaves;
 	FLeafSet GroveLeaves;
 

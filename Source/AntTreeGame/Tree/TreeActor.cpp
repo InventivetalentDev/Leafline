@@ -517,11 +517,11 @@ void ATreeActor::GrowShape(int32 Seed)
 	Params = WithFilletOverrides(Params);
 	TreeSkeleton::Grow(Skeleton, Params, Seed);
 	const double FieldStart = FPlatformTime::Seconds();
-	Field.Build(Skeleton);
-	// Leaves are placed against the field without fillets: the skip test reads the field, and leaf count and order must
-	// not depend on fillets (one-tree saves store bites by leaf index).
-	FTreeField LeafField;
-	if (Field.HasFillets()) LeafField.Build(Skeleton, false);
+	// The sim walks on the field without fillets (leaf placement too, so leaf count and order do not depend on them: one-
+	// tree saves store bites by leaf index). The fillets only shape the skirts over the junctions in the mesh.
+	Field.Build(Skeleton, false);
+	SkirtField.Reset();
+	if (Params.bFillets) SkirtField.Build(Skeleton, true);
 	const double FieldMs = (FPlatformTime::Seconds() - FieldStart) * 1000.0;
 	BranchChildren.Reset();
 	BranchChildren.SetNum(Skeleton.Branches.Num());
@@ -533,15 +533,15 @@ void ATreeActor::GrowShape(int32 Seed)
 
 	FTreeMeshData Data, GroundSkirt;
 	TArray<int32> NoSkirt;
-	TreeMeshBuilder::Build(Skeleton, Data, &Field, &NoSkirt, &GroundSkirt);
+	TreeMeshBuilder::Build(Skeleton, Data, &GetVisualField(), &NoSkirt, &GroundSkirt);
 	if (NoSkirt.Num() > 0)
 	{
-		// A fillet without a skirt would lift the ant over a crease it cannot see: those junctions keep the plain blend. The
-		// field changes near them, so the other skirts are laid again on the new field.
+		// A junction whose skirt could not be built shows its crease: drop its fillet, and lay the other skirts again on the
+		// field without it (they differ only near it).
 		for (int32 b : NoSkirt) Skeleton.Branches[b].FilletK = 0.f;
-		Field.Build(Skeleton);
-		UE_LOG(LogLeafline, Log, TEXT("Tree shape: %d fillets without a skirt removed from the walking field; building the mesh again"), NoSkirt.Num());
-		TreeMeshBuilder::Build(Skeleton, Data, &Field, nullptr, &GroundSkirt);
+		SkirtField.Build(Skeleton, true);
+		UE_LOG(LogLeafline, Log, TEXT("Tree shape: %d fillets without a skirt dropped; building the mesh again"), NoSkirt.Num());
+		TreeMeshBuilder::Build(Skeleton, Data, &GetVisualField(), nullptr, &GroundSkirt);
 	}
 
 	if (!WoodMesh) WoodMesh = MakeMeshComponent(this, RootComponent, TEXT("WoodMesh"));
@@ -561,10 +561,10 @@ void ATreeActor::GrowShape(int32 Seed)
 	BuildGrove();
 
 	// Leaves: one mesh section per limb, so a cut rebuilds only a small chunk.
-	Leaves.Build(Skeleton, Field.HasFillets() ? LeafField : Field);
+	Leaves.Build(Skeleton, Field);
 	PatchWalkCache.Reset();
-	UE_LOG(LogLeafline, Log, TEXT("Tree shape: fillets %s (frac %.2f, bough x%.2f, max %.0f cm, ground %.0f cm), fields built in %.1f ms"),
-		Field.HasFillets() ? TEXT("on") : TEXT("off"), Params.FilletFrac, Params.FilletBoughMul, Params.FilletMax, Params.FilletGroundK, FieldMs);
+	UE_LOG(LogLeafline, Log, TEXT("Tree shape: fillets %s in the mesh, not in the walking field (frac %.2f, bough x%.2f, max %.0f cm, ground %.0f cm), fields built in %.1f ms"),
+		SkirtField.HasFillets() ? TEXT("on") : TEXT("off"), Params.FilletFrac, Params.FilletBoughMul, Params.FilletMax, Params.FilletGroundK, FieldMs);
 }
 
 void ATreeActor::BuildLeafMeshes()
