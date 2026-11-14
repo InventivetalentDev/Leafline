@@ -149,6 +149,25 @@ namespace
 		TEXT("Leaf.Relief [0|1]: the visible ground rises and falls beyond 160 m (1) or stays a plane (0, default); no argument toggles. The walking field is a plane either way."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World) { Relief(World, Args); }));
 
+	/** Leaf.GroveUnder [0|1]: the grove's understory (smaller leafy trees in front of the giants) on or off; no argument toggles.
+	 *  Rebuilds the ground and the grove only (as Leaf.Relief): the play tree, the day and the saves are untouched. */
+	void GroveUnder(UWorld* World, const TArray<FString>& Args)
+	{
+		ATreeActor* Tree = ATreeActor::Get(World);
+		if (!Tree) return;
+		const bool bOn = Args.Num() > 0 ? FCString::Atoi(*Args[0]) != 0 : !ATreeActor::IsGroveUnderstoryOn(Tree->Params);
+		ATreeActor::SetGroveUnderstoryOverride(bOn ? 1 : 0);
+		const double Start = FPlatformTime::Seconds();
+		Tree->RebuildGroundAndGrove();
+		UE_LOG(LogLeafline, Log, TEXT("Leaf.GroveUnder: understory %s; ground and grove rebuilt in %.0f ms"), bOn ? TEXT("on") : TEXT("off"),
+			(FPlatformTime::Seconds() - Start) * 1000.0);
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs CmdGroveUnder(
+		TEXT("Leaf.GroveUnder"),
+		TEXT("Leaf.GroveUnder [0|1]: the grove's understory, smaller leafy trees in front of the giants that frame the horizon from the nest (1, default) or not (0); no argument toggles. Rebuilds the ground and grove only."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World) { GroveUnder(World, Args); }));
+
 	/** Leaf.Collars [0|1]: branch collars on or off (toggle with no argument), then today's tree grows again, fresh. */
 	void Collars(UWorld* World, const TArray<FString>& Args)
 	{

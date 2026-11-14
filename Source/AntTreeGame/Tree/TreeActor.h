@@ -157,6 +157,9 @@ public:
 	/** Branch collars (Leaf.Collars): overrides FTreeParams::bBranchCollars for every tree grown from now on. */
 	static void SetBranchCollarsOverride(bool bOn);
 	static bool AreBranchCollarsOn(const FTreeParams& P);
+	/** Grove understory (Leaf.GroveUnder): overrides FTreeParams::bGroveUnderstory (-1: the params decide). */
+	static void SetGroveUnderstoryOverride(int32 On);
+	static bool IsGroveUnderstoryOn(const FTreeParams& P);
 
 	/** Junction fillets (Leaf.Fillets): override FTreeParams::bFillets, and FilletFrac / FilletMax / FilletBoughMul / FilletGroundK where
 	 *  the value is >= 0, for every tree grown from now on. */

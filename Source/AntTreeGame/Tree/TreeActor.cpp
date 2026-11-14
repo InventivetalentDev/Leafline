@@ -442,6 +442,7 @@ namespace
 {
 	bool GNewBark = true;
 	int32 GCollarsOverride = -1; // -1: FTreeParams::bBranchCollars decides; 0/1: Leaf.Collars
+	int32 GGroveUnderOverride = -1; // -1: FTreeParams::bGroveUnderstory decides; 0/1: Leaf.GroveUnder
 	int32 GFilletsOverride = -1; // -1: FTreeParams::bFillets decides; 0/1: Leaf.Fillets
 	int32 GFilletWalkOverride = -1; // -1: FTreeParams::bFilletWalk decides; 0/1: Leaf.FilletWalk
 	float GFilletFrac = -1.f, GFilletMax = -1.f, GFilletBoughMul = -1.f, GFilletGroundK = -1.f, GFilletTwigMin = -1.f; // < 0: FTreeParams decides
@@ -483,6 +484,16 @@ void ATreeActor::SetBranchCollarsOverride(bool bOn)
 bool ATreeActor::AreBranchCollarsOn(const FTreeParams& P)
 {
 	return GCollarsOverride >= 0 ? GCollarsOverride != 0 : P.bBranchCollars;
+}
+
+void ATreeActor::SetGroveUnderstoryOverride(int32 On)
+{
+	GGroveUnderOverride = On < 0 ? -1 : (On != 0 ? 1 : 0);
+}
+
+bool ATreeActor::IsGroveUnderstoryOn(const FTreeParams& P)
+{
+	return GGroveUnderOverride >= 0 ? GGroveUnderOverride != 0 : P.bGroveUnderstory;
 }
 
 bool ATreeActor::IsNewBark()
@@ -1188,29 +1199,101 @@ void ATreeActor::BuildGrove()
 		}
 	}
 
-	// Leaves on the surface of each clump, facing out and drooping a little; far enough away that they are scenery.
-	GroveLeaves.Reset();
-	for (const FClump& Cl : Clumps)
+	// Understory (Leaf.GroveUnder): smaller trees nearer than the giants and between them, leafy from a quarter of their height,
+	// so from the nest and the low trunk foliage frames the horizon where the giants show only their lower trunks. Its own
+	// random stream and appended after the giants: with it off or on, the giants and their leaves are exactly the same.
+	FRandomStream U(Skeleton.Seed * 104729 + 31);
+	TArray<FClump> UnderClumps;
+	const int32 UCount = IsGroveUnderstoryOn(Params) ? FMath::Max(0, Params.GroveUnderCount) : 0;
+	for (int32 k = 0; k < UCount; ++k)
 	{
-		for (int32 i = 0; i < Params.GroveLeavesPerClump; ++i)
+		const float Az = 2.f * PI * (k + 0.5f) / UCount + U.FRandRange(-0.25f, 0.25f);
+		const float Dist = U.FRandRange(Params.GroveUnderMinDistance, FMath::Max(Params.GroveUnderMinDistance, Params.GroveUnderMaxDistance));
+		FVector Base = C + FVector(FMath::Cos(Az), FMath::Sin(Az), 0.f) * Dist;
+		const float R0 = U.FRandRange(110.f, 240.f);
+		Base.Z += LeafRelief::Height(Base.X, Base.Y) - LeafRelief::Slope(Base.X, Base.Y) * R0 * 1.4f * 1.2f;
+		const float H = U.FRandRange(5000.f, 11000.f);
+		const FVector Lean = FVector(U.FRandRange(-1.f, 1.f), U.FRandRange(-1.f, 1.f), 0.f).GetSafeNormal() * U.FRandRange(0.01f, 0.06f);
+		auto RadiusAt = [&](float Z)
 		{
-			FVector Out = R.VRand();
-			Out.Z = Out.Z * 0.7f + 0.2f; // flatter underneath, fuller on top
-			Out.Normalize();
-			FTreeLeaf L;
-			L.Length = Cl.Radius * R.FRandRange(0.2f, 0.3f); // a few metres: big enough to read at a distance, not giant
-			L.Width = L.Length * Params.LeafWidthRatio;
-			const FVector Tan = FVector::CrossProduct(Out, R.VRand()).GetSafeNormal();
-			L.Dir = (Tan + Out * 0.35f + FVector(0.f, 0.f, -0.3f)).GetSafeNormal();
-			L.Side = FVector::CrossProduct(L.Dir, Out).GetSafeNormal();
-			if (L.Side.IsNearlyZero()) continue;
-			L.Normal = FVector::CrossProduct(L.Side, L.Dir).GetSafeNormal(); // points outward
-			L.Base = Cl.Center + Out * Cl.Radius * R.FRandRange(0.7f, 1.f) - L.Dir * L.Length * 0.3f;
-			L.Origin = L.Base;
-			L.Chunk = 0;
-			GroveLeaves.AddDecorLeaf(L);
+			const float Zc = FMath::Max(Z, 0.f);
+			return (25.f + (R0 - 25.f) * FMath::Pow(FMath::Max(1.f - Zc / H, 0.f), 0.85f)) * (1.f + 0.4f * FMath::Exp(-Zc / 300.f));
+		};
+		FTreeBranch T;
+		T.Level = 0;
+		T.Random = U.FRand();
+		constexpr int32 N = 10;
+		for (int32 i = 0; i <= N; ++i)
+		{
+			const float Z = -200.f + (H + 200.f) * FMath::Pow(float(i) / N, 1.3f);
+			T.Nodes.Add({ Base + Lean * FMath::Max(Z, 0.f) + FVector(0.f, 0.f, Z), RadiusAt(Z) });
+		}
+		TreeSkeleton::BuildSamples(T, Grove.Params);
+		Grove.Branches.Add(MoveTemp(T));
+		// A full crown: a wide clump on top and others close together down to a quarter of the height, a leafy mass
+		// rather than puffs on a pole.
+		UnderClumps.Add({ Base + Lean * H + FVector(0.f, 0.f, H * 0.9f), H * U.FRandRange(0.18f, 0.24f) });
+		constexpr int32 NC = 7;
+		for (int32 c = 1; c < NC; ++c)
+		{
+			const float Z2 = H * FMath::Lerp(0.25f, 0.82f, (c - 0.5f + U.FRandRange(-0.3f, 0.3f)) / (NC - 1));
+			const float A2 = U.FRandRange(0.f, 2.f * PI);
+			const float Out = H * U.FRandRange(0.06f, 0.16f);
+			UnderClumps.Add({ Base + Lean * Z2 + FVector(FMath::Cos(A2) * Out, FMath::Sin(A2) * Out, Z2), H * U.FRandRange(0.13f, 0.2f) });
+		}
+		const int32 Limbs = U.RandRange(2, 3);
+		for (int32 l = 0; l < Limbs; ++l)
+		{
+			const float Z0 = H * U.FRandRange(0.3f, 0.7f);
+			const float A = U.FRandRange(0.f, 2.f * PI);
+			FVector Dir = (FVector(FMath::Cos(A), FMath::Sin(A), 0.f) + FVector(0.f, 0.f, U.FRandRange(0.4f, 1.0f))).GetSafeNormal();
+			const float Len = H * U.FRandRange(0.15f, 0.3f);
+			const float LR = RadiusAt(Z0) * 0.4f;
+			FTreeBranch B;
+			B.Level = 1;
+			B.Random = U.FRand();
+			FVector P = Base + Lean * Z0 + FVector(0.f, 0.f, Z0);
+			constexpr int32 M = 4;
+			for (int32 i = 0; i <= M; ++i)
+			{
+				B.Nodes.Add({ P, FMath::Lerp(LR, 12.f, float(i) / M) });
+				Dir = (Dir + FVector(0.f, 0.f, 0.08f)).GetSafeNormal();
+				P += Dir * (Len / M);
+			}
+			TreeSkeleton::BuildSamples(B, Grove.Params);
+			Grove.Branches.Add(MoveTemp(B));
+			UnderClumps.Add({ P, H * U.FRandRange(0.1f, 0.15f) });
 		}
 	}
+
+	// Leaves on the surface of each clump, facing out and drooping a little; far enough away that they are scenery.
+	GroveLeaves.Reset();
+	auto AddClumpLeaves = [&](const TArray<FClump>& Group, int32 PerClump, FRandomStream& Rs)
+	{
+		for (const FClump& Cl : Group)
+		{
+			for (int32 i = 0; i < PerClump; ++i)
+			{
+				FVector Out = Rs.VRand();
+				Out.Z = Out.Z * 0.7f + 0.2f; // flatter underneath, fuller on top
+				Out.Normalize();
+				FTreeLeaf L;
+				L.Length = Cl.Radius * Rs.FRandRange(0.2f, 0.3f); // a few metres: big enough to read at a distance, not giant
+				L.Width = L.Length * Params.LeafWidthRatio;
+				const FVector Tan = FVector::CrossProduct(Out, Rs.VRand()).GetSafeNormal();
+				L.Dir = (Tan + Out * 0.35f + FVector(0.f, 0.f, -0.3f)).GetSafeNormal();
+				L.Side = FVector::CrossProduct(L.Dir, Out).GetSafeNormal();
+				if (L.Side.IsNearlyZero()) continue;
+				L.Normal = FVector::CrossProduct(L.Side, L.Dir).GetSafeNormal(); // points outward
+				L.Base = Cl.Center + Out * Cl.Radius * Rs.FRandRange(0.7f, 1.f) - L.Dir * L.Length * 0.3f;
+				L.Origin = L.Base;
+				L.Chunk = 0;
+				GroveLeaves.AddDecorLeaf(L);
+			}
+		}
+	};
+	AddClumpLeaves(Clumps, Params.GroveLeavesPerClump, R);
+	AddClumpLeaves(UnderClumps, FMath::Max(0, Params.GroveUnderLeavesPerClump), U);
 
 	FTreeMeshData Data;
 	TreeMeshBuilder::Build(Grove, Data);
@@ -1224,7 +1307,7 @@ void ATreeActor::BuildGrove()
 	GroveMesh->CreateMeshSection_LinearColor(0, Data.Vertices, Data.Triangles, Data.Normals, Data.UV0, Data.UV1, Data.UV2, Data.UV3,
 		Data.Colors, Data.Tangents, false, false);
 	if (UMaterialInterface* Mat = WoodMesh ? WoodMesh->GetMaterial(0) : nullptr) GroveMesh->SetMaterial(0, Mat);
-	UE_LOG(LogLeafline, Log, TEXT("Grove: %d distant trunks, %d triangles"), Count, Data.Triangles.Num() / 3);
+	UE_LOG(LogLeafline, Log, TEXT("Grove: %d distant trunks and %d understory trees, %d triangles"), Count, UCount, Data.Triangles.Num() / 3);
 }
 
 void ATreeActor::BuildGround(const FTreeMeshData* Skirt)
