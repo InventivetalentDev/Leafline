@@ -887,7 +887,9 @@ void ALeaflineHUD::DrawLineRows(const ADayDirector* D, const ALineSystem* Lines,
 	{
 		const float Dim = L.IsLive() ? 1.f : 0.7f;
 		const FLinearColor Text(TextColor.R, TextColor.G, TextColor.B, Dim);
-		DrawTextAt(FString::Printf(TEXT("Line %d"), L.Number), X, Y, FLinearColor(AccentColor.R, AccentColor.G, AccentColor.B, Dim), SecondaryText(Scale), Font);
+		const FLinearColor LC = Lines->GetLineColor(L.Number, 0.3f); // the line's own colour, as on its trail
+		DrawRect(FLinearColor(LC.R, LC.G, LC.B, Dim), X - 10.f * Scale, Y + 3.f * Scale, 4.f * Scale, 50.f * Scale);
+		DrawTextAt(FString::Printf(TEXT("Line %d"), L.Number), X, Y, FLinearColor(LC.R, LC.G, LC.B, Dim), SecondaryText(Scale), Font);
 		DrawTextAt(FString::Printf(TEXT("Home %d   Lost %d"), L.PiecesHome, L.PiecesLost), X + 115.f * Scale, Y,
 			L.PiecesLost > 0 ? FLinearColor(StaminaLockedColor.R, StaminaLockedColor.G, StaminaLockedColor.B, Dim) : Text, SecondaryText(Scale), Font);
 		const float BY = Y + Style.Row * Scale, BW = 100.f * Scale, BH = Style.Bar * Scale;
@@ -939,8 +941,9 @@ void ALeaflineHUD::DrawPatchPreview(const AAntPawn* Ant, const ALineSystem* Line
 	{
 		if (Other != Leaf) DrawLeafOutline(Other, Faint, 1.5f * Scale);
 	}
-	const FString Text = FString::Printf(TEXT("This patch: about %d pieces, rich \u00D7%.1f"), P.Pieces, P.Richness);
-	DrawTextPanel(Text, Canvas->ClipX * 0.5f, Canvas->ClipY - 250.f * Scale, Style.Rich, SecondaryText(Scale), Scale);
+	// Named and coloured as the line it would become, so its trail is recognisable once laid.
+	const FString Text = FString::Printf(TEXT("Line %d here: about %d pieces, rich \u00D7%.1f"), Lines->GetNextLineNumber(), P.Pieces, P.Richness);
+	DrawTextPanel(Text, Canvas->ClipX * 0.5f, Canvas->ClipY - 250.f * Scale, Lines->GetLineColor(Lines->GetNextLineNumber(), 0.3f), SecondaryText(Scale), Scale);
 }
 
 void ALeaflineHUD::DrawHarvest(const ADayDirector* D, const ALineSystem* Lines, float Scale)
@@ -1055,7 +1058,8 @@ void ALeaflineHUD::DrawRecap(const ADayDirector* D, float Scale)
 			const float Fade = FMath::Clamp((RecapTime - Start) / 0.2f, 0.f, 1.f);
 			const float RY = Y + i * Style.Row * Scale;
 			const FLinearColor T(TextColor.R, TextColor.G, TextColor.B, Fade);
-			DrawTextAt(FString::Printf(TEXT("Line %d"), L.Number), X, RY, FLinearColor(AccentColor.R, AccentColor.G, AccentColor.B, Fade), SecondaryText(Scale), Font);
+			const FLinearColor LC = LineSys->GetLineColor(L.Number, 0.3f);
+			DrawTextAt(FString::Printf(TEXT("Line %d"), L.Number), X, RY, FLinearColor(LC.R, LC.G, LC.B, Fade), SecondaryText(Scale), Font);
 			DrawTextAt(FString::Printf(TEXT("Home %d"), FMath::RoundToInt(L.PiecesHome * K)), X + 140.f * Scale, RY, T, SecondaryText(Scale), Font);
 			DrawTextAt(FString::Printf(TEXT("Lost %d"), FMath::RoundToInt(L.PiecesLost * K)), X + 330.f * Scale, RY,
 				L.PiecesLost > 0 ? FLinearColor(StaminaLockedColor.R, StaminaLockedColor.G, StaminaLockedColor.B, Fade) : T, SecondaryText(Scale), Font);

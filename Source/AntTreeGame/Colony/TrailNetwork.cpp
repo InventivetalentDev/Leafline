@@ -1,4 +1,5 @@
 #include "Colony/TrailNetwork.h"
+#include "Misc/CommandLine.h"
 #include "Algo/Reverse.h"
 #include "AntTreeGame.h"
 #include "ProceduralMeshComponent.h"
@@ -150,6 +151,7 @@ void ATrailNetwork::AddPoint(int32 PathIndex, const FVector& Pos, const FVector&
 	Path.Drawn.Add(bNearOther ? 0 : 1);
 	Path.Dist.Add(PrevDist + Step);
 	Path.Glow.Add(Path.bYesterday ? YesterdayGlow : NoLineGlow);
+	Path.Color.Add(NoLineColor);
 	Grid.FindOrAdd(C).Add(FIntPoint(PathIndex, Index));
 	// The segment ending at this point belongs to the chunk of the point before it.
 	const int32 Chunk = FMath::Max(Index - 1, 0) / ChunkSize;
@@ -198,15 +200,32 @@ void ATrailNetwork::Tick(float DeltaTime)
 
 void ATrailNetwork::SetLineGlow(const TArray<const TArray<FTrailPoint>*>& Routes, const TArray<float>& Glow, float NoLine)
 {
+	SetLineGlow(Routes, Glow, NoLine, {}, NoLineColor);
+}
+
+void ATrailNetwork::SetLineGlow(const TArray<const TArray<FTrailPoint>*>& Routes, const TArray<float>& Glow, float NoLine,
+	const TArray<FLinearColor>& Colors, const FLinearColor& InNoLineColor)
+{
 	NoLineGlow = NoLine;
+	NoLineColor = InNoLineColor;
 	TArray<TArray<float>> NewGlow;
+	TArray<TArray<FLinearColor>> NewColor;
+	TArray<TArray<uint8>> Claimed;
 	NewGlow.SetNum(Paths.Num());
-	for (int32 p = 0; p < Paths.Num(); ++p) NewGlow[p].Init(Paths[p].bYesterday ? YesterdayGlow : NoLine, Paths[p].Points.Num());
+	NewColor.SetNum(Paths.Num());
+	Claimed.SetNum(Paths.Num());
+	for (int32 p = 0; p < Paths.Num(); ++p)
+	{
+		NewGlow[p].Init(Paths[p].bYesterday ? YesterdayGlow : NoLine, Paths[p].Points.Num());
+		NewColor[p].Init(NoLineColor, Paths[p].Points.Num());
+		Claimed[p].Init(0, Paths[p].Points.Num());
+	}
 	const double Merge2 = MergeDistance * MergeDistance;
 	for (int32 r = 0; r < Routes.Num() && r < Glow.Num(); ++r)
 	{
 		if (!Routes[r]) continue;
 		const float G = Glow[r];
+		const FLinearColor RouteColor = Colors.IsValidIndex(r) ? Colors[r] : NoLineColor;
 		for (const FTrailPoint& RP : *Routes[r])
 		{
 			const FIntVector C = Cell(RP.Pos);
@@ -221,8 +240,14 @@ void ATrailNetwork::SetLineGlow(const TArray<const TArray<FTrailPoint>*>& Routes
 							if (Paths[Ref.X].bYesterday) continue; // stays at YesterdayGlow
 							if (FVector::DistSquared(Paths[Ref.X].Points[Ref.Y].Pos, RP.Pos) < Merge2)
 							{
+								// The brightest line takes the stretch (and its colour); on a tie the lower-numbered one keeps it.
 								float& Slot = NewGlow[Ref.X][Ref.Y];
-								Slot = FMath::Max(Slot, G);
+								if (!Claimed[Ref.X][Ref.Y] || G > Slot + 1e-4f)
+								{
+									Slot = FMath::Max(Slot, G);
+									NewColor[Ref.X][Ref.Y] = RouteColor;
+									Claimed[Ref.X][Ref.Y] = 1;
+								}
 							}
 						}
 					}
@@ -232,10 +257,12 @@ void ATrailNetwork::SetLineGlow(const TArray<const TArray<FTrailPoint>*>& Routes
 	{
 		FPath& Path = Paths[p];
 		Path.Glow.SetNum(Path.Points.Num());
+		Path.Color.SetNum(Path.Points.Num());
 		for (int32 i = 0; i < Path.Points.Num(); ++i)
 		{
-			if (FMath::Abs(Path.Glow[i] - NewGlow[p][i]) < 0.02f) continue;
+			if (FMath::Abs(Path.Glow[i] - NewGlow[p][i]) < 0.02f && Path.Color[i].Equals(NewColor[p][i], 0.01f)) continue;
 			Path.Glow[i] = NewGlow[p][i];
+			Path.Color[i] = NewColor[p][i];
 			Path.GlowDirtyChunks.Add(FMath::Max(i - 1, 0) / ChunkSize);
 			Path.GlowDirtyChunks.Add(i / ChunkSize);
 		}
@@ -248,6 +275,7 @@ void ATrailNetwork::RebuildChunk(int32 PathIndex, int32 Chunk)
 	// Brightness shows each line's patch (SetLineGlow): bright is a full patch, faint is nearly stripped or no line at
 	// all. Faint stretches are also a little thinner, so the tangle of a busy day reads (vertex alpha in M_Trail).
 	if (Path.Glow.Num() != Path.Points.Num()) Path.Glow.Init(NoLineGlow, Path.Points.Num());
+	if (Path.Color.Num() != Path.Points.Num()) Path.Color.Init(NoLineColor, Path.Points.Num());
 	TArray<FVector> V, N;
 	TArray<FVector2D> UV;
 	TArray<FLinearColor> Col;
@@ -283,7 +311,9 @@ void ATrailNetwork::RebuildChunk(int32 PathIndex, int32 Chunk)
 		}
 		const float Fade = FMath::Clamp(0.5f * (Path.Glow[i] + Path.Glow[i + 1]), 0.f, 1.f);
 		const float W = Width * FMath::Lerp(0.6f, 1.f, Fade);
-		const FLinearColor Tint(1.f, 1.f, 1.f, Fade);
+		// Vertex RGB: the line's colour (M_Trail / M_TrailSmoke), alpha the brightness.
+		const FLinearColor Hue = (Path.Color[i] + Path.Color[i + 1]) * (0.5f / FMath::Max(ColorGain, 0.01f));
+		const FLinearColor Tint(FMath::Min(Hue.R, 1.f), FMath::Min(Hue.G, 1.f), FMath::Min(Hue.B, 1.f), Fade);
 		const FVector Dir = (B.Pos - A.Pos) / FMath::Max(SegLen, 0.01f);
 		const FVector SideA = FVector::CrossProduct(A.Normal, Dir).GetSafeNormal() * (W * 0.5f);
 		const FVector SideB = FVector::CrossProduct(B.Normal, Dir).GetSafeNormal() * (W * 0.5f);
@@ -323,6 +353,13 @@ void ATrailNetwork::RebuildChunk(int32 PathIndex, int32 Chunk)
 	if (!MaterialInUse)
 	{
 		MaterialInUse = TrailMaterial;
+		// Debug (-LeafTrailVC on the command line): the engine's vertex colour material, to check the lines' colours
+		// (vertex RGB) without the trail materials.
+		static const bool bVertexColorDebug = FParse::Param(FCommandLine::Get(), TEXT("LeafTrailVC"));
+		if (bVertexColorDebug)
+		{
+			if (UMaterialInterface* VC = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/EngineDebugMaterials/VertexColorMaterial.VertexColorMaterial"))) MaterialInUse = VC;
+		}
 		if (!MaterialInUse && FallbackMaterial)
 		{
 			UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(FallbackMaterial, this);

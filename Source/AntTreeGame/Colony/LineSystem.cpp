@@ -811,16 +811,24 @@ void ALineSystem::Tick(float DeltaTime)
 	if (bGlowDirty) UpdateTrailGlow();
 }
 
+FLinearColor ALineSystem::GetLineColor(int32 Number, float Lighten) const
+{
+	const FLinearColor C = Tuning.LineColors.Num() > 0 ? Tuning.LineColors[FMath::Max(Number - 1, 0) % Tuning.LineColors.Num()] : Tuning.NoLineColor;
+	return FMath::Lerp(C, FLinearColor::White, FMath::Clamp(Lighten, 0.f, 1.f));
+}
+
 void ALineSystem::UpdateTrailGlow()
 {
 	bGlowDirty = false;
 	if (!Trails) return;
 	TArray<const TArray<FTrailPoint>*> Routes;
 	TArray<float> Glow;
+	TArray<FLinearColor> Colors;
 	for (const FColonyLine& L : Lines)
 	{
 		Routes.Add(&L.Route);
 		Glow.Add(L.IsLive() || L.Reserved > 0 ? FMath::Lerp(Tuning.GlowEmpty, Tuning.GlowFull, L.Fullness()) : Tuning.GlowEmpty);
+		Colors.Add(GetLineColor(L.Number));
 	}
-	Trails->SetLineGlow(Routes, Glow, Tuning.GlowNoLine);
+	Trails->SetLineGlow(Routes, Glow, Tuning.GlowNoLine, Colors, Tuning.NoLineColor);
 }
