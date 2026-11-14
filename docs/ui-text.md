@@ -54,8 +54,9 @@ Each leaf is worth 1× to 3× from its height and how far out it sits, times the
 | `DrawDayInfo`, `DrawDayPanelIcons` | "Day 3: the old giant" | keep | |
 | same | worker states "1 Ready", "Out", "Returning", "Home", "Blown off" | keep | |
 | same | "Hauled 3.0" | **removed** | It is `Stats.MassHauled`: everything hauled today, by workers and recruits. That is the same number as "+3.0 today" in the colony counter beside it. Two labels for one number read as two different things. |
-| `DrawCarry` (`Leaf.HudIcons 0`) | "Carrying 2.4" | keep | |
+| `DrawCarry` (`Leaf.HudIcons 0`) | "Carrying 3.0" | "Carrying 3.0 ×1.6" (the multiplier smaller, pale yellow, only above ×1.0) | The owner's decision (14 Nov): weight as the large number, the leaf's value multiplier beside it, so "+4.8" on arrival is visibly 3.0 × 1.6. Beside rather than under the number, because the size bar sits right under it. |
 | `DrawCarry` | "Carrying: empty" | "Carrying nothing" | Plain sentence instead of `label: value`. |
+| `DrawCarryIcons` | "3.0" beside the leaf icon | "3.0 ×1.6" (as in the text version) | Same decision. |
 | `DrawCarryIcons` | "empty", "gripping" | keep | Short words beside icons. |
 | `DrawStamina` | "Stamina", "Stamina: recovering" | keep | |
 
@@ -79,7 +80,7 @@ The text version (`DrawDayInfo`, `Leaf.HudIcons 0`) and the icon version (`DrawW
 
 | Old | New | Why |
 |---|---|---|
-| number in the arc, "2.4" | keep | It is the piece's **weight** (size only), as is "Carrying 2.4". What reaches the nest ("+2.8", the haul) is weight × leaf value, so on a rich leaf the two differ. See [For the owner](#for-the-owner-not-changed-here). |
+| number in the arc, "3.0" | "3.0" with "×1.6" smaller underneath, in one panel (only above ×1.0) | The owner's decision (14 Nov): the large number stays the piece's weight, and the multiplier under it is the leaf's value, the one the haul uses (`AAntPawn::GetCarriedValue`). So "+4.8" on arrival is visibly 3.0 × 1.6. Both show one decimal, so the product can be 0.1 off the "+N". |
 | "This piece: safe in a gust" | "Good size: safe in gusts" | The owner found the label switching from "safe" to a wind warning confusing (playtest 1), and still found "This piece: …" odd. As the arc grows the label now judges the **size**: good size, getting big, too big. The colours stay green, amber, red. |
 | "This piece: risky in a gust" | "Getting big: risky in gusts" | |
 | "This piece: too big for a gust" | "Too big: a gust will blow it away" | Says what happens. The worker walks home unharmed, so "blow it away" is the piece. |
@@ -229,7 +230,6 @@ All kept: "The colony thrives", "Enough leaf has come home to feed the fungus ga
 
 - **Credits placeholders.** `Content/Leafline/UIRaw/credits.txt` still shows players "[FRIEND A]", "# [IF UI SHIPS] UI art" and "[FRIEND B]". Fill them in or delete them before the submission build; only you know the names.
 - **Build line.** The faint bottom-left line ("dev build | the old giant, seed …, day 3 | Leaf.Goto …") is debug text and is on by default. `docs/plan.md` already says to set `bShowBuildLine=False` in `DefaultGame.ini` before the submission build.
-- **Two numbers for one piece.** The cut arc and "Carrying 2.4" show the piece's weight (what slows the ant). The "+N" pop, the haul and "Largest piece" show its value (weight × leaf value). On a rich leaf a piece cut at "3.0" arrives as "+5.0". Showing value in the arc would make the two match; that is a logic change, so it is left for you to decide.
 - **design.md** still quotes the old read-out ("about 8 pieces, rich ×2.1", line 121).
 - **Prompt fallbacks.** `UI/PromptIcons.cpp` has text fallbacks ("E / LMB", "left stick") that show only if a button image is missing. Left as they are.
 
