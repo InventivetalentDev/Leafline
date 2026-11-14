@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/HUD.h"
+#include "UI/Skin.h"
 #include "LeaflineHUD.generated.h"
 
 class AAntPawn;
@@ -94,8 +95,15 @@ private:
 	/** Two measured text heights, in 1080p design pixels; both use the existing engine font. */
 	float SecondaryText(float Scale) const;
 	float PrimaryText(float Scale) const;
-	/** Coordinates describe the content; the shared padding is added outside it. */
-	void DrawPanel(float X, float Y, float W, float H, float Scale, float Alpha = 1.f);
+	/**
+	 * Coordinates describe the content; the shared padding is added outside it. Drawn from the skin image of that kind
+	 * when there is one (UI/Skin.h), otherwise flat in Style.Panel.
+	 */
+	void DrawPanel(float X, float Y, float W, float H, float Scale, float Alpha = 1.f, LeafSkin::EKind Kind = LeafSkin::EKind::Group);
+	/** A skin image stretched over a rectangle in nine slices; every slice edge on a whole pixel, so no seams. */
+	void DrawNineSlice(const LeafSkin::FImage& Image, float X, float Y, float W, float H, float Scale, float Alpha);
+	/** A menu row's background: the selected or idle button image, or flat (Style.Selection when selected, else nothing). */
+	void DrawButtonBack(float X, float Y, float W, float H, float Scale, bool bSelected);
 	TArray<FString> WrapText(const FString& Text, float Width, float TextScale) const;
 	float DrawWrappedText(const FString& Text, float CX, float Y, float Width, const FLinearColor& Color, float TextScale, float Scale);
 	void DrawTextPanel(const FString& Text, float CX, float Y, const FLinearColor& Color, float TextScale, float Scale,

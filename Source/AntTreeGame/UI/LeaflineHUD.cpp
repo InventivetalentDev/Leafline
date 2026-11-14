@@ -459,12 +459,68 @@ float ALeaflineHUD::PrimaryText(float Scale) const
 	return ScaleForHeight(Style.PrimaryHeight * Scale);
 }
 
-void ALeaflineHUD::DrawPanel(float X, float Y, float W, float H, float Scale, float Alpha)
+void ALeaflineHUD::DrawPanel(float X, float Y, float W, float H, float Scale, float Alpha, LeafSkin::EKind Kind)
 {
 	FLinearColor C = Style.Panel;
 	C.A *= Alpha;
 	const float P = Style.Padding * Scale;
+	if (const LeafSkin::FImage* Image = LeafSkin::Get(Kind))
+	{
+		DrawNineSlice(*Image, X - P, Y - P, W + 2.f * P, H + 2.f * P, Scale, Alpha);
+		return;
+	}
 	DrawRect(C, X - P, Y - P, W + 2.f * P, H + 2.f * P);
+}
+
+void ALeaflineHUD::DrawNineSlice(const LeafSkin::FImage& Image, float X, float Y, float W, float H, float Scale, float Alpha)
+{
+	if (!Canvas || !Image.Texture || Image.Size.X <= 0 || Image.Size.Y <= 0) return;
+	const float L = FMath::RoundToFloat(X), T = FMath::RoundToFloat(Y), R = FMath::RoundToFloat(X + W), B = FMath::RoundToFloat(Y + H);
+	if (R - L < 1.f || B - T < 1.f) return;
+	// Corners keep their painted size (image pixels / pixels per 1080p pixel, times the screen scale), rounded to whole
+	// pixels; a panel smaller than its corners squeezes them to fit.
+	const float K = Scale / FMath::Max(Image.PixelsPerDesign, 0.01f);
+	float CL = FMath::RoundToFloat(Image.Left * K), CR = FMath::RoundToFloat(Image.Right * K);
+	float CT = FMath::RoundToFloat(Image.Top * K), CB = FMath::RoundToFloat(Image.Bottom * K);
+	if (CL + CR > R - L)
+	{
+		const float F = (R - L) / (CL + CR);
+		CL = FMath::FloorToFloat(CL * F);
+		CR = FMath::FloorToFloat(CR * F);
+	}
+	if (CT + CB > B - T)
+	{
+		const float F = (B - T) / (CT + CB);
+		CT = FMath::FloorToFloat(CT * F);
+		CB = FMath::FloorToFloat(CB * F);
+	}
+	const float Xs[4] = { L, L + CL, R - CR, R };
+	const float Ys[4] = { T, T + CT, B - CB, B };
+	const float Us[4] = { 0.f, float(Image.Left) / Image.Size.X, 1.f - float(Image.Right) / Image.Size.X, 1.f };
+	const float Vs[4] = { 0.f, float(Image.Top) / Image.Size.Y, 1.f - float(Image.Bottom) / Image.Size.Y, 1.f };
+	const FLinearColor Tint(1.f, 1.f, 1.f, Alpha);
+	for (int32 j = 0; j < 3; ++j)
+	{
+		for (int32 i = 0; i < 3; ++i)
+		{
+			const float PW = Xs[i + 1] - Xs[i], PH = Ys[j + 1] - Ys[j];
+			if (PW <= 0.f || PH <= 0.f) continue;
+			FCanvasTileItem Tile(FVector2D(Xs[i], Ys[j]), Image.Texture->GetResource(), FVector2D(PW, PH),
+				FVector2D(Us[i], Vs[j]), FVector2D(Us[i + 1], Vs[j + 1]), Tint);
+			Tile.BlendMode = SE_BLEND_Translucent;
+			Canvas->DrawItem(Tile);
+		}
+	}
+}
+
+void ALeaflineHUD::DrawButtonBack(float X, float Y, float W, float H, float Scale, bool bSelected)
+{
+	if (const LeafSkin::FImage* Image = LeafSkin::Get(bSelected ? LeafSkin::EKind::ButtonSelected : LeafSkin::EKind::ButtonIdle))
+	{
+		DrawNineSlice(*Image, X, Y, W, H, Scale, 1.f);
+		return;
+	}
+	if (bSelected) DrawRect(Style.Selection, X, Y, W, H);
 }
 
 TArray<FString> ALeaflineHUD::WrapText(const FString& Text, float Width, float TextScale) const
@@ -524,7 +580,7 @@ void ALeaflineHUD::DrawTextPanel(const FString& Text, float CX, float Y, const F
 	}
 	if (Rows.Num() == 0) return;
 	H -= Style.Gap * Scale;
-	DrawPanel(CX - W * 0.5f, Y, W, H, Scale, Alpha);
+	DrawPanel(CX - W * 0.5f, Y, W, H, Scale, Alpha, LeafSkin::EKind::Tag);
 	for (const FString& Row : Rows)
 	{
 		DrawTextCentered(Row, CX, Y, Color, TextScale, Font);
@@ -603,8 +659,20 @@ void ALeaflineHUD::DrawDayInfo(const ADayDirector* D, float Scale)
 		}
 		else
 		{
-			DrawRect(C, PX, MidY - Pip * 0.5f, Pip, Pip);
-			DrawRect(Style.Panel, PX + T, MidY - Pip * 0.5f + T, Pip - 2.f * T, Pip - 2.f * T);
+			if (LeafSkin::Get(LeafSkin::EKind::Group))
+			{
+				// Over a skin image the hollow cannot be painted in the panel colour: the outline as four strokes.
+				const float PY0 = MidY - Pip * 0.5f;
+				DrawRect(C, PX, PY0, Pip, T);
+				DrawRect(C, PX, PY0 + Pip - T, Pip, T);
+				DrawRect(C, PX, PY0 + T, T, Pip - 2.f * T);
+				DrawRect(C, PX + Pip - T, PY0 + T, T, Pip - 2.f * T);
+			}
+			else
+			{
+				DrawRect(C, PX, MidY - Pip * 0.5f, Pip, Pip);
+				DrawRect(Style.Panel, PX + T, MidY - Pip * 0.5f + T, Pip - 2.f * T, Pip - 2.f * T);
+			}
 			if (State == EWorkerState::Returning) DrawRect(C, PX + 5.f * Scale, MidY - 2.f * Scale, 4.f * Scale, 4.f * Scale);
 		}
 		DrawTextAt(FString::Printf(TEXT("%d %s"), i + 1, Label), PX + Pip + 6.f * Scale, PY, C, SecondaryText(Scale), Font);
@@ -1027,7 +1095,7 @@ void ALeaflineHUD::DrawRecap(const ADayDirector* D, float Scale)
 	const float H = (96.f + (Shown + (bMore ? 1 : 0)) * Style.Row + Style.Gap + 74.f
 		+ Rows.Num() * Style.Row + Style.Gap + 128.f + (bMove ? Style.Row : 0.f) + 28.f) * Scale;
 	float Y = (Canvas->ClipY - H) * 0.5f;
-	DrawPanel(CX - W * 0.5f, Y, W, H, Scale);
+	DrawPanel(CX - W * 0.5f, Y, W, H, Scale, 1.f, LeafSkin::EKind::Card);
 
 	// Reserve the whole layout while rows reveal, so the totals and continue prompt stay anchored.
 	const float Dt = GetWorld() ? FMath::Min(GetWorld()->GetDeltaSeconds(), 0.1f) : 0.016f;
@@ -1136,7 +1204,7 @@ void ALeaflineHUD::DrawTitle(const ADayDirector* D, float Scale)
 	UFont* Font = GEngine->GetMediumFont();
 	const float CX = Canvas->ClipX * 0.5f, W = Style.CardWidth * Scale;
 	float Y = 220.f * Scale;
-	DrawPanel(CX - W * 0.5f, Y, W, 580.f * Scale, Scale);
+	DrawPanel(CX - W * 0.5f, Y, W, 580.f * Scale, Scale, 1.f, LeafSkin::EKind::Card);
 	DrawTextCentered(TEXT("Leafline"), CX, Y, AccentColor, PrimaryText(Scale), Font);
 	Y += 74.f * Scale;
 	Y += DrawWrappedText(TEXT("You are a leafcutter ant on an enormous tree."), CX, Y, W, TextColor, SecondaryText(Scale), Scale) + Style.Gap * Scale;
@@ -1169,7 +1237,7 @@ void ALeaflineHUD::DrawNest(const ADayDirector* D, float Scale)
 	UFont* Font = GEngine->GetMediumFont();
 	const float CX = Canvas->ClipX * 0.5f, W = Style.CardWidth * Scale;
 	float Y = 96.f * Scale;
-	DrawPanel(CX - W * 0.5f, Y, W, 824.f * Scale, Scale);
+	DrawPanel(CX - W * 0.5f, Y, W, 824.f * Scale, Scale, 1.f, LeafSkin::EKind::Card);
 	DrawTextCentered(TEXT("The nest"), CX, Y, AccentColor, PrimaryText(Scale), Font);
 	Y += (Style.PrimaryHeight + Style.Gap) * Scale;
 	if (GI) DrawTextCentered(FString::Printf(TEXT("Leaf to spend: %.1f"), GI->GetLeafMass()), CX, Y, TextColor, SecondaryText(Scale), Font);
@@ -1180,11 +1248,8 @@ void ALeaflineHUD::DrawNest(const ADayDirector* D, float Scale)
 		if (i < LeaflineUpgrades::Count && !D->IsNestRowVisible(i)) continue;
 		AddMenuHit(X, Y, RowW, RowH - Style.Gap * Scale, i);
 		const bool bSel = D->GetNestSelection() == i || IsHovered(i);
-		if (bSel)
-		{
-			DrawRect(Style.Selection, X, Y, RowW, RowH - Style.Gap * Scale);
-			DrawRect(AccentColor, X, Y, Style.Stroke * Scale, RowH - Style.Gap * Scale);
-		}
+		DrawButtonBack(X, Y, RowW, RowH - Style.Gap * Scale, Scale, bSel);
+		if (bSel) DrawRect(AccentColor, X, Y, Style.Stroke * Scale, RowH - Style.Gap * Scale);
 		if (i < LeaflineUpgrades::Count)
 		{
 			const FLeaflineUpgradeInfo* Info = LeaflineUpgrades::Get(i);
@@ -1224,7 +1289,7 @@ void ALeaflineHUD::DrawMoveCard(const ADayDirector* D, float Scale)
 	UFont* Font = GEngine->GetMediumFont();
 	const float CX = Canvas->ClipX * 0.5f, W = Style.CardWidth * Scale;
 	float Y = 340.f * Scale;
-	DrawPanel(CX - W * 0.5f, Y, W, 260.f * Scale, Scale);
+	DrawPanel(CX - W * 0.5f, Y, W, 260.f * Scale, Scale, 1.f, LeafSkin::EKind::Card);
 	Y += DrawWrappedText(D->GetMoveCardText(), CX, Y, W, AccentColor, PrimaryText(Scale), Scale) + 44.f * Scale;
 	Y += DrawWrappedText(TEXT("A new tree: taller, with richer leaves and stronger gusts."), CX, Y, W, TextColor, SecondaryText(Scale), Scale) + 62.f * Scale;
 	DrawTextCentered(FString::Printf(TEXT("Press {Confirm}{orclick} to begin day %d"), D->GetDay()), CX, Y, AccentColor, SecondaryText(Scale), Font);
@@ -1235,7 +1300,7 @@ void ALeaflineHUD::DrawEndCard(const ADayDirector* D, float Scale)
 	UFont* Font = GEngine->GetMediumFont();
 	const float CX = Canvas->ClipX * 0.5f, W = Style.CardWidth * Scale;
 	float Y = 320.f * Scale;
-	DrawPanel(CX - W * 0.5f, Y, W, 340.f * Scale, Scale);
+	DrawPanel(CX - W * 0.5f, Y, W, 340.f * Scale, Scale, 1.f, LeafSkin::EKind::Card);
 	DrawTextCentered(TEXT("The colony thrives"), CX, Y, AccentColor, PrimaryText(Scale), Font);
 	Y += 74.f * Scale;
 	Y += DrawWrappedText(TEXT("Enough leaf has come home to feed the fungus garden for a season."), CX, Y, W, TextColor, SecondaryText(Scale), Scale) + Style.Gap * Scale;
@@ -1261,7 +1326,7 @@ void ALeaflineHUD::DrawPause(float Scale)
 		return;
 	}
 	float Y = (Page == 0 ? 170.f : 160.f) * Scale;
-	DrawPanel(CX - W * 0.5f, Y, W, (Page == 0 ? 572.f : 580.f) * Scale, Scale);
+	DrawPanel(CX - W * 0.5f, Y, W, (Page == 0 ? 572.f : 580.f) * Scale, Scale, 1.f, LeafSkin::EKind::Card);
 	DrawTextCentered(Page == 0 ? TEXT("Paused") : TEXT("Options"), CX, Y, AccentColor, PrimaryText(Scale), Font);
 	Y += 74.f * Scale;
 	const float RowH = Style.MenuRow * Scale, Gap = Style.Gap * Scale;
@@ -1276,7 +1341,7 @@ void ALeaflineHUD::DrawPause(float Scale)
 		{
 			AddMenuHit(CX - BW * 0.5f, Y, BW, RowH, Ids[b]);
 			const bool bOn = Sel == b || IsHovered(Ids[b]);
-			if (bOn) DrawRect(Style.Selection, CX - BW * 0.5f, Y, BW, RowH);
+			DrawButtonBack(CX - BW * 0.5f, Y, BW, RowH, Scale, bOn);
 			DrawTextCentered(Labels[b], CX, Y + Style.Padding * Scale, bOn ? AccentColor : TextColor, PrimaryText(Scale), Font);
 			Y += RowH + Gap;
 		}
@@ -1293,7 +1358,7 @@ void ALeaflineHUD::DrawPause(float Scale)
 		const bool bBack = r == ALeaflinePlayerController::NumOptionRows - 1;
 		AddMenuHit(X, Y, RW, RowH, MenuOptRow + r);
 		const bool bOn = Sel == r || IsHovered(MenuOptRow + r) || IsHovered(MenuOptMinus + r) || IsHovered(MenuOptPlus + r);
-		if (bOn) DrawRect(Style.Selection, X, Y, RW, RowH);
+		DrawButtonBack(X, Y, RW, RowH, Scale, bOn);
 		if (bBack)
 		{
 			DrawTextCentered(Labels[r], CX, Y + Style.Padding * Scale, bOn ? AccentColor : TextColor, PrimaryText(Scale), Font);
@@ -1336,7 +1401,7 @@ void ALeaflineHUD::DrawCredits(float Scale)
 	const float CX = Canvas->ClipX * 0.5f, W = Style.CardWidth * Scale;
 	const float Top = 110.f * Scale, H = 860.f * Scale;
 	const float TextScale = SecondaryText(Scale);
-	DrawPanel(CX - W * 0.5f, Top, W, H, Scale);
+	DrawPanel(CX - W * 0.5f, Top, W, H, Scale, 1.f, LeafSkin::EKind::Card);
 	DrawTextCentered(TEXT("Credits"), CX, Top, AccentColor, PrimaryText(Scale), Font);
 
 	// Bottom up: the prompt line, the Back button, then the window the rows scroll in.
@@ -1408,7 +1473,7 @@ void ALeaflineHUD::DrawCredits(float Scale)
 	// Back is the only button, so it is always the selected one.
 	const float BW = 800.f * Scale;
 	AddMenuHit(CX - BW * 0.5f, BackY, BW, BackH, MenuPageBack);
-	DrawRect(Style.Selection, CX - BW * 0.5f, BackY, BW, BackH);
+	DrawButtonBack(CX - BW * 0.5f, BackY, BW, BackH, Scale, true);
 	DrawTextCentered(TEXT("Back"), CX, BackY + Style.Padding * Scale, AccentColor, PrimaryText(Scale), Font);
 	DrawTextCentered(MaxScroll > 0.f ? TEXT("{Choose}: scroll      {Back}: back") : TEXT("{Back}: back"), CX, PromptY, TextColor, TextScale, Font);
 }
@@ -1463,7 +1528,7 @@ void ALeaflineHUD::DrawControls(float Scale)
 	const float H = (Style.PrimaryHeight + Style.Gap + Style.Row) * Scale + Rows.Num() * Step + 2.f * Style.Row * Scale
 		+ BackH + Style.Padding * Scale + PromptH;
 	float Y = FMath::RoundToFloat((Canvas->ClipY - H) * 0.5f);
-	DrawPanel(CX - W * 0.5f, Y, W, H, Scale);
+	DrawPanel(CX - W * 0.5f, Y, W, H, Scale, 1.f, LeafSkin::EKind::Card);
 	DrawTextCentered(TEXT("Controls"), CX, Y, AccentColor, PrimaryText(Scale), Font);
 	Y += (Style.PrimaryHeight + Style.Gap + Style.Row) * Scale;
 	for (const FControlRow& R : Rows)
@@ -1479,7 +1544,7 @@ void ALeaflineHUD::DrawControls(float Scale)
 	// Back is the only button, so it is always the selected one (as on the credits page).
 	const float BW = 800.f * Scale;
 	AddMenuHit(CX - BW * 0.5f, Y, BW, BackH, MenuPageBack);
-	DrawRect(Style.Selection, CX - BW * 0.5f, Y, BW, BackH);
+	DrawButtonBack(CX - BW * 0.5f, Y, BW, BackH, Scale, true);
 	DrawTextCentered(TEXT("Back"), CX, Y + Style.Padding * Scale, AccentColor, PrimaryText(Scale), Font);
 	Y += BackH + Style.Padding * Scale;
 	DrawTextCentered(Prompt, CX, Y, TextColor, TextScale, Font);
