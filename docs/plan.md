@@ -220,6 +220,7 @@ Tagged `pre-look` before it started. Commits start `Look:` (and `HUD:` for the H
 - [x] Roots: cobble-like plates gone on open root (14 Nov night, ui-text, 70f3cf2): each root's bark radius is held near where it leaves the trunk (`Leaf.RootBark`, default on). The arch where a root rises into the trunk keeps roundish plates (cause not found; needs the bark material's radius debug view in the editor).
 - [ ] Still open from the shots: dark cutaway views can still happen near junctions while walking (a frame from the 02 walk).
 - [ ] Part 5 (trail near the camera, leaf tone variation, framing foliage on the grove) only if time remains before the freeze.
+  - Framing foliage done 14 Nov night (ui-text, 1b5713b): an understory of 16 smaller leafy trees in front of the grove's giants (`Leaf.GroveUnder`, on). The trail fades near your ant since bb587e0. Leaf tone variation still open.
 
 ## M5e: Look pass 2 (Fri evening; brief `docs/briefs/look-pass-2.md`)
 

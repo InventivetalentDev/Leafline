@@ -105,6 +105,7 @@
   - Sent to bd-core (14 Nov 14:35): each line its own colour from a fixed palette (cyan first; no green, amber or red, which mean exposure), trail ribbon and HUD row alike. For the 17:00 package.
 - [ ] there's not much incentive to go further up the tree than like the 2 lowest layers of branches; look into that later
   - Noted for after the freeze (design: richer or bigger leaves higher up, the end card or milestones asking for height, wind risk as the price). Not started.
+  - 14 Nov night (bd-core): measured why. On today's curve leaf value rises only ×1.0 to about ×1.3 over the first layers, so climbing loses per piece and per minute; AutoPlay only climbs as low leaves run out. New option `RichnessHeightScale` (in main, 0 = today): at 40 m one layer up is worth +23% per piece, two layers +46%. Alone it shortens the game (end card after day 12); with milestones 25 / 240 / 390 the days match today's (moves on days 13 and 17, end card after 16). Try in the package: `Leaf.Tune day RichnessHeightScale 40`, `Leaf.Milestones 25 240 390`, then `Leaf.ReloadColony`. Your call for the default.
 - [x] scent lines should be most visible in a short radius around the player so they don't clutter the screen; fade out with distance.
   - Done (bb587e0, in the c5d301b candidate): both trail materials are full strength within 5 m of your ant and fade to a faint trace by 18 m (`Leaf.Tune cam TrailFadeNear`/`TrailFadeFar`/`TrailFadeFloor`). The harvest views, the recap and `Leaf.Shot` camera moves show whole routes. Checked in real runs at 18:49: no hard edge, and the far trail keeps about a quarter of its strength.
 - [x] UI polish: replace a bunch of text with icons and animations (e.g. bird status, wind, ant status)
@@ -113,6 +114,7 @@
 - [ ] bird is barely noticable, mostly affects recruits (maybe just keep it like this, doesn't really add much to the gameplay atm)
   - Bird agent is bringing its circle in (20-25 m instead of 30-40, about twice as large on screen) and checking its shadow. The decision (keep, make it about the player's ant, or ship it off) is yours at 20:00.
   - Since then: the circle is closer, the shadow shows on sunlit windward days, and the bird now prefers your laden ant over recruits when you're exposed (`Leaf.Tune bird PlayerPreference`, 1). Still your call at 20:00.
+  - 14 Nov night: the night code review's two bird issues are fixed (bait dropped mid-dive no longer makes the bird jump; a drop in the last second leaves it on its pass and the piece stays as bait; no camera nudge after sending the targeted scout home). Go or no-go still open.
 - [x] the "Colony ..." number at the top could use an icon; it confused me from the start (I assumed it was leaves in storage)
   - It is the colony's total hauled ever (what the milestones count); the spendable leaf only shows at the nest. Sent to the ui agent (14 Nov 17:05): a leaf-pile icon, the word "hauled", today's +N, and progress toward the next milestone. Behind `Leaf.HudIcons`. For the 20:00 candidate.
   - Done: an icon with "hauled in all" and a bar to the next milestone, in the 18:25 candidate.
