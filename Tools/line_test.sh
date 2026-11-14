@@ -17,8 +17,12 @@
 #   migrate   load a copy of a version-1 save from Saved/SaveGames/LineTestV1.sav (it is migrated in place)
 #   auto      twenty unattended days, harvests skipped (test 7)
 # The log is Saved/Logs/LineTest-<scenario>.log; a summary of the Leafline lines is printed.
+# Environment: ROOT (default the main tree), EXTRA (commands appended to the scenario's, comma-separated),
+#   TAG (suffix for the log and CSV label, to keep A/B runs apart).
 set -u
-ROOT=/mnt/d/UnrealProjects/AntTreeGame
+# ROOT (a worktree, say) runs that tree's binaries and content; the lock stays machine-wide.
+ROOT=${ROOT:-/mnt/d/UnrealProjects/AntTreeGame}
+WINROOT=$(wslpath -w "$ROOT")
 SCEN=${1:?usage: line_test.sh <scenario> [seconds]}
 SEED=${SEED:-517192}
 POOL=${POOL:-4}
@@ -45,10 +49,11 @@ case "$SCEN" in
 	auto)      CMDS="Leaf.ResetSave,Leaf.Pool 6,Leaf.StartDay 1 $SEED,Leaf.Delay 2 Leaf.AutoPlay 20 3 skip buy quit"; T=${2:-1800} ;;
 	*) echo "unknown scenario $SCEN"; exit 1 ;;
 esac
-LOG=LineTest-$SCEN.log
+CMDS="$CMDS${EXTRA:+,$EXTRA}"
+LOG=LineTest-$SCEN${TAG:+-$TAG}.log
 MARK=$ROOT/Saved/RefShots/.line-marker
 mkdir -p "$ROOT/Saved/RefShots" && touch "$MARK"
-(cd /mnt/c && timeout $((T + 120)) "$ROOT/Scripts/unreal-lock.sh" "linetest-$SCEN" -- cmd.exe /c "D:\\UnrealProjects\\AntTreeGame\\Scripts\\RunGame.bat" "$LOG" \
+(cd /mnt/c && timeout $((T + 120)) "$ROOT/Scripts/unreal-lock.sh" "linetest-$SCEN" -- cmd.exe /c "$WINROOT\\Scripts\\RunGame.bat" "$LOG" \
 	"$CMDS,Leaf.QuitAfter $T" "-LeafSlot=${SLOT:-LineTest} -unattended" >/dev/null 2>&1)
 F=$ROOT/Saved/Logs/$LOG
 grep -a "LogLeafline" "$F" | grep -a -E "Line [0-9]+ laid|Harvest|all workers home|AutoPlay|Pool [0-9]+:|^.*Line [0-9]+ \(worker|fallback|rescued|lost its ant|not ended|Recruits: pool|TestLines|Error|Warning" | sed 's/^.*LogLeafline: //' | cut -c1-220
@@ -56,7 +61,7 @@ echo "--- recruit trips: $(grep -a -c 'Recruit [0-9]* home with' "$F") home, $(g
 grep -a -E "Fatal|Assertion failed|Unhandled Exception" "$F" | head -5
 if [ -n "${CSV:-}" ]; then
 	C=$(find "$ROOT/Saved/Profiling/CSV" -maxdepth 1 -name '*.csv' -newer "$MARK" 2>/dev/null | sort | tail -1)
-	if [ -n "$C" ]; then python3 "$ROOT/Tools/csv_fps.py" --label "$SCEN" "$C"; else echo "$SCEN: no CSV capture written"; fi
+	if [ -n "$C" ]; then python3 "$ROOT/Tools/csv_fps.py" --label "$SCEN${TAG:+-$TAG}" "$C"; else echo "$SCEN: no CSV capture written"; fi
 fi
 if [ -n "${SHOTS:-}" ]; then
 	n=0
