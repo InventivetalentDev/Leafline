@@ -7,6 +7,10 @@
 #include "EngineUtils.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
+#include "Camera/CameraActor.h"
+#include "Camera/CameraComponent.h"
+#include "Game/LeaflinePlayerController.h"
+#include "Ant/AntCamera.h"
 
 namespace
 {
@@ -154,6 +158,57 @@ namespace
 		const float A = FMath::Atan2(Rel.Y, Rel.X) + PI;
 		return FMath::Clamp(int32(A / (2.f * PI) * NumSectors), 0, NumSectors - 1);
 	}
+
+	// Leaf.TopDown: a camera straight above (screenshots of the whole floor). The tree's leaf meshes are hidden meanwhile, or
+	// the canopy would hide the ground.
+	TWeakObjectPtr<ACameraActor> GTopCam;
+	TArray<TWeakObjectPtr<UPrimitiveComponent>> GHiddenLeaves;
+
+	void TopDownOff(UWorld* World)
+	{
+		for (TWeakObjectPtr<UPrimitiveComponent>& C : GHiddenLeaves)
+		{
+			if (C.IsValid()) C->SetVisibility(true);
+		}
+		GHiddenLeaves.Reset();
+		if (ALeaflinePlayerController* PC = World ? Cast<ALeaflinePlayerController>(World->GetFirstPlayerController()) : nullptr)
+		{
+			if (PC->GetAntCamera()) PC->SetViewTarget(PC->GetAntCamera());
+		}
+		if (GTopCam.IsValid()) GTopCam->Destroy();
+		GTopCam.Reset();
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs CmdTopDown(
+		TEXT("Leaf.TopDown"),
+		TEXT("Leaf.TopDown <height cm> [fov] [x y]: a camera straight above (default over the trunk base) with the tree's leaves hidden, for screenshots of the whole floor; image up is +X. Leaf.TopDown 0 goes back to the ant."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			if (!World) return;
+			TopDownOff(World);
+			const float H = Args.Num() > 0 ? FCString::Atof(*Args[0]) : 0.f;
+			if (H <= 0.f) return;
+			ALeaflinePlayerController* PC = Cast<ALeaflinePlayerController>(World->GetFirstPlayerController());
+			ATreeActor* Tree = ATreeActor::Get(World);
+			if (!PC || !Tree) return;
+			TInlineComponentArray<UPrimitiveComponent*> Comps;
+			Tree->GetComponents(Comps);
+			for (UPrimitiveComponent* C : Comps)
+			{
+				if (C->GetName().Contains(TEXT("Leaf")) && C->IsVisible()) { C->SetVisibility(false); GHiddenLeaves.Add(C); }
+			}
+			const FVector Base = Tree->GetSkeleton().TrunkBase;
+			const float X = Args.Num() > 2 ? FCString::Atof(*Args[2]) : Base.X;
+			const float Y = Args.Num() > 3 ? FCString::Atof(*Args[3]) : Base.Y;
+			FActorSpawnParameters P;
+			P.ObjectFlags |= RF_Transient;
+			ACameraActor* Cam = World->SpawnActor<ACameraActor>(FVector(X, Y, Base.Z + H), FRotator(-90.f, 0.f, 0.f), P);
+			if (!Cam) return;
+			Cam->GetCameraComponent()->SetFieldOfView(Args.Num() > 1 ? FCString::Atof(*Args[1]) : 60.f);
+			GTopCam = Cam;
+			PC->SetViewTarget(Cam);
+			UE_LOG(LogLeafline, Log, TEXT("Leaf.TopDown: camera at %.0f %.0f height %.0f cm, %d leaf meshes hidden"), X, Y, H, GHiddenLeaves.Num());
+		}));
 
 	FAutoConsoleCommandWithWorldAndArgs CmdFloor(
 		TEXT("Leaf.Floor"),
