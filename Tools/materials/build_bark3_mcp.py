@@ -12,7 +12,7 @@
 import json
 MODE = 'build'  # 'build' duplicates M_TreeBark2 and adds the Bark3 node; 'code' updates Bark3's Code and recompiles
 DUP = True
-HLSL = 'D:/UnrealProjects/AntTreeGame/Tools/materials/bark3_bark.hlsl'  # after the merge; else the seams worktree's copy
+HLSL = 'D:/UnrealProjects/leafline-ui/Tools/materials/bark3_bark.hlsl'  # the seams worktree (main session builds M_TreeBark3 there); after the merge to main: D:/UnrealProjects/AntTreeGame/...
 SRC = '/Game/Leafline/Materials/M_TreeBark2.M_TreeBark2'
 MAT = '/Game/Leafline/Materials/M_TreeBark3.M_TreeBark3'
 MPC = '/Game/Leafline/Materials/MPC_View.MPC_View'
