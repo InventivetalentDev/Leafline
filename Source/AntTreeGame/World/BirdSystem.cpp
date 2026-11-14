@@ -246,7 +246,7 @@ void ABirdSystem::Advance(float Dt)
 			{
 				if (!bLoggedNoTarget)
 				{
-					UE_LOG(LogLeafline, Log, TEXT("Bird: no target (%d laden ants, none on exposed bark); looks again every %.0f s"), Laden, Tuning.LookAgain);
+					UE_LOG(LogLeafline, Log, TEXT("Bird: no target (%d laden ants, none on exposed bark with a clear way in); looks again every %.0f s"), Laden, Tuning.LookAgain);
 					bLoggedNoTarget = true;
 				}
 				NextLook = StateTime + FMath::Max(Tuning.LookAgain, 0.5f);
@@ -310,34 +310,46 @@ bool ABirdSystem::ChooseTarget(AAntPawn*& OutAnt, int32& OutBait, float& OutExpo
 	OutExposure = 0.f;
 	OutLaden = 0;
 	if (!Wind) return false;
-	// A piece lying on exposed bark beats every ant.
+	// Candidates on exposed bark, most exposed first (ties keep the fixed order); the first one the bird has a clear way
+	// in to is the target. A piece lying on exposed bark beats every ant.
+	struct FCand { AAntPawn* Ant; int32 Bait; float E; int32 Order; FVector Pos; FVector Normal; };
+	auto Pick = [this, &OutAnt, &OutBait, &OutExposure](TArray<FCand>& Cands)
+	{
+		Cands.StableSort([](const FCand& A, const FCand& B) { return A.E > B.E; });
+		for (const FCand& C : Cands)
+		{
+			FVector Dir;
+			if (FindApproach(C.Pos, C.Normal, PassGapAt(C.Pos, C.Bait != INDEX_NONE), Dir))
+			{
+				OutAnt = C.Ant;
+				OutBait = C.Bait;
+				OutExposure = C.E;
+				return true;
+			}
+		}
+		return false;
+	};
 	if (IsBaitOn())
 	{
+		TArray<FCand> BaitCands;
 		for (int32 i = 0; i < Baits.Num(); ++i)
 		{
 			const float E = Wind->GetExposure(Baits[i].Pos, Baits[i].Normal);
-			if (LeafExposure::IsExposed(E) && (OutBait == INDEX_NONE || E > OutExposure))
-			{
-				OutBait = i;
-				OutExposure = E;
-			}
+			if (LeafExposure::IsExposed(E)) BaitCands.Add({ nullptr, i, E, i, Baits[i].Pos, Baits[i].Normal });
 		}
-		if (OutBait != INDEX_NONE) return true;
+		if (Pick(BaitCands)) return true;
 	}
 	TArray<AAntPawn*> Laden;
 	GatherLaden(Laden);
 	OutLaden = Laden.Num();
-	for (AAntPawn* A : Laden)
+	TArray<FCand> AntCands;
+	for (int32 i = 0; i < Laden.Num(); ++i)
 	{
-		const UAntMovementComponent* M = A->GetAntMovement();
+		const UAntMovementComponent* M = Laden[i]->GetAntMovement();
 		const float E = Wind->GetExposure(M->GetSurfacePosition(), M->GetSurfaceNormal());
-		if (LeafExposure::IsExposed(E) && (!OutAnt || E > OutExposure))
-		{
-			OutAnt = A;
-			OutExposure = E;
-		}
+		if (LeafExposure::IsExposed(E)) AntCands.Add({ Laden[i], INDEX_NONE, E, i, M->GetSurfacePosition(), M->GetSurfaceNormal() });
 	}
-	return OutAnt != nullptr;
+	return Pick(AntCands);
 }
 
 void ABirdSystem::StartDive(AAntPawn* Ant, int32 BaitIndex)
@@ -384,29 +396,34 @@ bool ABirdSystem::IsCorridorClear(const FVector& Pp, const FVector& Dir) const
 	return !Tree->GetField().March(Pp + Dir * 600.f, Pp + Dir * Tuning.ApproachDistance, FMath::Min(BirdHalfSpan(), 250.f), Hit);
 }
 
-void ABirdSystem::ChooseApproach()
+bool ABirdSystem::FindApproach(const FVector& T, const FVector& N, float Gap, FVector& OutDir) const
 {
 	// Come in from upwind along a corridor clear of wood (exposure means open toward the wind): between the bark's
-	// normal and upwind first. No clear corridor: the first check during the dive breaks it off.
-	FVector N;
-	TargetSurfacePos(&N);
+	// normal and upwind first, then upwind, the normal, and those tilted up.
 	const FVector W = Wind ? Wind->GetDirection().GetSafeNormal() : FVector::ForwardVector;
-	DiveGap = PassGap();
-	const FVector Pp = PassPoint();
+	const FVector Pp = T + N * (Gap + BirdBelow());
 	const FVector Cands[] = {
 		(N - W).GetSafeNormal(), (-W).GetSafeNormal2D(), N, (N - W + FVector(0, 0, 0.7)).GetSafeNormal(), (N + FVector(0, 0, 0.8)).GetSafeNormal(), FVector::UpVector
 	};
-	ApproachDir = N;
+	OutDir = N;
 	for (const FVector& D : Cands)
 	{
 		if (D.IsNearlyZero() || FVector::DotProduct(D, N) < 0.15f) continue;
 		if (IsCorridorClear(Pp, D))
 		{
-			ApproachDir = D;
-			return;
+			OutDir = D;
+			return true;
 		}
 	}
-	UE_LOG(LogLeafline, Log, TEXT("Bird: no clear way in to its target"));
+	return false;
+}
+
+void ABirdSystem::ChooseApproach()
+{
+	FVector N;
+	const FVector T = TargetSurfacePos(&N);
+	DiveGap = PassGapAt(T, TargetBait != INDEX_NONE);
+	if (!FindApproach(T, N, DiveGap, ApproachDir)) UE_LOG(LogLeafline, Log, TEXT("Bird: no clear way in to its target"));
 }
 
 void ABirdSystem::BreakOff()
@@ -611,7 +628,7 @@ void ABirdSystem::DoDiveNow()
 	float Exposure = 0.f;
 	if (!ChooseTarget(Ant, Bait, Exposure, Laden))
 	{
-		UE_LOG(LogLeafline, Log, TEXT("Leaf.BirdNow: no target (%d laden ants, none on exposed bark); the bird does not dive"), Laden);
+		UE_LOG(LogLeafline, Log, TEXT("Leaf.BirdNow: no target (%d laden ants, none on exposed bark with a clear way in); the bird does not dive"), Laden);
 		return;
 	}
 	if (!bActiveToday)
@@ -741,13 +758,12 @@ float ABirdSystem::BirdTipFall() const
 	return 30.f * FMath::Max(Tuning.BirdScale, 0.1f);
 }
 
-float ABirdSystem::PassGap() const
+float ABirdSystem::PassGapAt(const FVector& At, bool bBait) const
 {
 	// Never closer than PassHeight to the bark, and always clear of the tallest piece carried near the target.
 	float Gap = Tuning.PassHeight;
-	if (TargetBait == INDEX_NONE)
+	if (!bBait)
 	{
-		const FVector At = TargetSurfacePos();
 		TArray<AAntPawn*> Laden;
 		GatherLaden(Laden);
 		for (const AAntPawn* A : Laden)
@@ -994,7 +1010,7 @@ void ABirdSystem::UpdateVisual(float Dt)
 		NewPos = Bezier(DiveFrom, DiveCtrl, B2, Pp, U);
 		VisVel = (NewPos - VisPos) / FMath::Max(Dt, 1e-3f);
 		FlareW = FMath::SmoothStep(0.55f, 0.88f, S);
-		FlapWant = S > 0.75f ? 1.f : 0.f;
+		FlapWant = (S < 0.35f || S > 0.75f) ? 1.f : 0.f;
 		break;
 	}
 	case VisExit:

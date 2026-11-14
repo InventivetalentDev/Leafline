@@ -155,6 +155,8 @@ public:
 	int32 GetPiecesTaken() const { return PiecesTaken; }
 	int32 GetRecruitPiecesTaken() const { return RecruitPiecesTaken; }
 	int32 GetSwoops() const { return Swoops; }
+	/** Where the visible bird is drawn (debug: Leaf.BirdInfo aim). */
+	FVector GetVisiblePosition() const { return VisPos; }
 
 	static ABirdSystem* Get(const UObject* WorldContext);
 
@@ -196,7 +198,10 @@ private:
 	float BirdBelow() const;
 	/** How far a wing tip falls below the shoulder line at full flap (cm, at the current scale). */
 	float BirdTipFall() const;
-	float PassGap() const;
+	/** Pull-up distance from the bark at a target: PassHeight, and clear of the tallest piece carried nearby. */
+	float PassGapAt(const FVector& At, bool bBait) const;
+	/** The first clear way in to a pass over T (normal N); false if there is none. */
+	bool FindApproach(const FVector& T, const FVector& N, float Gap, FVector& OutDir) const;
 	void SetVisible(bool bVisible);
 
 	UPROPERTY(VisibleAnywhere, Category = "Bird") TObjectPtr<UStaticMeshComponent> BirdMesh;

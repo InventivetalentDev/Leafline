@@ -2,6 +2,8 @@
 #include "AntTreeGame.h"
 #include "World/BirdSystem.h"
 #include "Ant/AntPawn.h"
+#include "Ant/AntCamera.h"
+#include "Game/LeaflinePlayerController.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
@@ -41,10 +43,18 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs CmdBirdInfo(
 		TEXT("Leaf.BirdInfo"),
-		TEXT("Leaf.BirdInfo: log the bird's state, today's swoops and their outcomes."),
-		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>&, UWorld* World)
+		TEXT("Leaf.BirdInfo [aim]: log the bird's state, today's swoops and their outcomes; aim also turns the camera toward the bird (screenshots; use with Leaf.Tune cam SurfaceFollow 0)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 		{
-			if (ABirdSystem* B = BirdOf(World)) B->LogInfo();
+			ABirdSystem* B = BirdOf(World);
+			if (!B) return;
+			B->LogInfo();
+			ALeaflinePlayerController* PC = World ? Cast<ALeaflinePlayerController>(World->GetFirstPlayerController()) : nullptr;
+			if (Args.Num() > 0 && Args[0].Equals(TEXT("aim"), ESearchCase::IgnoreCase) && PC && PC->GetAntCamera() && PC->GetAnt())
+			{
+				const FVector D = B->GetVisiblePosition() - PC->GetAnt()->GetActorLocation();
+				PC->GetAntCamera()->DebugAimDirection(D.GetSafeNormal2D(), FMath::RadiansToDegrees(FMath::Atan2(D.Z, D.Size2D())));
+			}
 		}));
 
 	FAutoConsoleCommandWithWorldAndArgs CmdDrop(
