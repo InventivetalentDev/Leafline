@@ -1181,8 +1181,32 @@ void UAntMovementComponent::UpdateTelemetry(float Dt, double Moved, bool bHadInp
 
 void UAntMovementComponent::ApplyTransform()
 {
-	if (AActor* Owner = GetOwner())
+	AActor* Owner = GetOwner();
+	if (!Owner) return;
+	const FQuat Q = FRotationMatrix::MakeFromXZ(Forward, Up).ToQuat();
+	Owner->SetActorLocationAndRotation(Pos, Q, false, nullptr, ETeleportType::TeleportPhysics);
+
+	// Display only: the actor stays at the walking position (everything in the sim reads that); the visuals are lifted
+	// onto a junction's skirt where one covers the ant, and tilted from the walking normal to the skirt's.
+	ShownPos = Pos;
+	ShownUp = Up;
+	FVector P = Pos, N = SurfaceNormal;
+	const bool bLift = State != EAntState::Falling && Tree.IsValid() && Tree->LiftOntoSkirts(P, N, Tuning.RideHeight);
+	USceneComponent* Shown = ShownComponent.Get();
+	if (bLift)
 	{
-		Owner->SetActorLocationAndRotation(Pos, FRotationMatrix::MakeFromXZ(Forward, Up).ToQuat(), false, nullptr, ETeleportType::TeleportPhysics);
+		const FQuat Tilt = FQuat::FindBetweenNormals(SurfaceNormal, N);
+		ShownPos = P;
+		ShownUp = Tilt.RotateVector(Up);
+		if (Shown)
+		{
+			const FQuat Inv = Q.Inverse();
+			Shown->SetRelativeLocationAndRotation(Inv.RotateVector(P - Pos), Inv * Tilt * Q);
+		}
 	}
+	else if (bShownLifted && Shown)
+	{
+		Shown->SetRelativeLocationAndRotation(FVector::ZeroVector, FQuat::Identity);
+	}
+	bShownLifted = bLift;
 }

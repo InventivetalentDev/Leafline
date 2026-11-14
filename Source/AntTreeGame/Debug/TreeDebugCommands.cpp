@@ -137,7 +137,7 @@ namespace
 		ATreeActor* Tree = ATreeActor::Get(World);
 		ULeaflineGameInstance* GI = World ? Cast<ULeaflineGameInstance>(World->GetGameInstance()) : nullptr;
 		if (!D || !Tree || !GI) return;
-		const bool bOn = Args.Num() > 0 ? FCString::Atoi(*Args[0]) != 0 : !Tree->GetField().HasFillets();
+		const bool bOn = Args.Num() > 0 ? FCString::Atoi(*Args[0]) != 0 : !Tree->GetVisualField().HasFillets();
 		auto Arg = [&](int32 i) { return Args.Num() > i ? FCString::Atof(*Args[i]) : -1.f; };
 		ATreeActor::SetFilletsOverride(bOn, Arg(1), Arg(2), Arg(3), Arg(4));
 		const FTreeParams P = ATreeActor::WithFilletOverrides(Tree->Params);
@@ -151,7 +151,7 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs CmdFillets(
 		TEXT("Leaf.Fillets"),
-		TEXT("Leaf.Fillets [0|1] [frac] [max] [boughmul] [groundk]: rounded junctions of limbs, boughs and roots, and of the trunk and roots with the ground, in the walking field and the mesh (1, default) or not (0); no argument toggles; optional fillet radius as a fraction of the child's radius, its cap in cm, the bough multiplier, the ground blend in cm (0 keeps the plain one). Grows today's tree again, fresh."),
+		TEXT("Leaf.Fillets [0|1] [frac] [max] [boughmul] [groundk]: skirts that round the junctions of limbs, boughs and roots (and of the trunk and roots with the ground) in the bark mesh (1, default) or not (0); the walking field never has them; no argument toggles; optional fillet radius as a fraction of the child's radius, its cap in cm, the bough multiplier, the ground blend in cm (0 keeps the plain one). Grows today's tree again, fresh."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World) { Fillets(World, Args); }));
 
 	/**
@@ -165,7 +165,7 @@ namespace
 	{
 		ATreeActor* Tree = ATreeActor::Get(World);
 		if (!Tree) return;
-		const FTreeField& Field = Tree->GetField();
+		const FTreeField& Field = Tree->GetVisualField();
 		const FTreeSkeleton& S = Tree->GetSkeleton();
 		if (Args.Num() > 0)
 		{

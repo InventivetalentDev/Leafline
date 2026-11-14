@@ -154,13 +154,14 @@ struct FTreeParams
 	/** How far the swelling fades out along the branch, in base radii. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh") float CollarLength = 1.2f;
 
-	// Fillets: where a limb, bough or root leaves its parent, the walking field rounds the corner with a larger blend (only
-	// round the junction), and the mesh gets a skirt lying on that rounded surface, so the ant walks over the curve it sees.
-	// Twigs keep their small blend. Draws no random numbers, and leaves are placed against the field without fillets, so
-	// the tree, its leaf count and leaf order are the same either way (Leaf.Fillets).
-	// Off by default since 14 Nov: with fillets on, laden recruits stuck at the same junctions every day and the colony
-	// hauled 69 in twenty Leaf.AutoPlay days against 470 without (Saved/RefShots/bird-baseline/summary.md).
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fillets") bool bFillets = false;
+	// Fillets: where a limb, bough or root leaves its parent, the mesh gets a skirt that rounds the corner (a field with a
+	// larger blend round the junction, which the skirt lies on). Twigs keep their crease. Looks only: the walking field and
+	// everything else the sim asks never has fillets (ATreeActor::GetField), so the sim is the same either way, and the ant
+	// sinks into a skirt by up to the fillet's lift. Draws no random numbers (Leaf.Fillets).
+	// 14 Nov: with fillets in the walking field too, laden recruits stuck at the same junctions every day and the colony
+	// hauled 69 in twenty Leaf.AutoPlay days against 470 without (Saved/RefShots/bird-baseline/summary.md); the owner
+	// asked for the skirts without the collision.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fillets") bool bFillets = true;
 	/** Fillet blend radius as a fraction of the child's base radius (the rounding reaches about this far along each surface). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fillets") float FilletFrac = 0.7f;
 	/** Multiplier on FilletFrac for boughs. */

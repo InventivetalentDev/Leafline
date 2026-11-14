@@ -112,6 +112,7 @@ private:
 		TSet<int32> GlowDirtyChunks;
 		int32 DirtyFromChunk = INDEX_NONE; // only the growing tail is rebuilt
 		bool bYesterday = false;         // loaded from the save: faint, drawn lower, ignored by today's merge test
+		TArray<FTrailPoint> Shown;       // display only: the points lifted onto junction skirts (filled as chunks are built)
 	};
 
 	FIntVector Cell(const FVector& P) const;
@@ -126,6 +127,7 @@ private:
 	TMap<FIntVector, TArray<FIntPoint>> Grid; // cell -> (path, point index), every point
 	float CellSize = 60.f;
 	float NoLineGlow = 1.f;
+	int32 ShownShape = INDEX_NONE;   // the tree shape the Shown points were lifted on (ATreeActor::GetShapeVersion)
 	float RebuildTimer = 0.f;
 
 	UPROPERTY(Transient)

@@ -11,7 +11,7 @@ class FTreeField
 {
 public:
 	/** bWithFillets false ignores the branches' fillet zones (every branch blends with BlendK): the field as it was before
-	 *  fillets, which leaf placement uses so the leaves do not change. */
+	 *  fillets, which the whole sim uses (ATreeActor::GetField); with them, the surface the skirts lie on. */
 	void Build(const FTreeSkeleton& Skeleton, bool bWithFillets = true);
 	void Reset();
 	bool IsValid() const { return Branches.Num() > 0; }

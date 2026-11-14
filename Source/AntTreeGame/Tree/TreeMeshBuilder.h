@@ -57,9 +57,9 @@ namespace TreeMeshBuilder
 {
 	/**
 	 * With a field that has fillet zones (FTreeParams::bFillets), each limb, bough and root also gets a skirt over its
-	 * junction: a band from the child's first ring clear of the fillet, over the walking field's rounded surface, to a
-	 * curve on the parent clear of it. It lies on the field (inner rows 0.3 cm outside it), so the tubes' crease is hidden
-	 * behind it and the ant walks on the surface it sees. Both edges share the tubes' surface exactly (the child ring's own
+	 * junction: a band from the child's first ring clear of the fillet, over the field's rounded surface, to a curve on
+	 * the parent clear of it. It lies on the field (inner rows 0.3 cm outside it), so the tubes' crease is hidden behind it.
+	 * Looks only: the ants walk on the field without fillets (ATreeActor::GetField), so they sink into the skirt a little. Both edges share the tubes' surface exactly (the child ring's own
 	 * vertices; points on the parent's facets with its interpolated vertex data), so nothing steps where they meet. The
 	 * child half carries the child's bark data continued down the band (UV1 and bark radius of the ring, along decreasing
 	 * with the distance down), the parent half the parent's, interpolated as its tube does; they switch with a hard seam
