@@ -1,118 +1,78 @@
 # Leafline
 
-<!-- Sunday draft, refreshed 14 Nov 2026. Resolve owner placeholders and each one-line [IF ... SHIPS] item against the final package; remove its prefix if kept, or delete the whole line if cut. See open-questions.md. -->
+<!-- Draft for the repository's README.md. Owner: fill the bracketed placeholders, choose the licence, and keep or delete the bird line after the 20:00 decision. -->
 
-You are a leafcutter ant on an enormous tree. Climb, lay a scent trail, choose how much to cut and send a piece home. Shift to the next scout while recruits follow your route and carry more pieces home.
+You're a leafcutter ant on an enormous tree. Climb, lay a scent trail and cut a piece from a leaf: a bigger piece is worth more, but it slows you down and catches the wind. Send your ant home, take over the next one, and let your recruits harvest along your trails.
 
-Made by one person (team `inventivetalent`) for the Epic AI MegaJam 2026 (Director's Cut) and Game Off 2026 (SHIFT). AI agents do most of the programming under the author's direction; AI also produces concept and key art. See Credits and the earlier-prototype disclosure below.
+Made by inventivetalent for the [Epic AI MegaJam 2026](https://itch.io/jam/2026-epic-ai-megajam) (theme: Director's Cut) and [GitHub Game Off 2026](https://itch.io/jam/game-off-2026) (theme: SHIFT), directing AI agents that wrote most of the code.
 
-**MegaJam page:** [MEGAJAM PAGE URL] · **Game Off page:** [GAME OFF PAGE URL] · **Gameplay video:** [VIDEO URL]
+- Play it: [MEGAJAM PAGE URL] · [GAME OFF PAGE URL]
+- Video: [VIDEO URL]
+- Dev log: [`docs/devlog.md`](docs/devlog.md)
 
-<!-- Working title: owner must confirm before publishing; update the title, links and archive name together if renamed. -->
+## How to play
 
-## The game
+1. Climb from the nest to a leafy branch. Your ant leaves a scent trail as it walks.
+2. Hold Cut at a leaf to choose the size of the piece, then let go.
+3. Send the ant home. It follows the trail by itself while you take over the next worker.
+4. When a gust comes, hold Grip or get into shelter. Hold Tab (LB on a pad) to see which bark is exposed.
+5. At the end of the day, spend leaf mass on upgrades. Brood adds recruits who work your trails.
 
-1. Leave the nest at the base of the trunk. The ant lays a scent trail as it walks; climb to a leafy branch and sprint while stamina lasts.
-2. At a leaf's base, hold Cut to choose the piece's size, then release. The arc's colour shows the wind risk for that size. Bigger pieces are worth more, slow the ant and catch more wind; pale young leaves higher up are richer.
-3. Send the loaded ant home. It follows the scent network home by itself, cutting out loops, while you shift to the next worker at the nest. Three scouts go out each day. You can also walk a piece home yourself.
-4. Buy Brood at the nest to add recruits. Once you have recruits, a scout's piece on its way home makes a line: recruits walk your route, cut the same size from nearby leaves and carry the pieces home while you scout. Patches run dry, so keep laying lines. Hold Follow near a trail to ride it; movement input leaves it.
-5. When a gust approaches, hold Grip or reach shelter. Hold Tab / LB for the wind map: dots on nearby bark run from green (sheltered), through amber (partly exposed), to red (exposed). A blown-off ant loses its piece, falls and walks home empty-handed; nobody dies. Unattended ants never grip, so their safety depends on the route and cut size you chose.
-6. When the last scout is home or heading home, watch the harvest at five times speed, or skip it. With no recruit trips left, the last workers' walk home also fast-forwards and can be skipped.
-7. Read the day's cut, then spend leaf mass on Mandibles, Strength, Grip, Stamina and Brood.
-8. The colony keeps one tree across days. Cut leaves stay cut and never grow back, so the low boughs run out and you climb higher. Yesterday's trails last one more day, faint and still ridable; the wind changes direction each day.
-9. At the second and third colony milestones, the next day starts on a new, taller tree with richer leaves and stronger gusts. The third milestone also shows an end card; you can keep playing afterwards.
+[IF BIRD SHIPS] A bird hunts on the wind and goes for ants carrying leaves on exposed bark. It never touches them; its wing gust knocks them off.
 
-Progress, the day's leaf cuts and trails are saved at day end. Quitting mid-day restarts that day from dawn without its haul or cuts.
-
-<!-- Optional Saturday copy: each feature below occupies one physical line. -->
-
-[IF BIRD SHIPS] A bird hunts on the wind, choosing laden ants on exposed bark. It never touches an ant: its wing gust knocks the ant off, the piece flutters away and the ant walks home unharmed. Reach shelter or hold Grip when it dives; gripping holds.
-
-[IF BAIT SHIPS] Drop your carried piece on exposed bark to draw the bird away for a while; a piece in shelter is ignored. Keyboard: [BAIT KEY]; pad: [BAIT BUTTON]. <!-- Requires the bird and tier 2; fill both bindings from the landed controller and PromptIcons.cpp before keeping this line. -->
-
-[IF WIND CUES SHIP] Streaming specks and streaks show an approaching gust and how exposed the ant's own spot is, alongside the wind map and HUD.
-
-[IF ANT LOOK SHIPS] The ant has a richer copper-rust colour and broad shell highlights, keeping its colour on shaded bark without an outline-like rim light.
-
-[IF FOREST FLOOR SHIPS] Fallen leaves and sparse grass surround the colony's clearing, giving the forest floor an ant-sized sense of scale while keeping the nest and its trails clear.
-
-## Controls
-
-| Action | Keyboard and mouse | Gamepad (Xbox names) |
-|---|---|---|
-| Move | WASD | Left stick |
-| Look | Mouse | Right stick |
-| Sprint (hold) | Left Shift | Left trigger (LT) |
-| Cut (hold, release to finish) | E or left mouse button | X (left face button) |
-| Grip (hold) | Space | A (bottom face button) |
-| Send home | Q | Y (top face button) |
-| Follow a trail (hold) | F | Right bumper (RB) |
-| Cycle worker view (tap, switches on release) | Tab | Left bumper (LB) |
-| Wind map (hold during scouting) | Tab | Left bumper (LB) |
-| Skip harvest / last workers' walk home | Space, E or left mouse button | A or X |
-| Next harvest view (when lines exist) | Tab | Left bumper (LB) |
-| Pause / resume | Esc or P | Start / Menu |
-| Choose a menu row | W / S or mouse hover | Left stick up / down |
-| Confirm / continue / buy | E, Space or left mouse button | A or X |
-| Back in menus | Q | Y |
-| Change an option | A / D or click its − / + control | Left stick left / right |
-
-Prompts follow the device used last. Every pad shows Xbox-style icons, including PlayStation pads (X = left face button, A = bottom, Y = top). Xbox, PS4 and PS5 pads are supported. The right stick's vertical look is inverted by default; the pause menu's invert option flips vertical look for both mouse and stick.
-
-Movement follows the direction of the branch on screen. The camera direction is read when you start moving and held while you keep moving; release briefly to read it again. Diagonals work on twigs. The pause menu also has mouse sensitivity, volume and graphics quality.
-
-Q / Y quits from the main pause page; from Options it goes back. Tapping Tab / LB changes the worker you watch; it does not cancel an unattended return.
-
-## Procedural content and presentation
-
-The tree, bark, leaves, ground, sky, scent trail and wind effects are generated by code and shaders, with no textures in the world and no hand-made tree models. The ant and nest mound are meshes generated by Blender Python scripts; the ant's legs animate in its material. The ant has a neck joining head and thorax, and its feet sit on the bark.
-
-The look passes added warm ridged bark and moss, a closer camera with more room to look up, a bark cutaway that opens when wood hides the ant and keeps a faint dithered layer, a dug-soil nest mound, and larger HUD text on backed panels. Scent trails are a soft cyan haze; their brightness shows how much their patch has left.
-
-Sounds and music are synthesised by script. During fast-forward, effects are quieter and repeated starts are limited; the end jingle plays afterwards at full volume. The only sourced images are the CC0 button prompts in the HUD.
+The pause menu lists all controls (keyboard and mouse, or any gamepad).
 
 ## Build from source
 
-You need Unreal Engine 5.8 on Windows (developed with 5.8.4), Visual Studio 2022 Build Tools with MSVC 14.44, Git and Git LFS, and Python 3 for the zip helper. The project enables the engine's Model Context Protocol and toolset plugins, ProceduralMeshComponent and GameInputWindows; check they are available in your engine installation. A clean build on another machine is still to be verified.
+You need:
 
-1. Run `git lfs install`, then clone `https://github.com/InventivetalentDev/Leafline.git` once the owner has made it public. Run `git lfs pull` in the clone to fetch binary assets.
-2. The helper scripts in `Scripts/` contain the author's paths (`C:\Program Files\Epic Games\UE_5.8` and `D:\UnrealProjects\AntTreeGame`). Edit them to match your machine.
-3. Close the editor and run `Scripts\build_editor.bat` to build `AntTreeGameEditor` (Win64, Development).
-4. Open `AntTreeGame.uproject`. The default map is `/Game/Leafline/Maps/L_Main`.
-5. Run `Scripts\package_win64.bat` to package into `Build\Windows`, then `python3 Tools/zip_build.py` to create `Build/inventivetalent_Leafline.zip`. The zip helper leaves out local saves, logs and debug symbols. Unzip and run `Leafline/AntTreeGame.exe`.
+- Windows with Unreal Engine 5.8 (developed with 5.8.4)
+- Visual Studio 2022 Build Tools with MSVC 14.44
+- Git and Git LFS
+- Python 3 (only for the zip helper)
 
-Sounds load at runtime from `Content/Leafline/AudioRaw/*.wavraw`; HUD icons load from `Content/Leafline/UIRaw/*.pngraw`. Both are staged into the package. Regenerated audio must be copied back into AudioRaw; see `docs/tech.md`.
+The project enables these plugins from the engine: ModelContextProtocol, AllToolsets, ProceduralMeshComponent, GameInputWindows, GameplayStateTree and ModelingToolsEditorMode.
 
-Verification uses scripted play runs and logs, described in `docs/tech.md` and `docs/tools.md`. Debug console commands start with `Leaf.`. Junction fillets are disabled for the jam because laden recruits stalled at junctions; do not assume the older “default on” notes in tech/plan describe the submission build. F3 input visualisation and the faint build line are due to be disabled before packaging (M7).
+1. Clone the repository with Git LFS installed, then run `git lfs pull`.
+2. The scripts in `Scripts/` contain the author's paths (`C:\Program Files\Epic Games\UE_5.8` and `D:\UnrealProjects\AntTreeGame`). Change them to match your machine.
+3. Close the editor and run `Scripts\build_editor.bat`.
+4. Open `AntTreeGame.uproject`. The game starts in `/Game/Leafline/Maps/L_Main`.
+5. To make a build, run `Scripts\package_win64.bat` and then `python3 Tools/zip_build.py`. The zip lands in `Build/`.
 
-<!-- [IF VIDEO KIT SHIPS] Recording only: after the kit passes its packaged checks, use Leaf.Cinematic 0|1, Leaf.Shot <name> [seconds] (orbit/crane/dolly/reveal/follow), Leaf.ShotList <name> <name> ... and Leaf.Slomo <factor> (1 = normal); confirm final syntax in docs/tech.md. This is an editor note, not itch page copy. -->
+A clean build on another machine hasn't been tested yet.
 
-## Project layout
+## How it's made
 
-- `Source/AntTreeGame/`: gameplay C++ (`Tree/`, `Ant/`, `Colony/`, `World/`, `Game/`, `UI/`, `Audio/`, `Debug/`).
-- `Content/Leafline/`: maps, materials, meshes, runtime audio and HUD data.
-- `Art/`: generated audio, scripted meshes, concept art and reference photos.
-- `Tools/` and `Scripts/`: generators, verification, economy, build and packaging helpers.
-- `docs/`: design, technical notes, plan, dev log, economy, sourced assets and briefs.
+The tree, bark, leaves, forest floor, sky, scent trails and wind are generated with C++ and shaders; the world has no textures and no hand-made tree models. The ant, the nest mound and the bird are meshes made by Blender Python scripts in `Tools/blender/`. The sounds are synthesised by `Tools/audio/make_audio.py`.
 
-## Credits and AI use
+Sounds and HUD icons load at runtime from `Content/Leafline/AudioRaw/` and `Content/Leafline/UIRaw/`. Debug console commands start with `Leaf.`; [`docs/tech.md`](docs/tech.md) lists them and describes the architecture.
 
-Design and direction: inventivetalent (solo).
+| Folder | Contents |
+|---|---|
+| `Source/AntTreeGame/` | The game's C++ |
+| `Content/Leafline/` | Maps, materials, meshes, runtime sounds and HUD data |
+| `Tools/`, `Scripts/` | Mesh, material and sound generators; test, build and packaging scripts |
+| `Art/` | Generated sounds, Blender files, concept art |
+| `docs/` | Design, technical notes, plan, dev log, briefs for the AI agents |
 
-- Unreal Engine 5.8 (development machine: 5.8.4).
-- Claude (Anthropic): planning and most programming, driving the Unreal editor through Epic's Model Context Protocol plugin.
-- Codex (OpenAI): concept and key art, code reviews, and programming contributions including saves, upgrades, runtime audio and the HUD restyle.
-- Blender 5.1: scripted mesh generation.
-- Python scripts: procedural asset generation and audio synthesis; audio checked with the earshot analysis tool.
+## AI use and credits
 
-Button prompt icons: [“Xelu's FREE Controller Prompts”](https://thoseawesomeguys.com/prompts/) by Nicolae (Xelu) Berbece, updated by Paul Paun (2021), CC0 1.0 (public domain). Resized light keyboard/mouse keys and Xbox Series buttons, used only in the HUD. See `docs/sourced-assets.md`.
+One person directed AI agents to make the game. Most of the code is written by AI, and the concept and key art are AI-generated.
 
-## Earlier prototype and pre-jam tooling
+- Made by inventivetalent
+- Playtesting and design feedback: [FRIEND A]
+- Claude (Anthropic): planning and most of the programming, including driving the Unreal editor through Epic's Model Context Protocol plugin
+- Codex (OpenAI): concept and key art, code reviews and some programming
+- Unreal Engine 5.8, Blender 5.1, Python
 
-On 1–2 November the author made a quick prototype of a tree-climbing ant game in a separate project (`TreeAntGame`). No files from it are used here: no code, assets, materials or models. This project was created on 12 November 2026; its game content was made from that day on, apart from the disclosed CC0 prompt icons. What carried over was knowledge: the author's idea notes (`concept-main.md`), and workflow and engine lessons from the prototype's notes. The planning agent read its `CLAUDE.md` and to-do list, not its source code, and used those lessons in the plan; it also read the commit list and file listing. <!-- Owner: confirm this disclosure against docs/devlog.md and docs/design.md before publishing. -->
+The button prompt icons are ["Xelu's FREE Controller Prompts"](https://thoseawesomeguys.com/prompts/) by Nicolae (Xelu) Berbece, updated by Paul Paun, CC0 1.0. They're the only content in the game that wasn't made for it ([`docs/sourced-assets.md`](docs/sourced-assets.md)).
 
-Two helper scripts predate the jam, as disclosed in the dev log: `Scripts/unreal-lock.sh` and `Scripts/RunGame.bat`, adapted from another project and containing no game content. `L_Main` began as the engine's default template map; its floor and props were removed, leaving sky and lighting. AI-generated content is disclosed above and is not classified as sourced content under the MegaJam rules recorded in `docs/design.md`.
+## Made before the jam
+
+On 1 and 2 November I made a quick prototype of a tree-climbing ant game in a separate project. Leafline uses no files from it: no code, assets, materials or models. This repository started on 12 November, and all its game content was made from then on, except the CC0 icons above. What carried over was knowledge: my idea notes ([`docs/concept-main.md`](docs/concept-main.md)), and workflow and engine lessons from the prototype's notes. The planning agent read those notes, its commit list and its file listing, but not its source code.
+
+Two helper scripts are older than the jam and contain no game content: `Scripts/unreal-lock.sh` and `Scripts/RunGame.bat`. The level started as the engine's default template map, with the floor and props removed.
 
 ## Licence
 
-[LICENCE — owner to choose before publishing; add LICENSE and keep the CC0 prompt attribution separate.]
+[LICENCE]. The button prompt icons stay under their own CC0 licence.

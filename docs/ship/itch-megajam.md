@@ -43,7 +43,7 @@ Hold Tab (LB on a pad) for the wind map: green bark is sheltered, red is exposed
 
 | Action | Keyboard and mouse | Gamepad (Xbox names) |
 |---|---|---|
-| Move / look | WASD / mouse | Left / right stick |
+| Move / look | WASD / mouse | left / right stick |
 | Cut (hold) | E or left mouse button | X |
 | Send home | Q | Y |
 | Grip (hold) | Space | A |

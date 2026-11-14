@@ -1,0 +1,79 @@
+<h2>About</h2>
+
+<p>You're a leafcutter ant on an enormous tree. Climb, lay a scent trail and cut a piece from a leaf. A bigger piece is worth more, but it slows you down and catches the wind like a sail. Send your ant home, take over the next one, and let your recruits follow your trails and harvest along them.</p>
+
+<p>The colony keeps its tree from day to day. Cut leaves don't grow back, so you climb higher and into stronger wind until the colony moves to a new, taller tree.</p>
+
+<h2>The jam theme: Director's Cut</h2>
+
+<p>Leafline was made for the Epic AI MegaJam 2026, whose theme is "Director's Cut". In the game:</p>
+
+<ul>
+<li><strong>You direct the colony.</strong> Recruits walk the routes you lay and harvest around your cuts without you.</li>
+<li><strong>You choose the cut.</strong> Each piece's size trades leaf mass against speed and wind risk.</li>
+<li><strong>The day's cut</strong> is the recap: what your lines brought home and what the wind took.</li>
+</ul>
+
+<h2>How to play</h2>
+
+<ol>
+<li>Climb from the nest to a leafy branch. Your ant leaves a scent trail as it walks.</li>
+<li>Hold Cut at a leaf to choose the size of the piece, then let go.</li>
+<li>Send the ant home. It follows the trail by itself while you take over the next worker.</li>
+<li>When a gust comes, hold Grip or get into shelter. An ant that's blown off loses its piece and walks home.</li>
+<li>At the end of the day, spend leaf mass on upgrades. Brood adds recruits who work your trails.</li>
+</ol>
+
+<p>Hold Tab (LB on a pad) for the wind map: green bark is sheltered, red is exposed.</p>
+
+<p>[IF BIRD SHIPS] A bird hunts on the wind. It goes for ants carrying leaves on exposed bark. It never touches them; its wing gust knocks them off. Grip or get into shelter when it dives.</p>
+
+<p>[IF BAIT SHIPS] Drop your piece in the open (G, or B on a pad) to draw the bird away for a while.</p>
+
+<h2>Controls</h2>
+
+<ul>
+<li><strong>Move / look</strong>: WASD / mouse (pad: left / right stick)</li>
+<li><strong>Cut (hold)</strong>: E or left mouse button (pad: X)</li>
+<li><strong>Send home</strong>: Q (pad: Y)</li>
+<li><strong>Grip (hold)</strong>: Space (pad: A)</li>
+<li><strong>Follow a trail (hold)</strong>: F (pad: RB)</li>
+<li><strong>Wind map (hold) / switch ant (tap)</strong>: Tab (pad: LB)</li>
+<li><strong>Sprint (hold)</strong>: Left Shift (pad: LT)</li>
+<li><strong>Pause</strong>: Esc (pad: Start)</li>
+</ul>
+
+<p>The pause menu lists all controls and has options for sensitivity, volume and graphics.</p>
+
+<h2>How it's made</h2>
+
+<p>The tree, bark, leaves, forest floor, sky, scent trails and wind are generated with code and shaders. The world has no textures and no hand-made tree models. The ant, the nest mound and the bird are meshes made by Blender Python scripts. The sounds and music are synthesised by scripts.</p>
+
+<p>One person directed AI agents to make the game. Most of the code is written by AI, and the concept and key art are AI-generated.</p>
+
+<ul>
+<li>Unreal Engine 5.8</li>
+<li>Claude (Anthropic): planning and most of the programming, including driving the Unreal editor through Epic's Model Context Protocol plugin</li>
+<li>Codex (OpenAI): concept and key art, code reviews and some programming</li>
+<li>Blender 5.1 and Python: the scripted meshes and the sound synthesis</li>
+</ul>
+
+<h2>Sourced assets</h2>
+
+<p>Button prompt icons: <a href="https://thoseawesomeguys.com/prompts/">"Xelu's FREE Controller Prompts"</a> by Nicolae (Xelu) Berbece, updated by Paul Paun, CC0 1.0. They're the only content in the game that wasn't made for it.</p>
+
+<h2>Made before the jam</h2>
+
+<p>On 1 and 2 November I made a quick prototype of a tree-climbing ant game in a separate project. Leafline uses no files from it: no code, assets, materials or models. This project started on 12 November, and all its game content was made from then on, except the CC0 icons above. What carried over was knowledge: my idea notes, and workflow and engine lessons from the prototype's notes. The planning agent read those notes, its commit list and its file listing, but not its source code.</p>
+
+<p>Two helper scripts are older than the jam and contain no game content: <code>Scripts/unreal-lock.sh</code> and <code>Scripts/RunGame.bat</code>. The level started as the engine's default template map, with the floor and props removed.</p>
+
+<h2>Credits and links</h2>
+
+<ul>
+<li>Made by inventivetalent</li>
+<li>Playtesting and design feedback: [FRIEND A]</li>
+<li>Dev log: [DEV LOG URL]</li>
+<li>Game Off version: [GAME OFF PAGE URL]</li>
+<li>Source code: [REPO URL, once the repository is public]</li>
+</ul>
