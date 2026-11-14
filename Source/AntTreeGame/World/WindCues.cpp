@@ -37,7 +37,8 @@ namespace
 	// Unlit vertex colours, kept away from the HUD's green / amber / red (they mean sheltered / partly / exposed).
 	FLinearColor PollenColor(FRandomStream& R) { return FMath::Lerp(FLinearColor(1.f, 0.95f, 0.78f), FLinearColor(0.92f, 0.9f, 0.86f), R.FRand()); }
 	FLinearColor LeafBitColor(FRandomStream& R) { return FMath::Lerp(FLinearColor(0.62f, 0.55f, 0.36f), FLinearColor(0.5f, 0.42f, 0.3f), R.FRand()); }
-	const FLinearColor BarkDustColor(0.86f, 0.78f, 0.64f);
+	const FLinearColor BarkDustColor(0.6f, 0.55f, 0.45f);
+	const FLinearColor BarkDustDark(0.035f, 0.03f, 0.022f);
 }
 
 bool WindCues::IsEnabled() { return GCuesOn; }
@@ -366,7 +367,7 @@ void AWindCues::StepPuffs(const FAir& Air, float Dt)
 		static const float Shares[3] = { 0.45f, 0.35f, 0.3f };
 		for (int32 k = 0; k < 3; ++k)
 		{
-			FLinearColor Col = T.CueFrontPuffColor;
+			FLinearColor Col = P.Seed < 0.5f ? T.CueFrontPuffDark : T.CueFrontPuffColor;
 			Col.A = Alpha * Shares[k];
 			const float Rad = P.Size * Scales[k];
 			AddQuad(SpeckQuads, Air, At - Air.W * (2.4f * Rad), At + Air.W * (2.4f * Rad), Rad, Col, 1.f, T.CueFrontPuffNear);
@@ -395,7 +396,7 @@ void AWindCues::StepStreaks(const FAir& Air, float Dt)
 		const float Amount = GustAmount(Vs);
 		P.Life += Dt;
 		P.Pos += Wd * (T.StreakSpeed * (0.35f + 0.9f * Vs) * Dt);
-		const float Vis = FMath::SmoothStep(P.Seed - 0.12f, P.Seed + 0.12f, Amount);
+		const float Vis = FMath::SmoothStep(P.Seed, P.Seed + 0.24f, Amount);
 		if (Vis <= 0.003f) continue;
 		const float Fade = FMath::Sin(PI * FMath::Clamp(P.Life / P.MaxLife, 0.f, 1.f));
 		const float Len = T.CueStreakLength * P.Length * (0.5f + 0.5f * Amount) * (0.4f + 0.6f * Fade);
@@ -438,7 +439,7 @@ void AWindCues::StepSpecks(const FAir& Air, float Dt)
 		const float Speed = T.StreakSpeed * (0.03f + 0.9f * Vs * Vs);
 		P.Life += Dt;
 		P.Pos += Wd * (Speed * Dt);
-		const float Gust = FMath::SmoothStep(P.Seed - 0.12f, P.Seed + 0.12f, FMath::Min(1.f, Amount + Edge));
+		const float Gust = FMath::SmoothStep(P.Seed, P.Seed + 0.24f, FMath::Min(1.f, Amount + Edge));
 		const float Calm = (P.Kind == EKind::Speck && P.Seed < 0.3f) ? T.CueCalmMotes : 0.f;
 		const float Fade = FMath::Sin(PI * FMath::Clamp(P.Life / P.MaxLife, 0.f, 1.f));
 		const float Alpha = FMath::Max(Calm, T.CueSpeckAlpha * Gust) * Fade;
@@ -565,7 +566,7 @@ void AWindCues::StepLocal(const FAir& Air, float Dt)
 		const float Past = (P.bSlid || U > 0.f) ? (float)Rel.Size() / R : 0.f;
 		const float In = P.bSlid ? 1.f : FMath::SmoothStep(-1.25f, -0.8f, U);
 		const float Out = 1.f - FMath::SmoothStep(0.7f, 1.1f, Past);
-		const float Vis = FMath::SmoothStep(P.Seed - 0.12f, P.Seed + 0.12f, Amount);
+		const float Vis = FMath::SmoothStep(P.Seed, P.Seed + 0.24f, Amount);
 		float Alpha = Vis * In * Out * FMath::SmoothStep(-1.f, 2.f, Hgt) * FMath::Min(1.f, P.Life / 0.06f);
 		if (Alpha <= 0.003f) continue;
 		if (P.Kind == EKind::Streak)
@@ -591,7 +592,7 @@ void AWindCues::StepLocal(const FAir& Air, float Dt)
 	}
 }
 
-void AWindCues::SpawnScrape(const FAir& Air, float Strength01)
+void AWindCues::SpawnScrape(const FAir& Air, float Strength01, float BurstAngle)
 {
 	FParticle* Slot = nullptr;
 	for (FParticle& P : Scrapes)
@@ -606,13 +607,27 @@ void AWindCues::SpawnScrape(const FAir& Air, float Strength01)
 	FParticle& P = *Slot;
 	FVector Tan = Air.W - Air.AntN * FVector::DotProduct(Air.W, Air.AntN);
 	Tan = Tan.SizeSquared() < 0.04 ? Air.Across : Tan.GetSafeNormal();
-	P.Pos = Air.AntPos + Air.AntN * 0.5f + Air.Across * Rand.FRandRange(-4.f, 4.f) + Tan * Rand.FRandRange(-4.f, 4.f);
-	P.Dir = (Tan * (0.4f + Strength01) + Air.AntN * Rand.FRandRange(0.4f, 1.f) + Air.Across * Rand.FRandRange(-0.5f, 0.5f)).GetSafeNormal();
-	P.Speed = Rand.FRandRange(25.f, 60.f) + 260.f * Strength01;
+	const FVector Tan2 = FVector::CrossProduct(Air.AntN, Tan);
+	if (BurstAngle >= 0.f)
+	{
+		// The claws dig in: grains burst out along the bark all round the ant, then the wind takes them.
+		const FVector Out = Tan * FMath::Cos(BurstAngle) + Tan2 * FMath::Sin(BurstAngle);
+		P.Pos = Air.AntPos + Air.AntN * 0.5f + Out * Rand.FRandRange(2.f, 5.f);
+		P.Dir = (Out + Air.AntN * Rand.FRandRange(0.15f, 0.5f)).GetSafeNormal();
+		P.Speed = Rand.FRandRange(60.f, 110.f);
+	}
+	else
+	{
+		// Scraped off while the wind pulls: blown downwind.
+		P.Pos = Air.AntPos + Air.AntN * 0.5f + Tan2 * Rand.FRandRange(-4.f, 4.f) + Tan * Rand.FRandRange(-4.f, 4.f);
+		P.Dir = (Tan * (0.4f + Strength01) + Air.AntN * Rand.FRandRange(0.4f, 1.f) + Tan2 * Rand.FRandRange(-0.5f, 0.5f)).GetSafeNormal();
+		P.Speed = Rand.FRandRange(25.f, 60.f) + 260.f * Strength01;
+	}
 	P.Life = 0.f;
-	P.MaxLife = Rand.FRandRange(0.45f, 0.9f);
-	P.Size = Rand.FRandRange(0.25f, 0.5f);
-	P.Color = BarkDustColor;
+	P.MaxLife = Rand.FRandRange(0.5f, 0.9f);
+	P.Size = Rand.FRandRange(0.5f, 0.9f);
+	// Half light, half dark, so the dust shows on pale boughs and dark trunk bark alike (colours as drawn, not dimmed).
+	P.Color = Rand.FRand() < 0.5f ? BarkDustColor : BarkDustDark;
 	P.Kind = EKind::Scrape;
 }
 
@@ -627,13 +642,13 @@ void AWindCues::StepScrapes(const FAir& Air, float Dt)
 		const float Pull = FMath::Clamp(AirAt(Air, Air.AntPos) * Exposure, 0.f, 1.f);
 		if (!bWasGripping)
 		{
-			for (int32 i = 0; i < T.CueGripPuff; ++i) SpawnScrape(Air, FMath::Max(Pull, 0.2f));
+			for (int32 i = 0; i < T.CueGripPuff; ++i) SpawnScrape(Air, FMath::Max(Pull, 0.2f), (i + Rand.FRand()) * 2.f * PI / FMath::Max(T.CueGripPuff, 1));
 		}
 		TrickleDebt += Dt * T.CueGripTrickle * FMath::SmoothStep(0.1f, 0.6f, Pull);
 		while (TrickleDebt >= 1.f)
 		{
 			TrickleDebt -= 1.f;
-			SpawnScrape(Air, Pull);
+			SpawnScrape(Air, Pull, -1.f);
 		}
 	}
 	else
@@ -650,7 +665,7 @@ void AWindCues::StepScrapes(const FAir& Air, float Dt)
 		P.Pos += P.Dir * (P.Speed * Dt) + Air.W * (180.f * Air.Strength * Dt);
 		const float Alpha = 0.95f * FMath::Square(1.f - FMath::Clamp(P.Life / P.MaxLife, 0.f, 1.f));
 		const float Len = FMath::Max(2.f * P.Size, P.Speed * T.CueStretch);
-		FLinearColor Col = P.Color * FMath::Clamp(T.CueBrightness, 0.f, 1.f);
+		FLinearColor Col = P.Color;
 		Col.A = Alpha;
 		AddQuad(SpeckQuads, Air, P.Pos - P.Dir * (0.5f * Len), P.Pos + P.Dir * (0.5f * Len), P.Size, Col, 1.f, T.CueLocalNear);
 	}

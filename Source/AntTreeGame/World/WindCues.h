@@ -117,7 +117,8 @@ private:
 	void StepLocal(const FAir& Air, float Dt);
 	void StepScrapes(const FAir& Air, float Dt);
 	void StepPuffs(const FAir& Air, float Dt);
-	void SpawnScrape(const FAir& Air, float Strength01);
+	/** BurstAngle >= 0: a grain of the grip's burst, thrown out along the bark at that angle; < 0: blown downwind. */
+	void SpawnScrape(const FAir& Air, float Strength01, float BurstAngle);
 	void AddQuad(FQuads& Q, const FAir& Air, const FVector& A, const FVector& B, float HalfWidth, const FLinearColor& Col, float TailAlpha, float FadeNear);
 	void Flush(int32 Section, FQuads& Q, UMaterialInterface* Material, bool bCentredUV);
 

@@ -7,11 +7,15 @@
 #   exposed / sheltered   Leaf.FaceWind on the trunk's windward / lee side, cues off then on
 #   both                  exposed off, exposed on, sheltered off, sheltered on (one run)
 #   grip                  windward side, cues off then on; the ant grips as the gust rises (Leaf.Hold grip)
+#   limb                  (in PASSES) on a limb, the wind running across its surface: LIMB (default "Leaf.Teleport 21 0.4")
+#   leaf / leafgrip       (in PASSES) beside a cuttable leaf (Leaf.GoLeaf, the usual play view); leafgrip grips as the gust rises
+#   Placement and aim happen only when the spot changes, so off and on passes of one spot see the same bark.
+#   Negative AT values shoot before the gust (calm).
 # Environment: ROOT (default this script's tree), SEED, AIM (camera yaw relative to the wind: 0 downwind, 180 upwind,
 #   default 90), PITCH (default -12), TUNE (commands run first, e.g. "Leaf.Tune wind CueFrontSpeed 500"),
 #   AT (seconds after the gust for each shot, default "1.0 2.0 2.6 3.2 4.5"; grip "3.45 3.6 3.75 4.4 5.6"),
 #   PASSES (spot:cues[:Field=Value/Field=Value] list, e.g. "sheltered:1 exposed:1:CueBrightness=0.3"; the fields are
-#   set with Leaf.Tune wind just before that pass and stay set for the passes after it).
+#   set with Leaf.Tune wind just before that pass and stay set for the passes after it; AIM=<deg> aims that pass instead).
 # Output: Saved/RefShots/cues-<label>-<spot>-<off|on>-<seconds>.png, and the wind cue lines of the log.
 set -u
 ROOT=${ROOT:-$(cd "$(dirname "$0")/.." && pwd)}
@@ -39,16 +43,29 @@ k=0
 for pass in $PASSES; do
 	IFS=: read -r spot c tune <<< "$pass"
 	face=$spot; [ "$spot" = grip ] && face=exposed
+	PLACE="Leaf.FaceWind $face"; [ "$spot" = limb ] && PLACE=${LIMB:-Leaf.Teleport 21 0.4}
+	case "$spot" in leaf|leafgrip) PLACE="Leaf.GoLeaf" ;; esac
+	GRIP=0; case "$spot" in grip|leafgrip) GRIP=1 ;; esac
 	onoff=off; [ "$c" = 1 ] && onoff=on
 	B=$((6 + 14 * k))
 	G=$(echo "$B + 0.2" | bc)
-	CMDS="$CMDS,Leaf.Delay $((B - 2)) Leaf.FaceWind $face,Leaf.Delay $((B - 1)) Leaf.WindAim $AIM $PITCH,Leaf.Delay $B Leaf.Cues $c,Leaf.Delay $G Leaf.Gust 1"
+	PAIM=$AIM
+	for fv in ${tune//\// }; do [ "${fv%%=*}" = AIM ] && PAIM=${fv#*=}; done
+	if [ "$PLACE" != "${LASTPLACE:-}" ]; then
+		CMDS="$CMDS,Leaf.Delay $((B - 3)) $PLACE"
+		LASTPLACE=$PLACE; LASTAIM=
+	fi
+	if [ "$PAIM" != "${LASTAIM:-}" ]; then
+		CMDS="$CMDS,Leaf.Delay $((B - 2)) Leaf.WindAim $PAIM $PITCH"
+		LASTAIM=$PAIM
+	fi
+	CMDS="$CMDS,Leaf.Delay $B Leaf.Cues $c,Leaf.Delay $G Leaf.Gust 1"
 	[ "$c" = 1 ] && CMDS="$CMDS,Leaf.Delay $G Leaf.CuesStat 8"
 	if [ -n "${tune:-}" ]; then
-		for fv in ${tune//\// }; do CMDS="$CMDS,Leaf.Delay $((B - 1)) Leaf.Tune wind ${fv%%=*} ${fv#*=}"; done
+		for fv in ${tune//\// }; do [ "${fv%%=*}" = AIM ] || CMDS="$CMDS,Leaf.Delay $((B - 1)) Leaf.Tune wind ${fv%%=*} ${fv#*=}"; done
 	fi
-	[ "$spot" = grip ] && CMDS="$CMDS,Leaf.Delay $(echo "$G + 3.3" | bc) Leaf.Hold grip 4"
-	ATS=$AT_GUST; [ "$spot" = grip ] && ATS=$AT_GRIP
+	[ $GRIP = 1 ] && CMDS="$CMDS,Leaf.Delay $(echo "$G + 3.3" | bc) Leaf.Hold grip 4"
+	ATS=$AT_GUST; [ $GRIP = 1 ] && ATS=$AT_GRIP
 	for a in $ATS; do
 		CMDS="$CMDS,Leaf.Delay $(echo "$G + $a" | bc) HighResShot 1"
 		NAMES+=("$spot-$onoff${tune:+-p$k}-$a")

@@ -88,6 +88,8 @@ struct FWindTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueFrontPuffNear = 900.f;
 	/** Colours (unlit vertex colours; the material is bright, so low values still read light): the dust wall, and streaks. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") FLinearColor CueFrontPuffColor = FLinearColor(0.42f, 0.4f, 0.34f);
+	/** Half the puffs take this darker tone, so the wall shows over a bright sky as well as over bark and ground. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") FLinearColor CueFrontPuffDark = FLinearColor(0.04f, 0.036f, 0.03f);
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") FLinearColor CueStreakColor = FLinearColor(0.35f, 0.35f, 0.35f);
 	/** Extra specks gathered at the front's edge (0 none). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueFrontDust = 0.8f;
@@ -129,15 +131,15 @@ struct FWindTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueShelterRadius = 70.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueMoteAlpha = 0.7f;
 	/** Gripping: bark dust scraped off and blown away, a puff at the grip and a trickle while the wind pulls. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") int32 CueGripPuff = 14;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") int32 CueGripPuff = 22;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueGripTrickle = 10.f;
 	/** Gripping pose with the cues on: body height and width scale (claws dug in, legs splayed), and how hard the wind
 	 *  tugs the body downwind (times the wind the ant feels). Before: 0.78 and 1.14, no tug. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueGripSquash = 0.66f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueGripSpread = 1.26f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueGripSquash = 0.62f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueGripSpread = 1.3f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueGripTug = 1.f;
 	/** The gripping body sinks this far into the bark (cm): the feet dig in, which reads at game distance. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueGripSink = 0.8f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueGripSink = 1.2f;
 };
 
 /**
