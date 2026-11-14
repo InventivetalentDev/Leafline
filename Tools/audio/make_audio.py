@@ -299,6 +299,35 @@ def pad():
     s = stereo_from(L, R)
     return norm(s, -14.0)
 
+# ---------- bird (call and wing rush) ----------
+def bird_call():
+    """Three falling 'tsiu' notes of a small songbird, 3-4.5 kHz: above the gust bed (< 2.5 kHz).
+    Pitch glides down with a rounded curve, a breathy noise band rides on the note, no pure-sine beep."""
+    r = rng_for("bird_call"); n = N(0.9); y = np.zeros(n)
+    for at, f0, f1, dur, a in ((0.03, 4400, 3100, 0.20, 0.8), (0.30, 4100, 2900, 0.21, 1.0), (0.58, 3800, 2650, 0.28, 0.8)):
+        m = N(dur); t = tarr(m); p = t / dur
+        f = f1 + (f0 - f1) * np.exp(-2.2 * p) + 35 * np.sin(TAU * 17 * t + 1.0) * p
+        ph = np.cumsum(TAU * f / SR)
+        s = np.sin(ph) + 0.30 * np.sin(2 * ph + 0.9) + 0.10 * np.sin(3 * ph + 2.1)
+        s *= 1 + 0.10 * np.sin(TAU * 41 * t)                              # slight tremolo
+        br = band(noise(m, r), 2500, 6500, 2) * 0.12                      # breath
+        e = np.sin(np.pi * np.minimum(p * 1.25, 1) / 1.0) ** 0.8 * (1 - 0.5 * p)
+        e = np.minimum(e, np.minimum(t / 0.02, 1))
+        place(y, (s + br) * e * a, at)
+    y += 0.0
+    return norm(fade(y, 0.006, 0.06), -11.0)
+
+def bird_pass():
+    """Soft wing rush ~0.55 s: feathery band noise with a wing-beat flutter, passing by (pitch eases down)."""
+    r = rng_for("bird_pass"); n = N(0.6); t = tarr(n); p = t / t[-1]; base = noise(n, r); y = np.zeros(n)
+    cen = 2600 * 2.0 ** (-0.9 * p)                                  # eases down as it passes
+    for c in [500, 900, 1600, 2800, 5000]:
+        y += band(base, c * 0.6, c * 1.5, 2) * np.exp(-0.5 * (np.log2(cen / c) / 1.1) ** 2)
+    flut = 0.72 + 0.28 * np.sin(TAU * (11 + 3 * p) * t + 0.5)      # wing beats
+    y *= flut * np.sin(np.pi * p) ** 2.2
+    y += 0.25 * band(noise(n, r), 150, 450, 2) * np.sin(np.pi * p) ** 2   # soft air body
+    return norm(fade(y, 0.02, 0.12), -10.0)
+
 # ---------- main ----------
 def main():
     os.makedirs(OUT, exist_ok=True)
@@ -309,6 +338,7 @@ def main():
                ui_move, ui_confirm, ui_deny, upgrade, milestone, day_end):
         write(fn.__name__, fn())
     write("ambient_pad_loop", pad())
+    write("bird_call", bird_call()); write("bird_pass", bird_pass())
     print("done ->", os.path.abspath(OUT))
 
 if __name__ == "__main__":
