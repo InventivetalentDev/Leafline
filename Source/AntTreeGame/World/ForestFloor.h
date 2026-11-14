@@ -20,12 +20,12 @@ struct FForestFloorTuning
 	 *  from every nest spot to the trunk, and a band of RootBand round every root. Its edge is wavy by up to EdgeWave. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clearing") float TrunkClear = 1100.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clearing") float RootBand = 450.f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clearing") float NestClear = 900.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clearing") float NestClear = 800.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clearing") float CorridorHalf = 500.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clearing") float EdgeWave = 250.f;
 	/** Past the clearing, leaves only lie flat (a few mm above the ground) for this much more. Curled and tilted leaves,
 	 *  grass and twigs start beyond it. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clearing") float FlatRing = 1800.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clearing") float FlatRing = 900.f;
 	/** Outer edge of the scattered litter. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Litter") float LitterRadius = 14000.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Litter") int32 RingLeaves = 3200;
@@ -34,7 +34,7 @@ struct FForestFloorTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Litter") float LeafLengthMax = 150.f;
 	/** Fraction of the leaves that are small fragments (8 to 24 cm). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Litter") float FragmentFraction = 0.35f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grass") int32 Tufts = 900;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grass") int32 Tufts = 1100;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grass") int32 FarTufts = 450;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grass") float FarRadius = 30000.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grass") float BladeHeightMin = 80.f;

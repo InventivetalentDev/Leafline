@@ -228,7 +228,7 @@ void AForestFloor::Build(const ATreeActor& Tree)
 		}
 	}
 	for (const FVector& N : Sk.NestSpots) NestPts.Add(FVector2D(N) - FVector2D(Trunk));
-	const float TrunkClearR = FMath::Max(T.TrunkClear, 1.6f * TrunkR + 200.f);
+	const float TrunkClearR = FMath::Max(T.TrunkClear, TrunkR + 500.f);
 	const float PhaseA = R.FRand() * 6.28f, PhaseB = R.FRand() * 6.28f;
 	auto SegDist = [](const FVector2D& P, const FVector2D& A, const FVector2D& B)
 	{
@@ -298,7 +298,7 @@ void AForestFloor::Build(const ATreeActor& Tree)
 				const float Out = ClearDist(Rel) - 0.6f * L;   // the leaf's nearest end stays outside the clearing
 				if (Out < 0.f || D > T.LitterRadius) continue;
 				const float Yaw = R.FRand() * 2.f * PI;
-				const bool bFlat = Out < FlatEnd || R.FRand() < 0.55f;
+				const bool bFlat = Out < FlatEnd || R.FRand() < 0.2f;
 				const float Layer = float(R.RandRange(0, 2));
 				float Tilt = 0.f, TiltDir = 0.f, Curl = 0.f;
 				if (bFlat)
@@ -307,9 +307,9 @@ void AForestFloor::Build(const ATreeActor& Tree)
 				}
 				else
 				{
-					Tilt = FMath::DegreesToRadians(R.FRandRange(4.f, 24.f));
+					Tilt = FMath::DegreesToRadians(R.FRandRange(6.f, 34.f));
 					TiltDir = R.FRand() * 2.f * PI;
-					Curl = R.FRandRange(0.02f, 0.10f) * W;
+					Curl = R.FRandRange(0.05f, 0.16f) * W;
 				}
 				const FVector C(Trunk.X + Rel.X, Trunk.Y + Rel.Y, Z0 + T.FlatLift + Layer * 0.1f);
 				AddLeaf(Place(Rel, LeafMat()), C, Yaw, L, W, Tilt, TiltDir, Curl, Z0 + T.FlatLift);
@@ -343,7 +343,9 @@ void AForestFloor::Build(const ATreeActor& Tree)
 		while (Made < T.Tufts && Guard++ < T.Tufts * 20)
 		{
 			const float A = R.FRand() * 2.f * PI;
-			const FVector2D Centre = FVector2D(FMath::Cos(A), FMath::Sin(A)) * (T.LitterRadius * 1.1f * FMath::Pow(R.FRand(), 0.8f));
+			const FVector2D Centre = (R.FRand() < 0.7f)
+				? Anchors[R.RandRange(0, Anchors.Num() - 1)] + FVector2D(FMath::Cos(A), FMath::Sin(A)) * (FlatEnd + 600.f + 2400.f * FMath::Pow(R.FRand(), 1.2f))
+				: FVector2D(FMath::Cos(A), FMath::Sin(A)) * (T.LitterRadius * 1.1f * FMath::Pow(R.FRand(), 0.8f));
 			for (int32 i = 0; i < 9 && Made < T.Tufts; ++i)
 			{
 				const FVector2D Rel = Centre + FVector2D(Gauss(R), Gauss(R)) * 320.f;
