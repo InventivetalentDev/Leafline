@@ -19,7 +19,9 @@
 #   custom     the commands in $TCMDS (comma-separated)
 # The log is Saved/Logs/TreeTest-<scenario>.log; a summary of the Leafline lines is printed.
 set -u
-ROOT=/mnt/d/UnrealProjects/AntTreeGame
+# ROOT (a worktree, say) runs that tree's binaries and content; the lock stays machine-wide.
+ROOT=${ROOT:-/mnt/d/UnrealProjects/AntTreeGame}
+WINROOT=$(wslpath -w "$ROOT")
 SCEN=${1:?usage: tree_test.sh <scenario> [seconds]}
 SLOT=${SLOT:-TreeTest}
 FRESH="Leaf.ResetSave,Leaf.OneTree 1,Leaf.Recruits 1,Leaf.StartDay 1"
@@ -45,7 +47,7 @@ esac
 LOG=TreeTest-$SCEN${LOGSUF:-}.log
 MARK=$ROOT/Saved/RefShots/.tree-marker
 mkdir -p "$ROOT/Saved/RefShots" && touch "$MARK"
-(cd /mnt/c && timeout $((T + 120)) "$ROOT/Scripts/unreal-lock.sh" "treetest-$SCEN" -- cmd.exe /c "D:\\UnrealProjects\\AntTreeGame\\Scripts\\RunGame.bat" "$LOG" \
+(cd /mnt/c && timeout $((T + 120)) "$ROOT/Scripts/unreal-lock.sh" "treetest-$SCEN" -- cmd.exe /c "$WINROOT\\Scripts\\RunGame.bat" "$LOG" \
 	"$CMDS,Leaf.QuitAfter $T" "-LeafSlot=$SLOT -unattended" >/dev/null 2>&1)
 F=$ROOT/Saved/Logs/$LOG
 grep -a "LogLeafline" "$F" | grep -a -v "Wind: EWindPhase" | grep -a -E "Day [0-9]+ starts|all workers home|Day [0-9]+ cuts|TreeReport|Tree saved|Tree:|Colony loaded|Colony moves|Move card|milestone|AutoPlay:|Migrated|Wind for day|Trails: loaded|LeafSet:|Leaf.Strip|Leaf.Move|One tree|not ended|Error|Warning" | sed 's/^.*LogLeafline: //' | cut -c1-230
