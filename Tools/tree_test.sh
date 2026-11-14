@@ -47,7 +47,7 @@ esac
 LOG=TreeTest-$SCEN${LOGSUF:-}.log
 MARK=$ROOT/Saved/RefShots/.tree-marker
 mkdir -p "$ROOT/Saved/RefShots" && touch "$MARK"
-(cd /mnt/c && timeout $((T + 120)) "$ROOT/Scripts/unreal-lock.sh" "treetest-$SCEN" -- cmd.exe /c "$WINROOT\\Scripts\\RunGame.bat" "$LOG" \
+(cd /mnt/c && "$ROOT/Scripts/unreal-lock.sh" "treetest-$SCEN" -- timeout $((T + 120)) cmd.exe /c "$WINROOT\\Scripts\\RunGame.bat" "$LOG" \
 	"$CMDS,Leaf.QuitAfter $T" "-LeafSlot=$SLOT -unattended" >/dev/null 2>&1)
 F=$ROOT/Saved/Logs/$LOG
 grep -a "LogLeafline" "$F" | grep -a -v "Wind: EWindPhase" | grep -a -E "Day [0-9]+ starts|all workers home|Day [0-9]+ cuts|TreeReport|Tree saved|Tree:|Colony loaded|Colony moves|Move card|milestone|AutoPlay:|Migrated|Wind for day|Trails: loaded|LeafSet:|Leaf.Strip|Leaf.Move|One tree|not ended|Error|Warning" | sed 's/^.*LogLeafline: //' | cut -c1-230
