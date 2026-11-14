@@ -67,6 +67,15 @@ void AAntCamera::PublishView(const FVector& CamPos, const FVector& AntFocus, boo
 	UKismetMaterialLibrary::SetScalarParameterValue(this, ViewCollection, TEXT("BarkCut"), BarkCut);
 	UKismetMaterialLibrary::SetScalarParameterValue(this, ViewCollection, TEXT("BuriedDepth"), FMath::Max(Tuning.BuriedDepth, 0.f));
 	UKismetMaterialLibrary::SetScalarParameterValue(this, ViewCollection, TEXT("NearFadeEnd"), FMath::Max(Tuning.NearFadeEnd, Tuning.NearFadeStart + 1.f));
+	// Scent trails fade round the ant only while the camera follows it; elsewhere their radius grows past the whole tree.
+	const bool bAtAnt = !bOverview && !bExternalDrive && Target.IsValid();
+	const float Dt = GetWorld() ? GetWorld()->GetDeltaSeconds() : 0.016f;
+	TrailRelax = FMath::FInterpTo(TrailRelax, bAtAnt ? 0.f : 1.f, Dt, 1.f / FMath::Max(Tuning.TrailFadeEase, 0.05f));
+	const float Relax = 30000.f * FMath::SmoothStep(0.f, 1.f, TrailRelax);
+	const float TrailNear = FMath::Max(Tuning.TrailFadeNear, 1.f);
+	UKismetMaterialLibrary::SetScalarParameterValue(this, ViewCollection, TEXT("TrailFadeNear"), TrailNear + Relax);
+	UKismetMaterialLibrary::SetScalarParameterValue(this, ViewCollection, TEXT("TrailFadeFar"), FMath::Max(Tuning.TrailFadeFar, TrailNear + 1.f) + Relax);
+	UKismetMaterialLibrary::SetScalarParameterValue(this, ViewCollection, TEXT("TrailFadeFloor"), FMath::Clamp(Tuning.TrailFadeFloor, 0.f, 1.f));
 }
 
 namespace

@@ -55,6 +55,13 @@ struct FAntCameraTuning
 	/** M_TreeBark2 hides bark buried more than this (cm) plus 0.2 x the other branch's radius inside another branch
 	 *  (UV3.y, see TreeMeshBuilder.cpp). From outside, buried bark is covered by the other branch anyway. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float BuriedDepth = 15.f;
+	/** Scent trails (M_Trail, M_TrailSmoke, through MPC_View) fade with distance from the controlled ant: full within
+	 *  TrailFadeNear, down to TrailFadeFloor of their opacity by TrailFadeFar (cm). Only while the camera follows the ant;
+	 *  in the harvest and nest views, the move card and cinematic shots they show whole, easing over TrailFadeEase (s). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float TrailFadeNear = 500.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float TrailFadeFar = 1800.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float TrailFadeFloor = 0.12f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float TrailFadeEase = 0.6f;
 	/**
 	 * The bark's cutaway opens only when wood really lies between the camera and the ant (look pass 2): the line to the
 	 * ant is traced through the tree field each frame, and the bark's cutaway radius scales with how deep it runs through
@@ -168,6 +175,8 @@ private:
 	float OcclusionDepth(const FVector& From, const FVector& To, float EndSkip) const;
 	/** The bark's cutaway factor (0 clear .. 1 full), eased; published to MPC_View as BarkCut. */
 	float BarkCut = 0.f;
+	/** 1: scent trails show whole (the camera is away from the ant), 0: they fade round the ant; eased. */
+	float TrailRelax = 1.f;
 	float CutLogTimer = 0.f;
 
 	TWeakObjectPtr<AAntPawn> Target;
