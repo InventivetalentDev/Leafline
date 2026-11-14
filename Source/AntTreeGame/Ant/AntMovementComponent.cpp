@@ -329,6 +329,11 @@ void UAntMovementComponent::UpdateHeldInput(float Dt, const FVector& N, const FV
 		MakeScreenBasis(N, Axis, HeldFwd, HeldRight);
 		SnapChoice = -1;
 	}
+	else if (Tuning.bHeldFollowsLook && bPlayerLooking)
+	{
+		// The player is turning the camera: the held direction follows their look (not the camera's own roll).
+		MakeScreenBasis(N, Axis, HeldFwd, HeldRight);
+	}
 	HeldStickDir = Dir;
 }
 
