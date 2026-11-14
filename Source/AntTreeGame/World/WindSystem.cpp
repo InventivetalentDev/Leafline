@@ -120,7 +120,11 @@ void AWindSystem::Tick(float DeltaTime)
 	if (RustleLoop) RustleLoop->SetVolume(0.12f + 0.35f * Strength);
 	if (WindCollection)
 	{
-		UKismetMaterialLibrary::SetScalarParameterValue(this, WindCollection, TEXT("WindStrength"), Strength);
+		// M_Leaf's sway amplitude (the only reader of WindStrength). With the cues on, gusts sway the leaves harder.
+		const float LeafStrength = WindCues::IsEnabled()
+			? FMath::Min(Strength * (1.f + Tuning.CueLeafBoost * Strength * Strength), FMath::Max(Tuning.CueLeafMax, Strength))
+			: Strength;
+		UKismetMaterialLibrary::SetScalarParameterValue(this, WindCollection, TEXT("WindStrength"), LeafStrength);
 		UKismetMaterialLibrary::SetVectorParameterValue(this, WindCollection, TEXT("WindDirection"), FLinearColor(Direction));
 	}
 	UpdateStreaks(DeltaTime);

@@ -142,6 +142,11 @@ struct FWindTuning
 	/** Gripping: bark dust scraped off and blown away, a puff at the grip and a trickle while the wind pulls. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") int32 CueGripPuff = 22;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueGripTrickle = 10.f;
+	/** Leaf sway with the cues on: M_Leaf moves a leaf's tip 20 cm x MPC_Wind.WindStrength along its normal on a fixed 2 s
+	 *  sway, barely visible on 2 m leaves, so gusts write WindStrength x (1 + CueLeafBoost x WindStrength^2) instead (calm
+	 *  stays as it was), at most CueLeafMax (3: 60 cm, about 17 degrees at the tip; the stalk end stays put). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueLeafBoost = 1.5f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueLeafMax = 3.f;
 	/** Gripping pose with the cues on: body height and width scale (claws dug in, legs splayed), and how hard the wind
 	 *  tugs the body downwind (times the wind the ant feels). Before: 0.78 and 1.14, no tug. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueGripSquash = 0.62f;
