@@ -10,7 +10,8 @@
 # Environment: ROOT (default this script's tree), SEED, AIM (camera yaw relative to the wind: 0 downwind, 180 upwind,
 #   default 90), PITCH (default -12), TUNE (commands run first, e.g. "Leaf.Tune wind CueFrontSpeed 500"),
 #   AT (seconds after the gust for each shot, default "1.0 2.0 2.6 3.2 4.5"; grip "3.45 3.6 3.75 4.4 5.6"),
-#   PASSES (spot:cues list, e.g. "sheltered:1 exposed:1").
+#   PASSES (spot:cues[:Field=Value/Field=Value] list, e.g. "sheltered:1 exposed:1:CueBrightness=0.3"; the fields are
+#   set with Leaf.Tune wind just before that pass and stay set for the passes after it).
 # Output: Saved/RefShots/cues-<label>-<spot>-<off|on>-<seconds>.png, and the wind cue lines of the log.
 set -u
 ROOT=${ROOT:-$(cd "$(dirname "$0")/.." && pwd)}
@@ -34,17 +35,20 @@ CMDS="Leaf.ResetSave,Leaf.StartDay 1 $SEED,Leaf.CuesLog 1"
 NAMES=()
 k=0
 for pass in $PASSES; do
-	spot=${pass%%:*}; c=${pass##*:}
+	IFS=: read -r spot c tune <<< "$pass"
 	face=$spot; [ "$spot" = grip ] && face=exposed
 	onoff=off; [ "$c" = 1 ] && onoff=on
 	B=$((6 + 14 * k))
 	G=$(echo "$B + 0.2" | bc)
 	CMDS="$CMDS,Leaf.Delay $((B - 2)) Leaf.FaceWind $face,Leaf.Delay $((B - 1)) Leaf.WindAim $AIM $PITCH,Leaf.Delay $B Leaf.Cues $c,Leaf.Delay $G Leaf.Gust 1"
 	[ "$c" = 1 ] && CMDS="$CMDS,Leaf.Delay $G Leaf.CuesStat 8"
+	if [ -n "${tune:-}" ]; then
+		for fv in ${tune//\// }; do CMDS="$CMDS,Leaf.Delay $((B - 1)) Leaf.Tune wind ${fv%%=*} ${fv#*=}"; done
+	fi
 	[ "$spot" = grip ] && CMDS="$CMDS,Leaf.Delay $(echo "$G + 3.3" | bc) Leaf.Hold grip 4"
 	for a in $AT; do
 		CMDS="$CMDS,Leaf.Delay $(echo "$G + $a" | bc) HighResShot 1"
-		NAMES+=("$spot-$onoff-$a")
+		NAMES+=("$spot-$onoff${tune:+-p$k}-$a")
 	done
 	k=$((k + 1))
 done
@@ -56,9 +60,10 @@ MARK=$OUT/.cues-marker
 mkdir -p "$OUT" "$SHOTDIR" && touch "$MARK"
 # The timeout sits inside the lock, so waiting for the lock never counts against it.
 (cd /mnt/c && /mnt/d/UnrealProjects/AntTreeGame/Scripts/unreal-lock.sh "cues-$MODE" -- timeout $((T + 150)) cmd.exe /c "$WINROOT\\Scripts\\RunGame.bat" "$LOG" \
-	"$CMDS,Leaf.QuitAfter $T" "-LeafSlot=CuesTest -unattended" >/dev/null 2>&1)
+	"$CMDS,Leaf.QuitAfter $T" "-LeafSlot=CuesTest -unattended" >"$ROOT/Saved/Logs/CuesTest-$MODE.lock.log" 2>&1)
+tail -3 "$ROOT/Saved/Logs/CuesTest-$MODE.lock.log" | grep -a "unreal-lock" | grep -v "released by"
 F=$ROOT/Saved/Logs/$LOG
-grep -a "LogLeafline" "$F" | grep -a -E "FaceWind:|WindAim|Leaf.Cues |Wind cues: game|Wind: EWindPhase::Warning|Error|Warning:" | sed 's/^.*LogLeafline: //' | cut -c1-200
+grep -a "LogLeafline" "$F" | grep -a -E "FaceWind:|Leaf.Cues |Leaf.Tune|wind\.Cue|Wind cues: game|Error|Warning:" | sed 's/^.*LogLeafline: //' | cut -c1-200
 grep -a -E "Fatal|Assertion failed|Unhandled Exception" "$F" | head -5
 n=0
 for f in $(find "$SHOTDIR" -maxdepth 1 \( -name 'HighresScreenshot*.png' -o -name 'ScreenShot*.png' \) -newer "$MARK" | sort); do

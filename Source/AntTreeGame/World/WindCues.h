@@ -95,6 +95,7 @@ private:
 		FVector Flow = FVector::ForwardVector;  // the ant's air: the wind without the part leaving the bark (lee faces: along it)
 		float AntAir = 0.f;                 // visible gust amount at the ant (0..1)
 		FVector PocketCentre = FVector::ZeroVector;
+		float FrontHaze = 0.f;              // the dust wall's strength now (0..1)
 		float Pocket = 0.f;                 // calm pocket radius (cm)
 		float Shelter = 0.f;                // 0 exposed .. 1 sheltered
 		FVector CamPos = FVector::ZeroVector;
@@ -115,6 +116,7 @@ private:
 	void StepSpecks(const FAir& Air, float Dt);
 	void StepLocal(const FAir& Air, float Dt);
 	void StepScrapes(const FAir& Air, float Dt);
+	void StepPuffs(const FAir& Air, float Dt);
 	void SpawnScrape(const FAir& Air, float Strength01);
 	void AddQuad(FQuads& Q, const FAir& Air, const FVector& A, const FVector& B, float HalfWidth, const FLinearColor& Col, float TailAlpha, float FadeNear);
 	void Flush(int32 Section, FQuads& Q, UMaterialInterface* Material, bool bCentredUV);
@@ -131,6 +133,7 @@ private:
 	TArray<FParticle> Specks;
 	TArray<FParticle> Local;
 	TArray<FParticle> Scrapes;
+	TArray<FParticle> Puffs;
 	FQuads StreakQuads;
 	FQuads SpeckQuads;
 	int32 StreakSectionMaterial = -1;

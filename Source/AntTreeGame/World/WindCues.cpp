@@ -93,7 +93,7 @@ void AWindCues::HideAll()
 	if (bHidden) return;
 	Mesh->ClearAllMeshSections();
 	StreakSectionMaterial = -1;
-	for (TArray<FParticle>* Pool : { &Streaks, &Specks, &Local, &Scrapes })
+	for (TArray<FParticle>* Pool : { &Streaks, &Specks, &Local, &Scrapes, &Puffs })
 	{
 		for (FParticle& P : *Pool) P.MaxLife = -1.f;
 	}
@@ -128,9 +128,10 @@ void AWindCues::Tick(float DeltaTime)
 	Specks.SetNum(FMath::Clamp(T.CueSpecks, 0, 4000));
 	Local.SetNum(FMath::Clamp(T.CueLocal, 0, 1000));
 	Scrapes.SetNum(48);
+	Puffs.SetNum(FMath::Clamp(T.CueFrontPuffs, 0, 200));
 	const int32 LocalStreakSlots = Local.Num() * 3 / 10;
 	StreakQuads.Capacity = Streaks.Num() + LocalStreakSlots;
-	SpeckQuads.Capacity = Specks.Num() + (Local.Num() - LocalStreakSlots) + Scrapes.Num();
+	SpeckQuads.Capacity = Puffs.Num() + Specks.Num() + (Local.Num() - LocalStreakSlots) + Scrapes.Num();
 	for (FQuads* Q : { &StreakQuads, &SpeckQuads })
 	{
 		Q->V.SetNumUninitialized(Q->Capacity * 4);
@@ -138,6 +139,7 @@ void AWindCues::Tick(float DeltaTime)
 		Q->Used = 0;
 	}
 
+	StepPuffs(Air, Dt); // first, so the faint haze is drawn under the specks
 	StepStreaks(Air, Dt);
 	StepSpecks(Air, Dt);
 	StepLocal(Air, Dt);
@@ -234,6 +236,11 @@ bool AWindCues::ComputeAir(FAir& Air, float Dt)
 	{
 		const float Progress = 1.f - FMath::Clamp(Left / FMath::Max(Dur, 0.01f), 0.f, 1.f);
 		Air.Strength = FMath::Max(Air.Strength, T.CuePrecursor * Air.GustAir * Progress);
+		Air.FrontHaze = FMath::SmoothStep(0.f, 0.6f, Dur - Left); // fades in at the start of the warning
+	}
+	else if (W->GetPhase() == EWindPhase::Rising)
+	{
+		Air.FrontHaze = FMath::Clamp(Left / FMath::Max(Dur, 0.01f), 0.f, 1.f); // and out as the gust rises
 	}
 
 	if (Air.bAnt)
@@ -319,13 +326,54 @@ bool AWindCues::InView(const FAir& Air, const FVector& P, float Near, float Far)
 	return FMath::Abs(X) < 1.4f && FMath::Abs(Y) < 1.4f;
 }
 
+void AWindCues::StepPuffs(const FAir& Air, float Dt)
+{
+	// The dust wall: big faint puffs on the front's plane, riding with it. Each keeps its place across the wind (Pos holds
+	// the point's part across the wind) and its own offset along it (Length).
+	const FWindTuning& T = Wind->Tuning;
+	if (Air.FrontHaze <= 0.f || T.CueFrontHaze <= 0.f)
+	{
+		for (FParticle& P : Puffs) P.MaxLife = -1.f;
+		return;
+	}
+	const float Near = 2.f * FMath::Max(T.CueSpeckNear, 20.f), Far = 0.7f * FMath::Max(T.CueFar, 500.f);
+	for (FParticle& P : Puffs)
+	{
+		FVector At = P.Pos + Air.W * (Air.SFront + P.Length);
+		if (P.MaxLife < 0.f || P.Life >= P.MaxLife || !InView(Air, At, Near, Far * 1.3f))
+		{
+			// A point in view, moved along the wind onto the front; tried a few times so it lands in view.
+			for (int32 Try = 0; Try < 4; ++Try)
+			{
+				const FVector V = ViewPoint(Air, Near, Far, 0.8f);
+				P.Pos = V - Air.W * FVector::DotProduct(V, Air.W);
+				P.Length = Air.Band * Rand.FRandRange(-0.5f, 0.5f);
+				At = P.Pos + Air.W * (Air.SFront + P.Length);
+				if (InView(Air, At, Near, Far * 1.3f)) break;
+			}
+			P.Life = 0.f;
+			P.MaxLife = Rand.FRandRange(1.2f, 2.4f);
+			P.Size = T.CueFrontPuffSize * Rand.FRandRange(0.6f, 1.3f);
+			P.Seed = Rand.FRand();
+			P.Kind = EKind::Speck;
+		}
+		P.Life += Dt;
+		const float Fade = FMath::Sin(PI * FMath::Clamp(P.Life / P.MaxLife, 0.f, 1.f));
+		const float Alpha = T.CueFrontHaze * Air.FrontHaze * Fade;
+		if (Alpha <= 0.003f || !InView(Air, At, Near, Far * 1.3f)) continue;
+		FLinearColor Col = T.CueFrontPuffColor;
+		Col.A = Alpha;
+		const float Len = 1.6f * P.Size;
+		AddQuad(SpeckQuads, Air, At - Air.W * Len, At + Air.W * Len, P.Size, Col, 1.f, 2.f * Near);
+	}
+}
+
 void AWindCues::StepStreaks(const FAir& Air, float Dt)
 {
 	// Streaks in the view out to CueFar, so the air behind the front shows well before the front arrives.
 	const FWindTuning& T = Wind->Tuning;
 	const float Near = 0.5f * FMath::Max(T.CueStreakNear, 20.f), Far = FMath::Max(T.CueFar, 500.f);
 	const FVector Wd = Air.W;
-	const float Bright = FMath::Clamp(T.CueBrightness, 0.f, 1.f);
 	for (FParticle& P : Streaks)
 	{
 		if (P.MaxLife < 0.f || P.Life >= P.MaxLife || !InView(Air, P.Pos, Near, Far))
@@ -349,7 +397,9 @@ void AWindCues::StepStreaks(const FAir& Air, float Dt)
 		float Alpha = T.CueStreakAlpha * Vis * Fade;
 		if (Air.bAnt && Air.Pocket > 2.f) Alpha *= FMath::SmoothStep(0.8f * Air.Pocket, 1.6f * Air.Pocket, PointSegmentDistance(Air.PocketCentre, A, B));
 		const float HalfW = T.CueStreakWidth * (1.f + T.CueStreakThick * Amount);
-		AddQuad(StreakQuads, Air, A, B, HalfW, FLinearColor(Bright, Bright, Bright, Alpha), T.CueStreakTail, T.CueStreakNear);
+		FLinearColor Col = T.CueStreakColor;
+		Col.A = Alpha;
+		AddQuad(StreakQuads, Air, A, B, HalfW, Col, T.CueStreakTail, T.CueStreakNear);
 	}
 }
 
@@ -497,8 +547,9 @@ void AWindCues::StepLocal(const FAir& Air, float Dt)
 		if (!P.bSlid && Hgt < 1.5f && FVector::DotProduct(P.Dir, Air.AntN) < -0.05 && RelT.SizeSquared() < FMath::Square(1.2f * Spread))
 		{
 			FVector Slide = P.Dir - Air.AntN * FVector::DotProduct(P.Dir, Air.AntN);
-			if (Slide.SizeSquared() < 0.09) Slide = RelT.IsNearlyZero() ? Air.Across * (P.Seed < 0.5f ? -1.f : 1.f) : RelT.GetSafeNormal();
-			P.Dir = (Slide.GetSafeNormal() + Air.AntN * 0.08f).GetSafeNormal();
+			Slide = Slide.SizeSquared() < 0.09 ? Air.Across : Slide.GetSafeNormal(); // square on: one way along the bark, so it reads as flow
+			const FVector SideAxis = FVector::CrossProduct(Air.AntN, Slide);
+			P.Dir = (Slide + SideAxis * ((P.Seed - 0.5f) * 0.7f) + Air.AntN * 0.08f).GetSafeNormal();
 			P.Pos += Air.AntN * (1.5f - Hgt);
 			P.bSlid = true;
 			Rel = P.Pos - Air.AntPos;
@@ -517,7 +568,9 @@ void AWindCues::StepLocal(const FAir& Air, float Dt)
 			const FVector A = PocketMap(Air, P.Pos, P.Seed, Air.Flow), B = PocketMap(Air, P.Pos + P.Dir * Len, P.Seed, Air.Flow);
 			if (Air.Pocket > 2.f) Alpha *= FMath::SmoothStep(0.8f * Air.Pocket, 1.2f * Air.Pocket, PointSegmentDistance(Air.PocketCentre, A, B));
 			const float HalfW = 0.3f * T.CueStreakWidth * (1.f + T.CueStreakThick * Amount);
-			AddQuad(StreakQuads, Air, A, B, HalfW, FLinearColor(Bright, Bright, Bright, Alpha * T.CueStreakAlpha), T.CueStreakTail, T.CueLocalNear);
+			FLinearColor Col = T.CueStreakColor;
+			Col.A = Alpha * T.CueStreakAlpha;
+			AddQuad(StreakQuads, Air, A, B, HalfW, Col, T.CueStreakTail, T.CueLocalNear);
 		}
 		else
 		{
