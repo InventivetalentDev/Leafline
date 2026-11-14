@@ -144,20 +144,31 @@ namespace
 		TEXT("Leaf.Ground [0|1] [Name Value ...]: the floor-pass ground M_Ground2 (1, default; far look beyond about 20 m) or the older M_Ground (0); no argument toggles. Name Value pairs set scalar parameters on M_Ground2's instance."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World) { GroundLook(World, Args); }));
 
-	/** Leaf.Relief [0|1]: the visible ground's relief beyond the ants' reach on or off; rebuilds the ground, the grove and
-	 *  (by the relief's stamp) the forest floor. */
+	/** Leaf.Relief [0|1] [start m] [near] [far] [rim m] [ground km]: the visible ground's relief beyond the ants' reach on or
+	 *  off, optionally where it starts, factors on the heights of its near (80, 240 m) and far (900 m, 3 km) bands (one factor
+	 *  sets both), a rim rising toward 5 km and how far the ground reaches while it is on; rebuilds the ground, the grove and (by the relief's stamp) the forest floor. */
 	void Relief(UWorld* World, const TArray<FString>& Args)
 	{
 		const bool bOn = Args.Num() > 0 ? FCString::Atoi(*Args[0]) != 0 : !LeafRelief::IsOn();
+		const float Start = Args.Num() > 1 ? FCString::Atof(*Args[1]) * 100.f : LeafRelief::GetStartRadius();
+		const float Near = Args.Num() > 2 ? FCString::Atof(*Args[2]) : LeafRelief::GetNearScale();
+		const float Far = Args.Num() > 3 ? FCString::Atof(*Args[3]) : (Args.Num() > 2 ? Near : LeafRelief::GetFarScale());
+		const float Rim = Args.Num() > 4 ? FCString::Atof(*Args[4]) * 100.f : LeafRelief::GetRimHeight();
+		const float Outer = Args.Num() > 5 ? FCString::Atof(*Args[5]) * 100000.f : LeafRelief::GetOuterRadius();
 		LeafRelief::SetOn(bOn);
-		if (ATreeActor* Tree = ATreeActor::Get(World)) Tree->RebuildGroundAndGrove();
-		UE_LOG(LogLeafline, Log, TEXT("Leaf.Relief: %s (from %.0f m, full at %.0f m)"), bOn ? TEXT("on") : TEXT("off"),
-			LeafRelief::StartRadius / 100.f, LeafRelief::FullRadius / 100.f);
+		LeafRelief::SetShape(Start, Near, Far, Rim, Outer);
+		ATreeActor* Tree = ATreeActor::Get(World);
+		if (Tree) Tree->RebuildGroundAndGrove();
+		const FVector Base = Tree ? Tree->GetSkeleton().TrunkBase : FVector::ZeroVector;
+		UE_LOG(LogLeafline, Log, TEXT("Leaf.Relief: %s, from %.0f m (asked %.0f m) to full at %.0f m round the trunk axis (%.0f %.0f), near bands x%.2f, far bands x%.2f, rim %.0f m, ground to %.1f km"),
+			bOn ? TEXT("on") : TEXT("off"), LeafRelief::GetEffectiveStart() / 100.f, LeafRelief::GetStartRadius() / 100.f, (LeafRelief::GetEffectiveStart() + LeafRelief::RampLength) / 100.f,
+			Base.X, Base.Y, LeafRelief::GetNearScale(), LeafRelief::GetFarScale(), LeafRelief::GetRimHeight() / 100.f,
+			(LeafRelief::IsOn() && LeafRelief::GetOuterRadius() > 0.f ? LeafRelief::GetOuterRadius() : (Tree ? Tree->Params.GroundRadius : 0.f)) / 100000.f);
 	}
 
 	FAutoConsoleCommandWithWorldAndArgs CmdRelief(
 		TEXT("Leaf.Relief"),
-		TEXT("Leaf.Relief [0|1]: the visible ground rises and falls beyond 160 m (1) or stays a plane (0, default); no argument toggles. The walking field is a plane either way."),
+		TEXT("Leaf.Relief [0|1] [start m] [near] [far]: the visible ground rises and falls beyond the ants' reach (1) or stays a plane (0); no argument toggles. Optionally where it starts (default 90 m from the trunk axis) and factors on the heights of its near bands (80 and 240 m wide) and far bands (900 m and 3 km); one factor sets both; a rim height (m at 5 km) and how far the ground reaches (km; 0: the usual 5 km). The walking field is a plane either way."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World) { Relief(World, Args); }));
 
 	/** Leaf.Collars [0|1]: branch collars on or off (toggle with no argument), then today's tree grows again, fresh. */
@@ -174,6 +185,30 @@ namespace
 		// Same as Leaf.Stage: the same stage and seed, saved bites dropped.
 		GI->SetTree(D->GetStage(), GI->GetTreeSeed(), GI->GetStageStartDay());
 		GI->SetTreeState({}, 0, {}, 0);
+		D->DebugForceRegrow();
+		D->StartDay(D->GetDay());
+	}
+
+	/** Leaf.RootBark [0|1|taper]: the roots' bark ridges held long (1, FTreeParams::RootBarkTaper) or following the root's own
+	 *  taper as before (0); a value with a point sets the taper (so 1.0 is the old look). Bark only, so today's tree grows again with
+	 *  the bites saved at the last day end (StartDay's GrowWithBites); the day restarts from dawn. */
+	void RootBark(UWorld* World, const TArray<FString>& Args)
+	{
+		ADayDirector* D = ADayDirector::Get(World);
+		ATreeActor* Tree = ATreeActor::Get(World);
+		if (!D || !Tree) return;
+		const bool bOld = ATreeActor::GetRootBarkTaper(Tree->Params) >= 1.f;
+		float Override = bOld ? -1.f : 1.f; // no argument toggles
+		if (Args.Num() > 0)
+		{
+			const float V = FCString::Atof(*Args[0]);
+			Override = Args[0].Contains(TEXT(".")) ? V : (V != 0.f ? -1.f : 1.f);
+		}
+		ATreeActor::SetRootBarkTaperOverride(Override);
+		UE_LOG(LogLeafline, Log, TEXT("Leaf.RootBark: roots' bark taper %.2f (%s); growing today's tree again"),
+			ATreeActor::GetRootBarkTaper(Tree->Params), Override < 0.f ? TEXT("params") : TEXT("override"));
+		// No vertex moves, so no SetTree / SetTreeState as in Leaf.Collars: StartDay regrows the same tree with the bites saved at
+		// the last day end (GrowWithBites); the day itself restarts from dawn, as any StartDay does.
 		D->DebugForceRegrow();
 		D->StartDay(D->GetDay());
 	}
@@ -379,6 +414,11 @@ namespace
 		TEXT("Leaf.Collars"),
 		TEXT("Leaf.Collars [0|1]: branches swell where they leave their parent (1, default) or not (0); no argument toggles. Grows today's tree again, fresh."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World) { Collars(World, Args); }));
+
+	FAutoConsoleCommandWithWorldAndArgs CmdRootBark(
+		TEXT("Leaf.RootBark"),
+		TEXT("Leaf.RootBark [0|1|taper]: roots' bark ridges held long (1, default) or following the root's own taper as before (0); a value with a point (0.3) sets the taper; no argument toggles. Grows today's tree again with its saved bites; the day restarts (bark only)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World) { RootBark(World, Args); }));
 
 	FAutoConsoleCommandWithWorldAndArgs CmdStage(
 		TEXT("Leaf.Stage"),

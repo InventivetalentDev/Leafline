@@ -443,6 +443,7 @@ namespace
 	bool GNewBark = true;
 	bool GBark3 = false; // Leaf.Bark 2
 	int32 GCollarsOverride = -1; // -1: FTreeParams::bBranchCollars decides; 0/1: Leaf.Collars
+	float GRootBarkTaperOverride = -1.f; // < 0: FTreeParams::RootBarkTaper decides; else Leaf.RootBark's value
 	int32 GFilletsOverride = -1; // -1: FTreeParams::bFillets decides; 0/1: Leaf.Fillets
 	int32 GFilletWalkOverride = -1; // -1: FTreeParams::bFilletWalk decides; 0/1: Leaf.FilletWalk
 	float GFilletFrac = -1.f, GFilletMax = -1.f, GFilletBoughMul = -1.f, GFilletGroundK = -1.f, GFilletTwigMin = -1.f; // < 0: FTreeParams decides
@@ -484,6 +485,16 @@ void ATreeActor::SetBranchCollarsOverride(bool bOn)
 bool ATreeActor::AreBranchCollarsOn(const FTreeParams& P)
 {
 	return GCollarsOverride >= 0 ? GCollarsOverride != 0 : P.bBranchCollars;
+}
+
+void ATreeActor::SetRootBarkTaperOverride(float Taper)
+{
+	GRootBarkTaperOverride = Taper < 0.f ? -1.f : FMath::Clamp(Taper, 0.f, 1.f);
+}
+
+float ATreeActor::GetRootBarkTaper(const FTreeParams& P)
+{
+	return GRootBarkTaperOverride >= 0.f ? GRootBarkTaperOverride : P.RootBarkTaper;
 }
 
 bool ATreeActor::IsNewBark()
@@ -616,7 +627,10 @@ void ATreeActor::GrowShape(int32 Seed)
 	Params.bBranchCollars = AreBranchCollarsOn(Params);
 	Params = WithFilletOverrides(Params);
 	++ShapeVersion;
-	TreeSkeleton::Grow(Skeleton, Params, Seed);
+	// The roots' bark taper is applied to a copy, so Leaf.RootBark 1 returns to the actor's own value.
+	FTreeParams GrowParams = Params;
+	GrowParams.RootBarkTaper = GetRootBarkTaper(Params);
+	TreeSkeleton::Grow(Skeleton, GrowParams, Seed);
 	const double FieldStart = FPlatformTime::Seconds();
 	// With bFilletWalk the sim walks on the fillets (the walking field has them and the skirts lie on it); otherwise the
 	// fillets only shape the skirts over the junctions in the mesh and the sim walks on the field without them. Leaves are
@@ -1159,6 +1173,8 @@ void ATreeActor::BuildGrove()
 	const int32 Count = FMath::Max(0, Params.GroveCount);
 	struct FClump { FVector Center; double Radius; };
 	TArray<FClump> Clumps;
+	double FootMargin = TNumericLimits<double>::Max(), MaxSink = 0.0, MinFoot = TNumericLimits<double>::Max(), MaxFoot = -TNumericLimits<double>::Max();
+	int32 FootTrunk = -1;
 	for (int32 k = 0; k < Count; ++k)
 	{
 		const float Az = 2.f * PI * k / FMath::Max(Count, 1) + R.FRandRange(-0.18f, 0.18f);
@@ -1166,7 +1182,24 @@ void ATreeActor::BuildGrove()
 		FVector Base = C + FVector(FMath::Cos(Az), FMath::Sin(Az), 0.f) * Dist;
 		const float R0 = R.FRandRange(500.f, 1100.f);
 		// On the visible ground's relief, sunk by the drop across the flared foot so its downhill side does not float.
-		Base.Z += LeafRelief::Height(Base.X, Base.Y) - LeafRelief::Slope(Base.X, Base.Y) * R0 * 1.6f * 1.2f;
+		const float Sink = LeafRelief::Slope(Base.X, Base.Y) * R0 * 1.6f * 1.2f;
+		Base.Z += LeafRelief::Height(Base.X, Base.Y) - Sink;
+		if (LeafRelief::IsOn())
+		{
+			// The trunk's bottom (300 cm under its base) must lie under the lowest ground round its flared foot.
+			double Lowest = TNumericLimits<double>::Max();
+			for (int32 a = 0; a < 16; ++a)
+			{
+				const double Aa = 2.0 * PI * a / 16.0;
+				const FVector2D F(Base.X + FMath::Cos(Aa) * R0 * 1.6, Base.Y + FMath::Sin(Aa) * R0 * 1.6);
+				Lowest = FMath::Min(Lowest, C.Z + LeafRelief::Height(F.X, F.Y));
+			}
+			const double Margin = Lowest - (Base.Z - 300.0);
+			if (Margin < FootMargin) { FootMargin = Margin; FootTrunk = k; }
+			MaxSink = FMath::Max(MaxSink, double(Sink));
+			MinFoot = FMath::Min(MinFoot, Base.Z + Sink - C.Z);
+			MaxFoot = FMath::Max(MaxFoot, Base.Z + Sink - C.Z);
+		}
 		const float H = R.FRandRange(22000.f, 38000.f);
 		const FVector Lean = FVector(R.FRandRange(-1.f, 1.f), R.FRandRange(-1.f, 1.f), 0.f).GetSafeNormal() * R.FRandRange(0.01f, 0.04f);
 		auto RadiusAt = [&](float Z)
@@ -1262,6 +1295,11 @@ void ATreeActor::BuildGrove()
 		Data.Colors, Data.Tangents, false, false);
 	if (UMaterialInterface* Mat = WoodMesh ? WoodMesh->GetMaterial(0) : nullptr) GroveMesh->SetMaterial(0, Mat);
 	UE_LOG(LogLeafline, Log, TEXT("Grove: %d distant trunks, %d triangles"), Count, Data.Triangles.Num() / 3);
+	if (FootTrunk >= 0)
+	{
+		UE_LOG(LogLeafline, Log, TEXT("Grove on the relief: ground under the trunks from %.1f to %.1f m, largest sink %.0f cm, trunk bottoms at least %.0f cm under the lowest ground round their foot (trunk %d)%s"),
+			MinFoot / 100.0, MaxFoot / 100.0, MaxSink, FootMargin, FootTrunk, FootMargin < 0.0 ? TEXT(": FLOATS") : TEXT(""));
+	}
 }
 
 void ATreeActor::BuildGround(const FTreeMeshData* Skirt)
@@ -1270,10 +1308,24 @@ void ATreeActor::BuildGround(const FTreeMeshData* Skirt)
 	// reach the visible ground rises and falls (LeafRelief, Leaf.Relief); the rings there are 4% apart, not 12%, so the
 	// swells have enough of them, and normals and tangents come from the height function, not the plane.
 	const FVector C(Skeleton.TrunkBase.X, Skeleton.TrunkBase.Y, Field.GroundZ);
-	LeafRelief::SetFrame(FVector2D(C.X, C.Y), Skeleton.Seed);
+	// The crown's reach (farthest branch sample from the axis, plus its radius): the relief starts beyond where a blown-off
+	// ant can land even on a wider tree.
+	double Reach = 0.0;
+	for (const FTreeBranch& B : Skeleton.Branches)
+	{
+		for (int32 i = 0; i < B.Samples.Num(); ++i)
+		{
+			const double R = FVector2D(B.Samples[i].X - C.X, B.Samples[i].Y - C.Y).Size() + (B.SampleRadius.IsValidIndex(i) ? B.SampleRadius[i] : 0.0);
+			Reach = FMath::Max(Reach, R);
+		}
+	}
+	LeafRelief::SetFrame(FVector2D(C.X, C.Y), Skeleton.Seed, float(Reach));
 	const int32 Around = 160;
 	TArray<double> Radii;
-	for (double R = 200.0; R < Params.GroundRadius; R *= (R < 8000.0 ? 1.12 : 1.04)) Radii.Add(R);
+	// With the relief on, the rings may reach farther (LeafRelief::GetOuterRadius), so the ground's fogged outline covers
+	// the sky atmosphere's own horizon, which otherwise shows as a flat band above the far hills.
+	const double Outer = LeafRelief::IsOn() && LeafRelief::GetOuterRadius() > 0.f ? double(LeafRelief::GetOuterRadius()) : double(Params.GroundRadius);
+	for (double R = 200.0; R < Outer; R *= (R < 8000.0 ? 1.12 : 1.04)) Radii.Add(R);
 	TArray<FVector> V, N;
 	TArray<FVector2D> UV;
 	TArray<FLinearColor> Col;
