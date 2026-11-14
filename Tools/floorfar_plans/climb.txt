@@ -1,0 +1,36 @@
+# Climb stills (trunk, owner's heading, ground to 30 m), 20 and 120 m looking down and toward the horizon with relief
+# on/off, and a fog candidate with long settle times (volumetric fog converges over a few seconds).
+0|Leaf.NewDay 675856
+4|Leaf.Cinematic 1
+5|Leaf.Goto 1198 -903 100 -37 -20
+10|SHOT climb01
+11|Leaf.Goto 1198 -903 500 -37 -25
+15|SHOT climb05
+16|Leaf.Goto 1198 -903 1000 -37 -25
+20|SHOT climb10
+21|Leaf.Goto 1198 -903 2000 -37 -30
+25|SHOT climb20
+26|Leaf.Goto 1198 -903 3000 -37 -30
+30|SHOT climb30
+31|Leaf.Goto 1198 -903 12000 -37 -30
+36|SHOT up120
+37|Leaf.Aim -37 -8
+40|SHOT up120hz
+41|Leaf.Relief 0
+44|SHOT up120hz-flat
+45|Leaf.Relief 1
+46|Leaf.Goto 504 1008 5966 -37 -14
+51|SHOT owner-base
+52|Leaf.Tune look FogDensity 0.08
+52.1|Leaf.Tune look VolumetricFogExtinction 0.45
+52.2|Leaf.Tune look FogSkyTint (R=0.85;G=0.95;B=1.2;A=1)
+58|SHOT owner-cand
+59|Leaf.Goto 1198 -903 12000 -37 -8
+64|SHOT up120hz-cand
+65|Leaf.Goto 1204 3148 2 120 -6
+71|SHOT nest-cand
+72|Leaf.Tune look FogDensity 0.06
+72.1|Leaf.Tune look VolumetricFogExtinction 0.6
+72.2|Leaf.Tune look FogSkyTint (R=1;G=1;B=1;A=1)
+78|SHOT nest-base
+79|Leaf.QuitAfter 1

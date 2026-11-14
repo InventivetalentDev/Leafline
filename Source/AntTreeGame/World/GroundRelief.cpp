@@ -3,7 +3,9 @@
 // A named namespace, not an anonymous one: unity builds merge this file with others that have their own Noise or Hash.
 namespace LeafReliefDetail
 {
-	bool GReliefOn = true;
+	// Off by default (14 Nov, 18:15): on and off differed by 3 to 6 grey levels in every test view (the ground beyond 160 m
+	// lies behind thick fog), so it bought nothing for the risk of grove feet on slopes. Leaf.Relief 1 turns it on.
+	bool GReliefOn = false;
 	int32 GStamp = 1;
 	FVector2D GCentre = FVector2D::ZeroVector;
 	FVector2D GOffset = FVector2D::ZeroVector;

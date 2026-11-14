@@ -9,7 +9,7 @@
  * function for all three, zero inside StartRadius of the trunk axis, a smooth ramp to FullRadius, then broad swells
  * (80 m and wider, each faded out where the rings get too coarse for it) that grow to a few metres, and wider and
  * higher ones far out so the horizon is not a ruled line.
- * Leaf.Relief 0|1 switches it.
+ * Leaf.Relief 0|1 switches it (off by default: it did not show through the fog).
  */
 namespace LeafRelief
 {

@@ -1,0 +1,43 @@
+# Acceptance shots (brief tests 1 to 3): M_Ground2 (g2) against M_Ground (g1) at the owner's pose, 20 and 120 m up, the
+# nest; then the climb stills from 1 to 30 m on M_Ground2.
+0|Leaf.NewDay 675856
+3.5|SHOT daystart
+4|Leaf.Cinematic 1
+5|Leaf.Goto 504 1008 5966 -37 -14
+10|SHOT owner-g2
+11|Leaf.Ground 0
+14|SHOT owner-g1
+15|Leaf.Ground 1
+16|Leaf.Goto 1198 -903 2000 -37 -50
+21|SHOT up20-g2
+22|Leaf.Ground 0
+25|SHOT up20-g1
+26|Leaf.Ground 1
+27|Leaf.Goto 1198 -903 12000 -37 -30
+32|SHOT up120-g2
+33|Leaf.Ground 0
+36|SHOT up120-g1
+37|Leaf.Ground 1
+37.5|Leaf.Aim -37 -8
+41|SHOT up120hz-g2
+42|Leaf.Goto 1204 3148 2 120 -6
+47|SHOT nest-g2
+48|Leaf.Ground 0
+51|SHOT nest-g1
+52|Leaf.Ground 1
+53|Leaf.Goto 1204 3148 2 -60 -6
+58|SHOT nestb-g2
+59|Leaf.Ground 0
+62|SHOT nestb-g1
+63|Leaf.Ground 1
+64|Leaf.Goto 1198 -903 100 -37 -20
+69|SHOT climb01
+70|Leaf.Goto 1198 -903 500 -37 -25
+75|SHOT climb05
+76|Leaf.Goto 1198 -903 1000 -37 -30
+81|SHOT climb10
+82|Leaf.Goto 1198 -903 2000 -37 -35
+87|SHOT climb20
+88|Leaf.Goto 1198 -903 3000 -37 -40
+93|SHOT climb30
+94|Leaf.QuitAfter 1
