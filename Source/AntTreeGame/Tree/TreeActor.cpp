@@ -442,6 +442,7 @@ namespace
 	bool GNewBark = true;
 	int32 GCollarsOverride = -1; // -1: FTreeParams::bBranchCollars decides; 0/1: Leaf.Collars
 	int32 GFilletsOverride = -1; // -1: FTreeParams::bFillets decides; 0/1: Leaf.Fillets
+	int32 GFilletWalkOverride = -1; // -1: FTreeParams::bFilletWalk decides; 0/1: Leaf.FilletWalk
 	float GFilletFrac = -1.f, GFilletMax = -1.f, GFilletBoughMul = -1.f, GFilletGroundK = -1.f; // < 0: FTreeParams decides
 }
 
@@ -454,10 +455,16 @@ void ATreeActor::SetFilletsOverride(bool bOn, float Frac, float Max, float Bough
 	if (BoughMul >= 0.f) GFilletBoughMul = BoughMul;
 }
 
+void ATreeActor::SetFilletWalkOverride(int32 Walk)
+{
+	GFilletWalkOverride = Walk < 0 ? -1 : (Walk != 0 ? 1 : 0);
+}
+
 FTreeParams ATreeActor::WithFilletOverrides(const FTreeParams& P)
 {
 	FTreeParams Out = P;
 	if (GFilletsOverride >= 0) Out.bFillets = GFilletsOverride != 0;
+	if (GFilletWalkOverride >= 0) Out.bFilletWalk = GFilletWalkOverride != 0;
 	if (GFilletFrac >= 0.f) Out.FilletFrac = GFilletFrac;
 	if (GFilletMax >= 0.f) Out.FilletMax = GFilletMax;
 	if (GFilletBoughMul >= 0.f) Out.FilletBoughMul = GFilletBoughMul;
@@ -518,11 +525,16 @@ void ATreeActor::GrowShape(int32 Seed)
 	++ShapeVersion;
 	TreeSkeleton::Grow(Skeleton, Params, Seed);
 	const double FieldStart = FPlatformTime::Seconds();
-	// The sim walks on the field without fillets (leaf placement too, so leaf count and order do not depend on them: one-
-	// tree saves store bites by leaf index). The fillets only shape the skirts over the junctions in the mesh.
-	Field.Build(Skeleton, false);
+	// With bFilletWalk the sim walks on the fillets (the walking field has them and the skirts lie on it); otherwise the
+	// fillets only shape the skirts over the junctions in the mesh and the sim walks on the field without them. Leaves are
+	// placed against the field without fillets either way, so leaf count and order do not depend on them (one-tree saves
+	// store bites by leaf index).
+	const bool bWalkFillets = Params.bFillets && Params.bFilletWalk;
+	Field.Build(Skeleton, bWalkFillets);
 	SkirtField.Reset();
-	if (Params.bFillets) SkirtField.Build(Skeleton, true);
+	if (Params.bFillets && !bWalkFillets) SkirtField.Build(Skeleton, true);
+	PlainField.Reset();
+	if (Field.HasFillets()) PlainField.Build(Skeleton, false);
 	const double FieldMs = (FPlatformTime::Seconds() - FieldStart) * 1000.0;
 	BranchChildren.Reset();
 	BranchChildren.SetNum(Skeleton.Branches.Num());
@@ -540,7 +552,8 @@ void ATreeActor::GrowShape(int32 Seed)
 		// A junction whose skirt could not be built shows its crease: drop its fillet, and lay the other skirts again on the
 		// field without it (they differ only near it).
 		for (int32 b : NoSkirt) Skeleton.Branches[b].FilletK = 0.f;
-		SkirtField.Build(Skeleton, true);
+		if (bWalkFillets) Field.Build(Skeleton, true);
+		else SkirtField.Build(Skeleton, true);
 		UE_LOG(LogLeafline, Log, TEXT("Tree shape: %d fillets without a skirt dropped; building the mesh again"), NoSkirt.Num());
 		TreeMeshBuilder::Build(Skeleton, Data, &GetVisualField(), nullptr, &GroundSkirt);
 	}
@@ -562,19 +575,22 @@ void ATreeActor::GrowShape(int32 Seed)
 	BuildGrove();
 
 	// Leaves: one mesh section per limb, so a cut rebuilds only a small chunk.
-	Leaves.Build(Skeleton, Field);
+	Leaves.Build(Skeleton, PlainField.IsValid() ? PlainField : Field);
 	PatchWalkCache.Reset();
-	UE_LOG(LogLeafline, Log, TEXT("Tree shape: fillets %s in the mesh, not in the walking field (frac %.2f, bough x%.2f, max %.0f cm, ground %.0f cm), fields built in %.1f ms"),
-		SkirtField.HasFillets() ? TEXT("on") : TEXT("off"), Params.FilletFrac, Params.FilletBoughMul, Params.FilletMax, Params.FilletGroundK, FieldMs);
+	UE_LOG(LogLeafline, Log, TEXT("Tree shape: fillets %s in the mesh, %s the walking field (frac %.2f, bough x%.2f, max %.0f cm, ground %.0f cm), fields built in %.1f ms"),
+		GetVisualField().HasFillets() ? TEXT("on") : TEXT("off"), Field.HasFillets() ? TEXT("in") : TEXT("not in"),
+		Params.FilletFrac, Params.FilletBoughMul, Params.FilletMax, Params.FilletGroundK, FieldMs);
 }
 
 bool ATreeActor::LiftOntoSkirts(FVector& P, FVector& N, double Height) const
 {
-	if (!SkirtField.HasFillets()) return false;
-	// Outside every skirt the two fields agree, so the walking height is already the skirt height there.
-	if (SkirtField.DistanceMT(P) >= Height - 0.05) return false;
+	const FTreeField& Skirts = GetVisualField();
+	if (!Skirts.HasFillets()) return false;
+	// Outside every skirt the two fields agree, so the walking height is already the skirt height there (and everywhere
+	// when the ants walk on the fillets, except for points laid on the field without them).
+	if (Skirts.DistanceMT(P) >= Height - 0.05) return false;
 	FVector Q = P, QN;
-	if (!SkirtField.Project(Q, QN, Height)) return false;
+	if (!Skirts.Project(Q, QN, Height)) return false;
 	P = Q;
 	N = QN;
 	return true;
