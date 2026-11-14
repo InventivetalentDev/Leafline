@@ -1,5 +1,6 @@
 // Console commands for the line: recruits, patches, the harvest, and the unattended tests in docs/briefs/the-line.md.
 #include "AntTreeGame.h"
+#include "Debug/LeafDebug.h"
 #include "Ant/AntPawn.h"
 #include "Ant/AntMovementComponent.h"
 #include "Colony/LineSystem.h"
@@ -386,6 +387,8 @@ namespace
 		 *  the other lines already worked, before it is sent home and the harvest starts. 0: the shift ends at once. */
 		float HoldSeconds = 0.f;
 		float HoldSpeed = 8.f;
+		/** holdgrip: the held scout grips through the hold (a player who grips when the bird dives or a gust comes). */
+		bool bHoldGrip = false;
 		double HoldUntil = -1.0;
 		TWeakObjectPtr<AAntPawn> Held;
 		int32 LaidOnDay = -1;
@@ -443,6 +446,7 @@ namespace
 				{
 					Auto.HoldUntil = HL->GetSimTime() + Auto.HoldSeconds;
 					HL->SetSpeedFactor(Auto.HoldSpeed);
+					if (Auto.bHoldGrip) LeafDebug::HoldGrip = Auto.HoldSeconds / FMath::Max(Auto.HoldSpeed, 1.f) + 30.f;
 					UE_LOG(LogLeafline, Log, TEXT("AutoPlay: worker %d holds the shift open for %.0f sim s at x%.0f"), HeldAnt->GetWorkerIndex(), Auto.HoldSeconds, Auto.HoldSpeed);
 				}
 				else
@@ -458,6 +462,7 @@ namespace
 					Auto.HoldUntil = -1.0;
 					AAntPawn* HeldAnt = Auto.Held.Get();
 					UE_LOG(LogLeafline, Log, TEXT("AutoPlay: hold over (worker %s)"), HeldAnt && HeldAnt->IsCarrying() ? TEXT("sent home with its piece") : TEXT("has no piece left"));
+					if (Auto.bHoldGrip) LeafDebug::HoldGrip = 0.f;
 					if (HeldAnt && HeldAnt->IsCarrying()) D->SendHome(HeldAnt);
 					D->ForceHarvest();
 				}
@@ -549,7 +554,7 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs CmdAutoPlay(
 		TEXT("Leaf.AutoPlay"),
-		TEXT("Leaf.AutoPlay <days> [lines] [watch|skip] [buy] [reload] [report] [give<N>] [hold<S>] [quit]: unattended days with scripted scouts and random lines (with one tree on, the lowest leaves left); logs whether every day ends; reload reads the save and regrows the tree before each day; report logs Leaf.TreeReport each morning; hold<S> keeps the last scout out with its piece for S sim seconds of shift (x8) before the harvest (the bird's tests); quit exits a standalone game when done. 0 stops."),
+		TEXT("Leaf.AutoPlay <days> [lines] [watch|skip] [buy] [reload] [report] [give<N>] [hold<S>] [holdgrip] [quit]: unattended days with scripted scouts and random lines (with one tree on, the lowest leaves left); logs whether every day ends; reload reads the save and regrows the tree before each day; report logs Leaf.TreeReport each morning; hold<S> keeps the last scout out with its piece for S sim seconds of shift (x8) before the harvest (the bird's tests), holdgrip has it grip meanwhile; quit exits a standalone game when done. 0 stops."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 		{
 			Auto.World = World;
@@ -563,9 +568,11 @@ namespace
 			Auto.GivePerDay = 0.f;
 			Auto.HoldSeconds = 0.f;
 			Auto.HoldUntil = -1.0;
+			Auto.bHoldGrip = false;
 			for (int32 k = 2; k < Args.Num(); ++k)
 			{
-				if (Args[k].ToLower().StartsWith(TEXT("hold"))) Auto.HoldSeconds = FMath::Max(FCString::Atof(*Args[k].Mid(4)), 0.f);
+				if (Args[k].ToLower() == TEXT("holdgrip")) Auto.bHoldGrip = true;
+				else if (Args[k].ToLower().StartsWith(TEXT("hold"))) Auto.HoldSeconds = FMath::Max(FCString::Atof(*Args[k].Mid(4)), 0.f);
 				Auto.bBuy |= Args[k].ToLower() == TEXT("buy");
 				Auto.bQuit |= Args[k].ToLower() == TEXT("quit");
 				Auto.bReload |= Args[k].ToLower() == TEXT("reload");

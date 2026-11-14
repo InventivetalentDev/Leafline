@@ -14,7 +14,8 @@
 #   combo      OT=0|1 RC=0|1: seven days with 100 haul given each morning, to the end card (all four flag combinations)
 #   recoff     recruits off, twenty days (test 13)
 #   auto20hold / recoffhold   auto20 / recoff with AutoPlay's hold<S> (HOLD, default 240): the last scout stays out with its
-#              piece for S sim seconds of shift, so the bird (only active in shifts) has time to act (docs/briefs/bird.md)
+#              piece for S sim seconds of shift, so the bird (only active in shifts) has time to act (docs/briefs/bird.md);
+#              HOLDGRIP=holdgrip makes that scout grip meanwhile (a player who grips when the bird dives)
 #   offauto    one tree off, twenty days        offrecoff   one tree and recruits off, twenty days
 #   v2         a copy of a real version-2 save (Saved/SaveGames/TreeTestV2.sav.orig) loads and plays a day (test 8)
 #   shots      screenshots: move card, stripped bough, faint trails
@@ -36,7 +37,7 @@ case "$SCEN" in
 	midquit)   CMDS="Leaf.Delay 1 Leaf.StartDay ${DAYN:-3},Leaf.Delay 3 Leaf.TestLines 3 0.6 climb 5,Leaf.Delay 6 Leaf.TreeReport mid-day"; T=${2:-20} ;;
 	strip)     CMDS="$FRESH,Leaf.Delay 3 Leaf.TreeReport before,Leaf.Delay 4 Leaf.Strip 40,Leaf.Delay 5 Leaf.TreeReport stripped,Leaf.Delay 7 Leaf.Move,Leaf.Delay 10 Leaf.TreeReport moved"; T=${2:-30} ;;
 	auto20)    CMDS="$FRESH,Leaf.Delay 2 Leaf.AutoPlay 20 3 skip buy reload report quit"; T=${2:-2400} ;;
-	auto20hold) CMDS="$FRESH,Leaf.Delay 2 Leaf.AutoPlay 20 3 skip buy reload report hold${HOLD:-240} quit"; T=${2:-3000} ;;
+	auto20hold) CMDS="$FRESH,Leaf.Delay 2 Leaf.AutoPlay 20 3 skip buy reload report hold${HOLD:-240} ${HOLDGRIP:-} quit"; T=${2:-3000} ;;
 	recoffhold) CMDS="Leaf.ResetSave,Leaf.OneTree 1,Leaf.Recruits 0,Leaf.StartDay 1,Leaf.Delay 2 Leaf.AutoPlay 20 3 skip buy report hold${HOLD:-240} quit"; T=${2:-3000} ;;
 	moves)     CMDS="$FRESH,Leaf.Delay 2 Leaf.AutoPlay 7 3 skip buy report give100 quit"; T=${2:-900} ;;
 	combo)     CMDS="Leaf.ResetSave,Leaf.OneTree ${OT:-1},Leaf.Recruits ${RC:-1},Leaf.StartDay 1,Leaf.Delay 2 Leaf.AutoPlay 7 3 skip buy give100 quit"; T=${2:-900}; LOGSUF="-ot${OT:-1}-rc${RC:-1}" ;;
