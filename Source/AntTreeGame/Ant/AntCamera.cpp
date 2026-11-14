@@ -2,6 +2,7 @@
 #include "Ant/AntPawn.h"
 #include "Ant/AntMovementComponent.h"
 #include "Tree/TreeActor.h"
+#include "World/BirdSystem.h"
 #include "Debug/LeafDebug.h"
 #include "Camera/CameraComponent.h"
 #include "Kismet/KismetMaterialLibrary.h"
@@ -247,6 +248,7 @@ void AAntCamera::Tick(float DeltaTime)
 	if (RefForward.IsNearlyZero()) RefForward = CamAnyPerpendicular(CamUp);
 
 	// 2. Orbit.
+	const bool bPlayerLook = !PendingLook.IsNearlyZero(0.01); // the bird's nudge gives way to the player's own look
 	double Yaw = PendingLook.X;
 	const double PitchDelta = PendingLook.Y;
 	PendingLook = FVector2D::ZeroVector;
@@ -403,6 +405,24 @@ void AAntCamera::Tick(float DeltaTime)
 				const FVector ToFocus = Focus - CamPos;
 				if (ToFocus.SizeSquared() > 1.0) LookDir = ToFocus.GetSafeNormal();
 			}
+		}
+	}
+	// The bird (World/BirdSystem.*): while it dives at this ant, the view turns toward a point between the ant and the bird.
+	// Only the look direction changes, never the camera's position (so its wood clearance holds).
+	if (ABirdSystem* Bird = ABirdSystem::Get(this))
+	{
+		FVector LookAt;
+		const float W = Bird->GetCameraNudge(Target.Get(), (float)Dt, bPlayerLook, LookAt);
+		const FVector ToLook = (LookAt - CamPos).GetSafeNormal();
+		if (W > 0.f && !ToLook.IsNearlyZero())
+		{
+			LookDir = FQuat::Slerp(FQuat::Identity, FQuat::FindBetweenNormals(LookDir, ToLook), W).RotateVector(LookDir).GetSafeNormal();
+			// The ant stays in the frame: at most NudgeKeepAnt of half the vertical field of view from the line to the ant.
+			const FVector ToAnt = (AntPos - CamPos).GetSafeNormal();
+			const double HalfV = FMath::Atan(FMath::Tan(FMath::DegreesToRadians(Tuning.FieldOfView * 0.5)) * 9.0 / 16.0);
+			const double MaxOff = HalfV * FMath::Max(Bird->Tuning.NudgeKeepAnt, 0.1f);
+			const double Off = FMath::Acos(FMath::Clamp(FVector::DotProduct(ToAnt, LookDir), -1.0, 1.0));
+			if (Off > MaxOff && Off > 1e-3) LookDir = FQuat::Slerp(FQuat::Identity, FQuat::FindBetweenNormals(ToAnt, LookDir), MaxOff / Off).RotateVector(ToAnt).GetSafeNormal();
 		}
 	}
 	SetActorLocationAndRotation(CamPos, FRotationMatrix::MakeFromXZ(LookDir, CamUp).ToQuat());

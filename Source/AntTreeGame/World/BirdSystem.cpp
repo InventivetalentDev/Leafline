@@ -899,6 +899,26 @@ void ABirdSystem::BeginVisualExit()
 	PlaySound(TEXT("bird_pass"), TEXT("shift_whoosh"), Tuning.PassVolume, VisPos);
 }
 
+float ABirdSystem::GetCameraNudge(const AAntPawn* Ant, float Dt, bool bPlayerLook, FVector& OutLookAt)
+{
+	if (NudgeDiveSerial != DiveSerial)
+	{
+		NudgeDiveSerial = DiveSerial; // a new dive: the player's earlier look input no longer counts
+		bNudgeCancelled = false;
+		NudgeAnt = IsDivingAt(Ant) ? Ant : nullptr;
+	}
+	// On while the dive targets this ant and until the visible pass is over (its exit); off for any other dive.
+	const bool bOurDive = Ant && NudgeAnt.Get() == Ant && (IsDivingAt(Ant) || (VisMode == VisExit && State == EBirdState::Away));
+	if (bPlayerLook && NudgeWeight > 0.f) bNudgeCancelled = true;
+	const float Want = (bOurDive && !bNudgeCancelled && bVisShown && Tuning.bBird) ? FMath::Clamp(Tuning.NudgeMax, 0.f, 1.f) : 0.f;
+	const float Rate = Want > NudgeWeight ? FMath::Max(Tuning.NudgeMax, 0.01f) / FMath::Max(Tuning.NudgeIn, 0.05f)
+		: FMath::Max(Tuning.NudgeMax, 0.01f) / FMath::Max(Tuning.NudgeOut, 0.05f);
+	NudgeWeight = FMath::FInterpConstantTo(NudgeWeight, Want, Dt, Rate);
+	if (NudgeWeight <= 0.f || !Ant) return 0.f;
+	OutLookAt = FMath::Lerp(Ant->GetActorLocation(), VisPos, FMath::Clamp(Tuning.NudgeBlend, 0.f, 1.f));
+	return FMath::SmoothStep(0.f, 1.f, NudgeWeight);
+}
+
 void ABirdSystem::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
@@ -1066,6 +1086,28 @@ void ABirdSystem::UpdateVisual(float Dt)
 	FlapWant = FMath::Min(FlapWant, FMath::Clamp((Room - 30.f) / FMath::Max(BirdTipFall(), 1.f), 0.f, 1.f));
 	FlapAmount = FMath::FInterpTo(FlapAmount, FlapWant, Dt, 6.f);
 	FlapPhase = FMath::Fmod(FlapPhase + 2.f * PI * Tuning.FlapHz * Dt, 2.f * PI * 64.f);
+
+	// Never within CameraClearance of the camera (visual only): pushed off the bark, or sideways if the camera is the
+	// farther out. Points of the bird: beak, tail, wing tips, mid wings, belly, centre.
+	if (const APlayerController* CamPC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
+	{
+		if (CamPC->PlayerCameraManager && Tuning.CameraClearance > 0.f)
+		{
+			const FVector Cam = CamPC->PlayerCameraManager->GetCameraLocation();
+			const float Sc = FMath::Max(Tuning.BirdScale, 0.1f);
+			const FVector Local[] = { FVector(ModelBox.Max.X, 0, 0), FVector(ModelBox.Min.X, 0, 0), FVector(0, ModelBox.Max.Y, 0), FVector(0, ModelBox.Min.Y, 0),
+				FVector(-5, ModelBox.Max.Y * 0.5f, 0), FVector(-5, ModelBox.Min.Y * 0.5f, 0), FVector(0, 0, ModelBox.Min.Z), FVector::ZeroVector };
+			float Nearest = TNumericLimits<float>::Max();
+			for (const FVector& L : Local) Nearest = FMath::Min(Nearest, float(FVector::Dist(VisPos + VisRot.RotateVector(L * Sc), Cam)));
+			if (Nearest < Tuning.CameraClearance)
+			{
+				const FVector N = ExitNormal.GetSafeNormal();
+				const FVector Away = FVector::DotProduct(Cam - VisPos, N) <= 0.0 ? N
+					: FVector::VectorPlaneProject(VisPos - Cam, N).GetSafeNormal();
+				VisPos += (Away.IsNearlyZero() ? N : Away) * (Tuning.CameraClearance - Nearest);
+			}
+		}
+	}
 
 	const float S = FMath::Max(Tuning.BirdScale, 0.1f);
 	if (bPlaceholder)

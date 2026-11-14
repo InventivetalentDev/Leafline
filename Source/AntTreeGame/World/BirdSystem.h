@@ -59,9 +59,9 @@ struct FBirdTuning
 
 	/** Size of the visible bird: SM_Bird as imported (real size, 1 m wingspan, 62 cm long) times this; the placeholder is
 	 *  sized like it. 5: a 5 m wingspan, about 25 times life size like the ants. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Look") float BirdScale = 5.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Look") float BirdScale = 4.f;
 	/** Gap between the bark and the bird's underside at the pass (cm); it also stays PieceClearance above the carried piece. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Look") float PassHeight = 80.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Look") float PassHeight = 150.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Look") float PieceClearance = 30.f;
 	/** Circle: radius, how far upwind of the trunk its centre starts, lowest height (cm). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Look") float CircleRadius = 2200.f;
@@ -79,6 +79,19 @@ struct FBirdTuning
 	/** Wing beats per second while flapping (FlapPhase on M_Bird). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Look") float FlapHz = 3.5f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Look") FLinearColor PlaceholderColor = FLinearColor(0.05f, 0.045f, 0.04f);
+
+	/** No part of the visible bird comes nearer the camera than this (cm): it is pushed off the bark, or sideways. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float CameraClearance = 100.f;
+	/** While a dive targets the player's ant, the follow camera turns toward a point this far from the ant to the bird
+	 *  (0 the ant, 1 the bird), eased in over NudgeIn seconds from the call and out over NudgeOut after the pass. The
+	 *  player's own look input fades it out for that dive. NudgeMax 0 turns it off. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float NudgeBlend = 0.5f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float NudgeMax = 1.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float NudgeIn = 0.6f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float NudgeOut = 1.f;
+	/** The nudged view keeps the ant within this fraction of half the vertical field of view (2 or more: no limit; then
+	 *  the bird comes into frame mid-dive but the ant can leave it). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera") float NudgeKeepAnt = 0.8f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound") float CallVolume = 0.9f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound") float PassVolume = 0.8f;
@@ -155,6 +168,9 @@ public:
 	int32 GetPiecesTaken() const { return PiecesTaken; }
 	int32 GetRecruitPiecesTaken() const { return RecruitPiecesTaken; }
 	int32 GetSwoops() const { return Swoops; }
+	/** The follow camera's nudge (AAntCamera): call once a frame for the controlled ant. Returns the blend weight (0 none)
+	 *  and the point to turn toward. bPlayerLook: the player moved the camera this frame (the nudge then fades out). */
+	float GetCameraNudge(const AAntPawn* Ant, float Dt, bool bPlayerLook, FVector& OutLookAt);
 	/** Where the visible bird is drawn (debug: Leaf.BirdInfo aim). */
 	FVector GetVisiblePosition() const { return VisPos; }
 
@@ -263,6 +279,10 @@ private:
 	int32 VisDiveSerial = 0;
 	int32 VisPassSerial = 0;
 	int32 VisBreakSerial = 0;
+	float NudgeWeight = 0.f;
+	bool bNudgeCancelled = false;
+	int32 NudgeDiveSerial = 0;
+	TWeakObjectPtr<const AAntPawn> NudgeAnt;
 	FVector VisPos = FVector::ZeroVector;
 	FVector VisVel = FVector::ZeroVector;
 	FQuat VisRot = FQuat::Identity;
