@@ -10,6 +10,7 @@
 #include "Audio/LeafSound.h"
 #include "Kismet/KismetMaterialLibrary.h"
 #include "Materials/MaterialParameterCollection.h"
+#include "World/WindCues.h"
 
 AWindSystem::AWindSystem()
 {
@@ -52,6 +53,10 @@ void AWindSystem::BeginPlay()
 	GustLoop = LeafSound::Loop(this, TEXT("wind_gust_loop"), 0.f);
 	RustleLoop = LeafSound::Loop(this, TEXT("leaves_rustle_loop"), 0.15f);
 	PadLoop = LeafSound::Loop(this, TEXT("ambient_pad_loop"), 0.22f);
+	// In-world cues (gust front, the ant's own air, grip dust): a separate actor so this one stays as it was.
+	FActorSpawnParameters CueParams;
+	CueParams.Owner = this;
+	if (AWindCues* Cues = GetWorld()->SpawnActor<AWindCues>(AWindCues::StaticClass(), FTransform::Identity, CueParams)) Cues->SetWind(this);
 }
 
 void AWindSystem::StartDay(int32 InDay, int32 Seed, float InForceScale, int32 InRampDay, float InYaw)
@@ -196,6 +201,13 @@ float AWindSystem::PredictRiskRatio(float FragmentDiameterCm, float GripMultipli
 
 void AWindSystem::UpdateStreaks(float Dt)
 {
+	// With the in-world cues on (Leaf.Cues 1), AWindCues draws all streaks; these come back as they were with Leaf.Cues 0.
+	if (WindCues::IsEnabled())
+	{
+		if (StreakMesh->GetNumSections() > 0) StreakMesh->ClearAllMeshSections();
+		Streaks.Reset();
+		return;
+	}
 	// Thin streaks drifting downwind around the camera; they appear as the gust builds.
 	const float Amount = FMath::SmoothStep(0.22f, 0.9f, Strength);
 	const int32 Wanted = FMath::RoundToInt(Tuning.StreakCount * Amount);

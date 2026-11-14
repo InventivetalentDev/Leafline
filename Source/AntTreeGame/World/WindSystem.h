@@ -60,6 +60,86 @@ struct FWindTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Look") int32 StreakCount = 60;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Look") float StreakSpeed = 2200.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Look") float StreakRadius = 900.f;
+
+	// In-world cues (AWindCues, Leaf.Cues 0|1): looks only, nothing here changes the wind, exposure or the economy.
+	/** Streaks in the view (they replace the streaks above while the cues are on). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") int32 CueStreaks = 300;
+	/** Specks (pollen, dust, leaf bits) in the air between the camera and the ant. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") int32 CueSpecks = 280;
+	/** Specks and short streaks streaming past the ant itself (within CueLocalRadius). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") int32 CueLocal = 110;
+	/** 0: soft ellipses (M_Exposure, vertex colour); 1: M_WindStreak, as before. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") int32 CueStreakMaterial = 0;
+	/** The gust front: where it is, the air behind it already shows the gust. It reaches the ant as the gust rises (cm/s). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueFrontSpeed = 300.f;
+	/** Wind strength the air behind the front shows, times the gust's peak. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueFrontLevel = 0.9f;
+	/** Half width of the front's soft edge (cm). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueFrontBand = 250.f;
+	/** During the warning the air everywhere stirs up to this share of the gust air, ahead of the front too (seen when
+	 *  the front comes from behind the camera). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CuePrecursor = 0.75f;
+	/** A wall of dust riding on the front during the warning and the rise: this many big faint puffs in view, their alpha
+	 *  and radius (cm). It shows against the sky and the bark alike, where thin streaks far away do not. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") int32 CueFrontPuffs = 36;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueFrontHaze = 0.2f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueFrontPuffSize = 170.f;
+	/** Puffs nearer the camera than this fade out (from half of it), so the wall never fogs the view as it passes (cm). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueFrontPuffNear = 900.f;
+	/** Colours (unlit vertex colours; the material is bright, so low values still read light): the dust wall, and streaks. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") FLinearColor CueFrontPuffColor = FLinearColor(0.42f, 0.4f, 0.34f);
+	/** Half the puffs take this darker tone, so the wall shows over a bright sky as well as over bark and ground. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") FLinearColor CueFrontPuffDark = FLinearColor(0.04f, 0.036f, 0.03f);
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") FLinearColor CueStreakColor = FLinearColor(0.35f, 0.35f, 0.35f);
+	/** Extra specks gathered at the front's edge (0 none). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueFrontDust = 0.8f;
+	/** Nothing nearer the camera than these is drawn (it fades in over the second half): streaks, specks, the ant's air (cm). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueStreakNear = 300.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueSpeckNear = 120.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueLocalNear = 90.f;
+	/** Streaks fill the view out to this distance, so the front shows well before it arrives (cm). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueFar = 2600.f;
+	/** Streak half width (cm) in calm air; CueStreakThick more in full gust air. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueStreakWidth = 0.9f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueStreakThick = 1.f;
+	/** Streak length (cm) in full gust air (half of it in calm air). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueStreakLength = 380.f;
+	/** Alpha at a streak's tail relative to its head. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueStreakTail = 0.35f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueStreakAlpha = 0.5f;
+	/** Nothing is drawn thinner than this many pixels, so far streaks and specks still show. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueMinPixels = 3.f;
+	/** Speck radius (cm); leaf bits are CueLeafBitSize and make up CueLeafBitShare of the specks. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueSpeckSize = 0.5f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueLeafBitSize = 1.8f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueLeafBitShare = 0.15f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueSpeckAlpha = 0.6f;
+	/** Alpha of the few specks that drift in calm air (0: none). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueCalmMotes = 0.2f;
+	/** Fast specks are stretched along their path by this many seconds of travel. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueStretch = 0.006f;
+	/** Specks fill the view out to this distance, more of them near the camera (cm). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueSpeckFar = 1400.f;
+	/** Speck colour scale (the materials are unlit). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueBrightness = 0.35f;
+	/** The ant's own air: specks aimed past the ant start this far upwind of it (cm), spread over a disc across the wind of
+	 *  radius CueLocalSpread, more of them near its axis (CueLocalLift above the bark at the ant). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueLocalSpread = 70.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueLocalLift = 12.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueLocalRadius = 200.f;
+	/** Calm pocket round a sheltered ant (cm): the air streams round it and motes hang still inside. Shrinks with exposure. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueShelterRadius = 70.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueMoteAlpha = 0.7f;
+	/** Gripping: bark dust scraped off and blown away, a puff at the grip and a trickle while the wind pulls. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") int32 CueGripPuff = 22;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueGripTrickle = 10.f;
+	/** Gripping pose with the cues on: body height and width scale (claws dug in, legs splayed), and how hard the wind
+	 *  tugs the body downwind (times the wind the ant feels). Before: 0.78 and 1.14, no tug. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueGripSquash = 0.62f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueGripSpread = 1.3f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueGripTug = 1.f;
+	/** The gripping body sinks this far into the bark (cm): the feet dig in, which reads at game distance. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueGripSink = 1.2f;
 };
 
 /**
@@ -105,6 +185,9 @@ public:
 	/** Blow-off checks run while the gust rises and holds. */
 	bool IsGustActive() const { return Phase == EWindPhase::Rising || Phase == EWindPhase::Holding; }
 	float GetPhaseTimeLeft() const { return PhaseTimeLeft; }
+	float GetPhaseDuration() const { return PhaseDuration; }
+	float GetGustPeak() const { return GustPeak; }
+	bool AreCuesMuted() const { return bMuteCues; }
 	float GetPeakForce() const;
 
 	float GetExposure(const FVector& P, const FVector& Normal) const;

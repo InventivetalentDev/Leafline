@@ -244,6 +244,8 @@ private:
 	float FeltTimer = 0.f;
 	float FeltExposure = 0.f;
 	float WindFeel = 0.f;
+	/** Seconds since the grip started (the grip cue's press). */
+	float GripVisTime = 0.f;
 	FVector FlutterVelocity = FVector::ZeroVector;
 	FVector FlutterSpinAxis = FVector::UpVector;
 	FTransform SwingFrom;
