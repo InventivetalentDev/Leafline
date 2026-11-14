@@ -299,6 +299,37 @@ def pad():
     s = stereo_from(L, R)
     return norm(s, -14.0)
 
+# ---------- bird (call and wing rush) ----------
+def bird_call():
+    """Four quick falling whistles of a small songbird (3-5 kHz, above the gust bed's < 2.5 kHz).
+    Each note: exponential downward sweep, 45 Hz FM vibrato (+-700 Hz), pitch jitter between notes,
+    a weak 2nd harmonic, a second 'syrinx' voice 18 Hz away, breath noise, soft attack. Variant E of the
+    14 Nov second pass (lowest '8-bit' and highest 'bird chirping' readings of five)."""
+    r = rng_for("bird_call_E"); n = N(0.8); y = np.zeros(n)
+    notes = ((.03, 4800, 3500, .09, .7), (.17, 4600, 3300, .09, .9), (.31, 4300, 3000, .11, 1.0), (.48, 4000, 2800, .14, .8))
+    for i, (at, f0, f1, dur, a) in enumerate(notes):
+        j = 1 + 0.06 * (r.random() - 0.5) * 2
+        m = N(dur); t = tarr(m); p = t / dur
+        f = (f1 + (f0 - f1) * np.exp(-2.0 * p)) * j + 700 * np.sin(TAU * 45 * (1 + .15 * i) * t + r.random() * 6) * np.sin(np.pi * p)
+        ph = np.cumsum(TAU * f / SR)
+        s = np.sin(ph) + 0.05 * np.sin(2 * ph + .5)
+        s += 0.45 * np.sin(np.cumsum(TAU * (f + 18) / SR))
+        s += 0.2 * band(noise(m, r), 2500, 7000, 2)
+        e = np.minimum(t / 0.006, 1) * np.minimum((dur - t) / 0.03, 1) * (0.7 + 0.3 * np.sin(np.pi * p))
+        place(y, s * e * a, at)
+    return norm(fade(y, 0.006, 0.05), -11.0)
+
+def bird_pass():
+    """Soft wing rush ~0.55 s: feathery band noise with a wing-beat flutter, passing by (pitch eases down)."""
+    r = rng_for("bird_pass"); n = N(0.6); t = tarr(n); p = t / t[-1]; base = noise(n, r); y = np.zeros(n)
+    cen = 2600 * 2.0 ** (-0.9 * p)                                  # eases down as it passes
+    for c in [500, 900, 1600, 2800, 5000]:
+        y += band(base, c * 0.6, c * 1.5, 2) * np.exp(-0.5 * (np.log2(cen / c) / 1.1) ** 2)
+    flut = 0.72 + 0.28 * np.sin(TAU * (11 + 3 * p) * t + 0.5)      # wing beats
+    y *= flut * np.sin(np.pi * p) ** 2.2
+    y += 0.25 * band(noise(n, r), 150, 450, 2) * np.sin(np.pi * p) ** 2   # soft air body
+    return norm(fade(y, 0.02, 0.12), -10.0)
+
 # ---------- main ----------
 def main():
     os.makedirs(OUT, exist_ok=True)
@@ -309,6 +340,7 @@ def main():
                ui_move, ui_confirm, ui_deny, upgrade, milestone, day_end):
         write(fn.__name__, fn())
     write("ambient_pad_loop", pad())
+    write("bird_call", bird_call()); write("bird_pass", bird_pass())
     print("done ->", os.path.abspath(OUT))
 
 if __name__ == "__main__":
