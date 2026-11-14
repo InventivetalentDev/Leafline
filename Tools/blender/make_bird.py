@@ -6,13 +6,15 @@ Art/Blender/SM_Bird.fbx.  Everything is procedural; no textures, no rig.  No ran
 mesh.
 
 Coordinates: metres, +X forward (beak), +Z up, +Y is the bird's LEFT.  Nominal size: 1.00 m wingspan (tip to tip),
-0.62 m from beak tip to tail tip; the game scales it (BirdScale).  The origin is the middle of the shoulder line, on the
-wings' middle plane: the shoulder line runs along X at y = +-SHOULDER_Y, z = 0, and the wings are flat at z = 0 (top
-skin above, bottom skin below), so the material's flap bends each wing about that line.
+0.62 m from beak tip to tail tip; the game scales it (BirdScale).  The origin is the middle of the shoulder line: the
+shoulder lines run along X at y = +-SHOULDER_Y, z = 0, and each wing is a flat plate (upper skin above its middle
+plane, under skin below) tilted up DIHEDRAL_DEG about its shoulder line, and the material's flap bends it about that
+line.
 
 UV channels (all per-vertex values, see Art/Blender/README.md):
   UV0  U 0 body (and head, beak, eyes, tail), 0.25 left wing, 0.75 right wing
-       V spanwise distance from the shoulder line, 0 there (and inside the body) to 1 at the wing tip; 0 off the wings
+       V distance from the shoulder line along the wing / WING_LEN, 0 there (and inside the body) to 1 at the wing
+       tip; 0 off the wings
   UV1  U part id: 0 body, 0.2 head, 0.4 beak, 0.6 wing, 0.8 tail, 1.0 eye
        V body and head: 0 back to 1 belly; wings and tail: 0 upper skin, 1 under skin; beak and eyes: 0
 """
@@ -27,6 +29,7 @@ from mathutils import Vector, geometry
 SHOULDER_Y = 0.05           # shoulder line, |y| (inside the body)
 WING_LEN = 0.45             # shoulder line to wing tip: span = 2 * (SHOULDER_Y + WING_LEN) = 1.00 m
 ROOT_IN = 0.025             # the wing root starts this far inside the shoulder line (buried in the body)
+DIHEDRAL_DEG = 5.0          # each wing tilts up this much about its shoulder line, so the side view shows a shallow V
 SPHERE_U, SPHERE_V = 16, 10
 RENDER_PREVIEWS = True
 EXPORT = True
@@ -209,7 +212,8 @@ def wing_inner():
     pts = []
     for i in range(1, 13):
         s = -ROOT_IN + (0.30 + ROOT_IN) * i / 12.5
-        xl, xt = leading_x(s) - 0.012, TRAIL_IN[1] + (TRAIL_OUT[1] - TRAIL_IN[1]) * (s + ROOT_IN) / (TRAIL_OUT[0] + ROOT_IN) + 0.016
+        xl = leading_x(s) - 0.012
+        xt = TRAIL_IN[1] + (TRAIL_OUT[1] - TRAIL_IN[1]) * (s + ROOT_IN) / (TRAIL_OUT[0] + ROOT_IN) + 0.016
         for j in range(4):
             pts.append((s, xl + (xt - xl) * (j + 0.5) / 4))
     # the hand, between the leading edge and the slots
@@ -228,7 +232,9 @@ def wing_thick(s, x):
 
 def build_wings():
     outline, inner = wing_outline(), wing_inner()
+    cd, sd = math.cos(math.radians(DIHEDRAL_DEG)), math.sin(math.radians(DIHEDRAL_DEG))
     for sy, u in ((1.0, 0.25), (-1.0, 0.75)):
+        n0 = len(bm.verts)
         def to3d(s, x, sy=sy):
             return x, sy * (SHOULDER_Y + s)
 
@@ -236,6 +242,11 @@ def build_wings():
             return (u, max(0.0, min(1.0, (abs(y) - SHOULDER_Y) / WING_LEN)))
 
         slab(outline, inner, to3d, wing_thick, uv0_of, P_WING)
+        # the dihedral: turn the plate rigidly about the shoulder line (UV0.v stays the distance along the wing)
+        for v in list(bm.verts)[n0:]:
+            span, h = abs(v.co.y) - SHOULDER_Y, v.co.z
+            v.co.y = sy * (SHOULDER_Y + span * cd - h * sd)
+            v.co.z = span * sd + h * cd
 
 
 # ---------------------------------------------------------------- the tail (2D in (x, y)), fanned
@@ -303,6 +314,9 @@ def breast(u):
 def build():
     ellipsoid((-0.015, 0, -0.022), (0.178, 0.068, 0.066), P_BODY, pitch=0.05, deform=breast)
     ellipsoid((0.163, 0, 0.002), (0.056, 0.050, 0.050), P_HEAD, res=(14, 9))
+    # neck and nape: fills the waist between the body's tapered front and the head, about as wide as the head,
+    # so the outline from below and from the side is one body-head shape (the head read as a ball stuck on)
+    ellipsoid((0.125, 0, 0.000), (0.065, 0.052, 0.050), P_BODY, res=(14, 9))
     cone((0.205, 0, -0.006), (0.258, 0, -0.013), 0.016, P_BEAK)
     for sy in (1, -1):
         d = Vector((0.52, sy * 0.66, 0.40)).normalized()
@@ -314,6 +328,7 @@ def build():
 
 # ---------------------------------------------------------------- the flap (a Python copy of Tools/materials/bird.hlsl)
 FLAP_AMP, FLAP_TIP_GAIN, FLAP_TIP_LAG = 0.61, 0.7, 0.5
+DIHEDRAL = math.radians(DIHEDRAL_DEG)
 
 
 def flap_offset(co, uv0, phase, amount):
@@ -324,17 +339,22 @@ def flap_offset(co, uv0, phase, amount):
     v = uv0[1]
     side = 1.0 if co.y >= 0 else -1.0
     A = amount * FLAP_AMP
-    a0 = A * math.sin(phase)
-    a1 = A * FLAP_TIP_GAIN * math.sin(phase - FLAP_TIP_LAG)
-    phi = a0 + a1 * v
-    if abs(a1) > 1e-3:
-        cs, cu = WING_LEN * (math.sin(phi) - math.sin(a0)) / a1, WING_LEN * (math.cos(a0) - math.cos(phi)) / a1
-    else:
-        m = a0 + 0.5 * a1 * v
-        cs, cu = WING_LEN * v * math.cos(m), WING_LEN * v * math.sin(m)
-    h = co.z
-    d_span = cs - h * math.sin(phi) - WING_LEN * v
-    d_up = cu + h * math.cos(phi) - h
+    b0 = DIHEDRAL + A * math.sin(phase)                        # the middle plane's angle at the shoulder
+    a1 = A * FLAP_TIP_GAIN * math.sin(phase - FLAP_TIP_LAG)    # extra turn from shoulder to tip
+    phi = b0 + a1 * v
+
+    def along(start, turn):
+        if abs(turn) > 1e-3:
+            return (WING_LEN * (math.sin(start + turn * v) - math.sin(start)) / turn,
+                    WING_LEN * (math.cos(start) - math.cos(start + turn * v)) / turn)
+        m = start + 0.5 * turn * v
+        return WING_LEN * v * math.cos(m), WING_LEN * v * math.sin(m)
+
+    cs, cu = along(b0, a1)                 # bent
+    rs, ru = along(DIHEDRAL, 0.0)          # the modelled pose
+    h = (co.z - ru) / math.cos(DIHEDRAL)   # distance from the middle plane
+    d_span = (cs - h * math.sin(phi)) - (rs - h * math.sin(DIHEDRAL))
+    d_up = (cu + h * math.cos(phi)) - (ru + h * math.cos(DIHEDRAL))
     return Vector((0.0, side * d_span, d_up))
 
 

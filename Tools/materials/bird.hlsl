@@ -16,16 +16,18 @@
 //
 // Mesh data (values as authored; Unreal flips V on import, so both nodes read 1 - V):
 //   UV0  U 0 body, head, beak, eyes, tail; 0.25 left wing; 0.75 right wing
-//        V spanwise distance from the shoulder line, 0 there (and inside the body) to 1 at the wing tip; 0 off the wings
+//        V distance from the shoulder line along the wing, 0 there (and inside the body) to 1 at the wing tip; 0 off
+//        the wings
 //   UV1  U part id: 0 body, 0.2 head, 0.4 beak, 0.6 wing, 0.8 tail, 1.0 eye
 //        V body and head: 0 back to 1 belly; wings and tail: 0 upper skin, 1 under skin; beak and eyes: 0
 // Mesh space (after import, cm): +X forward, +Z up, 100 cm wingspan. The shoulder lines run along X at |Y| = 5 cm,
-// Z = 0, and the wings lie flat on Z = 0, so each wing bends about its shoulder line. The left wing (Blender +Y) is
-// at -Y in Unreal (the import's handedness flip); NODE 2 takes the side from the sign of LP.y, so that does not matter.
+// Z = 0; each wing is a flat plate tilted up 5 degrees about its shoulder line (dihedral) and bends about that line.
+// The left wing (Blender +Y) is at -Y in Unreal (the import's handedness flip); NODE 2 takes the side from the sign of
+// LP.y, so that does not matter.
 //
-// After building: the flapping wings leave the mesh's bounds (the tips rise and fall about 32 cm in mesh space).
-// Give SM_Bird a Positive and a Negative Bounds Extension of about Z 35 (or the component a BoundsScale of 2), or the
-// bird can be culled or lose its shadow at the edge of the screen while it flaps.
+// After building: the flapping wings leave the mesh's bounds (the tips rise to about +35 cm and fall to about -30 cm
+// in mesh space). Give SM_Bird a Positive and a Negative Bounds Extension of about Z 35 (or the component a BoundsScale
+// of 2), or the bird can be culled or lose its shadow at the edge of the screen while it flaps.
 
 // ==================================================================== NODE 1: BirdColour
 // Plain brown-grey songbird: darker back and wings, lighter belly and under-wing, dark primaries, dark beak and eye.
@@ -56,37 +58,41 @@ return col;
 // ---- END NODE 1 ----
 
 // ==================================================================== NODE 2: BirdFlap
-// Each wing bends about its shoulder line. The angle of the wing's middle plane grows linearly from the shoulder
-// (a0) to the tip (a0 + a1), so the wing curves rather than hinging: AMP at the shoulder, AMP * (1 + TIP_GAIN) at the
-// tip, the hand a little behind the arm (TIP_LAG). Positions along the curve are the exact integral of that angle;
-// points above or below the middle plane keep their distance from it. Same maths as flap_offset() in make_bird.py.
+// Each wing bends about its shoulder line. At rest the wing's middle plane is tilted up DIHEDRAL (the modelled pose);
+// flapping adds an angle that grows linearly from the shoulder (a0) to the tip (a0 + a1), so the wing curves rather
+// than hinging: AMP at the shoulder, AMP * (1 + TIP_GAIN) at the tip, the hand a little behind the arm (TIP_LAG).
+// Positions along the curve are the exact integral of that angle; points above or below the middle plane keep their
+// distance from it. The rest pose goes through the same expressions, so FlapAmount 0 gives exactly zero (and the
+// result is multiplied by zero there as well). Same maths as flap_offset() in make_bird.py.
 // ---- BEGIN NODE 2 (paste from the next line) ----
 const float AMP = 0.61;          // radians: 35 degrees at the shoulder at FlapAmount 1
 const float TIP_GAIN = 0.7;      // the tip turns 70% further (about 60 degrees)
 const float TIP_LAG = 0.5;       // radians the hand lags behind the arm
-const float WING_LEN = 45.0;     // cm in mesh space: shoulder line to wing tip
+const float DIHEDRAL = 0.0873;   // radians: the modelled 5 degree upward tilt of each wing
+const float WING_LEN = 45.0;     // cm in mesh space: shoulder line to wing tip, along the wing
 const float SHOULDER_Z = 0.0;    // cm in mesh space: height of the shoulder line
 
 float wing = step(0.1, UV0.x);
-float v = saturate(1.0 - UV0.y);
+float v = saturate(1.0 - UV0.y);              // distance from the shoulder along the wing, 0..1
 float side = LP.y >= 0.0 ? 1.0 : -1.0;
 float A = FlapAmount * AMP;
-float a0 = A * sin(FlapPhase);
+float b0 = DIHEDRAL + A * sin(FlapPhase);     // the middle plane's angle at the shoulder
 float a1 = A * TIP_GAIN * sin(FlapPhase - TIP_LAG);
-float phi = a0 + a1 * v;
-float2 C;                        // the middle plane's point (along the span, up) after bending
+float phi = b0 + a1 * v;                      // ... and here
+float2 C;                                     // the middle plane's point (outward, up) after bending
 if (abs(a1) > 1e-3)
 {
-	C = WING_LEN * float2(sin(phi) - sin(a0), cos(a0) - cos(phi)) / a1;
+	C = WING_LEN * float2(sin(phi) - sin(b0), cos(b0) - cos(phi)) / a1;
 }
 else
 {
-	float m = a0 + 0.5 * a1 * v;
+	float m = b0 + 0.5 * a1 * v;
 	C = WING_LEN * v * float2(cos(m), sin(m));
 }
-float h = LP.z - SHOULDER_Z;
-float dSpan = C.x - h * sin(phi) - WING_LEN * v;
-float dUp = C.y + h * cos(phi) - h;
+float2 R = WING_LEN * v * float2(cos(DIHEDRAL), sin(DIHEDRAL));   // the same point in the modelled pose
+float h = (LP.z - SHOULDER_Z - R.y) / cos(DIHEDRAL);              // distance from the middle plane
+float dSpan = (C.x - h * sin(phi)) - (R.x - h * sin(DIHEDRAL));
+float dUp = (C.y + h * cos(phi)) - (R.y + h * cos(DIHEDRAL));
 float on = wing * step(1e-5, FlapAmount);
 return float3(0.0, side * dSpan, dUp) * on;
 // ---- END NODE 2 ----
