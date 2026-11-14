@@ -7,6 +7,7 @@
 #include "World/DayDirector.h"
 #include "World/WindSystem.h"
 #include "World/WindCues.h"
+#include "World/ExposureOverlay.h"
 #include "Colony/NestActor.h"
 #include "Game/LeaflineGameInstance.h"
 #include "Audio/LeafSound.h"
@@ -19,9 +20,13 @@
 #include "Camera/PlayerCameraManager.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/Engine.h"
+#include "EngineUtils.h"
 
 namespace
 {
+	/** Leaf.AntLook: -1 = each pawn's DefaultLook. */
+	int32 GAntLookOverride = -1;
+
 	UStaticMeshComponent* MakePart(AAntPawn* Owner, USceneComponent* Parent, const TCHAR* Name, UStaticMesh* Mesh, const FVector& Loc, const FVector& Scale)
 	{
 		UStaticMeshComponent* C = Owner->CreateDefaultSubobject<UStaticMeshComponent>(Name);
@@ -50,6 +55,7 @@ AAntPawn::AAntPawn()
 
 	VisualRoot = CreateDefaultSubobject<USceneComponent>(TEXT("VisualRoot"));
 	VisualRoot->SetupAttachment(Root);
+	LookB.GasterColor = FLinearColor(0.46f, 0.16f, 0.06f); // variant B: only slightly deeper than the thorax
 
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMesh(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> BasicMat(TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
@@ -96,18 +102,7 @@ void AAntPawn::BeginPlay()
 	if (AntMesh)
 	{
 		Body->SetStaticMesh(AntMesh);
-		if (AntMaterial)
-		{
-			BodyMID = UMaterialInstanceDynamic::Create(AntMaterial, this);
-			BodyMID->SetVectorParameterValue(TEXT("BodyColor"), BodyColor);
-			Body->SetMaterial(0, BodyMID);
-		}
-		else if (BasicMaterial)
-		{
-			UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BasicMaterial, this);
-			MID->SetVectorParameterValue(TEXT("Color"), BodyColor);
-			Body->SetMaterial(0, MID);
-		}
+		ApplyLook(GAntLookOverride >= 0 ? GAntLookOverride : DefaultLook);
 		Body->SetVisibility(true);
 		Head->SetVisibility(false);
 		Thorax->SetVisibility(false);
@@ -121,6 +116,91 @@ void AAntPawn::BeginPlay()
 		Thorax->SetMaterial(0, MID);
 		Gaster->SetMaterial(0, MID);
 	}
+}
+
+void AAntPawn::ApplyLook(int32 Look)
+{
+	if (!AntMesh) return;
+	if (!AntMaterial2 && Look > 0)
+	{
+		AntMaterial2 = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Leafline/Materials/M_Ant2.M_Ant2"), nullptr, LOAD_NoWarn | LOAD_Quiet);
+		static bool bLogged = false;
+		if (!AntMaterial2 && !bLogged)
+		{
+			bLogged = true;
+			UE_LOG(LogLeafline, Warning, TEXT("AntLook %d: M_Ant2 not found, the ant keeps the old M_Ant look"), Look);
+		}
+	}
+	if (Look > 0 && AntMaterial2)
+	{
+		const FAntLookTuning& T = Look == 2 ? LookB : LookA;
+		BodyMID = UMaterialInstanceDynamic::Create(AntMaterial2, this);
+		BodyMID->SetVectorParameterValue(TEXT("HeadThoraxColor"), T.HeadThoraxColor);
+		BodyMID->SetVectorParameterValue(TEXT("GasterColor"), T.GasterColor);
+		BodyMID->SetVectorParameterValue(TEXT("LegColor"), T.LegColor);
+		BodyMID->SetScalarParameterValue(TEXT("Roughness"), T.Roughness);
+		BodyMID->SetScalarParameterValue(TEXT("Fill"), T.Fill);
+		BodyMID->SetScalarParameterValue(TEXT("RimStrength"), T.RimStrength);
+	}
+	else if (AntMaterial)
+	{
+		BodyMID = UMaterialInstanceDynamic::Create(AntMaterial, this);
+		BodyMID->SetVectorParameterValue(TEXT("BodyColor"), BodyColor);
+	}
+	else if (BasicMaterial)
+	{
+		UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BasicMaterial, this);
+		MID->SetVectorParameterValue(TEXT("Color"), BodyColor);
+		Body->SetMaterial(0, MID);
+		return;
+	}
+	if (BodyMID)
+	{
+		BodyMID->SetScalarParameterValue(TEXT("GaitPhase"), GaitPhase);
+		BodyMID->SetScalarParameterValue(TEXT("GaitAmount"), GaitAmount);
+		Body->SetMaterial(0, BodyMID);
+	}
+}
+
+namespace
+{
+	FAutoConsoleCommandWithWorldAndArgs CmdAntLook(
+		TEXT("Leaf.AntLook"),
+		TEXT("Leaf.AntLook <0|1|2>: the ant's look on every ant. 0 the old M_Ant brown, 1 variant A (darker mahogany gaster), 2 variant B (gaster slightly deeper than the thorax). No argument logs the current one."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			if (Args.Num() < 1)
+			{
+				UE_LOG(LogLeafline, Log, TEXT("Leaf.AntLook: %d (-1 = each ant's default)"), GAntLookOverride);
+				return;
+			}
+			GAntLookOverride = FMath::Clamp(FCString::Atoi(*Args[0]), 0, 2);
+			int32 Count = 0;
+			if (World)
+			{
+				for (TActorIterator<AAntPawn> It(World); It; ++It)
+				{
+					It->ApplyLook(GAntLookOverride);
+					++Count;
+				}
+			}
+			UE_LOG(LogLeafline, Log, TEXT("Leaf.AntLook %d on %d ants"), GAntLookOverride, Count);
+		}));
+}
+
+namespace
+{
+	FAutoConsoleCommandWithWorldAndArgs CmdWindMapShot(
+		TEXT("Leaf.WindMap"),
+		TEXT("Leaf.WindMap <0|1>: show or hide the wind map overlay (what holding Tab shows), for screenshots."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			if (AExposureOverlay* Overlay = AExposureOverlay::Get(World))
+			{
+				Overlay->SetShown(Args.Num() > 0 && FCString::Atoi(*Args[0]) != 0);
+				UE_LOG(LogLeafline, Log, TEXT("Leaf.WindMap %s"), Args.Num() > 0 && FCString::Atoi(*Args[0]) != 0 ? TEXT("on") : TEXT("off"));
+			}
+		}));
 }
 
 ATreeActor* AAntPawn::GetTree()

@@ -6,6 +6,7 @@
 #include "Colony/NestActor.h"
 #include "World/DayDirector.h"
 #include "World/WindSystem.h"
+#include "World/ForestFloor.h"
 #include "Colony/LineSystem.h"
 #include "Game/LeaflinePlayerController.h"
 #include "UI/LeaflineHUD.h"
@@ -33,6 +34,7 @@ void ALeaflineGameMode::InitGame(const FString& MapName, const FString& Options,
 	Tree = World->SpawnActor<ATreeActor>(TreeClass ? *TreeClass : ATreeActor::StaticClass(), FTransform::Identity, Params);
 	Trails = World->SpawnActor<ATrailNetwork>(ATrailNetwork::StaticClass(), FTransform::Identity, Params);
 	Nest = World->SpawnActor<ANestActor>(ANestActor::StaticClass(), FTransform::Identity, Params);
+	World->SpawnActor<AForestFloor>(AForestFloor::StaticClass(), FTransform::Identity, Params); // builds itself once the tree has grown
 	Wind = World->SpawnActor<AWindSystem>(AWindSystem::StaticClass(), FTransform::Identity, Params);
 	Director = World->SpawnActor<ADayDirector>(DirectorClass ? *DirectorClass : ADayDirector::StaticClass(), FTransform::Identity, Params);
 	Lines = World->SpawnActor<ALineSystem>(ALineSystem::StaticClass(), FTransform::Identity, Params);

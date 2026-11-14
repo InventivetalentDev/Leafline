@@ -30,6 +30,23 @@ struct FAntCutRecord
 	bool IsValid() const { return Leaf != INDEX_NONE; }
 };
 
+/** Colours and surface values of the ant's look in M_Ant2 (parameters of the same names, set on the dynamic instance). */
+USTRUCT(BlueprintType)
+struct FAntLookTuning
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Look") FLinearColor HeadThoraxColor = FLinearColor(0.55f, 0.20f, 0.07f);
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Look") FLinearColor GasterColor = FLinearColor(0.30f, 0.085f, 0.045f);
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Look") FLinearColor LegColor = FLinearColor(0.46f, 0.18f, 0.07f);
+	/** Base roughness; the gaster is a little glossier, legs and antennae a little rougher. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Look") float Roughness = 0.38f;
+	/** Brightness floor (emissive = colour x Fill) so the ant keeps its colour in deep shade. Keep it under the bloom threshold. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Look") float Fill = 0.05f;
+	/** Warm Fresnel rim for video. 0 = off. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Look") float RimStrength = 0.f;
+};
+
 /** A worker ant. The same class is used for the controlled ant and unattended ones. */
 UCLASS()
 class ANTTREEGAME_API AAntPawn : public APawn
@@ -55,6 +72,16 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ant")
 	TObjectPtr<UMaterialInterface> AntMaterial;
+
+	/** The ant's look: 0 the old M_Ant brown, 1 variant A (clearly darker mahogany gaster), 2 variant B (gaster only slightly
+	 *  deeper than the thorax). 1 and 2 need /Game/Leafline/Materials/M_Ant2 (without it the old look is used). Leaf.AntLook
+	 *  overrides this for every ant. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Look") int32 DefaultLook = 1;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Look") FAntLookTuning LookA;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Look") FAntLookTuning LookB;
+
+	/** Put the body material for a look on the body (recreates the dynamic instance and re-applies the gait). */
+	void ApplyLook(int32 Look);
 
 	/** Where the carried fragment attaches, relative to the actor (cm). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ant")
@@ -166,6 +193,7 @@ protected:
 
 	/** Body material instance carrying the gait phase for the shader-driven legs. */
 	UPROPERTY(Transient) TObjectPtr<UMaterialInstanceDynamic> BodyMID;
+	UPROPERTY(Transient) TObjectPtr<UMaterialInterface> AntMaterial2;
 
 	UPROPERTY(Transient) TObjectPtr<ULeaflineAudioLoop> CutLoop;
 	UPROPERTY(Transient) TObjectPtr<ULeaflineAudioLoop> GripLoop;
