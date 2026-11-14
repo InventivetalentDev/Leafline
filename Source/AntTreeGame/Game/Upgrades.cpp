@@ -4,11 +4,11 @@ namespace
 {
 	const FLeaflineUpgradeInfo Table[] =
 	{
-		{ TEXT("Mandibles"), TEXT("Cut faster."),                        { 1.f, 1.25f, 1.5f, 1.8f, 2.15f, 2.55f, 3.f } },
-		{ TEXT("Strength"),  TEXT("Reduce carry slowdown."),             { 1.f, 0.75f, 0.55f, 0.4f, 0.3f, 0.22f, 0.16f } },
-		{ TEXT("Grip"),      TEXT("Withstand stronger gusts."),          { 1.f, 1.25f, 1.5f, 1.8f, 2.15f, 2.55f, 3.f } },
-		{ TEXT("Stamina"),   TEXT("Reduce sprint stamina drain."),       { 1.f, 0.8f, 0.65f, 0.5f, 0.4f, 0.32f, 0.25f } },
-		{ TEXT("Brood"),     TEXT("More recruits to work your lines."),  { 0.f, 2.f, 3.f, 4.f, 6.f, 8.f, 10.f } }
+		{ TEXT("Mandibles"), TEXT("Cut faster (recruits too)."),         { 1.f, 1.25f, 1.5f, 1.8f, 2.15f, 2.55f, 3.f } },
+		{ TEXT("Strength"),  TEXT("Big pieces slow you down less."),     { 1.f, 0.75f, 0.55f, 0.4f, 0.3f, 0.22f, 0.16f } },
+		{ TEXT("Grip"),      TEXT("Hold on in stronger gusts (recruits too)."),  { 1.f, 1.25f, 1.5f, 1.8f, 2.15f, 2.55f, 3.f } },
+		{ TEXT("Stamina"),   TEXT("Sprint for longer."),                 { 1.f, 0.8f, 0.65f, 0.5f, 0.4f, 0.32f, 0.25f } },
+		{ TEXT("Brood"),     TEXT("More recruits to fetch pieces along your trails."),  { 0.f, 2.f, 3.f, 4.f, 6.f, 8.f, 10.f } }
 	};
 	// Recommended by Tools/econ_sim.py; source defaults and estimates are in docs/economy.md.
 	const int32 Costs[] = { 14, 32, 68, 144, 304, 640 };
