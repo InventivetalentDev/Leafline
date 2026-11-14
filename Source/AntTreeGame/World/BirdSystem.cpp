@@ -646,6 +646,7 @@ void ABirdSystem::LogInfo() const
 		Tuning.bBird ? TEXT("on") : TEXT("off"), Day, bActiveToday ? TEXT("active") : TEXT("inactive"), bFirstBirdDay ? TEXT(" (first bird day)") : TEXT(""),
 		*UEnum::GetValueAsString(State), StateTime, NextLook, SwoopsLeft, Swoops, PiecesTaken, Held, Missed, BaitsTaken, BaitsTaken + Baits.Num(),
 		IsBaitOn() ? TEXT("on") : TEXT("off"), bPlaceholder ? TEXT("placeholder") : TEXT("SM_Bird"), bVisShown ? 1 : 0, *VisPos.ToCompactString());
+	UE_LOG(LogLeafline, Log, TEXT("Bird: flap amount %.2f, phase %.2f, visible mode %d"), FlapAmount, FMath::Fmod(FlapPhase, 2.f * PI), (int32)VisMode);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -794,30 +795,32 @@ FVector ABirdSystem::TargetSurfacePos(FVector* OutNormal) const
 	return TargetLastPos;
 }
 
-void ABirdSystem::ComputeCircle(float Height)
+void ABirdSystem::ComputeCircle(const FVector& Anchor)
 {
-	CircleHeight = Height;
-	CircleR = FMath::Max(Tuning.CircleRadius, 500.f);
+	// Upwind of the followed ant (not the trunk: from the nest that was 40 m and more away), a little above it, out until the
+	// whole circle keeps clear of branches and their leaves. The grove stands 220 m and more out, far beyond.
 	const FVector Base = Tree ? Tree->GetSkeleton().TrunkBase : FVector::ZeroVector;
-	const FVector Axis(Base.X, Base.Y, Base.Z + Height);
+	CircleAnchor = Anchor;
+	CircleHeight = FMath::Max(Tuning.MinCircleHeight, float(Anchor.Z - Base.Z) + Tuning.CircleAbove);
+	CircleR = FMath::Max(Tuning.CircleRadius, 300.f);
+	const FVector Axis(Anchor.X, Anchor.Y, Base.Z + CircleHeight);
 	FVector Upwind = Wind ? -Wind->GetDirection().GetSafeNormal2D() : FVector::ForwardVector;
 	if (Upwind.IsNearlyZero()) Upwind = FVector::ForwardVector;
 	float Dist = Tuning.CircleDistance;
 	if (Tree && Tree->GetField().IsValid())
 	{
-		// Out on the upwind side, far enough that the whole circle keeps clear of branches (and their leaves).
 		const double Need = Tuning.ClearMargin + BirdHalfSpan();
-		for (int32 k = 0; k < 10; ++k)
+		for (int32 k = 0; k < 24; ++k)
 		{
 			const FVector C = Axis + Upwind * Dist;
 			bool bClear = true;
-			for (int32 i = 0; i < 20 && bClear; ++i)
+			for (int32 i = 0; i < 24 && bClear; ++i)
 			{
-				const float A = 2.f * PI * i / 20.f;
+				const float A = 2.f * PI * i / 24.f;
 				bClear = Tree->GetField().DistanceMT(C + FVector(FMath::Cos(A), FMath::Sin(A), 0.f) * CircleR) >= Need;
 			}
 			if (bClear) break;
-			Dist += 1500.f;
+			Dist += 500.f;
 		}
 	}
 	CircleCenter = Axis + Upwind * Dist;
@@ -960,7 +963,7 @@ void ABirdSystem::UpdateVisual(float Dt)
 		{
 			APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
 			const APawn* Followed = PC ? PC->GetPawn() : nullptr;
-			ComputeCircle(FMath::Max(Tuning.MinCircleHeight, Followed ? float(Followed->GetActorLocation().Z - Base.Z) : Tuning.MinCircleHeight));
+			ComputeCircle(Followed ? Followed->GetActorLocation() : Base);
 			const FVector Out = (CircleCenter - FVector(Base.X, Base.Y, CircleCenter.Z)).GetSafeNormal2D();
 			if (VisMode == VisHidden)
 			{
@@ -996,11 +999,11 @@ void ABirdSystem::UpdateVisual(float Dt)
 	{
 		APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
 		const APawn* Followed = PC ? PC->GetPawn() : nullptr;
-		const float WantH = FMath::Max(Tuning.MinCircleHeight, Followed ? float(Followed->GetActorLocation().Z - Base.Z) : CircleHeight);
+		const FVector Anchor = Followed ? Followed->GetActorLocation() : CircleAnchor;
 		CircleCheckTimer -= Dt;
-		if (CircleHeight < 0.f || FMath::Abs(WantH - CircleHeight) > 600.f || CircleCheckTimer <= 0.f)
+		if (CircleHeight < 0.f || FVector::Dist(Anchor, CircleAnchor) > 800.f || CircleCheckTimer <= 0.f)
 		{
-			ComputeCircle(WantH);
+			ComputeCircle(Anchor);
 			CircleCheckTimer = 2.f;
 		}
 		CircleAngle += CircleSign * Tuning.GlideSpeed / CircleR * Dt;
