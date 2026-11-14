@@ -176,8 +176,9 @@ void AAntCamera::Tick(float DeltaTime)
 
 	const UAntMovementComponent* M = T->GetAntMovement();
 	const double Dt = FMath::Min(DeltaTime, 0.1f);
-	const FVector AntUp = M->GetBodyUp();
-	const FVector AntPos = M->GetSurfacePosition();
+	// The ant as drawn: lifted onto a junction's skirt where one covers it (display only; see GetShownPosition).
+	const FVector AntUp = M->GetShownUp();
+	const FVector AntPos = M->GetShownPosition();
 
 	// Blown off: the orbit camera, built around a surface, lost the tumbling ant against the bark. Watch the fall from
 	// outside and above instead, on the side it was blown off (its last surface normal), and hand back on landing with
@@ -412,8 +413,9 @@ void AAntCamera::Tick(float DeltaTime)
 	// spring, so the see-through hole in the bark was often beside the ant (owner note).
 	{
 		float Depth = OcclusionDepth(CamPos, AntPos + AntUp * 3.0, 10.f);
-		// With fillets the ant walks on the field without them and sinks into a junction's skirt. The trace skips its last
-		// 10 cm (the bark under the ant), which is where the skirt covers it: open fully once the body is a few cm under.
+		// The ant is drawn on the skirts, so this only matters where that lift failed and the ant is drawn under a skirt:
+		// the trace skips its last 10 cm (the bark under the ant), which is where the skirt covers it, so open fully once
+		// the body is a few cm under.
 		if (Tree.IsValid() && Tree->GetVisualField().HasFillets())
 		{
 			const double Sink = -Tree->GetVisualField().Distance(AntPos + AntUp * 3.0);

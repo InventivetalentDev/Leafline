@@ -432,6 +432,9 @@ int32 AExposureOverlay::ProcessCandidates(const ATreeActor& Tree, double StartTi
 		FSpot& Spot = Spots.AddDefaulted_GetRef();
 		Spot.P = P;
 		Spot.N = N;
+		Spot.ShownP = P;
+		Spot.ShownN = N;
+		Tree.LiftOntoSkirts(Spot.ShownP, Spot.ShownN, 0.0);
 		Spot.Size = Cand.Size;
 		AddToHash(Spots.Num() - 1);
 		Pending.Add(Spots.Num() - 1);
@@ -563,9 +566,10 @@ void AExposureOverlay::RebuildMesh()
 		if (S.Band < 0) continue;
 		FLinearColor Color = BandColor(S.Band);
 		Color.A = Alpha;
-		const FVector Centre = S.P + S.N * Tuning.Lift;
-		const FVector U = ExposurePerpendicular(S.N);
-		const FVector V = FVector::CrossProduct(S.N, U);
+		// Drawn on the junction skirts where they cover the spot (display only; the spot itself is on the walking field).
+		const FVector Centre = S.ShownP + S.ShownN * Tuning.Lift;
+		const FVector U = ExposurePerpendicular(S.ShownN);
+		const FVector V = FVector::CrossProduct(S.ShownN, U);
 		const FProcMeshTangent Tangent(U, false);
 		const int32 Base = MeshVerts.Num();
 		MeshVerts.Add(Centre);
@@ -577,13 +581,13 @@ void AExposureOverlay::RebuildMesh()
 		}
 		for (int32 j = 0; j <= ExposureSpotSides; ++j)
 		{
-			Normals.Add(S.N);
+			Normals.Add(S.ShownN);
 			Tangents.Add(Tangent);
 			MeshColors.Add(Color);
 		}
 		// UE front faces: (b - a) x (c - a) points away from the viewer, who looks down the normal (as TrailNetwork).
 		const FVector Cross = FVector::CrossProduct(MeshVerts[Base + 1] - Centre, MeshVerts[Base + 2] - Centre);
-		const bool bFlip = FVector::DotProduct(Cross, S.N) > 0.0;
+		const bool bFlip = FVector::DotProduct(Cross, S.ShownN) > 0.0;
 		for (int32 j = 0; j < ExposureSpotSides; ++j)
 		{
 			const int32 I1 = Base + 1 + j;

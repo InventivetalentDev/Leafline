@@ -2,6 +2,7 @@
 #include "Algo/Reverse.h"
 #include "AntTreeGame.h"
 #include "ProceduralMeshComponent.h"
+#include "Tree/TreeActor.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -161,6 +162,20 @@ void ATrailNetwork::Tick(float DeltaTime)
 	RebuildTimer -= DeltaTime;
 	if (RebuildTimer > 0.f) return;
 	RebuildTimer = 0.2f;
+	// The tree grew again under existing paths: lift them onto the new skirts.
+	if (const ATreeActor* Tree = ATreeActor::Get(this))
+	{
+		if (Tree->GetShapeVersion() != ShownShape)
+		{
+			ShownShape = Tree->GetShapeVersion();
+			for (FPath& Path : Paths)
+			{
+				if (Path.Shown.IsEmpty()) continue;
+				Path.Shown.Reset();
+				Path.DirtyFromChunk = 0;
+			}
+		}
+	}
 	for (int32 p = 0; p < Paths.Num(); ++p)
 	{
 		FPath& Path = Paths[p];
@@ -242,11 +257,24 @@ void ATrailNetwork::RebuildChunk(int32 PathIndex, int32 Chunk)
 	const float PathLift = Path.bYesterday ? FMath::Max(Lift - 0.4f, 0.5f) : Lift; // below today's ribbon: no z-fighting
 	const int32 First = Chunk * ChunkSize;
 	const int32 Last = FMath::Min((Chunk + 1) * ChunkSize, Num - 1);
+	// Display only: the ribbon is drawn on the junction skirts where they cover the trail (fillets are looks only, the
+	// points themselves stay on the walking field). Without fillets the shown points are the points.
+	if (Path.Shown.Num() < Last + 1)
+	{
+		const ATreeActor* Tree = ATreeActor::Get(this);
+		const bool bLift = Tree && Tree->GetVisualField().HasFillets();
+		for (int32 i = Path.Shown.Num(); i <= Last; ++i)
+		{
+			FTrailPoint S = Path.Points[i];
+			if (bLift) Tree->LiftOntoSkirts(S.Pos, S.Normal, FMath::Max(Tree->GetField().DistanceMT(S.Pos), 0.0));
+			Path.Shown.Add(S);
+		}
+	}
 	float Along = Path.Dist.IsValidIndex(First) ? Path.Dist[First] : 0.f;
 	for (int32 i = First; i < Last; ++i)
 	{
-		const FTrailPoint& A = Path.Points[i];
-		const FTrailPoint& B = Path.Points[i + 1];
+		const FTrailPoint& A = Path.Shown[i];
+		const FTrailPoint& B = Path.Shown[i + 1];
 		const float SegLen = (float)FVector::Dist(A.Pos, B.Pos);
 		if (!Path.Drawn[i] || !Path.Drawn[i + 1] || SegLen > 60.f)
 		{

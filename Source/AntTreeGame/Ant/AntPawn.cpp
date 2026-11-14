@@ -85,6 +85,7 @@ void AAntPawn::BeginPlay()
 {
 	Super::BeginPlay();
 	CarrySocket->SetRelativeLocation(MandibleOffset);
+	if (Movement) Movement->SetShownComponent(VisualRoot);
 	// SM_Ant2: the same generator with a neck joining head and thorax (playtest, 13 Nov: "ant's head is floating"),
 	// imported under a new name because the tools cannot reimport over SM_Ant. Loaded by path; SM_Ant is the fallback.
 	if (UStaticMesh* WithNeck = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/Leafline/Meshes/SM_Ant2.SM_Ant2"), nullptr, LOAD_NoWarn | LOAD_Quiet))

@@ -95,6 +95,12 @@ public:
 	/** The surface the bark mesh shows: with fillets, the field with them (the skirts lie on it); otherwise the walking
 	 *  field. For looks only: the skirts, the camera's bark cutaway, fillet debug. */
 	const FTreeField& GetVisualField() const { return SkirtField.HasFillets() ? SkirtField : Field; }
+	/** Display only: moves P (Height above the walking field) onto the skirts, Height above the skirt field, with its normal,
+	 *  where a junction's skirt covers it; false (P and N untouched) where nothing covers it or fillets are off. Ants, trail
+	 *  ribbons and exposure spots are drawn there while the sim keeps the walking position. */
+	bool LiftOntoSkirts(FVector& P, FVector& N, double Height) const;
+	/** Counts tree regrowths (GrowShape), so display caches built on the old shape can tell. */
+	int32 GetShapeVersion() const { return ShapeVersion; }
 	int32 GetSeed() const { return Skeleton.Seed; }
 
 	using FPatchRules = FTreePatchRules;
@@ -198,6 +204,7 @@ private:
 	FTreeField Field;
 	/** With fillets on: the field with them, which the skirts are built on (GetVisualField). Empty otherwise. */
 	FTreeField SkirtField;
+	int32 ShapeVersion = 0;
 	FLeafSet Leaves;
 	FLeafSet GroveLeaves;
 

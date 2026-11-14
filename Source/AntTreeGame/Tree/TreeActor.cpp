@@ -515,6 +515,7 @@ void ATreeActor::GrowShape(int32 Seed)
 {
 	Params.bBranchCollars = AreBranchCollarsOn(Params);
 	Params = WithFilletOverrides(Params);
+	++ShapeVersion;
 	TreeSkeleton::Grow(Skeleton, Params, Seed);
 	const double FieldStart = FPlatformTime::Seconds();
 	// The sim walks on the field without fillets (leaf placement too, so leaf count and order do not depend on them: one-
@@ -565,6 +566,18 @@ void ATreeActor::GrowShape(int32 Seed)
 	PatchWalkCache.Reset();
 	UE_LOG(LogLeafline, Log, TEXT("Tree shape: fillets %s in the mesh, not in the walking field (frac %.2f, bough x%.2f, max %.0f cm, ground %.0f cm), fields built in %.1f ms"),
 		SkirtField.HasFillets() ? TEXT("on") : TEXT("off"), Params.FilletFrac, Params.FilletBoughMul, Params.FilletMax, Params.FilletGroundK, FieldMs);
+}
+
+bool ATreeActor::LiftOntoSkirts(FVector& P, FVector& N, double Height) const
+{
+	if (!SkirtField.HasFillets()) return false;
+	// Outside every skirt the two fields agree, so the walking height is already the skirt height there.
+	if (SkirtField.DistanceMT(P) >= Height - 0.05) return false;
+	FVector Q = P, QN;
+	if (!SkirtField.Project(Q, QN, Height)) return false;
+	P = Q;
+	N = QN;
+	return true;
 }
 
 void ATreeActor::BuildLeafMeshes()
