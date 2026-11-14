@@ -68,6 +68,10 @@ private:
 	 */
 	void DrawWindIcons(const ADayDirector* D, const class AWindSystem* Wind, float Scale);
 	void DrawCarryIcons(const AAntPawn* Ant, float Scale);
+	/** Icon versions of the day panel (an ant per worker in its state's colour and pose) and the colony counter (a leaf
+	 *  pile, "N hauled in all", today's +N and a bar toward the next milestone). */
+	void DrawDayPanelIcons(const ADayDirector* D, float Scale);
+	void DrawColonyIcons(const ADayDirector* D, float Scale);
 	/** A white icon from UIRaw (Tools/ui_icons.py) centred at CX, CY, tinted and turned; false if it is missing. */
 	bool DrawIcon(const TCHAR* Name, float CX, float CY, float Size, const FLinearColor& Color, float AngleDeg = 0.f);
 	void DrawCutArc(const AAntPawn* Ant, float Scale);

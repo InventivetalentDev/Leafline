@@ -140,6 +140,45 @@ def exposure():
     save(im, "Icon_Exposed")
 
 
+def leaf_poly(a, b, width):
+    ang = math.atan2(b[1] - a[1], b[0] - a[0])
+    length = math.dist(a, b)
+    ux, uy = math.cos(ang), math.sin(ang)
+    vx, vy = -uy, ux
+    side = lambda sgn, t: (a[0] + ux * length * t + sgn * vx * width * math.sin(math.pi * t) ** 0.8 * (1 - 0.25 * t),
+                           a[1] + uy * length * t + sgn * vy * width * math.sin(math.pi * t) ** 0.8 * (1 - 0.25 * t))
+    return [side(1, i / 30) for i in range(31)] + [side(-1, i / 30) for i in range(30, -1, -1)]
+
+
+def leaf_pile():
+    # Three leaf blades heaped on a low mound: the colony's haul.
+    im, d = canvas()
+    clear = (0, 0, 0, 0)
+    d.rounded_rectangle(s((10, 100), (118, 118)), radius=8 * SS, fill=WHITE)  # the heap's base
+    for a, b, w in (((24, 104), (70, 30), 18), ((60, 106), (112, 44), 18), ((14, 98), (84, 62), 17)):
+        poly = s(*leaf_poly(a, b, w))
+        d.line(poly + poly[:1], fill=clear, width=7 * SS)   # a gap around each blade, so they read as separate
+        d.polygon(poly, fill=WHITE)
+        d.line(s(a, ((a[0] * 0.2 + b[0] * 0.8), (a[1] * 0.2 + b[1] * 0.8))), fill=clear, width=3 * SS)  # midrib
+    save(im, "Icon_LeafPile")
+
+
+def ant():
+    # A worker seen from above, head up (heading up the tree): head, thorax, abdomen, six legs, antennae.
+    im, d = canvas()
+    for side in (1, -1):
+        for (sx, sy), (kx, ky), (ex, ey) in (((64, 44), (86, 30), (100, 18)), ((64, 50), (90, 52), (106, 58)),
+                                             ((64, 56), (86, 72), (98, 92))):
+            f = lambda x: 64 + side * (x - 64)
+            thick_polyline(d, [(f(sx), sy), (f(kx), ky), (f(ex), ey)], 7)
+        thick_polyline(d, [(64 + side * 6, 18), (64 + side * 16, 6), (64 + side * 26, 8)], 5)  # antenna
+    d.ellipse(s((52, 12), (76, 34)), fill=WHITE)    # head
+    d.ellipse(s((55, 34), (73, 62)), fill=WHITE)    # thorax
+    d.ellipse(s((60, 60), (68, 70)), fill=WHITE)    # waist
+    d.ellipse(s((48, 66), (80, 118)), fill=WHITE)   # abdomen
+    save(im, "Icon_Ant")
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     bird_glide()
@@ -147,3 +186,5 @@ if __name__ == "__main__":
     leaf()
     grip()
     exposure()
+    leaf_pile()
+    ant()

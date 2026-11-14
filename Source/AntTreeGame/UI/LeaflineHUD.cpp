@@ -637,6 +637,12 @@ void ALeaflineHUD::DrawStamina(const AAntPawn* Ant, float Scale, float Dt)
 
 void ALeaflineHUD::DrawDayInfo(const ADayDirector* D, float Scale)
 {
+	if (GHudIcons)
+	{
+		DrawDayPanelIcons(D, Scale);
+		if (const AWindSystem* Wind = D->GetWind()) DrawWindIcons(D, Wind, Scale);
+		return;
+	}
 	UFont* Font = GEngine->GetMediumFont();
 	const float X = (Style.Edge + Style.Padding) * Scale, Y = X;
 	const FString Title = D->GetTreeName().IsEmpty() ? FString::Printf(TEXT("Day %d"), D->GetDay())
@@ -694,11 +700,6 @@ void ALeaflineHUD::DrawDayInfo(const ADayDirector* D, float Scale)
 	// Wind gauge, top right.
 	if (const AWindSystem* Wind = D->GetWind())
 	{
-		if (GHudIcons)
-		{
-			DrawWindIcons(D, Wind, Scale);
-			return;
-		}
 		const float GW = 260.f * Scale, GH = Style.Bar * Scale;
 		const float GX = Canvas->ClipX - (Style.Edge + Style.Padding) * Scale - GW, GY = 90.f * Scale;
 		const ALeaflinePlayerController* WindPC = Cast<ALeaflinePlayerController>(GetOwningPlayerController());
@@ -952,6 +953,11 @@ void ALeaflineHUD::DrawColonyCounter(const ADayDirector* D, float Scale, float D
 		// Eases toward the real value, but never crawls: at least a few units a second until it arrives.
 		const float Diff = Target - ColonyShown;
 		ColonyShown = Diff < 0.05f ? Target : ColonyShown + FMath::Min(Diff, FMath::Max(Diff * 5.f * Dt, 6.f * Dt));
+	}
+	if (GHudIcons)
+	{
+		DrawColonyIcons(D, Scale);
+		return;
 	}
 	UFont* Font = GEngine->GetMediumFont();
 	const float CX = Canvas->ClipX * 0.5f, Y = (Style.Edge + Style.Padding) * Scale;
@@ -1741,4 +1747,105 @@ void ALeaflineHUD::DrawCarryIcons(const AAntPawn* Ant, float Scale)
 	const float W = 230.f * Scale, H = Style.Bar * Scale, BY = Y + Style.Row * Scale;
 	DrawRect(Style.Track, X, BY, W, H);
 	if (bCarry) DrawRect(Style.Leaf, X, BY, W * Size01, H);
+}
+
+void ALeaflineHUD::DrawDayPanelIcons(const ADayDirector* D, float Scale)
+{
+	// The text version's panel and rows; each worker is its number, an ant in its state's colour and pose, and the word.
+	UFont* Font = GEngine->GetMediumFont();
+	const float X = (Style.Edge + Style.Padding) * Scale, Y = X;
+	const FString Title = D->GetTreeName().IsEmpty() ? FString::Printf(TEXT("Day %d"), D->GetDay())
+		: FString::Printf(TEXT("Day %d: %s"), D->GetDay(), *D->GetTreeName());
+	const float Cell = 140.f * Scale;
+	const float W = FMath::Max(FMath::Max(440.f * Scale, D->NumWorkers() * Cell), float(MeasureText(Title, Font, PrimaryText(Scale)).X));
+	DrawPanel(X, Y, W, 128.f * Scale, Scale);
+	DrawTextAt(Title, X, Y, TextColor, PrimaryText(Scale), Font);
+	const float PY = Y + 44.f * Scale, Icon = 24.f * Scale, T = Style.Stroke * Scale;
+	for (int32 i = 0; i < D->NumWorkers(); ++i)
+	{
+		const float PX = X + i * Cell;
+		const EWorkerState State = D->GetWorkerState(i);
+		FLinearColor C = TextColor;
+		const TCHAR* Label = TEXT("Ready");
+		switch (State)
+		{
+		case EWorkerState::Waiting: break;
+		case EWorkerState::Out: C = AccentColor; Label = TEXT("Out"); break;
+		case EWorkerState::Returning: C = Style.Rich; Label = TEXT("Returning"); break;
+		case EWorkerState::Home: C = Style.Home; Label = TEXT("Home"); break;
+		case EWorkerState::BlownOff: C = StaminaLockedColor; Label = TEXT("Blown off"); break;
+		}
+		const FString Num = FString::FromInt(i + 1);
+		DrawTextAt(Num, PX, PY, C, SecondaryText(Scale), Font);
+		const float ICX = PX + MeasureText(Num, Font, SecondaryText(Scale)).X + 4.f * Scale + 0.5f * Icon, ICY = PY + 10.f * Scale;
+		// Ready: faint at the nest; out: heading up; returning: heading down with its piece; home: on the nest line;
+		// blown off: tumbling in the wind.
+		switch (State)
+		{
+		case EWorkerState::Waiting:
+			DrawIcon(TEXT("Icon_Ant"), ICX, ICY, Icon, FLinearColor(C.R, C.G, C.B, 0.45f));
+			break;
+		case EWorkerState::Out:
+			DrawIcon(TEXT("Icon_Ant"), ICX, ICY, Icon, C);
+			break;
+		case EWorkerState::Returning:
+			DrawIcon(TEXT("Icon_Ant"), ICX, ICY, Icon, C, 180.f);
+			DrawIcon(TEXT("Icon_Leaf"), ICX + 0.15f * Icon, ICY + 0.1f * Icon, 0.7f * Icon, Style.Leaf);
+			break;
+		case EWorkerState::Home:
+			DrawIcon(TEXT("Icon_Ant"), ICX, ICY - 0.1f * Icon, 0.8f * Icon, C);
+			DrawRect(C, ICX - 0.5f * Icon, ICY + 0.4f * Icon, Icon, T);
+			break;
+		case EWorkerState::BlownOff:
+			DrawIcon(TEXT("Icon_Ant"), ICX, ICY, Icon, C, 40.f);
+			DrawLine(ICX - 0.75f * Icon, ICY - 0.2f * Icon, ICX - 0.4f * Icon, ICY - 0.2f * Icon, C, T);
+			DrawLine(ICX - 0.8f * Icon, ICY + 0.15f * Icon, ICX - 0.45f * Icon, ICY + 0.15f * Icon, C, T);
+			break;
+		}
+		DrawTextAt(Label, ICX + 0.5f * Icon + 4.f * Scale, PY, C, SecondaryText(Scale), Font);
+	}
+	DrawTextAt(FString::Printf(TEXT("Hauled %.1f"), D->GetStats().MassHauled), X, Y + 84.f * Scale, TextColor, SecondaryText(Scale), Font);
+	if (const AAntPawn* Ant = Cast<AAntPawn>(GetOwningPawn())) DrawCarry(Ant, Scale);
+}
+
+void ALeaflineHUD::DrawColonyIcons(const ADayDirector* D, float Scale)
+{
+	// What the milestones count: everything hauled since the colony began (not what can be spent; that shows at the
+	// nest). A leaf pile and the total, a bar toward the next milestone, today's +N and where the next one is.
+	const ULeaflineGameInstance* GI = Cast<ULeaflineGameInstance>(GetGameInstance());
+	if (!GI) return;
+	UFont* Font = GEngine->GetMediumFont();
+	const float CX = Canvas->ClipX * 0.5f, Y = (Style.Edge + Style.Padding) * Scale;
+	const FString Num = FString::FormatAsNumber(FMath::RoundToInt(ColonyShown));
+	const FString Word = TEXT("hauled in all");
+	const FString Today = FString::Printf(TEXT("+%.1f today"), D->GetStats().MassHauled);
+	const int32 Reached = GI->GetReachedMilestoneCount();
+	const bool bNext = Reached < LeaflineUpgrades::MilestoneCount;
+	const float NextAt = bNext ? GI->GetMilestoneThreshold(Reached) : 0.f;
+	const float PrevAt = Reached > 0 ? GI->GetMilestoneThreshold(Reached - 1) : 0.f;
+	// With one tree per stage the second and third milestones move the colony to a new tree; the first does not.
+	const FString NextNum = FString::FormatAsNumber(FMath::RoundToInt(NextAt));
+	const FString Next = !bNext ? FString() : (GI->IsOneTree() && Reached >= 1 ? FString::Printf(TEXT("new tree at %s"), *NextNum)
+		: FString::Printf(TEXT("next milestone at %s"), *NextNum));
+	const float Icon = 30.f * Scale, Gap = 8.f * Scale;
+	const float NumW = MeasureText(Num, Font, PrimaryText(Scale)).X, WordW = MeasureText(Word, Font, SecondaryText(Scale)).X;
+	const float TodayW = MeasureText(Today, Font, SecondaryText(Scale)).X, NextW = Next.IsEmpty() ? 0.f : MeasureText(Next, Font, SecondaryText(Scale)).X;
+	const float Row1W = Icon + Gap + NumW + Gap + WordW, Row3W = TodayW + (Next.IsEmpty() ? 0.f : 2.f * Style.Padding * Scale + NextW);
+	const float W = FMath::Max(Row1W, Row3W);
+	const float BarY = Y + (Style.PrimaryHeight + 8.f) * Scale, BarH = 4.f * Scale, Row3Y = BarY + BarH + 8.f * Scale;
+	DrawPanel(CX - 0.5f * W, Y, W, Row3Y + Style.SecondaryHeight * Scale - Y, Scale);
+	float RX = CX - 0.5f * Row1W;
+	DrawIcon(TEXT("Icon_LeafPile"), RX + 0.5f * Icon, Y + 0.5f * Style.PrimaryHeight * Scale, Icon, Style.Leaf);
+	RX += Icon + Gap;
+	DrawTextAt(Num, RX, Y, TextColor, PrimaryText(Scale), Font);
+	DrawTextAt(Word, RX + NumW + Gap, Y + (Style.PrimaryHeight - Style.SecondaryHeight) * 0.7f * Scale, Style.Muted, SecondaryText(Scale), Font);
+	if (bNext && NextAt > PrevAt)
+	{
+		const float F = FMath::Clamp((ColonyShown - PrevAt) / (NextAt - PrevAt), 0.f, 1.f);
+		DrawRect(Style.Track, CX - 0.5f * W, BarY, W, BarH);
+		DrawRect(Style.Leaf, CX - 0.5f * W, BarY, W * F, BarH);
+	}
+	RX = CX - 0.5f * Row3W;
+	DrawTextAt(Today, RX, Row3Y, AccentColor, SecondaryText(Scale), Font);
+	if (!Next.IsEmpty()) DrawTextAt(Next, RX + TodayW + 2.f * Style.Padding * Scale, Row3Y, Style.Muted, SecondaryText(Scale), Font);
 }
