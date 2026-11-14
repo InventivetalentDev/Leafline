@@ -20,27 +20,29 @@ struct FForestFloorTuning
 	 *  from every nest spot to the trunk, and a band of RootBand beyond every root's own radius. Its edge is wavy by up to EdgeWave. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clearing") float TrunkClear = 1100.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clearing") float RootBand = 150.f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clearing") float NestClear = 500.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clearing") float NestClear = 400.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clearing") float CorridorHalf = 350.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clearing") float EdgeWave = 150.f;
 	/** Past the clearing, leaves only lie flat (a few mm above the ground) for this much more. Curled and tilted leaves,
 	 *  grass and twigs start beyond it. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clearing") float FlatRing = 250.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clearing") float FlatRing = 150.f;
 	/** Outer edge of the scattered litter. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Litter") float LitterRadius = 14000.f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Litter") int32 RingLeaves = 2400;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Litter") int32 OuterLeaves = 1800;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Litter") int32 RingLeaves = 1800;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Litter") int32 OuterLeaves = 1200;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Litter") float LeafLengthMin = 55.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Litter") float LeafLengthMax = 150.f;
 	/** Fraction of the leaves that are small fragments (8 to 24 cm). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Litter") float FragmentFraction = 0.35f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grass") int32 Tufts = 1300;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grass") int32 Tufts = 2400;
 	/** Most grass clumps lie between the clearing and this distance from the trunk axis (cm); 12% reach the litter radius. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grass") float GrassRadius = 7000.f;
+	/** Grass clumps thin out with e^(-d / this) with the distance d beyond the bare ground (cm). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grass") float GrassFalloff = 2200.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grass") int32 FarTufts = 450;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grass") float FarRadius = 30000.f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grass") float BladeHeightMin = 80.f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grass") float BladeHeightMax = 170.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grass") float BladeHeightMin = 200.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grass") float BladeHeightMax = 400.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Twigs") int32 Twigs = 90;
 	/** Flat leaves' height above the ground (cm): below the trail ribbons (1.2 cm). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Litter") float FlatLift = 0.15f;
@@ -68,11 +70,15 @@ public:
 	void SetFloorEnabled(bool bOn);
 	bool IsFloorEnabled() const { return bEnabled; }
 
+	/** Debug (Leaf.FloorView): log how many near tufts lie in a 60 degree cone from a world point along a yaw, by 5 m of distance. */
+	void LogView(const FVector& From, float YawDeg) const;
+
 private:
 	void Build(const ATreeActor& Tree);
 	void Clear();
 
 	bool bEnabled = true;
+	TArray<FVector2D> NearTufts;   // world XY of the near tufts, for Leaf.FloorView
 	int32 BuiltSeed = INT32_MIN;
 
 	UPROPERTY(Transient) TArray<TObjectPtr<UProceduralMeshComponent>> Sectors;

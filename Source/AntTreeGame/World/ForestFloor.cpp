@@ -19,11 +19,11 @@ namespace
 	enum EMat { MBrown, MOchre, MOlive, MDarkBrown, MGrass, MTwig };
 	// Dull on purpose: brown already means "cannot be cut" on the tree. Grass is darker than any leaf on the tree.
 	const FLinearColor MatColors[NumMats] = {
-		FLinearColor(0.050f, 0.028f, 0.015f),  // brown
+		FLinearColor(0.040f, 0.029f, 0.020f),  // brown (greyer: the matte material turned 0.05/0.028/0.015 rust-orange in direct sun)
 		FLinearColor(0.052f, 0.046f, 0.024f),  // dull tan-ochre (matte M_Litter lifts it in sun; the first 0.082/0.058/0.024 read orange)
 		FLinearColor(0.038f, 0.044f, 0.016f),  // olive
 		FLinearColor(0.036f, 0.025f, 0.017f),  // dark brown
-		FLinearColor(0.012f, 0.034f, 0.022f),  // dark olive-teal grass
+		FLinearColor(0.028f, 0.070f, 0.032f),  // dark olive-green grass (still far darker than the tree's leaves)
 		FLinearColor(0.030f, 0.023f, 0.017f),  // twigs
 	};
 
@@ -221,6 +221,17 @@ namespace
 			UE_LOG(LogLeafline, Log, TEXT("Leaf.TopDown: camera at %.0f %.0f height %.0f cm, %d leaf meshes hidden"), X, Y, H, GHiddenLeaves.Num());
 		}));
 
+	FAutoConsoleCommandWithWorldAndArgs CmdFloorView(
+		TEXT("Leaf.FloorView"),
+		TEXT("Leaf.FloorView: log how many near grass tufts lie in a 60 degree cone in front of the ant (along the camera's yaw), by 5 m of distance."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			ALeaflinePlayerController* PC = World ? Cast<ALeaflinePlayerController>(World->GetFirstPlayerController()) : nullptr;
+			if (!PC || !PC->GetPawn()) return;
+			const float Yaw = PC->GetControlRotation().Yaw;
+			for (TActorIterator<AForestFloor> It(World); It; ++It) It->LogView(PC->GetPawn()->GetActorLocation(), Args.Num() > 0 ? FCString::Atof(*Args[0]) : Yaw);
+		}));
+
 	FAutoConsoleCommandWithWorldAndArgs CmdFloor(
 		TEXT("Leaf.Floor"),
 		TEXT("Leaf.Floor <0|1>: hide or show the forest floor (leaf litter, grass tufts and twigs round the clearing). No argument logs its state."),
@@ -256,6 +267,21 @@ void AForestFloor::Tick(float DeltaSeconds)
 	const ATreeActor* Tree = ATreeActor::Get(this);
 	if (!Tree || Tree->GetSkeleton().Branches.Num() == 0) return;
 	if (Tree->GetSeed() != BuiltSeed) Build(*Tree);
+}
+
+void AForestFloor::LogView(const FVector& From, float YawDeg) const
+{
+	const FVector2D Dir(FMath::Cos(FMath::DegreesToRadians(YawDeg)), FMath::Sin(FMath::DegreesToRadians(YawDeg)));
+	int32 Bins[12] = {};
+	for (const FVector2D& P : NearTufts)
+	{
+		const FVector2D V = P - FVector2D(From);
+		const float L = float(V.Size());
+		if (L > 1.f && L < 6000.f && FVector2D::DotProduct(V / L, Dir) > 0.5f) ++Bins[int32(L / 500.f)];
+	}
+	FString Out;
+	for (int32 b = 0; b < 12; ++b) Out += FString::Printf(TEXT(" %d-%d m:%d"), b * 5, b * 5 + 5, Bins[b]);
+	UE_LOG(LogLeafline, Log, TEXT("Leaf.FloorView from %.0f %.0f yaw %.0f, tufts in a 60 degree cone:%s"), From.X, From.Y, YawDeg, *Out);
 }
 
 void AForestFloor::Clear()
@@ -398,7 +424,7 @@ void AForestFloor::Build(const ATreeActor& Tree)
 			const float Yaw = R.FRand() * 2.f * PI;
 			const float Lean = R.FRandRange(0.25f, 0.7f);
 			const float Phase = R.FRand();
-			AddBlade(B, FVector(Trunk.X + Foot.X, Trunk.Y + Foot.Y, Z0 - 0.5f), Yaw, H, FMath::Max(3.f, 0.05f * H), Lean, Z0, Phase);
+			AddBlade(B, FVector(Trunk.X + Foot.X, Trunk.Y + Foot.Y, Z0 - 0.5f), Yaw, H, FMath::Max(3.f, 0.022f * H), Lean, Z0, Phase);
 			++NBlades;
 		}
 		++NTufts;
@@ -411,21 +437,30 @@ void AForestFloor::Build(const ATreeActor& Tree)
 		{
 			const int32 Target = (T.Tufts * (Sector + 1)) / NumStrata - (T.Tufts * Sector) / NumStrata;
 			int32 Made = 0, Guard = 0;
-			while (Made < Target && Guard++ < Target * 40 + 40)
+			while (Made < Target && Guard++ < Target * 300 + 300)
 			{
 				const float A = (Sector + R.FRand()) * 2.f * PI / NumStrata;
-				const bool bTail = R.FRand() < 0.12f;   // a thin tail out to the litter radius; most clumps stay within GrassRadius
+				const bool bTail = R.FRand() < 0.12f;   // a thin tail out to the litter radius
 				const float Rr = bTail ? TrunkClearR + (Rmax - TrunkClearR) * FMath::Pow(R.FRand(), 1.5f)
-									   : TrunkClearR + (T.GrassRadius - TrunkClearR) * FMath::Pow(R.FRand(), 1.8f);
+									   : TrunkClearR + (T.GrassRadius - TrunkClearR) * R.FRand();
 				const FVector2D Centre = FVector2D(FMath::Cos(A), FMath::Sin(A)) * Rr;
-				for (int32 i = 0; i < 9 && Made < Target; ++i)
+				if (!bTail)
 				{
-					const FVector2D Rel = Centre + FVector2D(Gauss(R), Gauss(R)) * 250.f;
+					// Clumps thin out with the distance from the bare ground (not from the trunk axis), so every side of
+					// the clearing, root spokes included, gets its grass right at the edge.
+					const float Cd = ClearDist(Centre) - (FlatEnd + 100.f);
+					if (Cd < 0.f || R.FRand() > FMath::Exp(-Cd / T.GrassFalloff)) continue;
+				}
+				for (int32 i = 0; i < 8 && Made < Target; ++i)
+				{
+					const FVector2D Rel = Centre + FVector2D(Gauss(R), Gauss(R)) * 280.f;
 					const int32 Bin = FMath::Clamp(int32(Rel.Size() / 1000.f), 0, 19);
 					++TryBins[Bin];
-					if (ClearDist(Rel) < FlatEnd + 150.f) continue;
+					if (ClearDist(Rel) < FlatEnd + 100.f) continue;
 					++OkBins[Bin];
-					Tuft(Rel, 1.f);
+					// seedling height at the edge of the grass, full height 20 m further out
+					const float Hs = 0.45f + 0.55f * FMath::Clamp((ClearDist(Rel) - (FlatEnd + 100.f)) / 2000.f, 0.f, 1.f);
+					Tuft(Rel, Hs);
 					TuftPos.Add(Rel);
 					++Made;
 				}
@@ -491,6 +526,8 @@ void AForestFloor::Build(const ATreeActor& Tree)
 		}
 		Sectors.Add(C);
 	}
+	NearTufts.Reset();
+	for (const FVector2D& P : TuftPos) NearTufts.Add(P + FVector2D(Trunk));
 	SetFloorEnabled(bEnabled);
 	{
 		// Evenness evidence: near tufts per octant of the compass, and their distance from the trunk axis.
@@ -511,6 +548,32 @@ void AForestFloor::Build(const ATreeActor& Tree)
 		FString Bins;
 		for (int32 b = 0; b < 20; ++b) Bins += FString::Printf(TEXT(" %d:%d/%d"), b * 10, OkBins[b], TryBins[b]);
 		UE_LOG(LogLeafline, Log, TEXT("Forest floor grass tries by 10 m of distance (ok/tried):%s"), *Bins);
+	}
+	if (NestPts.Num() > 0)
+	{
+		// What the nest camera sees: from the first nest spot, per compass direction (30 degree wedge), how far out grass is
+		// first allowed along the ray, and how many near tufts lie within the wedge and 45 m.
+		FString Out;
+		const FVector2D N0 = NestPts[0];
+		for (int32 k = 0; k < 8; ++k)
+		{
+			const float Ang = k * PI / 4.f;
+			const FVector2D Dir(FMath::Cos(Ang), FMath::Sin(Ang));
+			float First = -1.f;
+			for (float D = 0.f; D < 6000.f; D += 50.f)
+			{
+				if (ClearDist(N0 + Dir * D) >= FlatEnd + 100.f) { First = D; break; }
+			}
+			int32 Cnt = 0;
+			for (const FVector2D& P : TuftPos)
+			{
+				const FVector2D V = P - N0;
+				const float L = float(V.Size());
+				if (L < 4500.f && L > 1.f && FVector2D::DotProduct(V / L, Dir) > 0.866f) ++Cnt;
+			}
+			Out += FString::Printf(TEXT(" %d deg: first %.0f m, %d tufts;"), int32(k * 45), First / 100.f, Cnt);
+		}
+		UE_LOG(LogLeafline, Log, TEXT("Forest floor nest probe (nest spot 0 at %.0f m from the axis):%s"), float(N0.Size()) / 100.f, *Out);
 	}
 	UE_LOG(LogLeafline, Log, TEXT("Forest floor: seed %d, trunk disc %.0f cm (flared radius %.0f), root reach %.0f, %d leaves (%d flat in the ring), %d tufts (%d blades), %d twigs, %lld triangles, built in %.1f ms"),
 		Sk.Seed, TrunkClearR, TrunkR, Reach, NLeaves, NFlat, NTufts, NBlades, NTwigs, Tris, (FPlatformTime::Seconds() - Start) * 1000.0);
