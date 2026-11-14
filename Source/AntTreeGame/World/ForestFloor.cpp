@@ -31,6 +31,8 @@ namespace
 	{
 		TArray<FVector> V, N;
 		TArray<int32> T;
+		/** Grass only (M_Grass): UV0 = (height fraction 0 base .. 1 tip, per-blade random phase), UV1.x = blade height in metres. */
+		TArray<FVector2D> UV0, UV1;
 	};
 
 	/** UE front faces: (b - a) x (c - a) points away from the viewer, so a triangle facing along n is wound the other way. */
@@ -46,13 +48,20 @@ namespace
 	}
 
 	/** A strip of stations, each with `Across` points, as a two-sided or one-sided surface with a per-point normal. */
-	void AddGrid(FBuf& B, const TArray<FVector>& P, int32 Stations, int32 Across, const FVector& Nrm, bool bTwoSided)
+	void AddGrid(FBuf& B, const TArray<FVector>& P, int32 Stations, int32 Across, const FVector& Nrm, bool bTwoSided,
+		const TArray<FVector2D>* UV0 = nullptr, const TArray<FVector2D>* UV1 = nullptr)
 	{
 		for (int32 Side = 0; Side < (bTwoSided ? 2 : 1); ++Side)
 		{
 			const FVector Nr = Side ? -Nrm : Nrm;
 			const int32 Base = B.V.Num();
-			for (const FVector& V : P) { B.V.Add(V); B.N.Add(Nr); }
+			for (int32 i = 0; i < P.Num(); ++i)
+			{
+				B.V.Add(P[i]);
+				B.N.Add(Nr);
+				if (UV0) B.UV0.Add((*UV0)[i]);
+				if (UV1) B.UV1.Add((*UV1)[i]);
+			}
 			for (int32 k = 0; k + 1 < Stations; ++k)
 			{
 				for (int32 j = 0; j + 1 < Across; ++j)
@@ -93,12 +102,13 @@ namespace
 	}
 
 	/** A curved, tapering blade of grass (a flat ribbon, two-sided). */
-	void AddBlade(FBuf& B, const FVector& Base, float Yaw, float H, float W, float Lean, float Z0)
+	void AddBlade(FBuf& B, const FVector& Base, float Yaw, float H, float W, float Lean, float Z0, float Phase)
 	{
 		constexpr int32 Stations = 5;
 		const FVector D(FMath::Cos(Yaw), FMath::Sin(Yaw), 0.f);
 		const FVector Across(-D.Y, D.X, 0.f);
 		TArray<FVector> P;
+		TArray<FVector2D> UVa, UVb;
 		FVector Prev = Base;
 		for (int32 k = 0; k < Stations; ++k)
 		{
@@ -107,11 +117,12 @@ namespace
 			const float Half = 0.5f * W * (k == Stations - 1 ? 0.f : FMath::Pow(1.f - s, 0.8f));
 			P.Add(C - Across * Half);
 			P.Add(C + Across * Half);
+			for (int32 side = 0; side < 2; ++side) { UVa.Add(FVector2D(s, Phase)); UVb.Add(FVector2D(H / 100.f, 0.f)); }
 		}
 		const FVector Tangent = (P[2 * (Stations - 1)] - P[0]).GetSafeNormal();
 		const FVector Nrm = FVector::CrossProduct(Across, Tangent).GetSafeNormal();
 		(void)Prev; (void)Z0;
-		AddGrid(B, P, Stations, 2, Nrm, true);
+		AddGrid(B, P, Stations, 2, Nrm, true, &UVa, &UVb);
 	}
 
 	/** A thin tapered stick lying on the ground: a three-sided prism along a gentle bend. */
@@ -385,7 +396,9 @@ void AForestFloor::Build(const ATreeActor& Tree)
 			const FVector2D Foot = Rel + FVector2D(R.FRandRange(-5.f, 5.f), R.FRandRange(-5.f, 5.f)) * HeightScale;
 			const float H = R.FRandRange(T.BladeHeightMin, T.BladeHeightMax) * HeightScale;
 			const float Yaw = R.FRand() * 2.f * PI;
-			AddBlade(B, FVector(Trunk.X + Foot.X, Trunk.Y + Foot.Y, Z0 - 0.5f), Yaw, H, FMath::Max(3.f, 0.05f * H), R.FRandRange(0.25f, 0.7f), Z0);
+			const float Lean = R.FRandRange(0.25f, 0.7f);
+			const float Phase = R.FRand();
+			AddBlade(B, FVector(Trunk.X + Foot.X, Trunk.Y + Foot.Y, Z0 - 0.5f), Yaw, H, FMath::Max(3.f, 0.05f * H), Lean, Z0, Phase);
 			++NBlades;
 		}
 		++NTufts;
@@ -447,9 +460,12 @@ void AForestFloor::Build(const ATreeActor& Tree)
 		UMaterialInterface* Base = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Leafline/Materials/M_Litter.M_Litter"), nullptr, LOAD_NoWarn | LOAD_Quiet);
 		if (!Base) Base = BasicMaterial;
 		UE_LOG(LogLeafline, Log, TEXT("Forest floor material: %s"), Base ? *Base->GetName() : TEXT("none"));
+		// M_Grass (WPO sway from MPC_Wind, Tools/materials/build_grass_mcp.py) for the blades, M_Litter / the basic material if missing.
+		UMaterialInterface* GrassBase = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Leafline/Materials/M_Grass.M_Grass"), nullptr, LOAD_NoWarn | LOAD_Quiet);
+		UE_LOG(LogLeafline, Log, TEXT("Forest floor grass material: %s"), GrassBase ? *GrassBase->GetName() : (Base ? *Base->GetName() : TEXT("none")));
 		for (int32 m = 0; Base && m < NumMats; ++m)
 		{
-			UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(Base, this);
+			UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(m == MGrass && GrassBase ? GrassBase : Base, this);
 			MID->SetVectorParameterValue(TEXT("Color"), MatColors[m]);
 			Mats.Add(MID);
 		}
@@ -462,13 +478,14 @@ void AForestFloor::Build(const ATreeActor& Tree)
 		C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		C->SetCastShadow(false);
 		C->bUseAsyncCooking = false;
+		C->BoundsScale = 1.6f;   // the grass sways by world position offset: its blades leave the mesh bounds a little
 		C->SetWorldLocation(FVector::ZeroVector);
 		C->RegisterComponent();
 		for (int32 m = 0; m < NumMats; ++m)
 		{
 			const FBuf& B = Bufs[s * NumMats + m];
 			if (B.T.Num() == 0) continue;
-			C->CreateMeshSection_LinearColor(m, B.V, B.T, B.N, {}, {}, {}, {}, {}, {}, false, false);
+			C->CreateMeshSection_LinearColor(m, B.V, B.T, B.N, B.UV0, B.UV1, {}, {}, {}, {}, false, false);
 			if (m < Mats.Num()) C->SetMaterial(m, Mats[m]);
 			Tris += B.T.Num() / 3;
 		}
