@@ -226,7 +226,7 @@ Tagged `pre-look` before it started. Commits start `Look:` (and `HUD:` for the H
 - [x] The hard-edged dark area at the gathering pose was not the cutaway but a hole from the buried-bark mask; hiding a parent's bark inside a child is now off (`bMaskParentInChild`).
 - [x] Item 2: nest generated in Blender (owner's OK) with `M_NestSoil`; ground litter spots rarer, smaller, ochre. Root flare: long ridges since the bark radius.
 - [x] Item 3: bark furrows narrower and shallower, plates that end, moss olive grey; the triangular seams were the relief (F2 gradient switches), found with debug views.
-- [ ] Item 3, carried piece veins: not done (needs a C++ UV change and a visual check; first to cut).
+- [x] Item 3, carried piece veins: done 14 Nov night (ui, b80a20d): the piece takes the UVs, tone and richness of the leaf it was cut from; `Leaf.PieceVeins 0` gives the old look back.
 - [x] Re-tests after collars: `Leaf.MeshGap` worst 0.00 cm (collars on and off); a pre-look save loads with all 12 bites.
 - [x] Collars off by default: the owner saw square intersections and wants fillets (the walking surface's smooth blend shown on the mesh). Fillets: a Claude agent in the worktree `leafline-fillet` (branch `fillets`).
 - [x] Acceptance (shots agent, `Saved/RefShots/cutaway2/`): test 2 passes at the concept pose (the 6 s pose failed only on the mask hole, since fixed), test 3 passes (factor 0 while the line is clear, up to 1.00 on two stretches 26 and 31 cm deep, back to 0 within about 1 s), test 4 passes; tests 5 and 6 not isolated in a still (leaf and near fade code unchanged). `WoodClearance` 60 no longer needed: 30 now.
@@ -241,7 +241,7 @@ Tagged `pre-look` before it started. Commits start `Look:` (and `HUD:` for the H
   - **Walking on the fillets again (`fil-walk`, branch `fillet-walk`, 14 Nov evening).** The stuck recruits were the follower creeping at 1 cm/s along route steps that run through the wood, not the field. `bFilletWalk` (default on, `Leaf.FilletWalk 0` gives the looks-only split back): auto20 with fillets walked 487.9 hauled, no rescues; with `Leaf.Fillets 0` identical to the baseline. Merged 14 Nov, on by default since the 14:56 package; this replaces the looks-only split above.
 - [x] Owner playtest notes, evening: sounds ducked during the fast-forward and the end jingle on its own (a Claude agent); the ant's head joined by a neck and the mesh lowered 1.2 cm onto the bark (a Claude agent, SM_Ant2); the bark cutaway keeps a faint dithered layer (`CutawayFloor` 0.35).
 - [x] Package and zip from 763b3db (13 Nov 22:28) with fillets, the stump, the camera range, the sound, the ant and the cutaway floor: packaged smoke test with and without ray tracing (two days each, no fatal lines); Epic 4.1 to 4.3 ms GPU.
-- [ ] Carried-piece veins: not done.
+- [x] Carried-piece veins: merged 14 Nov night (b80a20d), auto20 unchanged.
 
 ## M6: Stretch (only if M0–M5b are complete before the freeze; the bird waits for the owner to keep the line)
 

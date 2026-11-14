@@ -192,6 +192,7 @@ A separate actor that follows the controlled ant. It is never attached.
 - Placeholder until the Blender mesh arrives: three engine spheres.
 - Final: static mesh from `docs/briefs/ant-mesh.md`. Legs animate in the material from a gait phase and walk speed supplied by C++ through a dynamic material instance.
 - A named socket or fixed offset at the mandibles holds the carried fragment, which is a small procedural leaf piece scaled by its size and held overhead.
+- **Carried piece look** (`Leaf.PieceVeins`, default on): `AAntPawn::BuildFragmentMesh` gives the piece the UVs and vertex colours of the leaf it was cut from (`FragmentLeaf`, `FragmentBite`, set by every cut path before `SetFragment`): UV = (along / length, 0.5 + across / width) of that leaf, with the piece's straight side at 70% of the half-width (not on the margin itself, where `M_Leaf` fades the side veins; big pieces reach the midrib); colour = (1, that leaf's per-leaf random, height, its shape richness ±0.1 in soft lobes across the piece). `M_Leaf` is unchanged. A piece handed over by `Leaf.Carry` borrows the nearest leaf within 6 m, else keeps the old fixed look (UVs of a 2 m leaf near its margin, richness 0). Built once per cut: no frame-time cost.
 
 ## Trails (`TrailNetwork`)
 
@@ -387,6 +388,7 @@ Console commands pay for themselves, because verification is done by driving Pla
 | `Leaf.Give <mass>` / `Leaf.Buy <index>` | Economy |
 | `Leaf.DebugField 0\|1` | Draw normals, projection error, exposure |
 | `Leaf.Carry <size>` | Hand the ant a fragment |
+| `Leaf.PieceVeins [0\|1]` | The carried piece shows the veins and tone of the leaf it was cut from (1, default) or the fixed look of before (0); no argument toggles; rebuilds pieces being carried (same outline) |
 | `Leaf.Recruits 0\|1` | The line's off switch: recruits, harvest, Brood row, milestone set (the pool follows from the next day) |
 | `Leaf.Pool <n>` | Force the recruit pool from the next day; -1 returns to the Brood upgrade |
 | `Leaf.Patch [leaf] [size]` | Log the patch around the leaf in reach (or a given leaf): leaves, pieces at that size, richness |
