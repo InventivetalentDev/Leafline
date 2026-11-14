@@ -153,6 +153,31 @@ void ALineSystem::AddLine(AAntPawn* Scout, bool bPieceAlreadyHome)
 		UE_LOG(LogLeafline, Warning, TEXT("Line: no route home from worker %d's cut (leaf %d); no line"), L.Worker, C.Leaf);
 		return;
 	}
+	if (const IConsoleVariable* Diag = IConsoleManager::Get().FindConsoleVariable(TEXT("Leaf.FollowDiag")); Diag && Diag->GetInt() > 0)
+	{
+		// Route steps over 30 cm, and the five whose straight line goes deepest into the wood (Leaf.FollowDiag 1).
+		const FTreeField& F = Tree->GetField();
+		struct FStep { int32 Index; double Len; double MinD; };
+		TArray<FStep> Long;
+		for (int32 k = 1; k < L.Route.Num(); ++k)
+		{
+			const FVector A = L.Route[k - 1].Pos, B = L.Route[k].Pos;
+			const double Len = FVector::Dist(A, B);
+			if (Len <= 30.0) continue;
+			double MinD = 1e9;
+			const int32 N = FMath::CeilToInt(Len / 5.0);
+			for (int32 s = 1; s < N; ++s) MinD = FMath::Min(MinD, F.Distance(FMath::Lerp(A, B, double(s) / N)));
+			Long.Add({ k, Len, MinD });
+		}
+		Long.Sort([](const FStep& X, const FStep& Y) { return X.MinD < Y.MinD; });
+		FString Worst;
+		for (int32 i = 0; i < FMath::Min(Long.Num(), 5); ++i)
+		{
+			Worst += FString::Printf(TEXT(" [%d: %.0f cm, %.0f cm deep, from %s]"), Long[i].Index, Long[i].Len, -Long[i].MinD,
+				*L.Route[Long[i].Index - 1].Pos.ToCompactString());
+		}
+		UE_LOG(LogLeafline, Log, TEXT("FollowDiag line %d: %d route steps over 30 cm; deepest:%s"), L.Number, Long.Num(), *Worst);
+	}
 
 	FTreePatchRules Rules;
 	Rules.MaxLeaves = Tuning.PatchMaxLeaves;
