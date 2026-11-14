@@ -1,0 +1,31 @@
+; Leafline credits, shown from the pause menu (Credits) and from the title screen.
+; One line per row. A line starting with # is a heading in the accent colour. A blank line is a gap.
+; Lines starting with ; are notes like this one and are not shown. Long rows wrap; the page scrolls when it is long.
+; Square brackets are placeholders: fill them in or delete the lines before the submission build.
+# Leafline
+A game by inventivetalent
+
+# Playtesting and design feedback
+[FRIEND A]
+
+# [IF UI SHIPS] UI art
+[FRIEND B]
+
+# Made with
+Unreal Engine 5.8
+Blender 5.1: the scripted ant mesh
+
+# Built with AI agents
+Claude (Anthropic): planning and most of the programming
+Codex (OpenAI): concept and key art, code reviews and programming
+
+# Button prompts
+"Xelu's FREE Controller Prompts"
+by Nicolae (Xelu) Berbece, updated by Paul Paun
+CC0 1.0 (public domain)
+
+# Made for
+Epic AI MegaJam 2026
+Game Off 2026
+
+Thank you for playing!
