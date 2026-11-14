@@ -146,6 +146,12 @@ struct FDayTuning
 	/** When the last scout heads home and no recruits have trips, its walk home plays at the harvest's speed and can be
 	 *  skipped (playtest: "fast-forward for 'worker x heads home'"). Off: it walks home at normal speed, as before. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day") bool bFastForwardHome = true;
+	/** Leaf richness against height (FTreeParams::RichnessHeightScale, from the next tree growth; Leaf.Tune day
+	 *  RichnessHeightScale): 0 the linear curve over the crown, as before. 40 (m), the proposed value: the lowest leaves
+	 *  stay about as they are (x1.0-1.2 on tree 1), a layer or two up is worth about 1.5x (45 m) and 1.8x (65 m), high
+	 *  leaves 2-2.5x, so a line laid higher pays (playtest, 14 Nov). AutoPlay reaches the end card after day 12 instead
+	 *  of 16 (60: day 14, gentler; 25: day 11). Leaf.ReloadColony regrows the saved tree with a new value. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day") float RichnessHeightScale = 0.f;
 	/** One tree on: fractional rise of the wind's peak force per day on the same tree. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Day") float GustPerDayOnTree = 0.06f;
 	/** One tree on: the trees in order; the last repeats. Shapes go old giant, spreading giant, tall spire, leaning elder. */
