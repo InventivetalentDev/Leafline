@@ -129,7 +129,7 @@ def build():
     uv0 = add('TextureCoordinate', X, -300, {'CoordinateIndex': 0})
     uv1 = add('TextureCoordinate', X, -180, {'CoordinateIndex': 1})
     # Local Position: LocalOrigin Primitive, IncludedOffsets ExcludeOffsets (PreSkinnedLocalPosition is not accepted).
-    lp = add('LocalPosition', X, 0, {'LocalOrigin': 'LPO_Primitive', 'IncludedOffsets': 'LPIO_ExcludeOffsets'})
+    lp = add('LocalPosition', X, 0, {'LocalOrigin': 'Primitive', 'IncludedOffsets': 'ExcludeOffsets'})
     fr = add('Fresnel', X, 120, {'Exponent': 5.0})
     htc = add('VectorParameter', X, 260, {'ParameterName': 'HeadThoraxColor'})
     gc = add('VectorParameter', X, 380, {'ParameterName': 'GasterColor'})
