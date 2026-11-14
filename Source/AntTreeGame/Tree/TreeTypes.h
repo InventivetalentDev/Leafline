@@ -154,8 +154,8 @@ struct FTreeParams
 	/** How far the swelling fades out along the branch, in base radii. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh") float CollarLength = 1.2f;
 
-	// Fillets: where a limb, bough or root leaves its parent, the mesh gets a skirt that rounds the corner (a field with a
-	// larger blend round the junction, which the skirt lies on). Twigs keep their crease. Draws no random numbers, and
+	// Fillets: where a limb, bough, twig or root leaves its parent, the mesh gets a skirt that rounds the corner (a field with a
+	// larger blend round the junction, which the skirt lies on). Twigs thinner than FilletTwigMinRadius keep their crease. Draws no random numbers, and
 	// leaves are placed against the field without fillets, so the tree, its leaf count and leaf order are the same either
 	// way (Leaf.Fillets). With bFilletWalk the sim walks on them; without, they are looks only.
 	// 14 Nov: with fillets in the walking field, laden recruits stuck at the same junctions every day (69 hauled in twenty
@@ -170,6 +170,10 @@ struct FTreeParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fillets") float FilletFrac = 0.7f;
 	/** Multiplier on FilletFrac for boughs. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fillets") float FilletBoughMul = 1.f;
+	/** Twigs get fillets too (owner, 14 Nov: "small branches should have fillets too"), sized like the others (FilletFrac of
+	 *  their base radius), when their base radius is at least this (cm). Thinner ones keep their crease: their fillet would
+	 *  be under a centimetre and there are thousands of them (skirt build time). A huge value turns twig fillets off. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fillets") float FilletTwigMinRadius = 3.f;
 	/** Cap on the fillet blend radius (cm). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fillets") float FilletMax = 150.f;
 	/** Blend radius (cm) where the trunk and roots meet the ground, with fillets on (GroundBlend without), and a skirt there.
