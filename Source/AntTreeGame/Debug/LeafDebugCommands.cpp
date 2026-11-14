@@ -20,6 +20,7 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
+#include "Kismet/GameplayStatics.h"
 
 namespace LeafDebug
 {
@@ -872,6 +873,17 @@ namespace
 		{
 			LeafDebug::bInputViz = Args.Num() > 0 ? FCString::Atoi(*Args[0]) != 0 : !LeafDebug::bInputViz;
 			UE_LOG(LogLeafline, Log, TEXT("Input view %s"), LeafDebug::bInputViz ? TEXT("on") : TEXT("off"));
+		}));
+
+	FAutoConsoleCommandWithWorldAndArgs CmdNoWorld(
+		TEXT("Leaf.NoWorld"),
+		TEXT("Leaf.NoWorld [0|1]: stop drawing the 3D world so the HUD draws over black (pixel diffs of the HUD between builds); no argument toggles."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			if (!World) return;
+			const bool bOff = Args.Num() > 0 ? FCString::Atoi(*Args[0]) != 0 : UGameplayStatics::GetEnableWorldRendering(World);
+			UGameplayStatics::SetEnableWorldRendering(World, !bOff);
+			UE_LOG(LogLeafline, Log, TEXT("Leaf.NoWorld %d"), bOff ? 1 : 0);
 		}));
 
 	FAutoConsoleCommandWithWorldAndArgs CmdPadIcons(
