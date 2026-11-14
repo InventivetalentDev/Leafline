@@ -35,6 +35,54 @@ namespace
 		TArray<FVector2D> UV0, UV1;
 	};
 
+	bool IsFiniteVec(const FVector& V) { return FMath::IsFinite(V.X) && FMath::IsFinite(V.Y) && FMath::IsFinite(V.Z); }
+	bool IsFiniteVec(const FVector2D& V) { return FMath::IsFinite(V.X) && FMath::IsFinite(V.Y); }
+
+	/** Drops every triangle that touches a non-finite vertex (position, normal or UV) and compacts the vertex arrays, so a NaN
+	 *  can never reach a component's bounds (a component with NaN bounds is culled whole: the owner saw no floor on 14 Nov).
+	 *  Returns the triangles dropped; OutBadVerts counts the non-finite vertices found. */
+	int32 Sanitize(FBuf& B, int32& OutBadVerts)
+	{
+		const int32 NV = B.V.Num();
+		TArray<bool> Ok;
+		Ok.Init(true, NV);
+		for (int32 i = 0; i < NV; ++i)
+		{
+			const bool bUV0 = B.UV0.Num() != NV || IsFiniteVec(B.UV0[i]);
+			const bool bUV1 = B.UV1.Num() != NV || IsFiniteVec(B.UV1[i]);
+			Ok[i] = IsFiniteVec(B.V[i]) && IsFiniteVec(B.N[i]) && bUV0 && bUV1;
+			if (!Ok[i]) ++OutBadVerts;
+		}
+		int32 Dropped = 0;
+		for (int32 t = 0; t + 2 < B.T.Num(); t += 3)
+		{
+			if (!Ok[B.T[t]] || !Ok[B.T[t + 1]] || !Ok[B.T[t + 2]]) ++Dropped;
+		}
+		if (Dropped == 0 && OutBadVerts == 0) return 0;
+		FBuf Out;
+		TArray<int32> Remap;
+		Remap.Init(INDEX_NONE, NV);
+		for (int32 t = 0; t + 2 < B.T.Num(); t += 3)
+		{
+			if (!Ok[B.T[t]] || !Ok[B.T[t + 1]] || !Ok[B.T[t + 2]]) continue;
+			for (int32 k = 0; k < 3; ++k)
+			{
+				const int32 Old = B.T[t + k];
+				if (Remap[Old] == INDEX_NONE)
+				{
+					Remap[Old] = Out.V.Num();
+					Out.V.Add(B.V[Old]);
+					Out.N.Add(B.N[Old]);
+					if (B.UV0.Num() == NV) Out.UV0.Add(B.UV0[Old]);
+					if (B.UV1.Num() == NV) Out.UV1.Add(B.UV1[Old]);
+				}
+				Out.T.Add(Remap[Old]);
+			}
+		}
+		B = MoveTemp(Out);
+		return Dropped;
+	}
+
 	/** UE front faces: (b - a) x (c - a) points away from the viewer, so a triangle facing along n is wound the other way. */
 	void AddTri(FBuf& B, int32 A, int32 Bi, int32 C, const FVector& Facing)
 	{
@@ -88,7 +136,8 @@ namespace
 		{
 			const float t = (k + 0.5f) / Stations;               // never exactly the stem point
 			const float U = L * (k == Stations - 1 ? 1.f : t);
-			const float Half = 0.5f * W * FMath::Pow(FMath::Sin(PI * FMath::Pow(FMath::Min(U / L, 1.f), 0.75f)), 0.9f);
+			// sin(PI) is -8.7e-8 in float at the tip, and pow(negative, 0.9) is NaN (every leaf tip was NaN until 14 Nov evening): clamp at 0.
+			const float Half = 0.5f * W * FMath::Pow(FMath::Max(FMath::Sin(PI * FMath::Pow(FMath::Min(U / L, 1.f), 0.75f)), 0.f), 0.9f);
 			for (int32 j = 0; j < 3; ++j)
 			{
 				const float Vv = (j - 1) * Half;
@@ -504,6 +553,16 @@ void AForestFloor::Build(const ATreeActor& Tree)
 			MID->SetVectorParameterValue(TEXT("Color"), MatColors[m]);
 			Mats.Add(MID);
 		}
+	}
+	int32 DroppedTris = 0, BadVerts = 0;
+	for (FBuf& B : Bufs) DroppedTris += Sanitize(B, BadVerts);
+	if (DroppedTris > 0 || BadVerts > 0)
+	{
+		UE_LOG(LogLeafline, Warning, TEXT("Forest floor: dropped %d triangles with %d non-finite vertices before building the meshes"), DroppedTris, BadVerts);
+	}
+	else
+	{
+		UE_LOG(LogLeafline, Log, TEXT("Forest floor: no non-finite vertices"));
 	}
 	int64 Tris = 0;
 	for (int32 s = 0; s < NumSectors; ++s)
