@@ -40,10 +40,11 @@ namespace LeafReliefDetail
 	 *  because the ground rings (4% wider each beyond 80 m) get too coarse to carry it (four rings per wavelength). */
 	struct FBand { double Wavelength; double Height; double Rotate; };
 	constexpr FBand Bands[] = {
-		{ 8000.0, 150.0, 0.0 },     // low banks, 80 m
-		{ 24000.0, 380.0, 0.9 },    // swells, 240 m
-		{ 90000.0, 1100.0, 2.1 },   // rises, 900 m
-		{ 300000.0, 2600.0, 3.7 },  // the land's lie, 3 km: lifts and drops the horizon
+		// Slopes stay gentle (about 6% at most per band); 1.5 to 4 m (first try) did not show from 120 m up.
+		{ 8000.0, 250.0, 0.0 },     // low banks, 80 m
+		{ 24000.0, 700.0, 0.9 },    // swells, 240 m
+		{ 90000.0, 2500.0, 2.1 },   // rises, 900 m
+		{ 300000.0, 5000.0, 3.7 },  // the land's lie, 3 km: lifts and drops the far ground
 	};
 }
 
