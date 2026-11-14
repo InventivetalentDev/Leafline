@@ -139,10 +139,10 @@ namespace
 		if (!D || !Tree || !GI) return;
 		const bool bOn = Args.Num() > 0 ? FCString::Atoi(*Args[0]) != 0 : !Tree->GetVisualField().HasFillets();
 		auto Arg = [&](int32 i) { return Args.Num() > i ? FCString::Atof(*Args[i]) : -1.f; };
-		ATreeActor::SetFilletsOverride(bOn, Arg(1), Arg(2), Arg(3), Arg(4));
+		ATreeActor::SetFilletsOverride(bOn, Arg(1), Arg(2), Arg(3), Arg(4), Arg(5));
 		const FTreeParams P = ATreeActor::WithFilletOverrides(Tree->Params);
-		UE_LOG(LogLeafline, Log, TEXT("Leaf.Fillets: fillets %s (frac %.2f, bough x%.2f, max %.0f cm, ground %.0f cm); growing tree %d again, fresh"),
-			bOn ? TEXT("on") : TEXT("off"), P.FilletFrac, P.FilletBoughMul, P.FilletMax, P.FilletGroundK, D->GetStage() + 1);
+		UE_LOG(LogLeafline, Log, TEXT("Leaf.Fillets: fillets %s (frac %.2f, bough x%.2f, max %.0f cm, ground %.0f cm, twigs from %.1f cm); growing tree %d again, fresh"),
+			bOn ? TEXT("on") : TEXT("off"), P.FilletFrac, P.FilletBoughMul, P.FilletMax, P.FilletGroundK, P.FilletTwigMinRadius, D->GetStage() + 1);
 		GI->SetTree(D->GetStage(), GI->GetTreeSeed(), GI->GetStageStartDay());
 		GI->SetTreeState({}, 0, {}, 0);
 		D->DebugForceRegrow();
@@ -151,7 +151,7 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs CmdFillets(
 		TEXT("Leaf.Fillets"),
-		TEXT("Leaf.Fillets [0|1] [frac] [max] [boughmul] [groundk]: skirts that round the junctions of limbs, boughs and roots (and of the trunk and roots with the ground) in the bark mesh (1, default) or not (0); the walking field never has them; no argument toggles; optional fillet radius as a fraction of the child's radius, its cap in cm, the bough multiplier, the ground blend in cm (0 keeps the plain one). Grows today's tree again, fresh."),
+		TEXT("Leaf.Fillets [0|1] [frac] [max] [boughmul] [groundk] [twigmin]: skirts that round the junctions of limbs, boughs and roots (and of the trunk and roots with the ground) in the bark mesh (1, default) or not (0); the walking field never has them; no argument toggles; optional fillet radius as a fraction of the child's radius, its cap in cm, the bough multiplier, the ground blend in cm (0 keeps the plain one), the smallest twig base radius with a fillet in cm (1000: no twig fillets). Grows today's tree again, fresh."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World) { Fillets(World, Args); }));
 
 	/**

@@ -149,7 +149,7 @@ public:
 
 	/** Junction fillets (Leaf.Fillets): override FTreeParams::bFillets, and FilletFrac / FilletMax / FilletBoughMul / FilletGroundK where
 	 *  the value is >= 0, for every tree grown from now on. */
-	static void SetFilletsOverride(bool bOn, float Frac = -1.f, float Max = -1.f, float BoughMul = -1.f, float GroundK = -1.f);
+	static void SetFilletsOverride(bool bOn, float Frac = -1.f, float Max = -1.f, float BoughMul = -1.f, float GroundK = -1.f, float TwigMinRadius = -1.f);
 	/** P with the fillet overrides applied. */
 	static FTreeParams WithFilletOverrides(const FTreeParams& P);
 

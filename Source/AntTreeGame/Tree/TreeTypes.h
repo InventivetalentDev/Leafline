@@ -166,6 +166,10 @@ struct FTreeParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fillets") float FilletFrac = 0.7f;
 	/** Multiplier on FilletFrac for boughs. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fillets") float FilletBoughMul = 1.f;
+	/** Twigs get fillets too (owner, 14 Nov: "small branches should have fillets too"), sized like the others (FilletFrac of
+	 *  their base radius), when their base radius is at least this (cm). Thinner ones keep their crease: their fillet would
+	 *  be under a centimetre and there are thousands of them (skirt build time). A huge value turns twig fillets off. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fillets") float FilletTwigMinRadius = 3.f;
 	/** Cap on the fillet blend radius (cm). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fillets") float FilletMax = 150.f;
 	/** Blend radius (cm) where the trunk and roots meet the ground, with fillets on (GroundBlend without), and a skirt there.

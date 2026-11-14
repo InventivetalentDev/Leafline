@@ -493,7 +493,8 @@ namespace
 namespace
 {
 	/**
-	 * After FinishRadii (draws no random numbers): the fillet zone of every limb, bough and root when bFillets is on. The
+	 * After FinishRadii (draws no random numbers): the fillet zone of every limb, bough, root and twig of at least
+	 * FilletTwigMinRadius when bFillets is on. The
 	 * centre is where the child's axis leaves the parent's tube. The crease round the child reaches about R / sin(a) from
 	 * there (a = the angle between the child's axis and the parent's surface) and the blend about FilletK beyond it, so
 	 * the full fillet radius holds to R / sin(a) + 1.5 K and eases back to BlendK over another K. Outside that zone the
@@ -507,8 +508,11 @@ namespace
 			B.FilletInner = B.FilletOuter = 0.f;
 		}
 		if (!P.bFillets) return;
+		const double FilletStart = FPlatformTime::Seconds();
 		const int32 NB = S.Branches.Num();
 		int32 Shrunk = 0, Dropped = 0;
+		int32 Twigs = 0, TwigsThick = 0, TwigFillets = 0;
+		int32 TwigRadii[6] = { 0, 0, 0, 0, 0, 0 }; // base radius < 1, 2, 3, 4, 6, >= 6 cm
 		// The field's fold order: groups by their first branch (trunk, each root, each limb with its descendants).
 		TArray<int32> Group;
 		Group.SetNum(NB);
@@ -521,7 +525,15 @@ namespace
 		for (int32 c = 0; c < NB; ++c)
 		{
 			FTreeBranch& B = S.Branches[c];
-			if (B.Level != 1 && B.Level != 2 && B.Level != -1) continue;
+			if (B.Level == 3 && B.SampleRadius.Num() > 0)
+			{
+				const float R = B.SampleRadius[0];
+				++Twigs;
+				++TwigRadii[R < 1.f ? 0 : R < 2.f ? 1 : R < 3.f ? 2 : R < 4.f ? 3 : R < 6.f ? 4 : 5];
+				if (R < P.FilletTwigMinRadius) continue;
+				++TwigsThick;
+			}
+			else if (B.Level != 1 && B.Level != 2 && B.Level != -1) continue;
 			// The broken stub is too short for the rounding to end on it (no skirt could be laid), and a broken limb may keep
 			// its sharp edge; its big blend also reached the next limb up.
 			if (B.bStub) continue;
@@ -616,8 +628,11 @@ namespace
 			B.FilletK = KFit;
 			B.FilletInner = Crease + 2.f * KFit;
 			B.FilletOuter = B.FilletInner + KFit;
+			if (B.Level == 3) ++TwigFillets;
 		}
-		UE_LOG(LogLeafline, Log, TEXT("TreeSkeleton: fillets: %d shrunk to clear a neighbouring branch, %d of those dropped"), Shrunk, Dropped);
+		UE_LOG(LogLeafline, Log, TEXT("TreeSkeleton: fillets: %d shrunk to clear a neighbouring branch, %d of those dropped; twigs: %d of %d filleted (%d from %.1f cm; base radius <1/<2/<3/<4/<6/6+ cm: %d/%d/%d/%d/%d/%d), %.1f ms"),
+			Shrunk, Dropped, TwigFillets, Twigs, TwigsThick, P.FilletTwigMinRadius, TwigRadii[0], TwigRadii[1], TwigRadii[2], TwigRadii[3], TwigRadii[4], TwigRadii[5],
+			(FPlatformTime::Seconds() - FilletStart) * 1000.0);
 	}
 }
 

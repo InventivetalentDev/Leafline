@@ -457,7 +457,9 @@ namespace
 			Col.Child.Add(R0);
 			FSkirtRay Prev = R0;
 			bool bSeam = false, bEnd = false;
-			for (double Phi = SkirtDPhi; Phi <= SkirtPhiMax; Phi += SkirtDPhi)
+			// Small fillets (twigs) sweep at 6 degrees: the crossings are bisected anyway, and there are many of them.
+			const double DPhi = K < 10.0 ? 2.0 * SkirtDPhi : SkirtDPhi;
+			for (double Phi = DPhi; Phi <= SkirtPhiMax; Phi += DPhi)
 			{
 				FSkirtRay R;
 				if (!Ray(Phi, Prev.T, R) || R.T > 3.0 * Prev.T + 50.0 || R.T < Prev.T / 3.0 - 50.0)
@@ -761,14 +763,14 @@ namespace
 		ParallelFor(Junctions.Num(), [&](int32 k) { BuildSkirt(S, Field, Ranges, Out, Junctions[k], Parts[k], PartStats[k]); });
 
 		FSkirtStats St;
-		int32 Levels[3] = { 0, 0, 0 }; // built: roots, limbs, boughs
+		int32 Levels[4] = { 0, 0, 0, 0 }; // built: roots, limbs, boughs, twigs
 		for (int32 k = 0; k < Parts.Num(); ++k)
 		{
 			St.Add(PartStats[k]);
 			const FTreeMeshData& Pt = Parts[k];
 			if (Pt.Vertices.IsEmpty()) continue;
 			const int32 Lv = S.Branches[Junctions[k]].Level;
-			++Levels[Lv < 0 ? 0 : FMath::Clamp(Lv, 1, 2)];
+			++Levels[Lv < 0 ? 0 : FMath::Clamp(Lv, 1, 3)];
 			const int32 Base = Out.Vertices.Num();
 			Out.Vertices.Append(Pt.Vertices);
 			Out.Normals.Append(Pt.Normals);
@@ -784,8 +786,8 @@ namespace
 		if (OutNoSkirt) *OutNoSkirt = St.Failed;
 		FString FailedList;
 		for (int32 k = 0; k < FMath::Min(St.Failed.Num(), 12); ++k) FailedList += FString::Printf(TEXT(" %d"), St.Failed[k]);
-		UE_LOG(LogLeafline, Log, TEXT("TreeSkirts: %d of %d junctions (%d roots, %d limbs, %d boughs), %d vertices, %d triangles, %.1f ms; failed: window %d, ring %d, origin %d, ray %d, end %d, crowded %d%s%s"),
-			St.Built, St.Junctions, Levels[0], Levels[1], Levels[2], St.Vertices, St.Triangles, (FPlatformTime::Seconds() - Start) * 1000.0,
+		UE_LOG(LogLeafline, Log, TEXT("TreeSkirts: %d of %d junctions (%d roots, %d limbs, %d boughs, %d twigs), %d vertices, %d triangles, %.1f ms; failed: window %d, ring %d, origin %d, ray %d, end %d, crowded %d%s%s"),
+			St.Built, St.Junctions, Levels[0], Levels[1], Levels[2], Levels[3], St.Vertices, St.Triangles, (FPlatformTime::Seconds() - Start) * 1000.0,
 			St.FailWindow, St.FailRing, St.FailOrigin, St.FailRay, St.FailEnd, St.FailCrowded, FailedList.IsEmpty() ? TEXT("") : TEXT(" (branches"),
 			FailedList.IsEmpty() ? TEXT("") : *(FailedList + TEXT(")")));
 		UE_LOG(LogLeafline, Log, TEXT("TreeSkirts fit: field at inner vertices mean %.3f worst %.3f cm; at quad centres (minus the %.1f cm lift) mean %.3f worst %.2f cm (branch %d), %d quads hidden inside a crossing branch; largest move onto the whole field %.1f cm at %s (branch %d); %d inner vertices where the fillet eases off inside the blend"),

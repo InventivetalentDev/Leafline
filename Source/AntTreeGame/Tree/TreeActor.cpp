@@ -442,11 +442,12 @@ namespace
 	bool GNewBark = true;
 	int32 GCollarsOverride = -1; // -1: FTreeParams::bBranchCollars decides; 0/1: Leaf.Collars
 	int32 GFilletsOverride = -1; // -1: FTreeParams::bFillets decides; 0/1: Leaf.Fillets
-	float GFilletFrac = -1.f, GFilletMax = -1.f, GFilletBoughMul = -1.f, GFilletGroundK = -1.f; // < 0: FTreeParams decides
+	float GFilletFrac = -1.f, GFilletMax = -1.f, GFilletBoughMul = -1.f, GFilletGroundK = -1.f, GFilletTwigMin = -1.f; // < 0: FTreeParams decides
 }
 
-void ATreeActor::SetFilletsOverride(bool bOn, float Frac, float Max, float BoughMul, float GroundK)
+void ATreeActor::SetFilletsOverride(bool bOn, float Frac, float Max, float BoughMul, float GroundK, float TwigMinRadius)
 {
+	if (TwigMinRadius >= 0.f) GFilletTwigMin = TwigMinRadius;
 	if (GroundK >= 0.f) GFilletGroundK = GroundK;
 	GFilletsOverride = bOn ? 1 : 0;
 	if (Frac >= 0.f) GFilletFrac = Frac;
@@ -462,6 +463,7 @@ FTreeParams ATreeActor::WithFilletOverrides(const FTreeParams& P)
 	if (GFilletMax >= 0.f) Out.FilletMax = GFilletMax;
 	if (GFilletBoughMul >= 0.f) Out.FilletBoughMul = GFilletBoughMul;
 	if (GFilletGroundK >= 0.f) Out.FilletGroundK = GFilletGroundK;
+	if (GFilletTwigMin >= 0.f) Out.FilletTwigMinRadius = GFilletTwigMin;
 	return Out;
 }
 
@@ -564,8 +566,8 @@ void ATreeActor::GrowShape(int32 Seed)
 	// Leaves: one mesh section per limb, so a cut rebuilds only a small chunk.
 	Leaves.Build(Skeleton, Field);
 	PatchWalkCache.Reset();
-	UE_LOG(LogLeafline, Log, TEXT("Tree shape: fillets %s in the mesh, not in the walking field (frac %.2f, bough x%.2f, max %.0f cm, ground %.0f cm), fields built in %.1f ms"),
-		SkirtField.HasFillets() ? TEXT("on") : TEXT("off"), Params.FilletFrac, Params.FilletBoughMul, Params.FilletMax, Params.FilletGroundK, FieldMs);
+	UE_LOG(LogLeafline, Log, TEXT("Tree shape: fillets %s in the mesh, not in the walking field (frac %.2f, bough x%.2f, max %.0f cm, ground %.0f cm, twigs from %.1f cm), fields built in %.1f ms"),
+		SkirtField.HasFillets() ? TEXT("on") : TEXT("off"), Params.FilletFrac, Params.FilletBoughMul, Params.FilletMax, Params.FilletGroundK, Params.FilletTwigMinRadius, FieldMs);
 }
 
 bool ATreeActor::LiftOntoSkirts(FVector& P, FVector& N, double Height) const
