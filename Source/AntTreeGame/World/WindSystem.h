@@ -78,7 +78,7 @@ struct FWindTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueFrontBand = 250.f;
 	/** During the warning the air everywhere stirs up to this share of the gust air, ahead of the front too (seen when
 	 *  the front comes from behind the camera). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CuePrecursor = 0.45f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CuePrecursor = 0.75f;
 	/** A wall of dust riding on the front during the warning and the rise: this many big faint puffs in view, their alpha
 	 *  and radius (cm). It shows against the sky and the bark alike, where thin streaks far away do not. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") int32 CueFrontPuffs = 36;
