@@ -33,3 +33,5 @@ Readings are earshot `measure` (peak dBFS, integrated LUFS) and `match` (z >= 3 
 | `step_04.wav` | Ant foot tick on bark | 30 ms | one-shot | -25.1 | n/a (short) | same recipe, varied seed |
 | `step_05.wav` | Ant foot tick on bark | 30 ms | one-shot | -27.8 | n/a (short) | same recipe, varied seed |
 | `step_06.wav` | Ant foot tick on bark | 30 ms | one-shot | -26.3 | n/a (short) | same recipe, varied seed |
+| `bird_call.wav` | Small songbird: four quick falling FM whistles, 3-5 kHz, for the bird's dive warning | 800 ms | one-shot | -11.0 | -16.1 | describe: 'a bird chirping' z +2.6 (plausible), 'birds singing in the morning' z +2.5; still 'an 8-bit sound effect' z +2.2 (first version: bird +2.1, 8-bit +3.6); realness: code-synthesized. In 2.5-5 kHz it is +19.6 dB over the calm wind's RMS (+35.5 over the gust's) |
+| `bird_pass.wav` | Feathery wing rush with a ~12 Hz flutter, easing downward | 600 ms | one-shot | -10.0 | -20 (peak raised from -12 after measuring -22.1) | describe: 'a fast whoosh' z +3.2, 'cloth whipping through the air' z +3.1, 'a bird flapping its wings' z +2.0; compare: cosine 0.66 to shift_whoosh, 0.65 to blown_off (an outlier among them) |

@@ -4,19 +4,25 @@
 #   Scripts/unreal-lock.sh [--no-wait] [--timeout <min>] [--break-stale] <holder> -- <command...>
 #   Scripts/unreal-lock.sh --status
 #
-# Only one Unreal process (build, cook, headless run, game, editor) may run on this PC at a time.
-# The lock is the directory /mnt/d/UnrealProjects/wt/locks/unreal (FOREST_LOCK_DIR overrides it):
-# whoever creates it holds it, its file "owner" says who. This script waits for it, writes the
+# At most UNREAL_LOCK_SLOTS Unreal processes (build, cook, headless run, game, editor) run on this PC at a time
+# (default 2, since 14 Nov; it was 1). Slot 1 is the directory /mnt/d/UnrealProjects/wt/locks/unreal
+# (FOREST_LOCK_DIR overrides it), slot N the same path with "-N" appended: whoever creates a slot's directory
+# holds that slot, its file "owner" says who. Copies of this script with one slot only ever take slot 1. This script waits for it, writes the
 # owner, runs the command, and releases in a trap, also when the command fails or is interrupted.
 # Details, exit codes and examples: docs/tools.md.
 
 set -u
 
 PROG=unreal-lock
-LOCK_DIR="${FOREST_LOCK_DIR:-/mnt/d/UnrealProjects/wt/locks/unreal}"
-LOCK_DIR="${LOCK_DIR%/}"
+BASE_DIR="${FOREST_LOCK_DIR:-/mnt/d/UnrealProjects/wt/locks/unreal}"
+BASE_DIR="${BASE_DIR%/}"
+SLOTS="${UNREAL_LOCK_SLOTS:-2}"
+[[ $SLOTS =~ ^[1-9]$ ]] || SLOTS=1
+LOCK_DIR="$BASE_DIR"
 OWNER="$LOCK_DIR/owner"
-LOG="${FOREST_LOCK_LOG:-$LOCK_DIR.log}"
+LOG="${FOREST_LOCK_LOG:-$BASE_DIR.log}"
+# set_slot <n>: point LOCK_DIR and OWNER at slot n.
+set_slot() { if (( $1 == 1 )); then LOCK_DIR="$BASE_DIR"; else LOCK_DIR="$BASE_DIR-$1"; fi; OWNER="$LOCK_DIR/owner"; }
 POLL="${FOREST_LOCK_POLL:-10}"        # seconds between tries while waiting
 REPORT="${FOREST_LOCK_REPORT:-180}"   # seconds between "still waiting" lines
 # Windows programs the lock is about. Stopping this script stops the command's WSL side, but a Windows process it
@@ -172,10 +178,17 @@ while (( $# > 0 )); do
 done
 
 if (( STATUS )); then
-    describe
-    if [[ $DESC == free ]]; then echo "free ($LOCK_DIR)"; exit 0; fi
-    echo "held by $DESC"
-    [[ $HSTATE == stale ]] && { echo "STALE: run with --break-stale to take it over (see docs/tools.md)"; exit 2; }
+    anyfree=0; anystale=0
+    for (( i = 1; i <= SLOTS; i++ )); do
+        set_slot $i
+        describe
+        pre=""; (( SLOTS > 1 )) && pre="slot $i: "
+        if [[ $DESC == free ]]; then echo "${pre}free ($LOCK_DIR)"; anyfree=1; continue; fi
+        echo "${pre}held by $DESC"
+        [[ $HSTATE == stale ]] && { echo "${pre}STALE: run with --break-stale to take it over (see docs/tools.md)"; anystale=1; }
+    done
+    (( anystale )) && exit 2
+    (( anyfree )) && exit 0
     exit 1
 fi
 
@@ -189,11 +202,14 @@ shift
 # Inside a command that already runs under this lock (a wrapped script calling the wrapper again):
 # run directly instead of waiting for ourselves.
 if [[ -n ${FOREST_LOCK_TOKEN:-} ]]; then
-    read_owner
-    if [[ -n $OWNER_CONTENT && $(field token "$OWNER_CONTENT") == "$FOREST_LOCK_TOKEN" ]]; then
-        say "already held by this command's caller ($(field holder "$OWNER_CONTENT")); running without taking it again"
-        exec "$@"
-    fi
+    for (( i = 1; i <= SLOTS; i++ )); do
+        set_slot $i
+        read_owner
+        if [[ -n $OWNER_CONTENT && $(field token "$OWNER_CONTENT") == "$FOREST_LOCK_TOKEN" ]]; then
+            say "already held by this command's caller ($(field holder "$OWNER_CONTENT")); running without taking it again"
+            exec "$@"
+        fi
+    done
 fi
 
 # --- taking and releasing ---------------------------------------------------------------------
@@ -257,7 +273,12 @@ write_owner() {
 }
 
 try_take() {
-    mkdir -- "$LOCK_DIR" 2>/dev/null || return 1
+    local i got=0
+    for (( i = 1; i <= SLOTS; i++ )); do
+        set_slot $i
+        if mkdir -- "$LOCK_DIR" 2>/dev/null; then got=1; break; fi
+    done
+    (( got )) || return 1
     TAKEN=1
     TAKEN_AT=$(date +%s)
     write_owner || {
@@ -332,14 +353,24 @@ trap 'on_signal INT 2' INT
 trap 'on_signal TERM 15' TERM
 trap 'on_signal HUP 1' HUP
 
-mkdir -p -- "$(dirname -- "$LOCK_DIR")" 2>/dev/null
+mkdir -p -- "$(dirname -- "$BASE_DIR")" 2>/dev/null
 
 WAIT_START=$(date +%s)
 LAST_REPORT=0
 while ! try_take; do
-    describe
-    line=$DESC
-    if [[ $line == free ]]; then continue; fi          # released between our mkdir and the read
+    # Every slot is held: describe them all (a stale one is handled below; with several, the last stale slot).
+    line=""; stale_slot=0; freed=0
+    for (( i = 1; i <= SLOTS; i++ )); do
+        set_slot $i
+        describe
+        if [[ $DESC == free ]]; then freed=1; break; fi
+        line="${line:+$line | }${DESC}"
+        [[ $HSTATE == stale ]] && { stale_slot=$i; stale_owner=$OWNER_CONTENT; stale_why=$HWHY; }
+    done
+    (( freed )) && continue                             # released between our mkdir and the read
+    if (( stale_slot )); then
+        set_slot $stale_slot; OWNER_CONTENT=$stale_owner; HSTATE=stale; HWHY=$stale_why
+    fi
     if [[ $HSTATE == stale ]]; then
         if (( BREAK_STALE )); then
             break_stale || sleep 1

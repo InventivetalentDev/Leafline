@@ -158,7 +158,9 @@ struct FTreeParams
 	// round the junction), and the mesh gets a skirt lying on that rounded surface, so the ant walks over the curve it sees.
 	// Twigs keep their small blend. Draws no random numbers, and leaves are placed against the field without fillets, so
 	// the tree, its leaf count and leaf order are the same either way (Leaf.Fillets).
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fillets") bool bFillets = true;
+	// Off by default since 14 Nov: with fillets on, laden recruits stuck at the same junctions every day and the colony
+	// hauled 69 in twenty Leaf.AutoPlay days against 470 without (Saved/RefShots/bird-baseline/summary.md).
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fillets") bool bFillets = false;
 	/** Fillet blend radius as a fraction of the child's base radius (the rounding reaches about this far along each surface). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fillets") float FilletFrac = 0.7f;
 	/** Multiplier on FilletFrac for boughs. */
