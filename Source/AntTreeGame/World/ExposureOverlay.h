@@ -91,6 +91,8 @@ private:
 	{
 		FVector P = FVector::ZeroVector; // on the walking surface (D = 0)
 		FVector N = FVector::UpVector;   // field normal there
+		FVector ShownP = FVector::ZeroVector; // display only: P lifted onto a junction's skirt where one covers it
+		FVector ShownN = FVector::UpVector;
 		float Size = 6.f;                // disc radius (cm)
 		float Exposure = -1.f;           // -1: no value yet (not drawn)
 		int8 Band = -1;

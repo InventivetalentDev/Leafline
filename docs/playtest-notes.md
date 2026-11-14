@@ -91,6 +91,16 @@
   - Input view: F3 (or `Leaf.InputViz`) shows where W/A/S/D would go, the actual movement and the rule in charge; the log records junction crossings and moments the ant goes against the stick. F3 is turned off before the submission build (`plan.md`, M7). In the package of 13 Nov 14:40.
   - Follow-ups the same afternoon (owner): diagonals did not work on branches (the twig snap): snap now off by default (`bSnapOnBranches`). On the side of a branch running away from the camera, W went over the top (screen-up on that patch of bark): on branches the stick is now read against how the whole branch lies on screen, with perspective, so W walks along a branch that runs up or away on screen and A/D along one that runs across it, wherever the ant is round it. Going round is limited to one lap a second (`MaxLapsPerSecond`), walking along is not. The input view draws its paths with depth, so a path that goes over an edge disappears there. In the package of 13 Nov 15:37.
   - Owner (13 Nov, after the 15:37 package): "that feels pretty good now".
+- [ ] new wind gust graphics look more like a snowstorm than wind
+  - Sent to the cues agent (14 Nov 14:00): far fewer specks, warm dust colours instead of near-white, stretched along the wind; the streaks carry the gust; the dust wall subtler. For the 17:00 package.
+- [ ] polish: add a simple controls overview to the pause menu
+  - Sent to the ui agent (14 Nov 14:00): a Controls page in the pause menu with the prompt icons, next to the new Credits page. For the 17:00 package.
+- [ ] small branches should have fillets too
+  - Sent to lk-fillet (14 Nov 14:35): fillet zones and skirts on twigs too, within a triangle and build-time budget; looks only, like the rest since the lift. For the 17:00 package.
+- [ ] polish: make scent lines different colors per run so they're easier to tell apart
+  - Sent to bd-core (14 Nov 14:35): each line its own colour from a fixed palette (cyan first; no green, amber or red, which mean exposure), trail ribbon and HUD row alike. For the 17:00 package.
+- [ ] there's not much incentive to go further up the tree than like the 2 lowest layers of branches; look into that later
+  - Noted for after the freeze (design: richer or bigger leaves higher up, the end card or milestones asking for height, wind risk as the price). Not started.
 
 ## To revisit: thin-branch controls (2026-11-12)
 

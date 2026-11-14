@@ -17,7 +17,7 @@ run() {
 	local name=$1 extra=$2 place=$3${EXTRA_CMDS:+,$EXTRA_CMDS}
 	local before after
 	before=$(ls -t "$CSVDIR"/*.csv 2>/dev/null | head -1)
-	(cd /mnt/c && timeout 400 "$ROOT/Scripts/unreal-lock.sh" "perf-$name" -- cmd.exe /c "$EXE" -windowed -ResX=1920 -ResY=1080 $extra \
+	(cd /mnt/c && timeout 400 "$ROOT/Scripts/unreal-lock.sh" "perf-$name" -- cmd.exe /c "$EXE" -windowed -ResX=1920 -ResY=1080 ${OFFSCREEN_ARGS--RenderOffscreen -nosplash} $extra \
 		"-ExecCmds=t.MaxFPS 0,r.VSync 0,Leaf.NewDay $SEED,$place,Leaf.AutoMove 1,Leaf.AutoTurn 20 wander,CsvProfile EXITONCOMPLETION,CsvProfile FRAMES=$FRAMES,Leaf.QuitAfter 300" \
 		>/dev/null 2>&1)
 	local log=$SAVED/Logs/AntTreeGame.log

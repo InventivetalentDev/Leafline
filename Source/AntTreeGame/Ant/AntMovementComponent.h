@@ -77,8 +77,13 @@ struct FAntMoveTuning
 	 *  keeps the held direction free, so you can steer onto a twig (a snap on limbs turned the ant round curving boughs). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") float SnapFullRadius = 25.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") float SnapFadeRadius = 60.f;
-	/** Screen direction: the stick centred this long (s) counts as a pause, and the next push reads the camera again. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") float PauseSeconds = 0.15f;
+	/** Screen direction: the stick centred this long (s) counts as a pause, and the next push reads the camera again.
+	 *  0.05 since 14 Nov (owner: 0.15 felt like waiting before the controls followed the camera). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") float PauseSeconds = 0.05f;
+	/** Screen direction: while you hold a direction and turn the camera yourself (mouse or right stick), the held
+	 *  direction is read from the camera again every frame, so W follows your look at once; the camera's own roll and
+	 *  follow still cannot change it. Off by default (owner's trial, 14 Nov): Leaf.Tune move bHeldFollowsLook True. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") bool bHeldFollowsLook = false;
 	/** Screen direction: a jump of the stick direction larger than this (deg, frame to frame) is a new input: the camera is read again. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") float NewInputAngleDeg = 40.f;
 	/** Screen direction: how much "away from the camera" counts as up on screen, besides screen-up itself. */
@@ -128,6 +133,8 @@ public:
 	float CarriedMass = 0.f;
 
 	/** Camera-relative move input: X right, Y forward. */
+	/** The player turned the camera this frame (mouse or right stick); read by bHeldFollowsLook. */
+	void SetPlayerLooking(bool bLooking) { bPlayerLooking = bLooking; }
 	void SetMoveInput(const FVector2D& Input, const FVector& CamForward, const FVector& CamUp, const FVector& CamLocation = FVector::ZeroVector);
 	void SetSprintInput(bool bSprint) { bSprintInput = bSprint; }
 	/** The pawn says whether the ant is on another worker's trail (checked a few times a second). */
@@ -182,6 +189,12 @@ public:
 	const FVector& GetSurfacePosition() const { return Pos; }
 	const FVector& GetSurfaceNormal() const { return SurfaceNormal; }
 	const FVector& GetBodyUp() const { return Up; }
+	/** Where the ant is drawn: its position and up lifted onto a junction's skirt when one covers it (fillets are looks
+	 *  only, the sim walks on the field without them), else the surface position and body up. Set by ApplyTransform. */
+	const FVector& GetShownPosition() const { return bShownLifted ? ShownPos : Pos; }
+	const FVector& GetShownUp() const { return bShownLifted ? ShownUp : Up; }
+	/** The component holding the ant's visuals (meshes and the carried piece): ApplyTransform moves it onto the skirt. */
+	void SetShownComponent(USceneComponent* C) { ShownComponent = C; }
 	const FVector& GetBodyForward() const { return Forward; }
 	const FVector& GetVelocity() const { return Velocity; }
 	float GetStamina() const { return Stamina; }
@@ -219,6 +232,10 @@ private:
 
 	FVector Pos = FVector::ZeroVector;
 	FVector Up = FVector::UpVector;
+	FVector ShownPos = FVector::ZeroVector;
+	FVector ShownUp = FVector::UpVector;
+	bool bShownLifted = false;
+	TWeakObjectPtr<USceneComponent> ShownComponent;
 	FVector Forward = FVector::ForwardVector;
 	FVector Velocity = FVector::ZeroVector;
 	FVector SurfaceNormal = FVector::UpVector;
@@ -285,6 +302,7 @@ private:
 	FVector HeldRight = FVector::ZeroVector;
 	FVector2D HeldStickDir = FVector2D::ZeroVector;
 	float HeldIdle = 0.f;
+	bool bPlayerLooking = false;
 	int32 SnapChoice = -1;
 
 	float FollowWait = 0.f;

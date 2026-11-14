@@ -70,15 +70,28 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	bool bInvertPitch = false;
 
-	// Pause menu: page 0 is Resume / Options / Quit, page 1 the options (sensitivity, invert, volume, graphics, back).
-	static constexpr int32 NumPauseRows = 3;
+	// Pause menu: page 0 is Resume / Controls / Options / Credits / Quit, page 1 the options (sensitivity, invert,
+	// volume, graphics, back), page 2 the credits (scrolling text and Back), page 3 the controls (bindings and Back).
+	static constexpr int32 PauseRowResume = 0;
+	static constexpr int32 PauseRowControls = 1;
+	static constexpr int32 PauseRowOptions = 2;
+	static constexpr int32 PauseRowCredits = 3;
+	static constexpr int32 PauseRowQuit = 4;
+	static constexpr int32 NumPauseRows = 5;
 	static constexpr int32 NumOptionRows = 5;
+	static constexpr int32 CreditsPage = 2;
+	static constexpr int32 ControlsPage = 3;
 	int32 GetPausePage() const { return PausePage; }
 	int32 GetPauseRow() const { return PauseRow; }
 	/** The value shown on an options row ("0.25", "On", "80%", "High"). */
 	FString GetOptionValueText(int32 Row) const;
-	/** Debug (Leaf.PauseMenu): pause and show a page and row of the pause menu. */
+	/** Debug (Leaf.PauseMenu): pause and show a page and row of the pause menu; on the credits page the row is the scroll, the controls page ignores it. */
 	void DebugShowPauseMenu(int32 Page, int32 Row);
+	/**
+	 * Pause and show the credits page, scrolled this far (1080p design pixels; negative = the end). From the title screen
+	 * Back returns to the title (unpaused), otherwise to the pause menu.
+	 */
+	void OpenCredits(float Scroll = 0.f);
 
 private:
 	void CreateInput();
@@ -92,6 +105,12 @@ private:
 	/** Left click in a menu: the item under the cursor (nest row, pause button), or "continue" on the other screens. */
 	void HandleMenuClick();
 	void ActivatePauseRow();
+	void CloseCredits();
+	void OpenControls();
+	/** Back from the options, credits or controls page to its row on the pause menu (from the title: to the title). */
+	void CloseSubPage();
+	/** Credits page: W/S or the left stick, the arrow keys and d-pad scroll smoothly, the mouse wheel in steps. */
+	void ScrollCredits(const FVector2D& Move);
 	/** Step an options row up or down (Dir +1 / -1), apply and save it. */
 	void ChangeOption(int32 Row, int32 Dir);
 	void LoadOptions();
@@ -130,4 +149,6 @@ private:
 	float MasterVolume = 1.f;
 	int32 HoverItem = INDEX_NONE;
 	FVector2D LastCursor = FVector2D(-1.0, -1.0);
+	bool bCreditsFromTitle = false; // the credits were opened from the title screen: Back unpauses to it
+	int32 CreditsWheel = 0;         // mouse wheel steps since the last frame on the credits page (+ = down)
 };

@@ -1,5 +1,7 @@
 #include "UI/LeaflineHUD.h"
 #include "UI/PromptIcons.h"
+#include "UI/Credits.h"
+#include "Misc/App.h"
 #include "Debug/LeafDebug.h"
 #include "Engine/Texture2D.h"
 #include "Game/LeaflinePlayerController.h"
@@ -1152,6 +1154,13 @@ void ALeaflineHUD::DrawTitle(const ADayDirector* D, float Scale)
 	Y += 28.f * Scale;
 	DrawTextCentered(D->GetDay() > 1 ? FString::Printf(TEXT("Press {Confirm}{orclick} to continue: day %d"), D->GetDay()) : FString(TEXT("Press {Confirm}{orclick} to begin")),
 		CX, Y, AccentColor, SecondaryText(Scale), Font);
+	// A quiet way into the credits (the controller opens them on Back, or a click on this line).
+	Y += 62.f * Scale;
+	const FString CreditsLine = TEXT("{Back}: credits");
+	const FVector2D Size = MeasureText(CreditsLine, Font, SecondaryText(Scale));
+	const float P = Style.Padding * Scale;
+	AddMenuHit(CX - Size.X * 0.5f - P, Y - 0.5f * P, Size.X + 2.f * P, Size.Y + P, MenuCredits);
+	DrawTextCentered(CreditsLine, CX, Y, IsHovered(MenuCredits) ? AccentColor : Style.Muted, SecondaryText(Scale), Font);
 }
 
 void ALeaflineHUD::DrawNest(const ADayDirector* D, float Scale)
@@ -1241,17 +1250,29 @@ void ALeaflineHUD::DrawPause(float Scale)
 	const ALeaflinePlayerController* PC = Cast<ALeaflinePlayerController>(GetOwningPlayerController());
 	const int32 Page = PC ? PC->GetPausePage() : 0;
 	const int32 Sel = PC ? PC->GetPauseRow() : 0;
-	float Y = (Page == 0 ? 240.f : 160.f) * Scale;
-	DrawPanel(CX - W * 0.5f, Y, W, (Page == 0 ? 420.f : 580.f) * Scale, Scale);
+	if (Page == ALeaflinePlayerController::CreditsPage)
+	{
+		DrawCredits(Scale);
+		return;
+	}
+	if (Page == ALeaflinePlayerController::ControlsPage)
+	{
+		DrawControls(Scale);
+		return;
+	}
+	float Y = (Page == 0 ? 170.f : 160.f) * Scale;
+	DrawPanel(CX - W * 0.5f, Y, W, (Page == 0 ? 572.f : 580.f) * Scale, Scale);
 	DrawTextCentered(Page == 0 ? TEXT("Paused") : TEXT("Options"), CX, Y, AccentColor, PrimaryText(Scale), Font);
 	Y += 74.f * Scale;
 	const float RowH = Style.MenuRow * Scale, Gap = Style.Gap * Scale;
 	if (Page == 0)
 	{
 		const float BW = 800.f * Scale;
-		const TCHAR* Labels[3] = { TEXT("Resume"), TEXT("Options"), TEXT("Quit") };
-		const int32 Ids[3] = { MenuResume, MenuOptions, MenuQuit };
-		for (int32 b = 0; b < 3; ++b)
+		constexpr int32 N = ALeaflinePlayerController::NumPauseRows;
+		// In the order of ALeaflinePlayerController's PauseRow constants.
+		const TCHAR* Labels[N] = { TEXT("Resume"), TEXT("Controls"), TEXT("Options"), TEXT("Credits"), TEXT("Quit") };
+		const int32 Ids[N] = { MenuResume, MenuControls, MenuOptions, MenuCredits, MenuQuit };
+		for (int32 b = 0; b < N; ++b)
 		{
 			AddMenuHit(CX - BW * 0.5f, Y, BW, RowH, Ids[b]);
 			const bool bOn = Sel == b || IsHovered(Ids[b]);
@@ -1294,4 +1315,172 @@ void ALeaflineHUD::DrawPause(float Scale)
 	Y += Style.Gap * Scale;
 	Y += DrawWrappedText(TEXT("{Choose}: choose      {Change}{orclick}: change"), CX, Y, W, TextColor, SecondaryText(Scale), Scale) + Style.Padding * Scale;
 	DrawWrappedText(TEXT("{Confirm}: change or back      {Back}: back"), CX, Y, W, Style.Muted, SecondaryText(Scale), Scale);
+}
+
+void ALeaflineHUD::ScrollCredits(float DesignPixels)
+{
+	CreditsScroll = FMath::Max(0.f, CreditsScroll + DesignPixels);
+	if (CreditsMaxScroll >= 0.f) CreditsScroll = FMath::Min(CreditsScroll, CreditsMaxScroll);
+}
+
+void ALeaflineHUD::ResetCreditsScroll(float DesignPixels)
+{
+	CreditsScroll = DesignPixels < 0.f ? TNumericLimits<float>::Max() : DesignPixels;
+	CreditsMaxScroll = -1.f;
+	bCreditsJustOpened = true;
+}
+
+void ALeaflineHUD::DrawCredits(float Scale)
+{
+	UFont* Font = GEngine->GetMediumFont();
+	const float CX = Canvas->ClipX * 0.5f, W = Style.CardWidth * Scale;
+	const float Top = 110.f * Scale, H = 860.f * Scale;
+	const float TextScale = SecondaryText(Scale);
+	DrawPanel(CX - W * 0.5f, Top, W, H, Scale);
+	DrawTextCentered(TEXT("Credits"), CX, Top, AccentColor, PrimaryText(Scale), Font);
+
+	// Bottom up: the prompt line, the Back button, then the window the rows scroll in.
+	const float PromptH = MeasureText(TEXT("{Back}: back"), Font, TextScale).Y;
+	const float PromptY = Top + H - PromptH;
+	const float BackH = Style.MenuRow * Scale, BackY = PromptY - Style.Padding * Scale - BackH;
+	const float ViewTop = Top + (Style.PrimaryHeight + Style.Gap) * Scale, ViewBottom = BackY - 2.f * Style.Gap * Scale;
+	// The canvas cannot clip, so rows fade out over a band of one row at each edge of the window and are left out once
+	// they reach it. The text starts and ends one band inside the window, so nothing is faded before scrolling.
+	const float Step = Style.Row * Scale, Band = Style.Row * Scale;
+	const float WrapWidth = W - 96.f * Scale; // clear of the scroll bar on the right
+
+	struct FLine
+	{
+		FString Text;
+		FLinearColor Color;
+		float Y = 0.f; // from the top of the text
+	};
+	TArray<FLine> Lines;
+	float ContentH = 0.f;
+	const TArray<LeafCredits::FRow>& Rows = LeafCredits::Get();
+	for (const LeafCredits::FRow& R : Rows)
+	{
+		if (R.Kind == LeafCredits::ERowKind::Gap)
+		{
+			ContentH += Step;
+			continue;
+		}
+		const FLinearColor& Color = R.Kind == LeafCredits::ERowKind::Heading ? AccentColor : TextColor;
+		for (const FString& Part : WrapText(R.Text, WrapWidth, TextScale))
+		{
+			Lines.Add({ Part, Color, ContentH });
+			ContentH += Step;
+		}
+	}
+	const float Visible = ViewBottom - ViewTop - 2.f * Band;
+	const float MaxScroll = FMath::Max(0.f, ContentH - Visible) / Scale;
+	CreditsMaxScroll = MaxScroll;
+	CreditsScroll = FMath::Clamp(CreditsScroll, 0.f, MaxScroll);
+	if (bCreditsJustOpened)
+	{
+		bCreditsJustOpened = false;
+		CreditsScrollShown = CreditsScroll;
+		UE_LOG(LogLeafline, Log, TEXT("Credits page: %d lines from %d rows, text %.0f px, window %.0f px, scroll %.0f of %.0f (design px), canvas %.0fx%.0f"),
+			Lines.Num(), Rows.Num(), ContentH / Scale, Visible / Scale, CreditsScroll, MaxScroll, Canvas->ClipX, Canvas->ClipY);
+	}
+	else
+	{
+		CreditsScrollShown = FMath::FInterpTo(CreditsScrollShown, CreditsScroll, FApp::GetDeltaTime(), 16.f);
+	}
+
+	const float Origin = ViewTop + Band - CreditsScrollShown * Scale;
+	for (const FLine& L : Lines)
+	{
+		const float Y = Origin + L.Y;
+		const float A = FMath::Min((Y - ViewTop) / Band, (ViewBottom - (Y + Step)) / Band);
+		if (A <= 0.01f) continue;
+		const float Fade = FMath::Min(A, 1.f);
+		DrawTextCentered(L.Text, CX, Y, FLinearColor(L.Color.R, L.Color.G, L.Color.B, L.Color.A * Fade), TextScale, Font);
+	}
+	if (MaxScroll > 0.f)
+	{
+		const float TrackW = 4.f * Scale, TrackX = CX + W * 0.5f - TrackW, TrackH = ViewBottom - ViewTop;
+		const float ThumbH = FMath::Max(TrackH * Visible / FMath::Max(ContentH, 1.f), 24.f * Scale);
+		DrawRect(Style.Track, TrackX, ViewTop, TrackW, TrackH);
+		DrawRect(AccentColor, TrackX, ViewTop + (TrackH - ThumbH) * FMath::Clamp(CreditsScrollShown / MaxScroll, 0.f, 1.f), TrackW, ThumbH);
+	}
+
+	// Back is the only button, so it is always the selected one.
+	const float BW = 800.f * Scale;
+	AddMenuHit(CX - BW * 0.5f, BackY, BW, BackH, MenuPageBack);
+	DrawRect(Style.Selection, CX - BW * 0.5f, BackY, BW, BackH);
+	DrawTextCentered(TEXT("Back"), CX, BackY + Style.Padding * Scale, AccentColor, PrimaryText(Scale), Font);
+	DrawTextCentered(MaxScroll > 0.f ? TEXT("{Choose}: scroll      {Back}: back") : TEXT("{Back}: back"), CX, PromptY, TextColor, TextScale, Font);
+}
+
+void ALeaflineHUD::DrawControls(float Scale)
+{
+	UFont* Font = GEngine->GetMediumFont();
+	const float CX = Canvas->ClipX * 0.5f, W = Style.CardWidth * Scale;
+	const float TextScale = SecondaryText(Scale);
+	const ABirdSystem* Bird = ABirdSystem::Get(this);
+
+	// The buttons come from the prompt tokens, so they show the device in use like every other prompt; PromptIcons.cpp
+	// keeps the tokens in step with the bindings in ALeaflinePlayerController::CreateInput.
+	struct FControlRow
+	{
+		const TCHAR* Keys;
+		const TCHAR* Label;
+	};
+	TArray<FControlRow> Rows = {
+		{ TEXT("{Move}"), TEXT("move") },
+		{ TEXT("{Look}"), TEXT("look") },
+		{ TEXT("{Sprint}"), TEXT("sprint") },
+		{ TEXT("{Cut}"), TEXT("cut (hold)") },
+		{ TEXT("{Send}"), TEXT("send home") },
+		{ TEXT("{Follow}"), TEXT("follow a trail (hold)") },
+		{ TEXT("{Grip}"), Bird && Bird->IsBirdOn() ? TEXT("grip in a gust or a dive (hold)") : TEXT("grip in a gust (hold)") },
+		{ TEXT("{Cycle}"), TEXT("switch ant (tap), wind map (hold)") },
+		{ TEXT("{Pause}"), TEXT("pause") },
+	};
+	if (Bird && Bird->IsBaitOn()) Rows.Add({ TEXT("{Drop}"), TEXT("drop your piece for the bird") });
+
+	// Two columns centred as a block: the buttons right-aligned, the action beside them.
+	const float LineH = MeasureText(TEXT("Ag"), Font, TextScale).Y;
+	float KeysW = 0.f, LabelW = 0.f, RowH = LineH;
+	for (const FControlRow& R : Rows)
+	{
+		const FVector2D K = MeasureText(R.Keys, Font, TextScale);
+		KeysW = FMath::Max(KeysW, float(K.X));
+		RowH = FMath::Max(RowH, float(K.Y));
+		LabelW = FMath::Max(LabelW, float(MeasureText(R.Label, Font, TextScale).X));
+	}
+	const float ColGap = 2.f * Style.Gap * Scale;
+	const float ColX = CX - 0.5f * (KeysW + ColGap + LabelW) + KeysW;
+	const float Step = RowH + Style.Gap * Scale;
+	const FString Device = UsingPad() ? TEXT("Showing the pad. A key or the mouse shows the keyboard.")
+		: TEXT("Showing keyboard and mouse. A pad button shows the pad.");
+	const FString Prompt = TEXT("{Back}: back");
+	const float PromptH = MeasureText(Prompt, Font, TextScale).Y;
+	const float BackH = Style.MenuRow * Scale;
+
+	// Title, the rows, the device line, Back and the prompt: the same steps as drawn below.
+	const float H = (Style.PrimaryHeight + Style.Gap + Style.Row) * Scale + Rows.Num() * Step + 2.f * Style.Row * Scale
+		+ BackH + Style.Padding * Scale + PromptH;
+	float Y = FMath::RoundToFloat((Canvas->ClipY - H) * 0.5f);
+	DrawPanel(CX - W * 0.5f, Y, W, H, Scale);
+	DrawTextCentered(TEXT("Controls"), CX, Y, AccentColor, PrimaryText(Scale), Font);
+	Y += (Style.PrimaryHeight + Style.Gap + Style.Row) * Scale;
+	for (const FControlRow& R : Rows)
+	{
+		DrawTextAt(R.Keys, ColX - MeasureText(R.Keys, Font, TextScale).X, Y, TextColor, TextScale, Font);
+		DrawTextAt(R.Label, ColX + ColGap, Y + 0.5f * (RowH - LineH), TextColor, TextScale, Font);
+		Y += Step;
+	}
+	Y += Style.Row * Scale - Style.Gap * Scale;
+	DrawTextCentered(Device, CX, Y, Style.Muted, TextScale, Font);
+	Y += Style.Row * Scale + Style.Gap * Scale;
+
+	// Back is the only button, so it is always the selected one (as on the credits page).
+	const float BW = 800.f * Scale;
+	AddMenuHit(CX - BW * 0.5f, Y, BW, BackH, MenuPageBack);
+	DrawRect(Style.Selection, CX - BW * 0.5f, Y, BW, BackH);
+	DrawTextCentered(TEXT("Back"), CX, Y + Style.Padding * Scale, AccentColor, PrimaryText(Scale), Font);
+	Y += BackH + Style.Padding * Scale;
+	DrawTextCentered(Prompt, CX, Y, TextColor, TextScale, Font);
 }

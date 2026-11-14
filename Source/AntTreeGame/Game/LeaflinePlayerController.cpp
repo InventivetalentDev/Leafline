@@ -7,6 +7,7 @@
 #include "Debug/LeafDebug.h"
 #include "Game/Upgrades.h"
 #include "UI/LeaflineHUD.h"
+#include "UI/Credits.h"
 #include "World/DayDirector.h"
 #include "World/ExposureOverlay.h"
 #include "EnhancedInputSubsystems.h"
@@ -218,7 +219,15 @@ void ALeaflinePlayerController::PlayerTick(float DeltaTime)
 		// Menus: the stick or W/S moves the selection; the ant stands still.
 		Nav = Move.Y > 0.5 ? -1 : (Move.Y < -0.5 ? 1 : 0);
 		const int32 NavX = Move.X > 0.5 ? 1 : (Move.X < -0.5 ? -1 : 0);
-		if (IsPaused())
+		if (IsPaused() && PausePage == CreditsPage)
+		{
+			ScrollCredits(Move);
+		}
+		else if (IsPaused() && PausePage == ControlsPage)
+		{
+			// Nothing to choose: Back is the only button.
+		}
+		else if (IsPaused())
 		{
 			const int32 Rows = PausePage == 0 ? NumPauseRows : NumOptionRows;
 			if (Nav != 0 && Nav != SpareInt)
@@ -250,6 +259,7 @@ void ALeaflinePlayerController::PlayerTick(float DeltaTime)
 		if (UAntMovementComponent* M = Ant->GetAntMovement())
 		{
 			M->SetMoveInput(Move, AntCamera->GetViewForward(), AntCamera->GetViewUp(), AntCamera->GetActorLocation());
+			M->SetPlayerLooking(!bMenu && !Look.IsNearlyZero(0.01));
 			M->SetSprintInput((Held & LeafButtons::Sprint) != 0);
 		}
 		Ant->SetActionInput(!bMenu && (Held & LeafButtons::Cut) != 0, (Held & LeafButtons::Follow) != 0, (Held & LeafButtons::Grip) != 0);
@@ -268,6 +278,11 @@ bool ALeaflinePlayerController::InputKey(const FInputKeyEventArgs& Params)
 	// Prompts follow the device in use: a pad button or a clear stick or trigger push switches to pad icons; a key, a
 	// mouse button or a real mouse movement switches back.
 	const FKey& Key = Params.Key;
+	// The wheel arrives as a press and release per notch; count them for the credits page's scroll.
+	if (Params.Event == IE_Pressed && (Key == EKeys::MouseScrollUp || Key == EKeys::MouseScrollDown) && IsPaused() && PausePage == CreditsPage)
+	{
+		CreditsWheel += Key == EKeys::MouseScrollDown ? 1 : -1;
+	}
 	if (Key.IsGamepadKey())
 	{
 		if (Params.Event == IE_Pressed || (Key.IsAnalog() && FMath::Abs(Params.AmountDepressed) > 0.35f)) bUsingGamepad = true;
@@ -350,9 +365,11 @@ void ALeaflinePlayerController::UpdateMenuCursor(bool bMenu, const FVector2D& Mo
 	{
 		if (PausePage == 0)
 		{
-			if (HoverItem == ALeaflineHUD::MenuResume) PauseRow = 0;
-			else if (HoverItem == ALeaflineHUD::MenuOptions) PauseRow = 1;
-			else if (HoverItem == ALeaflineHUD::MenuQuit) PauseRow = 2;
+			if (HoverItem == ALeaflineHUD::MenuResume) PauseRow = PauseRowResume;
+			else if (HoverItem == ALeaflineHUD::MenuControls) PauseRow = PauseRowControls;
+			else if (HoverItem == ALeaflineHUD::MenuOptions) PauseRow = PauseRowOptions;
+			else if (HoverItem == ALeaflineHUD::MenuCredits) PauseRow = PauseRowCredits;
+			else if (HoverItem == ALeaflineHUD::MenuQuit) PauseRow = PauseRowQuit;
 		}
 		else if (HoverItem >= ALeaflineHUD::MenuOptRow && HoverItem < ALeaflineHUD::MenuOptRow + NumOptionRows)
 		{
@@ -377,6 +394,9 @@ void ALeaflinePlayerController::HandleMenuClick()
 			PausePage = 1;
 			PauseRow = 0;
 		}
+		else if (HoverItem == ALeaflineHUD::MenuCredits) OpenCredits();
+		else if (HoverItem == ALeaflineHUD::MenuControls) OpenControls();
+		else if (HoverItem == ALeaflineHUD::MenuPageBack) CloseSubPage();
 		else if (HoverItem >= ALeaflineHUD::MenuOptMinus && HoverItem < ALeaflineHUD::MenuOptMinus + NumOptionRows) ChangeOption(HoverItem - ALeaflineHUD::MenuOptMinus, -1);
 		else if (HoverItem >= ALeaflineHUD::MenuOptPlus && HoverItem < ALeaflineHUD::MenuOptPlus + NumOptionRows) ChangeOption(HoverItem - ALeaflineHUD::MenuOptPlus, 1);
 		else if (HoverItem >= ALeaflineHUD::MenuOptRow && HoverItem < ALeaflineHUD::MenuOptRow + NumOptionRows)
@@ -388,6 +408,12 @@ void ALeaflinePlayerController::HandleMenuClick()
 	}
 	ADayDirector* D = Director.Get();
 	if (!D || !D->IsMenuPhase()) return;
+	if (D->GetPhase() == EDayPhase::Title && HoverItem == ALeaflineHUD::MenuCredits)
+	{
+		LeafSound::Play(this, TEXT("ui_confirm"), 0.6f);
+		OpenCredits();
+		return;
+	}
 	if (D->GetPhase() == EDayPhase::Nest)
 	{
 		// Only a click on a row buys or starts; a stray click beside the list does nothing.
@@ -403,9 +429,87 @@ void ALeaflinePlayerController::HandleMenuClick()
 
 void ALeaflinePlayerController::DebugShowPauseMenu(int32 Page, int32 Row)
 {
+	if (Page == CreditsPage)
+	{
+		OpenCredits(float(Row));
+		return;
+	}
+	if (Page == ControlsPage)
+	{
+		if (!IsPaused()) SetPause(true);
+		OpenControls();
+		return;
+	}
 	if (!IsPaused()) SetPause(true);
 	PausePage = FMath::Clamp(Page, 0, 1);
 	PauseRow = FMath::Clamp(Row, 0, (PausePage == 0 ? NumPauseRows : NumOptionRows) - 1);
+}
+
+void ALeaflinePlayerController::OpenCredits(float Scroll)
+{
+	if (!Director.IsValid()) Director = ADayDirector::Get(this);
+	// Opened again while showing (Leaf.PauseMenu 2 with another scroll): keep where Back goes.
+	const bool bFromTitle = IsPaused() ? (PausePage == CreditsPage && bCreditsFromTitle)
+		: (Director.IsValid() && Director->GetPhase() == EDayPhase::Title);
+	if (!IsPaused() && !SetPause(true)) return;
+	bCreditsFromTitle = bFromTitle;
+	PausePage = CreditsPage;
+	PauseRow = 0;
+	CreditsWheel = 0;
+	LeafCredits::Reload(); // so edits to credits.txt show without a restart
+	if (ALeaflineHUD* Hud = Cast<ALeaflineHUD>(GetHUD())) Hud->ResetCreditsScroll(Scroll);
+	UE_LOG(LogLeafline, Log, TEXT("Credits opened from the %s"), bFromTitle ? TEXT("title screen") : TEXT("pause menu"));
+}
+
+void ALeaflinePlayerController::CloseCredits()
+{
+	PausePage = 0;
+	if (bCreditsFromTitle)
+	{
+		bCreditsFromTitle = false;
+		PauseRow = 0;
+		SetPause(false);
+		UE_LOG(LogLeafline, Log, TEXT("Credits closed: back to the title screen"));
+		return;
+	}
+	PauseRow = PauseRowCredits;
+	UE_LOG(LogLeafline, Log, TEXT("Credits closed: back to the pause menu"));
+}
+
+void ALeaflinePlayerController::OpenControls()
+{
+	PausePage = ControlsPage;
+	PauseRow = 0;
+	UE_LOG(LogLeafline, Log, TEXT("Controls page opened (%s prompts)"), bUsingGamepad ? TEXT("pad") : TEXT("keyboard and mouse"));
+}
+
+void ALeaflinePlayerController::CloseSubPage()
+{
+	if (PausePage == CreditsPage)
+	{
+		CloseCredits();
+		return;
+	}
+	const bool bControls = PausePage == ControlsPage;
+	PausePage = 0;
+	PauseRow = bControls ? PauseRowControls : PauseRowOptions;
+	if (bControls) UE_LOG(LogLeafline, Log, TEXT("Controls page closed: back to the pause menu"));
+}
+
+void ALeaflinePlayerController::ScrollCredits(const FVector2D& Move)
+{
+	ALeaflineHUD* Hud = Cast<ALeaflineHUD>(GetHUD());
+	if (!Hud) return;
+	// Up on the stick, W or the up arrow goes up the page, towards the start.
+	float Dir = -float(Move.Y);
+	if (IsInputKeyDown(EKeys::Down) || IsInputKeyDown(EKeys::Gamepad_DPad_Down)) Dir += 1.f;
+	if (IsInputKeyDown(EKeys::Up) || IsInputKeyDown(EKeys::Gamepad_DPad_Up)) Dir -= 1.f;
+	Dir = FMath::Clamp(Dir, -1.f, 1.f);
+	constexpr float Speed = 600.f;    // design pixels per second at full tilt
+	constexpr float WheelStep = 96.f; // design pixels per wheel notch: three rows
+	const float Delta = Dir * Speed * FApp::GetDeltaTime() + CreditsWheel * WheelStep;
+	CreditsWheel = 0;
+	if (Delta != 0.f) Hud->ScrollCredits(Delta);
 }
 
 void ALeaflinePlayerController::ActivatePauseRow()
@@ -414,19 +518,20 @@ void ALeaflinePlayerController::ActivatePauseRow()
 	bSwallowConfirm = true;
 	if (PausePage == 0)
 	{
-		if (PauseRow == 0) SetPause(false);
-		else if (PauseRow == 1)
+		if (PauseRow == PauseRowResume) SetPause(false);
+		else if (PauseRow == PauseRowControls) OpenControls();
+		else if (PauseRow == PauseRowOptions)
 		{
 			PausePage = 1;
 			PauseRow = 0;
 		}
+		else if (PauseRow == PauseRowCredits) OpenCredits();
 		else ConsoleCommand(TEXT("quit"));
 		return;
 	}
-	if (PauseRow >= NumOptionRows - 1)
+	if (PausePage == CreditsPage || PausePage == ControlsPage || PauseRow >= NumOptionRows - 1)
 	{
-		PausePage = 0;
-		PauseRow = 1;
+		CloseSubPage();
 		return;
 	}
 	ChangeOption(PauseRow, 1);
@@ -525,6 +630,7 @@ void ALeaflinePlayerController::HandleButtons(uint32 Pressed)
 		SetPause(!IsPaused());
 		PausePage = 0;
 		PauseRow = 0;
+		bCreditsFromTitle = false;
 		return;
 	}
 	if (IsPaused())
@@ -532,11 +638,7 @@ void ALeaflinePlayerController::HandleButtons(uint32 Pressed)
 		if (Pressed & LeafButtons::SendHome)
 		{
 			if (PausePage == 0) ConsoleCommand(TEXT("quit"));
-			else
-			{
-				PausePage = 0;
-				PauseRow = 1;
-			}
+			else CloseSubPage();
 		}
 		else if (Pressed & (LeafButtons::Cut | LeafButtons::Grip))
 		{
@@ -549,6 +651,13 @@ void ALeaflinePlayerController::HandleButtons(uint32 Pressed)
 	if (!D) return;
 	if (D->IsMenuPhase())
 	{
+		// Back does nothing else on the title screen: there it opens the credits.
+		if (D->GetPhase() == EDayPhase::Title && (Pressed & LeafButtons::SendHome))
+		{
+			LeafSound::Play(this, TEXT("ui_confirm"), 0.6f);
+			OpenCredits();
+			return;
+		}
 		if (Pressed & (LeafButtons::Cut | LeafButtons::Grip)) D->MenuConfirm();
 		if (Pressed & LeafButtons::SendHome) D->MenuBack();
 		return;

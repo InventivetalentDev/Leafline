@@ -89,7 +89,20 @@ public:
 	int32 CountPiecesLeft(float Template = 0.5f, float UsePerCut = 0.38f) const;
 
 	const FTreeSkeleton& GetSkeleton() const { return Skeleton; }
+	/** The walking field: what the whole sim asks (walking, recruits, trails, falls, wind, exposure). With fillets and
+	 *  FTreeParams::bFilletWalk it has the fillets (the ants walk on the skirts' surface); otherwise it has none. Leaves are
+	 *  placed against the field without fillets either way, so leaf count and order do not depend on them. */
 	const FTreeField& GetField() const { return Field; }
+	/** The surface the bark mesh shows: with fillets, the field with them (the skirts lie on it; the walking field itself
+	 *  when the ants walk on the fillets); otherwise the walking field. The skirts, the camera's bark cutaway, fillet debug. */
+	const FTreeField& GetVisualField() const { return SkirtField.HasFillets() ? SkirtField : Field; }
+	/** Display only: moves P (Height above the walking field) onto the skirts, Height above the skirt field, with its normal,
+	 *  where a junction's skirt covers it; false (P and N untouched) where nothing covers it or fillets are off. Ants, trail
+	 *  ribbons and exposure spots are drawn there while the sim keeps the walking position. When the ants walk on the
+	 *  fillets this only lifts what lies under them (a trail recorded on the field without fillets). */
+	bool LiftOntoSkirts(FVector& P, FVector& N, double Height) const;
+	/** Counts tree regrowths (GrowShape), so display caches built on the old shape can tell. */
+	int32 GetShapeVersion() const { return ShapeVersion; }
 	int32 GetSeed() const { return Skeleton.Seed; }
 
 	using FPatchRules = FTreePatchRules;
@@ -141,6 +154,8 @@ public:
 	static void SetFilletsOverride(bool bOn, float Frac = -1.f, float Max = -1.f, float BoughMul = -1.f, float GroundK = -1.f);
 	/** P with the fillet overrides applied. */
 	static FTreeParams WithFilletOverrides(const FTreeParams& P);
+	/** Leaf.FilletWalk: the sim walks on the fillets (1) or they are looks only (0); -1 leaves it to FTreeParams::bFilletWalk. */
+	static void SetFilletWalkOverride(int32 Walk);
 
 private:
 	/** M_TreeBark2 if the new bark is on and the asset exists, else BarkMaterial. */
@@ -191,6 +206,11 @@ private:
 
 	FTreeSkeleton Skeleton;
 	FTreeField Field;
+	/** With fillets on but not walked on: the field with them, which the skirts are built on (GetVisualField). Empty otherwise. */
+	FTreeField SkirtField;
+	/** With fillets in the walking field: the field without them, which the leaves are placed against. Empty otherwise. */
+	FTreeField PlainField;
+	int32 ShapeVersion = 0;
 	FLeafSet Leaves;
 	FLeafSet GroveLeaves;
 
