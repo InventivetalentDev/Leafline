@@ -149,9 +149,32 @@ namespace
 		D->StartDay(D->GetDay());
 	}
 
+	/** Leaf.FilletWalk [0|1]: the sim walks on the fillets (1) or they are looks only (0); toggles without an argument. Today's
+	 *  tree grows again, fresh. */
+	void FilletWalk(UWorld* World, const TArray<FString>& Args)
+	{
+		ADayDirector* D = ADayDirector::Get(World);
+		ATreeActor* Tree = ATreeActor::Get(World);
+		ULeaflineGameInstance* GI = World ? Cast<ULeaflineGameInstance>(World->GetGameInstance()) : nullptr;
+		if (!D || !Tree || !GI) return;
+		const bool bWalk = Args.Num() > 0 ? FCString::Atoi(*Args[0]) != 0 : !Tree->GetField().HasFillets();
+		ATreeActor::SetFilletWalkOverride(bWalk ? 1 : 0);
+		UE_LOG(LogLeafline, Log, TEXT("Leaf.FilletWalk: the ants walk %s the fillets; growing tree %d again, fresh"),
+			bWalk ? TEXT("on") : TEXT("under (looks only)"), D->GetStage() + 1);
+		GI->SetTree(D->GetStage(), GI->GetTreeSeed(), GI->GetStageStartDay());
+		GI->SetTreeState({}, 0, {}, 0);
+		D->DebugForceRegrow();
+		D->StartDay(D->GetDay());
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs CmdFilletWalk(
+		TEXT("Leaf.FilletWalk"),
+		TEXT("Leaf.FilletWalk [0|1]: with fillets on, the sim walks on them (1, default) or they are looks only and the ants are drawn lifted onto the skirts (0); no argument toggles. Grows today's tree again, fresh."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World) { FilletWalk(World, Args); }));
+
 	FAutoConsoleCommandWithWorldAndArgs CmdFillets(
 		TEXT("Leaf.Fillets"),
-		TEXT("Leaf.Fillets [0|1] [frac] [max] [boughmul] [groundk] [twigmin]: skirts that round the junctions of limbs, boughs and roots (and of the trunk and roots with the ground) in the bark mesh (1, default) or not (0); the walking field never has them; no argument toggles; optional fillet radius as a fraction of the child's radius, its cap in cm, the bough multiplier, the ground blend in cm (0 keeps the plain one), the smallest twig base radius with a fillet in cm (1000: no twig fillets). Grows today's tree again, fresh."),
+		TEXT("Leaf.Fillets [0|1] [frac] [max] [boughmul] [groundk] [twigmin]: skirts that round the junctions of limbs, boughs, twigs and roots (and of the trunk and roots with the ground) in the bark mesh (1, default) or not (0); the ants walk on them unless Leaf.FilletWalk 0; no argument toggles; optional fillet radius as a fraction of the child's radius, its cap in cm, the bough multiplier, the ground blend in cm (0 keeps the plain one), the smallest twig base radius with a fillet in cm (1000: no twig fillets). Grows today's tree again, fresh."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World) { Fillets(World, Args); }));
 
 	/**

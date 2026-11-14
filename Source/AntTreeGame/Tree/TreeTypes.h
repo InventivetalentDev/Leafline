@@ -155,13 +155,17 @@ struct FTreeParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh") float CollarLength = 1.2f;
 
 	// Fillets: where a limb, bough or root leaves its parent, the mesh gets a skirt that rounds the corner (a field with a
-	// larger blend round the junction, which the skirt lies on). Twigs keep their crease. Looks only: the walking field and
-	// everything else the sim asks never has fillets (ATreeActor::GetField), so the sim is the same either way, and the ant
-	// sinks into a skirt by up to the fillet's lift. Draws no random numbers (Leaf.Fillets).
-	// 14 Nov: with fillets in the walking field too, laden recruits stuck at the same junctions every day and the colony
-	// hauled 69 in twenty Leaf.AutoPlay days against 470 without (Saved/RefShots/bird-baseline/summary.md); the owner
-	// asked for the skirts without the collision.
+	// larger blend round the junction, which the skirt lies on). Twigs keep their crease. Draws no random numbers, and
+	// leaves are placed against the field without fillets, so the tree, its leaf count and leaf order are the same either
+	// way (Leaf.Fillets). With bFilletWalk the sim walks on them; without, they are looks only.
+	// 14 Nov: with fillets in the walking field, laden recruits stuck at the same junctions every day (69 hauled in twenty
+	// Leaf.AutoPlay days against 470 without, Saved/RefShots/bird-baseline/summary.md): followers crept at 1 cm/s along
+	// route steps that run through the wood. Fixed in UAntMovementComponent::TickFollow (488 hauled, no rescues).
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fillets") bool bFillets = true;
+	/** With fillets on, the sim walks on them: the walking field is the field with fillets, so ants climb over the rounded
+	 *  junction they see (owner: the fillets add a lot to the visuals). Off: the skirts are looks only and the ants are drawn
+	 *  lifted onto them while the sim walks on the field without fillets (Leaf.FilletWalk). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fillets") bool bFilletWalk = true;
 	/** Fillet blend radius as a fraction of the child's base radius (the rounding reaches about this far along each surface). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fillets") float FilletFrac = 0.7f;
 	/** Multiplier on FilletFrac for boughs. */
