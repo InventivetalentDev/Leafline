@@ -10,7 +10,9 @@
 #   limb                  (in PASSES) on a limb, the wind running across its surface: LIMB (default "Leaf.Teleport 21 0.4")
 #   leaf / leafgrip       (in PASSES) beside a cuttable leaf (Leaf.GoLeaf, the usual play view); leafgrip grips as the gust rises
 #   Placement and aim happen only when the spot changes, so off and on passes of one spot see the same bark.
-#   Negative AT values shoot before the gust (calm).
+#   Negative AT values shoot before the gust (calm). OFFSET (seconds, default 0) starts every pass later, e.g. to run
+#   commands first in TUNE (shift 3: "Leaf.Delay 1.1 Leaf.Carry 1,Leaf.Delay 1.3 Leaf.SendHome,Leaf.Delay 3.1 Leaf.Carry 1,
+#   Leaf.Delay 3.3 Leaf.SendHome" with OFFSET=5).
 # Environment: ROOT (default this script's tree), SEED, AIM (camera yaw relative to the wind: 0 downwind, 180 upwind,
 #   default 90), PITCH (default -12), TUNE (commands run first, e.g. "Leaf.Tune wind CueFrontSpeed 500"),
 #   AT (seconds after the gust for each shot, default "1.0 2.0 2.6 3.2 4.5"; grip "3.45 3.6 3.75 4.4 5.6"),
@@ -47,7 +49,7 @@ for pass in $PASSES; do
 	case "$spot" in leaf|leafgrip) PLACE="Leaf.GoLeaf" ;; esac
 	GRIP=0; case "$spot" in grip|leafgrip) GRIP=1 ;; esac
 	onoff=off; [ "$c" = 1 ] && onoff=on
-	B=$((6 + 14 * k))
+	B=$((${OFFSET:-0} + 6 + 14 * k))
 	G=$(echo "$B + 0.2" | bc)
 	PAIM=$AIM
 	for fv in ${tune//\// }; do [ "${fv%%=*}" = AIM ] && PAIM=${fv#*=}; done
@@ -72,7 +74,7 @@ for pass in $PASSES; do
 	done
 	k=$((k + 1))
 done
-T=$((6 + 14 * k))
+T=$((${OFFSET:-0} + 6 + 14 * k))
 LOG=CuesTest-$MODE.log
 SHOTDIR=$ROOT/Saved/Screenshots/WindowsEditor
 OUT=$ROOT/Saved/RefShots

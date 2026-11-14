@@ -1,6 +1,7 @@
 #include "World/WindCues.h"
 #include "AntTreeGame.h"
 #include "World/WindSystem.h"
+#include "Colony/LineSystem.h"
 #include "Ant/AntPawn.h"
 #include "Ant/AntMovementComponent.h"
 #include "ProceduralMeshComponent.h"
@@ -229,17 +230,21 @@ bool AWindCues::ComputeAir(FAir& Air, float Dt)
 	case EWindPhase::Holding: Tau = -(T.Rising + Dur - Left); break;
 	default: Air.bFront = false; break;
 	}
-	Air.bFrontEdge = W->GetPhase() == EWindPhase::Warning || W->GetPhase() == EWindPhase::Rising;
+	// The watched harvest runs the wind clock several times faster: a front and its dust wall would flash past every few
+	// seconds, so there the air shows the wind's strength only (as the old streaks did).
+	const ALineSystem* Lines = ALineSystem::Get(this);
+	if (Lines && Lines->GetSpeedFactor() > 1.5f) Air.bFront = false;
+	Air.bFrontEdge = Air.bFront && (W->GetPhase() == EWindPhase::Warning || W->GetPhase() == EWindPhase::Rising);
 	Air.SFront = (float)FVector::DotProduct(Ref, Air.W) - T.CueFrontSpeed * Tau;
 	Air.GustAir = T.CueFrontLevel * W->GetGustPeak();
 	Air.Band = FMath::Max(T.CueFrontBand, 10.f);
-	if (W->GetPhase() == EWindPhase::Warning)
+	if (Air.bFront && W->GetPhase() == EWindPhase::Warning)
 	{
 		const float Progress = 1.f - FMath::Clamp(Left / FMath::Max(Dur, 0.01f), 0.f, 1.f);
 		Air.Strength = FMath::Max(Air.Strength, T.CuePrecursor * Air.GustAir * Progress);
 		Air.FrontHaze = FMath::SmoothStep(0.f, 0.6f, Dur - Left); // fades in at the start of the warning
 	}
-	else if (W->GetPhase() == EWindPhase::Rising)
+	else if (Air.bFront && W->GetPhase() == EWindPhase::Rising)
 	{
 		Air.FrontHaze = FMath::Square(FMath::Clamp(Left / FMath::Max(Dur, 0.01f), 0.f, 1.f)); // and out as the gust rises
 	}
@@ -253,7 +258,8 @@ bool AWindCues::ComputeAir(FAir& Air, float Dt)
 			ExposureTimer = 0.2f;
 			Exposure = W->GetExposure(Air.AntPos, Air.AntN);
 		}
-		Air.Shelter = 1.f - FMath::SmoothStep(0.15f, 0.6f, Exposure);
+		// Full below the HUD's sheltered line (0.25), gone soon above it, where the HUD says to grip.
+		Air.Shelter = 1.f - FMath::SmoothStep(0.12f, 0.32f, Exposure);
 		Air.AntAir = GustAmount(AirAt(Air, Air.AntPos));
 		PocketNow = FMath::FInterpTo(PocketNow, T.CueShelterRadius * Air.Shelter, Dt, 4.f);
 		Air.Pocket = PocketNow;
