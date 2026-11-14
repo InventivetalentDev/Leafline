@@ -248,6 +248,18 @@ Tagged `pre-look` before it started. Commits start `Look:` (and `HUD:` for the H
 2. Taking control of an ant that is already returning.
 3. Walking on leaf blades.
 
+## M6a: Saturday 14 Nov (owner chose: the bird, in-world wind cues, the video kit; freeze 23:00)
+
+Agents in herdr tab `sat`; the main session merges, builds materials and imports, and packages.
+
+- [ ] Baseline before the bird (bird brief test 1): `Tools/tree_test.sh auto20` twice, fillets on (Sonnet `bd-base`). Results in `Saved/RefShots/bird-baseline/summary.md`.
+- [ ] Bird tier 1 with a placeholder shape, tests 2 to 5 (Opus `bd-core`, worktree `leafline-bird`, brief `docs/briefs/bird.md`). Codex reviews the bird's clock.
+- [ ] Bird mesh `Tools/blender/make_bird.py` and `Tools/materials/bird.hlsl` (`lk-nest`); main session imports `SM_Bird` and builds `M_Bird` (wing flap through a MID, like the ant's gait).
+- [ ] Bird sounds `bird_call`, `bird_pass`, checked with earshot (Sonnet `bd-sound`).
+- [ ] Package for the owner by 14:00 (tier 1). Second package by 17:00 (model, sounds, tier 2 if tier 1 is clean). Owner's go or no-go at 20:00, tier by tier.
+- [ ] In-world wind cues (Opus `cues`, worktree `leafline-cues`, brief `docs/briefs/in-world-cues.md`): gust front, the ant's own spot, gripping.
+- [ ] Video kit (Codex `video`, worktree `leafline-video`, brief `docs/briefs/video-kit.md`): `Leaf.Cinematic`, `Leaf.Shot`, `Leaf.ShotList`, `Leaf.Slomo`; built and tested by `bd-base`.
+
 ## M7: Ship (Sunday)
 
 - [ ] Set `bShowBuildLine=False` under `[/Script/AntTreeGame.LeaflineHUD]` in `Config/DefaultGame.ini` (the faint build and position line), alongside `bInputVizKey=False`.
