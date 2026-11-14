@@ -646,6 +646,7 @@ void ABirdSystem::LogInfo() const
 		Tuning.bBird ? TEXT("on") : TEXT("off"), Day, bActiveToday ? TEXT("active") : TEXT("inactive"), bFirstBirdDay ? TEXT(" (first bird day)") : TEXT(""),
 		*UEnum::GetValueAsString(State), StateTime, NextLook, SwoopsLeft, Swoops, PiecesTaken, Held, Missed, BaitsTaken, BaitsTaken + Baits.Num(),
 		IsBaitOn() ? TEXT("on") : TEXT("off"), bPlaceholder ? TEXT("placeholder") : TEXT("SM_Bird"), bVisShown ? 1 : 0, *VisPos.ToCompactString());
+	UE_LOG(LogLeafline, Log, TEXT("Bird: flap amount %.2f, phase %.2f, visible mode %d"), FlapAmount, FMath::Fmod(FlapPhase, 2.f * PI), (int32)VisMode);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
