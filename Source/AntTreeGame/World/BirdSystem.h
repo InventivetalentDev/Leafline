@@ -36,7 +36,8 @@ struct FBirdTuning
 
 	/** With recruits off the bird first comes on this day (with recruits on: the first day the pool is above zero). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Schedule") int32 FirstBirdDay = 3;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Schedule") int32 MaxSwoopsPerDay = 3;
+	/** 2, not the brief's starting 3: with 3 the end card came a day later in twenty AutoPlay days (hold240 holdgrip, 14 Nov). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Schedule") int32 MaxSwoopsPerDay = 2;
 	/** Swoops on the first bird day (of the session; nothing is saved). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Schedule") int32 FirstDaySwoops = 1;
 	/** Circling time before it looks for a target, and the seeded jitter on it (fraction, +-). */
