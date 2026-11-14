@@ -167,6 +167,30 @@ namespace
 		D->StartDay(D->GetDay());
 	}
 
+	/** Leaf.RootBark [0|1|taper]: the roots' bark ridges held long (1, FTreeParams::RootBarkTaper) or following the root's own
+	 *  taper as before (0); a value with a point sets the taper (so 1.0 is the old look). Bark only, so today's tree grows again with
+	 *  the bites saved at the last day end (StartDay's GrowWithBites); the day restarts from dawn. */
+	void RootBark(UWorld* World, const TArray<FString>& Args)
+	{
+		ADayDirector* D = ADayDirector::Get(World);
+		ATreeActor* Tree = ATreeActor::Get(World);
+		if (!D || !Tree) return;
+		const bool bOld = ATreeActor::GetRootBarkTaper(Tree->Params) >= 1.f;
+		float Override = bOld ? -1.f : 1.f; // no argument toggles
+		if (Args.Num() > 0)
+		{
+			const float V = FCString::Atof(*Args[0]);
+			Override = Args[0].Contains(TEXT(".")) ? V : (V != 0.f ? -1.f : 1.f);
+		}
+		ATreeActor::SetRootBarkTaperOverride(Override);
+		UE_LOG(LogLeafline, Log, TEXT("Leaf.RootBark: roots' bark taper %.2f (%s); growing today's tree again"),
+			ATreeActor::GetRootBarkTaper(Tree->Params), Override < 0.f ? TEXT("params") : TEXT("override"));
+		// No vertex moves, so no SetTree / SetTreeState as in Leaf.Collars: StartDay regrows the same tree with the bites saved at
+		// the last day end (GrowWithBites); the day itself restarts from dawn, as any StartDay does.
+		D->DebugForceRegrow();
+		D->StartDay(D->GetDay());
+	}
+
 	/** Leaf.Fillets [0|1] [frac] [max] [boughmul] [groundk]: junction fillets on or off (toggle with no argument), optionally their
 	 *  size, then today's tree grows again, fresh. */
 	void Fillets(UWorld* World, const TArray<FString>& Args)
@@ -368,6 +392,11 @@ namespace
 		TEXT("Leaf.Collars"),
 		TEXT("Leaf.Collars [0|1]: branches swell where they leave their parent (1, default) or not (0); no argument toggles. Grows today's tree again, fresh."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World) { Collars(World, Args); }));
+
+	FAutoConsoleCommandWithWorldAndArgs CmdRootBark(
+		TEXT("Leaf.RootBark"),
+		TEXT("Leaf.RootBark [0|1|taper]: roots' bark ridges held long (1, default) or following the root's own taper as before (0); a value with a point (0.3) sets the taper; no argument toggles. Grows today's tree again with its saved bites; the day restarts (bark only)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World) { RootBark(World, Args); }));
 
 	FAutoConsoleCommandWithWorldAndArgs CmdStage(
 		TEXT("Leaf.Stage"),
