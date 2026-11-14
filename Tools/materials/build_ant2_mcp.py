@@ -98,6 +98,16 @@ def dup():
             last = str(ex)[:600]
     raise Exception('duplicate_asset failed: ' + str(last))
 
+def set_color(e, r, g, b):
+    # Struct spelling differs between tool versions; the pawn sets the colours on the instance anyway.
+    for v in ({'r': r, 'g': g, 'b': b, 'a': 1.0}, {'R': r, 'G': g, 'B': b, 'A': 1.0}, '(R=%s,G=%s,B=%s,A=1.0)' % (r, g, b)):
+        try:
+            sp(e, {'DefaultValue': v})
+            return True
+        except Exception:
+            pass
+    return False
+
 def find_expr(exprs, cls, param=None):
     out_ = []
     for e in exprs:
@@ -121,9 +131,11 @@ def build():
     # Local Position: LocalOrigin Primitive, IncludedOffsets ExcludeOffsets (PreSkinnedLocalPosition is not accepted).
     lp = add('LocalPosition', X, 0, {'LocalOrigin': 'LPO_Primitive', 'IncludedOffsets': 'LPIO_ExcludeOffsets'})
     fr = add('Fresnel', X, 120, {'Exponent': 5.0})
-    htc = add('VectorParameter', X, 260, {'ParameterName': 'HeadThoraxColor', 'DefaultValue': {'r': 0.60, 'g': 0.22, 'b': 0.08, 'a': 1.0}})
-    gc = add('VectorParameter', X, 380, {'ParameterName': 'GasterColor', 'DefaultValue': {'r': 0.34, 'g': 0.11, 'b': 0.05, 'a': 1.0}})
-    lc = add('VectorParameter', X, 500, {'ParameterName': 'LegColor', 'DefaultValue': {'r': 0.50, 'g': 0.20, 'b': 0.09, 'a': 1.0}})
+    htc = add('VectorParameter', X, 260, {'ParameterName': 'HeadThoraxColor'})
+    gc = add('VectorParameter', X, 380, {'ParameterName': 'GasterColor'})
+    lc = add('VectorParameter', X, 500, {'ParameterName': 'LegColor'})
+    for e_, rgb_ in ((htc, (0.55, 0.20, 0.07)), (gc, (0.30, 0.085, 0.045)), (lc, (0.46, 0.18, 0.07))):
+        set_color(e_, *rgb_)
     ro = add('ScalarParameter', X, 620, {'ParameterName': 'Roughness', 'DefaultValue': 0.38})
     fi = add('ScalarParameter', X, 700, {'ParameterName': 'Fill', 'DefaultValue': 0.05})
     ri = add('ScalarParameter', X, 780, {'ParameterName': 'RimStrength', 'DefaultValue': 0.0})

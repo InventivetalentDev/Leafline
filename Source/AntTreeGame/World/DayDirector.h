@@ -47,7 +47,7 @@ struct FLookTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sky") float MieScatteringScale = 0.003996f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sky") float MieAnisotropy = 0.8f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fog") float FogDensity = 0.06f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fog") float FogDensity = 0.02f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fog") float FogHeightFalloff = 0.25f;
 	/** Height of the fog's base (cm); below -100000 leaves the level's value. With the falloff, the fog thins upward:
 	 *  the ground far below hazes over while the canopy keeps enough for light shafts. */

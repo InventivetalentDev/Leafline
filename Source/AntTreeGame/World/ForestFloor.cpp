@@ -64,7 +64,7 @@ namespace
 	/** A pointed leaf lying on the ground at Centre (its stem end), pitched up by Tilt toward direction TiltDir. */
 	void AddLeaf(FBuf& B, const FVector& Centre, float Yaw, float L, float W, float Tilt, float TiltDir, float Curl, float MinZ)
 	{
-		constexpr int32 Stations = 7;
+		const int32 Stations = L < 30.f ? 5 : 14;   // small fragments stay coarse: the triangle budget goes to the big leaves
 		const FVector F(FMath::Cos(Yaw), FMath::Sin(Yaw), 0.f);
 		const FVector Rt(-F.Y, F.X, 0.f);
 		const FVector Axis(FMath::Sin(TiltDir), -FMath::Cos(TiltDir), 0.f);
@@ -377,11 +377,15 @@ void AForestFloor::Build(const ATreeActor& Tree)
 	}
 
 	// Materials and components: one component per sector (so far sectors cull), one section per colour.
-	if (Mats.Num() == 0 && BasicMaterial)
+	if (Mats.Num() == 0)
 	{
-		for (int32 m = 0; m < NumMats; ++m)
+		// M_Litter (matte, built from Tools/materials/build_litter_mcp.py) if it exists; BasicShapeMaterial is the fallback.
+		UMaterialInterface* Base = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Leafline/Materials/M_Litter.M_Litter"), nullptr, LOAD_NoWarn | LOAD_Quiet);
+		if (!Base) Base = BasicMaterial;
+		UE_LOG(LogLeafline, Log, TEXT("Forest floor material: %s"), Base ? *Base->GetName() : TEXT("none"));
+		for (int32 m = 0; Base && m < NumMats; ++m)
 		{
-			UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BasicMaterial, this);
+			UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(Base, this);
 			MID->SetVectorParameterValue(TEXT("Color"), MatColors[m]);
 			Mats.Add(MID);
 		}
