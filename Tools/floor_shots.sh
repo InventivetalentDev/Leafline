@@ -27,9 +27,10 @@ STEPS=(
  "50|Leaf.FaceWind sheltered" "52|Leaf.Aim 170 30" "55|HighResShot 1" "56|Leaf.AntLook 0" "58|HighResShot 1" "59|Leaf.AntLook 2" "61|HighResShot 1" "62|Leaf.AntLook 1"
  "63|Leaf.Goto -547 1550 7 -70 -7" "67|HighResShot 1" "68|Leaf.Goto -547 1550 7 120 -7" "72|HighResShot 1"
  "76|Leaf.Goto -547 1550 7 -165 -7" "78|Leaf.Tune look FogDensity 0.03" "81|HighResShot 1" "82|Leaf.Tune look FogDensity 0.015" "85|HighResShot 1"
- "88|Leaf.QuitAfter 1"
+ "89|Leaf.Tune look FogDensity 0.06" "89.5|Leaf.Goto 3400 300 0 20 -10" "93|HighResShot 1"
+ "96|Leaf.QuitAfter 1"
 )
-VIEWS=(nest-A nest-B nest-old nest-nofloor floor-flat floor-outer floor-inward trunk-A trunk-old trunk-B shade-A shade-old shade-B nest-trunkward nest-left nest-fog03 nest-fog015)
+VIEWS=(nest-A nest-B nest-old nest-nofloor floor-flat floor-outer floor-inward trunk-A trunk-old trunk-B shade-A shade-old shade-B nest-trunkward nest-left nest-fog03 nest-fog015 litter-close)
 CMDS=""
 for s in "${STEPS[@]}"; do
 	t=${s%%|*}; c=${s#*|}
@@ -37,7 +38,7 @@ for s in "${STEPS[@]}"; do
 done
 MARK=$(mktemp -p "${TMPDIR:-/tmp}" floorshots.XXXX)
 sleep 1
-(cd /mnt/c && timeout 400 "$MAIN/Scripts/unreal-lock.sh" floor-shots -- cmd.exe /c "$WINROOT\\Scripts\\RunGame.bat" FloorShots.log "$CMDS" "-LeafSlot=RefShot $EXTRA" >/dev/null 2>&1)
+(cd /mnt/c && timeout 500 "$MAIN/Scripts/unreal-lock.sh" floor-shots -- cmd.exe /c "$WINROOT\\Scripts\\RunGame.bat" FloorShots.log "$CMDS" "-LeafSlot=RefShot $EXTRA" >/dev/null 2>&1)
 i=0
 for f in $(find "$SHOTDIR" -name '*.png' -newer "$MARK" | sort); do
 	[ $i -ge ${#VIEWS[@]} ] && break

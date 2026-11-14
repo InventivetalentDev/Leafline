@@ -6,6 +6,7 @@
 #include "Colony/TrailNetwork.h"
 #include "World/DayDirector.h"
 #include "World/WindSystem.h"
+#include "World/ExposureOverlay.h"
 #include "Colony/NestActor.h"
 #include "Game/LeaflineGameInstance.h"
 #include "Audio/LeafSound.h"
@@ -183,6 +184,21 @@ namespace
 				}
 			}
 			UE_LOG(LogLeafline, Log, TEXT("Leaf.AntLook %d on %d ants"), GAntLookOverride, Count);
+		}));
+}
+
+namespace
+{
+	FAutoConsoleCommandWithWorldAndArgs CmdWindMapShot(
+		TEXT("Leaf.WindMap"),
+		TEXT("Leaf.WindMap <0|1>: show or hide the wind map overlay (what holding Tab shows), for screenshots."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			if (AExposureOverlay* Overlay = AExposureOverlay::Get(World))
+			{
+				Overlay->SetShown(Args.Num() > 0 && FCString::Atoi(*Args[0]) != 0);
+				UE_LOG(LogLeafline, Log, TEXT("Leaf.WindMap %s"), Args.Num() > 0 && FCString::Atoi(*Args[0]) != 0 ? TEXT("on") : TEXT("off"));
+			}
 		}));
 }
 
