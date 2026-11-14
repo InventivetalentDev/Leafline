@@ -120,6 +120,18 @@ namespace
 	/** -1 follows bShowBuildLine; 0 or 1 from Leaf.BuildLine overrides it. */
 	int32 GBuildLineOverride = -1;
 
+	/** Leaf.HudIcons: the icon versions of the wind panel and the carry read-out (off: the text HUD exactly as before). */
+	bool GHudIcons = true;
+
+	FAutoConsoleCommand CmdHudIcons(
+		TEXT("Leaf.HudIcons"),
+		TEXT("Leaf.HudIcons [0|1]: animated icons in the wind panel and the carry read-out (1, default) or the text HUD as before (0); no argument toggles."),
+		FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
+		{
+			GHudIcons = Args.Num() > 0 ? FCString::Atoi(*Args[0]) != 0 : !GHudIcons;
+			UE_LOG(LogLeafline, Log, TEXT("Leaf.HudIcons %d"), GHudIcons ? 1 : 0);
+		}));
+
 	FAutoConsoleCommand CmdBuildLine(
 		TEXT("Leaf.BuildLine"),
 		TEXT("Leaf.BuildLine [0|1]: show or hide the faint build and position line in the bottom-left corner; no argument toggles."),
@@ -682,6 +694,11 @@ void ALeaflineHUD::DrawDayInfo(const ADayDirector* D, float Scale)
 	// Wind gauge, top right.
 	if (const AWindSystem* Wind = D->GetWind())
 	{
+		if (GHudIcons)
+		{
+			DrawWindIcons(D, Wind, Scale);
+			return;
+		}
 		const float GW = 260.f * Scale, GH = Style.Bar * Scale;
 		const float GX = Canvas->ClipX - (Style.Edge + Style.Padding) * Scale - GW, GY = 90.f * Scale;
 		const ALeaflinePlayerController* WindPC = Cast<ALeaflinePlayerController>(GetOwningPlayerController());
@@ -769,6 +786,11 @@ void ALeaflineHUD::DrawDayInfo(const ADayDirector* D, float Scale)
 
 void ALeaflineHUD::DrawCarry(const AAntPawn* Ant, float Scale)
 {
+	if (GHudIcons)
+	{
+		DrawCarryIcons(Ant, Scale);
+		return;
+	}
 	const float X = (Style.Edge + Style.Padding + 210.f) * Scale, Y = (Style.Edge + Style.Padding + 84.f) * Scale;
 	DrawTextAt(Ant->IsCarrying() ? FString::Printf(TEXT("Carrying %.1f"), Ant->GetCarriedMass()) : FString(TEXT("Carrying: empty")),
 		X, Y, TextColor, SecondaryText(Scale), GEngine->GetMediumFont());
@@ -1552,4 +1574,171 @@ void ALeaflineHUD::DrawControls(float Scale)
 	DrawTextCentered(TEXT("Back"), CX, Y + Style.Padding * Scale, AccentColor, PrimaryText(Scale), Font);
 	Y += BackH + Style.Padding * Scale;
 	DrawTextCentered(Prompt, CX, Y, TextColor, TextScale, Font);
+}
+
+bool ALeaflineHUD::DrawIcon(const TCHAR* Name, float CX, float CY, float Size, const FLinearColor& Color, float AngleDeg)
+{
+	UTexture2D* Tex = LeafPrompts::Get(Name);
+	if (!Tex || !Canvas) return false;
+	FCanvasTileItem Tile(FVector2D(CX - 0.5f * Size, CY - 0.5f * Size), Tex->GetResource(), FVector2D(Size, Size), Color);
+	Tile.BlendMode = SE_BLEND_Translucent;
+	if (AngleDeg != 0.f)
+	{
+		Tile.Rotation = FRotator(0.f, AngleDeg, 0.f);
+		Tile.PivotPoint = FVector2D(0.5f, 0.5f);
+	}
+	Canvas->DrawItem(Tile);
+	return true;
+}
+
+void ALeaflineHUD::DrawWindIcons(const ADayDirector* D, const AWindSystem* Wind, float Scale)
+{
+	// Same panel, rows and colours as the text version; the left column (42 px) holds the icons, a short word beside each.
+	UFont* Font = GEngine->GetMediumFont();
+	const float Now = GetWorld() ? GetWorld()->GetRealTimeSeconds() : 0.f;
+	const float GW = 260.f * Scale, GH = Style.Bar * Scale;
+	const float GX = Canvas->ClipX - (Style.Edge + Style.Padding) * Scale - GW, GY = 90.f * Scale;
+	const float Top = (Style.Edge + Style.Padding) * Scale;
+	const float IconX = GX - 22.f * Scale, IconSize = 28.f * Scale;
+	const ALeaflinePlayerController* LPC = Cast<ALeaflinePlayerController>(GetOwningPlayerController());
+	const bool bMap = LPC && LPC->IsWindMapShown();
+	const ABirdSystem* Bird = D->GetPhase() == EDayPhase::Shift ? ABirdSystem::Get(this) : nullptr;
+	const bool bBirdLine = Bird && Bird->IsPresent();
+	DrawPanel(GX - 42.f * Scale, Top, GW + 42.f * Scale,
+		((D->GetPhase() == EDayPhase::Shift ? (bMap ? 214.f : 154.f) : 100.f) + (bBirdLine ? Style.Row : 0.f)) * Scale, Scale);
+
+	const EWindPhase Ph = Wind->GetPhase();
+	const bool bGust = Wind->IsGustActive(), bWarn = Ph == EWindPhase::Warning;
+	const FLinearColor C = bGust ? StaminaLockedColor : (bWarn ? Style.Warning : TextColor);
+	const float Pulse = 0.5f + 0.5f * FMath::Sin(Now * 2.f * PI * 2.f); // 2 Hz, before a gust
+	DrawTextAt(Ph == EWindPhase::Calm ? TEXT("calm") : bWarn ? TEXT("gust coming") : Ph == EWindPhase::Falling ? TEXT("easing") : TEXT("GUST!"),
+		GX, Top, C, SecondaryText(Scale), Font);
+	FLinearColor BarC = C;
+	if (bWarn) BarC.A *= 0.35f + 0.65f * Pulse;
+	DrawRect(Style.Track, GX, GY, GW, GH);
+	DrawRect(BarC, GX, GY, GW * FMath::Clamp(Wind->GetStrength(), 0.f, 1.f), GH);
+
+	// The wind arrow as seen from the camera (up on screen is away from you), with streaks flowing along it: slow when
+	// calm, faster and pulsing before a gust, fast and shaking in it.
+	const APlayerController* PC = GetOwningPlayerController();
+	if (PC && PC->PlayerCameraManager)
+	{
+		FVector F = PC->PlayerCameraManager->GetCameraRotation().Vector();
+		F.Z = 0.0;
+		F = F.GetSafeNormal();
+		const FVector R(-F.Y, F.X, 0.0);
+		const FVector WindDir = Wind->GetDirection().GetSafeNormal2D();
+		FVector2D V(FVector::DotProduct(WindDir, R), -FVector::DotProduct(WindDir, F));
+		if (!F.IsNearlyZero() && !V.IsNearlyZero())
+		{
+			V.Normalize();
+			const FVector2D Side(-V.Y, V.X);
+			FVector2D Ctr(IconX, Top + 26.f * Scale);
+			if (bGust) Ctr += FVector2D(FMath::Sin(Now * 53.f), FMath::Cos(Now * 41.f)) * (3.5f * Scale);
+			const float AR = 14.f * Scale * (bWarn ? 1.f + 0.3f * Pulse : 1.f);
+			FLinearColor AC = C;
+			if (bWarn) AC.A *= 0.4f + 0.6f * Pulse;
+			const float T = (bGust ? 3.f : 2.f) * Scale;
+			const FVector2D Tip = Ctr + V * AR, Tail = Ctr - V * AR;
+			const FVector2D H1 = Tip - V * (AR * 0.6f) + Side * (AR * 0.45f), H2 = Tip - V * (AR * 0.6f) - Side * (AR * 0.45f);
+			DrawLine(Tail.X, Tail.Y, Tip.X, Tip.Y, AC, T);
+			DrawLine(Tip.X, Tip.Y, H1.X, H1.Y, AC, T);
+			DrawLine(Tip.X, Tip.Y, H2.X, H2.Y, AC, T);
+			const float Speed = bGust ? 2.6f : (bWarn ? 1.6f : (Ph == EWindPhase::Falling ? 0.9f : 0.45f));
+			for (int32 k = 0; k < 2; ++k)
+			{
+				const float Phase = FMath::Frac(Now * Speed + k * 0.5f);
+				const float Along = FMath::Lerp(-1.3f * AR, 1.1f * AR, Phase), Len = 7.f * Scale;
+				const FVector2D Base = Ctr + Side * ((k == 0 ? 1.f : -1.f) * 10.f * Scale);
+				const FVector2D P0 = Base + V * (Along - 0.5f * Len), P1 = Base + V * (Along + 0.5f * Len);
+				FLinearColor SC = AC;
+				SC.A *= 0.8f * FMath::Sin(Phase * PI) * (Ph == EWindPhase::Calm ? 0.6f : 1.f);
+				DrawLine(P0.X, P0.Y, P1.X, P1.Y, SC, 1.5f * Scale);
+			}
+		}
+	}
+
+	// How exposed the ant's spot is (sampled as in the text version; DrawPrompt reads ExposureShown too).
+	const AAntPawn* Ant = PC ? Cast<AAntPawn>(PC->GetPawn()) : nullptr;
+	const UAntMovementComponent* M = Ant ? Ant->GetAntMovement() : nullptr;
+	ExposureTimer -= GetWorld() ? GetWorld()->GetDeltaSeconds() : 0.016f;
+	if (M && ExposureTimer <= 0.f)
+	{
+		ExposureTimer = 0.2f;
+		ExposureShown = Wind->GetExposure(M->GetSurfacePosition(), M->GetSurfaceNormal());
+	}
+	const float RowY = GY + GH + Style.Gap * Scale;
+	if (M && ExposureShown >= 0.f)
+	{
+		const bool bSheltered = ExposureShown < Style.ShelteredBelow, bPartly = ExposureShown < Style.PartlyBelow;
+		const FLinearColor EC = bSheltered ? Style.Sheltered : (bPartly ? Style.Partly : StaminaLockedColor);
+		DrawIcon(bSheltered ? TEXT("Icon_Sheltered") : (bPartly ? TEXT("Icon_Partly") : TEXT("Icon_Exposed")), IconX, RowY + 10.f * Scale, IconSize, EC);
+		DrawTextAt(bSheltered ? TEXT("sheltered") : (bPartly ? TEXT("partly exposed") : TEXT("exposed")), GX, RowY, EC, SecondaryText(Scale), Font);
+	}
+	if (M && D->GetPhase() == EDayPhase::Shift)
+	{
+		const float LY = RowY + Style.Row * Scale;
+		if (bMap)
+		{
+			DrawCrisp(Canvas, TEXT("Wind map:"), TextColor, GX, LY, Font, SecondaryText(Scale));
+			DrawCrisp(Canvas, TEXT("green sheltered"), Style.Sheltered, GX, LY + Style.Row * Scale, Font, SecondaryText(Scale));
+			DrawCrisp(Canvas, TEXT("amber partly exposed"), Style.Partly, GX, LY + 2.f * Style.Row * Scale, Font, SecondaryText(Scale));
+			DrawCrisp(Canvas, TEXT("red exposed"), StaminaLockedColor, GX, LY + 3.f * Style.Row * Scale, Font, SecondaryText(Scale));
+		}
+		else
+		{
+			DrawTextAt(TEXT("Hold {Cycle}: wind map"), GX, LY, Style.Muted, SecondaryText(Scale), Font);
+		}
+		if (bBirdLine)
+		{
+			// Plain text colour: green, amber and red in this panel mean exposure. Circling: the bird glides and banks;
+			// diving: it stoops and blinks.
+			const float BY = LY + ((bMap ? 4.f : 1.f) * Style.Row + 6.f) * Scale, BCY = BY + 10.f * Scale;
+			if (Bird->IsDiving())
+			{
+				const float Blink = FMath::Frac(Now * 4.f) < 0.5f ? 1.f : 0.25f;
+				const float Stoop = FMath::Frac(Now * 2.f) * 6.f * Scale;
+				DrawIcon(TEXT("Icon_BirdDive"), IconX, BCY - 2.f * Scale + Stoop, IconSize * 1.1f, FLinearColor(TextColor.R, TextColor.G, TextColor.B, Blink));
+				DrawTextAt(TEXT("diving!"), GX, BY, TextColor, SecondaryText(Scale), Font);
+			}
+			else
+			{
+				const float Bob = FMath::Sin(Now * 2.f * PI * 0.6f);
+				DrawIcon(TEXT("Icon_BirdGlide"), IconX + FMath::Cos(Now * 2.f * PI * 0.3f) * 4.f * Scale, BCY + Bob * 3.f * Scale, IconSize * 1.1f, TextColor, Bob * 12.f);
+				DrawTextAt(TEXT("circling"), GX, BY, TextColor, SecondaryText(Scale), Font);
+			}
+		}
+	}
+}
+
+void ALeaflineHUD::DrawCarryIcons(const AAntPawn* Ant, float Scale)
+{
+	// Where the text version shows "Carrying ...": a leaf sized by the piece (swaying while carried) and its mass, or a
+	// faint leaf and "empty"; a claw and "gripping" while the ant grips; the size bar as before.
+	UFont* Font = GEngine->GetMediumFont();
+	const float Now = GetWorld() ? GetWorld()->GetRealTimeSeconds() : 0.f;
+	const float X = (Style.Edge + Style.Padding + 210.f) * Scale, Y = (Style.Edge + Style.Padding + 84.f) * Scale;
+	const float Icon = 26.f * Scale, ICY = Y + 10.f * Scale, TextX = X + Icon + 6.f * Scale;
+	const bool bCarry = Ant->IsCarrying();
+	const float Size01 = FMath::Clamp(Ant->GetCarriedSize(), 0.f, 1.f);
+	if (bCarry)
+	{
+		DrawIcon(TEXT("Icon_Leaf"), X + 0.5f * Icon, ICY, Icon * (0.6f + 0.4f * Size01), Style.Leaf, FMath::Sin(Now * 2.f * PI * 0.7f) * 8.f);
+		DrawTextAt(FString::Printf(TEXT("%.1f"), Ant->GetCarriedMass()), TextX, Y, TextColor, SecondaryText(Scale), Font);
+	}
+	else
+	{
+		DrawIcon(TEXT("Icon_Leaf"), X + 0.5f * Icon, ICY, Icon * 0.8f, FLinearColor(Style.Home.R, Style.Home.G, Style.Home.B, 0.6f));
+		DrawTextAt(TEXT("empty"), TextX, Y, Style.Muted, SecondaryText(Scale), Font);
+	}
+	const UAntMovementComponent* M = Ant->GetAntMovement();
+	if (M && M->GetState() == EAntState::Gripping)
+	{
+		const float GXp = X + 112.f * Scale;
+		DrawIcon(TEXT("Icon_Grip"), GXp + 0.5f * Icon, ICY, Icon * (1.f + 0.08f * FMath::Sin(Now * 2.f * PI * 3.f)), AccentColor);
+		DrawTextAt(TEXT("gripping"), GXp + Icon + 6.f * Scale, Y, AccentColor, SecondaryText(Scale), Font);
+	}
+	const float W = 230.f * Scale, H = Style.Bar * Scale, BY = Y + Style.Row * Scale;
+	DrawRect(Style.Track, X, BY, W, H);
+	if (bCarry) DrawRect(Style.Leaf, X, BY, W * Size01, H);
 }

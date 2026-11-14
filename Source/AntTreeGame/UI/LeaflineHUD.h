@@ -61,6 +61,15 @@ private:
 	void DrawStamina(const AAntPawn* Ant, float Scale, float Dt);
 	void DrawDayInfo(const ADayDirector* D, float Scale);
 	void DrawCarry(const AAntPawn* Ant, float Scale);
+	/**
+	 * Leaf.HudIcons 1 (default): the wind panel and the carry read-out with animated icons (wind arrow with streaks that
+	 * pulse before a gust and shake in it, exposure and bird icons, a leaf for the load, a claw while gripping) and a
+	 * short word each. Leaf.HudIcons 0 draws today's text panel unchanged.
+	 */
+	void DrawWindIcons(const ADayDirector* D, const class AWindSystem* Wind, float Scale);
+	void DrawCarryIcons(const AAntPawn* Ant, float Scale);
+	/** A white icon from UIRaw (Tools/ui_icons.py) centred at CX, CY, tinted and turned; false if it is missing. */
+	bool DrawIcon(const TCHAR* Name, float CX, float CY, float Size, const FLinearColor& Color, float AngleDeg = 0.f);
 	void DrawCutArc(const AAntPawn* Ant, float Scale);
 	/** Outline of the leaf the ant would cut, so the player can see the target before pressing cut. */
 	void DrawLeafTarget(const AAntPawn* Ant, float Scale);
