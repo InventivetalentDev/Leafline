@@ -22,13 +22,15 @@ SEED=${SEED:-517192}
 AIM=${AIM:-90}
 PITCH=${PITCH:--12}
 case "$MODE" in
-	exposed|sheltered) DEF="$MODE:0 $MODE:1"; DEF_AT="1.0 2.0 2.6 3.2 4.5" ;;
-	both) DEF="exposed:0 exposed:1 sheltered:0 sheltered:1"; DEF_AT="1.0 2.0 2.6 3.2 4.5" ;;
-	grip) DEF="grip:0 grip:1"; DEF_AT="3.45 3.6 3.75 4.4 5.6" ;;
+	exposed|sheltered) DEF="$MODE:0 $MODE:1" ;;
+	both) DEF="exposed:0 exposed:1 sheltered:0 sheltered:1" ;;
+	grip) DEF="grip:0 grip:1" ;;
 	*) echo "unknown mode $MODE"; exit 1 ;;
 esac
 PASSES=${PASSES:-$DEF}
-AT=${AT:-$DEF_AT}
+# Shot times: AT for every pass if given, else per spot (grip passes shoot round the grip at +3.3 s).
+AT_GUST=${AT:-1.0 2.0 2.6 3.2 4.5}
+AT_GRIP=${AT:-3.45 3.6 3.75 4.4 5.6}
 CMDS="Leaf.ResetSave,Leaf.StartDay 1 $SEED,Leaf.CuesLog 1"
 [ -n "${TUNE:-}" ] && CMDS="$CMDS,$TUNE"
 # One pass every 14 s from 6 s: a forced gust is over within about 10 s, and day 1's calm after it lasts at least 9 s.
@@ -46,7 +48,8 @@ for pass in $PASSES; do
 		for fv in ${tune//\// }; do CMDS="$CMDS,Leaf.Delay $((B - 1)) Leaf.Tune wind ${fv%%=*} ${fv#*=}"; done
 	fi
 	[ "$spot" = grip ] && CMDS="$CMDS,Leaf.Delay $(echo "$G + 3.3" | bc) Leaf.Hold grip 4"
-	for a in $AT; do
+	ATS=$AT_GUST; [ "$spot" = grip ] && ATS=$AT_GRIP
+	for a in $ATS; do
 		CMDS="$CMDS,Leaf.Delay $(echo "$G + $a" | bc) HighResShot 1"
 		NAMES+=("$spot-$onoff${tune:+-p$k}-$a")
 	done

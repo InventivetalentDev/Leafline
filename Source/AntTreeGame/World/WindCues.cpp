@@ -54,7 +54,7 @@ void WindCues::GripPose(const FWindTuning& T, float GripTime, float WindFeel, co
 	const float Press = FMath::Exp(-FMath::Square((GripTime - 0.08f) / 0.06f)); // a quick press just after the grip
 	Scale.Z = FMath::Min(Scale.Z, T.CueGripSquash - 0.1f * Press);
 	Scale.Y = FMath::Max(Scale.Y, T.CueGripSpread);
-	Loc.Z -= 0.5f * Press;
+	Loc.Z -= T.CueGripSink + 0.5f * Press;
 	Rot.Pitch -= 3.f; // head down to the bark
 	const float Tug = T.CueGripTug * WindFeel;
 	const float Pull = 1.f * Tug * (0.7f + 0.3f * FMath::Sin(Time * 2.f * PI * 3.3f));
@@ -131,7 +131,7 @@ void AWindCues::Tick(float DeltaTime)
 	Puffs.SetNum(FMath::Clamp(T.CueFrontPuffs, 0, 200));
 	const int32 LocalStreakSlots = Local.Num() * 3 / 10;
 	StreakQuads.Capacity = Streaks.Num() + LocalStreakSlots;
-	SpeckQuads.Capacity = Puffs.Num() + Specks.Num() + (Local.Num() - LocalStreakSlots) + Scrapes.Num();
+	SpeckQuads.Capacity = 3 * Puffs.Num() + Specks.Num() + (Local.Num() - LocalStreakSlots) + Scrapes.Num();
 	for (FQuads* Q : { &StreakQuads, &SpeckQuads })
 	{
 		Q->V.SetNumUninitialized(Q->Capacity * 4);
@@ -240,7 +240,7 @@ bool AWindCues::ComputeAir(FAir& Air, float Dt)
 	}
 	else if (W->GetPhase() == EWindPhase::Rising)
 	{
-		Air.FrontHaze = FMath::Clamp(Left / FMath::Max(Dur, 0.01f), 0.f, 1.f); // and out as the gust rises
+		Air.FrontHaze = FMath::Square(FMath::Clamp(Left / FMath::Max(Dur, 0.01f), 0.f, 1.f)); // and out as the gust rises
 	}
 
 	if (Air.bAnt)
@@ -336,7 +336,7 @@ void AWindCues::StepPuffs(const FAir& Air, float Dt)
 		for (FParticle& P : Puffs) P.MaxLife = -1.f;
 		return;
 	}
-	const float Near = 2.f * FMath::Max(T.CueSpeckNear, 20.f), Far = 0.7f * FMath::Max(T.CueFar, 500.f);
+	const float Near = 0.5f * FMath::Max(T.CueFrontPuffNear, 50.f), Far = FMath::Max(0.7f * T.CueFar, 2.f * Near);
 	for (FParticle& P : Puffs)
 	{
 		FVector At = P.Pos + Air.W * (Air.SFront + P.Length);
@@ -361,10 +361,16 @@ void AWindCues::StepPuffs(const FAir& Air, float Dt)
 		const float Fade = FMath::Sin(PI * FMath::Clamp(P.Life / P.MaxLife, 0.f, 1.f));
 		const float Alpha = T.CueFrontHaze * Air.FrontHaze * Fade;
 		if (Alpha <= 0.003f || !InView(Air, At, Near, Far * 1.3f)) continue;
-		FLinearColor Col = T.CueFrontPuffColor;
-		Col.A = Alpha;
-		const float Len = 1.6f * P.Size;
-		AddQuad(SpeckQuads, Air, At - Air.W * Len, At + Air.W * Len, P.Size, Col, 1.f, 2.f * Near);
+		// Three nested quads: the material's disc has a firm rim, so one quad reads as a blob; nested ones fade softly.
+		static const float Scales[3] = { 1.f, 0.68f, 0.4f };
+		static const float Shares[3] = { 0.45f, 0.35f, 0.3f };
+		for (int32 k = 0; k < 3; ++k)
+		{
+			FLinearColor Col = T.CueFrontPuffColor;
+			Col.A = Alpha * Shares[k];
+			const float Rad = P.Size * Scales[k];
+			AddQuad(SpeckQuads, Air, At - Air.W * (2.4f * Rad), At + Air.W * (2.4f * Rad), Rad, Col, 1.f, T.CueFrontPuffNear);
+		}
 	}
 }
 

@@ -81,11 +81,13 @@ struct FWindTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CuePrecursor = 0.45f;
 	/** A wall of dust riding on the front during the warning and the rise: this many big faint puffs in view, their alpha
 	 *  and radius (cm). It shows against the sky and the bark alike, where thin streaks far away do not. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") int32 CueFrontPuffs = 26;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueFrontHaze = 0.16f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") int32 CueFrontPuffs = 36;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueFrontHaze = 0.2f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueFrontPuffSize = 170.f;
+	/** Puffs nearer the camera than this fade out (from half of it), so the wall never fogs the view as it passes (cm). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueFrontPuffNear = 900.f;
 	/** Colours (unlit vertex colours; the material is bright, so low values still read light): the dust wall, and streaks. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") FLinearColor CueFrontPuffColor = FLinearColor(0.16f, 0.14f, 0.11f);
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") FLinearColor CueFrontPuffColor = FLinearColor(0.42f, 0.4f, 0.34f);
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") FLinearColor CueStreakColor = FLinearColor(0.35f, 0.35f, 0.35f);
 	/** Extra specks gathered at the front's edge (0 none). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueFrontDust = 0.8f;
@@ -134,6 +136,8 @@ struct FWindTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueGripSquash = 0.66f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueGripSpread = 1.26f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueGripTug = 1.f;
+	/** The gripping body sinks this far into the bark (cm): the feet dig in, which reads at game distance. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueGripSink = 0.8f;
 };
 
 /**
