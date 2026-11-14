@@ -223,6 +223,10 @@ void ALeaflinePlayerController::PlayerTick(float DeltaTime)
 		{
 			ScrollCredits(Move);
 		}
+		else if (IsPaused() && PausePage == ControlsPage)
+		{
+			// Nothing to choose: Back is the only button.
+		}
 		else if (IsPaused())
 		{
 			const int32 Rows = PausePage == 0 ? NumPauseRows : NumOptionRows;
@@ -361,10 +365,11 @@ void ALeaflinePlayerController::UpdateMenuCursor(bool bMenu, const FVector2D& Mo
 	{
 		if (PausePage == 0)
 		{
-			if (HoverItem == ALeaflineHUD::MenuResume) PauseRow = 0;
-			else if (HoverItem == ALeaflineHUD::MenuOptions) PauseRow = 1;
-			else if (HoverItem == ALeaflineHUD::MenuCredits) PauseRow = 2;
-			else if (HoverItem == ALeaflineHUD::MenuQuit) PauseRow = 3;
+			if (HoverItem == ALeaflineHUD::MenuResume) PauseRow = PauseRowResume;
+			else if (HoverItem == ALeaflineHUD::MenuControls) PauseRow = PauseRowControls;
+			else if (HoverItem == ALeaflineHUD::MenuOptions) PauseRow = PauseRowOptions;
+			else if (HoverItem == ALeaflineHUD::MenuCredits) PauseRow = PauseRowCredits;
+			else if (HoverItem == ALeaflineHUD::MenuQuit) PauseRow = PauseRowQuit;
 		}
 		else if (HoverItem >= ALeaflineHUD::MenuOptRow && HoverItem < ALeaflineHUD::MenuOptRow + NumOptionRows)
 		{
@@ -390,7 +395,8 @@ void ALeaflinePlayerController::HandleMenuClick()
 			PauseRow = 0;
 		}
 		else if (HoverItem == ALeaflineHUD::MenuCredits) OpenCredits();
-		else if (HoverItem == ALeaflineHUD::MenuCreditsBack) CloseCredits();
+		else if (HoverItem == ALeaflineHUD::MenuControls) OpenControls();
+		else if (HoverItem == ALeaflineHUD::MenuPageBack) CloseSubPage();
 		else if (HoverItem >= ALeaflineHUD::MenuOptMinus && HoverItem < ALeaflineHUD::MenuOptMinus + NumOptionRows) ChangeOption(HoverItem - ALeaflineHUD::MenuOptMinus, -1);
 		else if (HoverItem >= ALeaflineHUD::MenuOptPlus && HoverItem < ALeaflineHUD::MenuOptPlus + NumOptionRows) ChangeOption(HoverItem - ALeaflineHUD::MenuOptPlus, 1);
 		else if (HoverItem >= ALeaflineHUD::MenuOptRow && HoverItem < ALeaflineHUD::MenuOptRow + NumOptionRows)
@@ -428,6 +434,12 @@ void ALeaflinePlayerController::DebugShowPauseMenu(int32 Page, int32 Row)
 		OpenCredits(float(Row));
 		return;
 	}
+	if (Page == ControlsPage)
+	{
+		if (!IsPaused()) SetPause(true);
+		OpenControls();
+		return;
+	}
 	if (!IsPaused()) SetPause(true);
 	PausePage = FMath::Clamp(Page, 0, 1);
 	PauseRow = FMath::Clamp(Row, 0, (PausePage == 0 ? NumPauseRows : NumOptionRows) - 1);
@@ -460,8 +472,28 @@ void ALeaflinePlayerController::CloseCredits()
 		UE_LOG(LogLeafline, Log, TEXT("Credits closed: back to the title screen"));
 		return;
 	}
-	PauseRow = 2;
+	PauseRow = PauseRowCredits;
 	UE_LOG(LogLeafline, Log, TEXT("Credits closed: back to the pause menu"));
+}
+
+void ALeaflinePlayerController::OpenControls()
+{
+	PausePage = ControlsPage;
+	PauseRow = 0;
+	UE_LOG(LogLeafline, Log, TEXT("Controls page opened (%s prompts)"), bUsingGamepad ? TEXT("pad") : TEXT("keyboard and mouse"));
+}
+
+void ALeaflinePlayerController::CloseSubPage()
+{
+	if (PausePage == CreditsPage)
+	{
+		CloseCredits();
+		return;
+	}
+	const bool bControls = PausePage == ControlsPage;
+	PausePage = 0;
+	PauseRow = bControls ? PauseRowControls : PauseRowOptions;
+	if (bControls) UE_LOG(LogLeafline, Log, TEXT("Controls page closed: back to the pause menu"));
 }
 
 void ALeaflinePlayerController::ScrollCredits(const FVector2D& Move)
@@ -486,25 +518,20 @@ void ALeaflinePlayerController::ActivatePauseRow()
 	bSwallowConfirm = true;
 	if (PausePage == 0)
 	{
-		if (PauseRow == 0) SetPause(false);
-		else if (PauseRow == 1)
+		if (PauseRow == PauseRowResume) SetPause(false);
+		else if (PauseRow == PauseRowControls) OpenControls();
+		else if (PauseRow == PauseRowOptions)
 		{
 			PausePage = 1;
 			PauseRow = 0;
 		}
-		else if (PauseRow == 2) OpenCredits();
+		else if (PauseRow == PauseRowCredits) OpenCredits();
 		else ConsoleCommand(TEXT("quit"));
 		return;
 	}
-	if (PausePage == CreditsPage)
+	if (PausePage == CreditsPage || PausePage == ControlsPage || PauseRow >= NumOptionRows - 1)
 	{
-		CloseCredits();
-		return;
-	}
-	if (PauseRow >= NumOptionRows - 1)
-	{
-		PausePage = 0;
-		PauseRow = 1;
+		CloseSubPage();
 		return;
 	}
 	ChangeOption(PauseRow, 1);
@@ -611,12 +638,7 @@ void ALeaflinePlayerController::HandleButtons(uint32 Pressed)
 		if (Pressed & LeafButtons::SendHome)
 		{
 			if (PausePage == 0) ConsoleCommand(TEXT("quit"));
-			else if (PausePage == CreditsPage) CloseCredits();
-			else
-			{
-				PausePage = 0;
-				PauseRow = 1;
-			}
+			else CloseSubPage();
 		}
 		else if (Pressed & (LeafButtons::Cut | LeafButtons::Grip))
 		{

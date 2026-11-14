@@ -28,7 +28,8 @@ public:
 	static constexpr int32 MenuOptMinus = 1200; // + row: the "<" on a value row
 	static constexpr int32 MenuOptPlus = 1300;  // + row: the ">" on a value row
 	static constexpr int32 MenuCredits = 1003;     // the pause menu's Credits button, and the title's "credits" line
-	static constexpr int32 MenuCreditsBack = 1004; // the credits page's Back button
+	static constexpr int32 MenuPageBack = 1004;    // the Back button of the credits and controls pages
+	static constexpr int32 MenuControls = 1005;    // the pause menu's Controls button
 
 	/** Credits page: scroll by this many 1080p design pixels (clamped to the text when drawn). */
 	void ScrollCredits(float DesignPixels);
@@ -83,6 +84,8 @@ private:
 	void DrawPause(float Scale);
 	/** Pause page 2: the rows of credits.txt (UI/Credits.h) in a scrolling window, and Back. */
 	void DrawCredits(float Scale);
+	/** Pause page 3: each action's buttons for the device in use (prompt tokens, PromptIcons.h) and Back. */
+	void DrawControls(float Scale);
 	void DrawColonyMeter(float CenterX, float Y, float Width, float Scale);
 	/** Text may hold button tokens ("Hold {Cut}: cut", "{orclick}"): drawn as icons for the device in use (PromptIcons.h). */
 	void DrawTextCentered(const FString& Text, float CenterX, float Y, const FLinearColor& Color, float TextScale, UFont* Font);
