@@ -41,7 +41,7 @@ struct FForestFloorTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grass") float BladeHeightMax = 170.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Twigs") int32 Twigs = 90;
 	/** Flat leaves' height above the ground (cm): below the trail ribbons (1.2 cm). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Litter") float FlatLift = 0.2f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Litter") float FlatLift = 0.15f;
 };
 
 /**

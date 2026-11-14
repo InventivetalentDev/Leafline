@@ -311,7 +311,7 @@ void AForestFloor::Build(const ATreeActor& Tree)
 					TiltDir = R.FRand() * 2.f * PI;
 					Curl = R.FRandRange(0.05f, 0.16f) * W;
 				}
-				const FVector C(Trunk.X + Rel.X, Trunk.Y + Rel.Y, Z0 + T.FlatLift + Layer * 0.1f);
+				const FVector C(Trunk.X + Rel.X, Trunk.Y + Rel.Y, Z0 + T.FlatLift + Layer * 0.06f);
 				AddLeaf(Place(Rel, LeafMat()), C, Yaw, L, W, Tilt, TiltDir, Curl, Z0 + T.FlatLift);
 				++Made;
 				++NLeaves;
