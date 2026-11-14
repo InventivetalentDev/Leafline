@@ -1,6 +1,6 @@
 // M_TreeBark3, Custom node "Bark" (14 Nov night, branch seams). M_TreeBark2's bark with the junction skirts' seam
 // cross-faded. Source of truth for the node's Code; Tools/materials/build_bark3_mcp.py builds M_TreeBark3 as a duplicate
-// of M_TreeBark2 and pastes this in. Inputs as M_TreeBark2's Bark node: UV1 (R cos, R sin in cm), UV2 (along split
+// of M_TreeBark2 with a new Custom node "Bark3" holding this code. Inputs as M_TreeBark2's Bark node: UV1 (R cos, R sin in cm), UV2 (along split
 // hi/lo), UV3 (x: bark radius; y: buried distance on the tubes, the other side's along + 512 on skirt vertices near a
 // seam), VC (vertex colour RGB: level/3 or the other side's per-branch random, per-branch random, height on tree), WP,
 // N, T, Cam; and two more: UV0 (on skirt vertices near a seam: the other side's radial direction times its bark radius)
@@ -167,59 +167,68 @@ struct FBark3
 };
 FBark3 B;
 
+// Seam blend tuning (MODE 'code' in build_bark3_mcp.py after editing): the other bark's plate wins over this one's where
+// HEIGHT_MIX * (its plate - this plate) + WEIGHT_MIX * (2w - 1) > 0, softened over +-EDGE. HEIGHT_MIX < 1 keeps this
+// bark's fissures where the other bark has a plate except close to the seam; at w = 0.5 the higher plate shows.
+const float HEIGHT_MIX = 0.35;
+const float WEIGHT_MIX = 1.3;
+const float EDGE = 0.15;
+const float W_OTHER = (WEIGHT_MIX - EDGE - HEIGHT_MIX) / (2.0 * WEIGHT_MIX); // below this weight the other bark never shows
+
 float3 Nn = normalize(N.xyz);
 float3 Tv = normalize(T.xyz - Nn * dot(T.xyz, Nn));
 float fp = distance(WP.xyz, Cam.xyz) * 0.0008;
 float along = UV2.x + UV2.y;
 float w = saturate(1.0 - VA); // seam weight: 0 on the tubes and away from a seam, 0.5 on the seam row
+// Screen derivatives for the frames near a seam, taken outside any branch (they are undefined across a per-pixel branch).
+float3 dpx = ddx(WP.xyz), dpy = ddy(WP.xyz);
+float2 u1 = UV1.xy, u0 = UV0.xy;
+float2 du1x = ddx(u1), du1y = ddy(u1), du0x = ddx(u0), du0y = ddy(u0);
 
 float3 col, nrm;
 float rough, ao, plateA;
+float b = 0.0;
 [branch] if (w < 0.002)
 {
-	col = B.Eval(UV1.xy, UV1.xy, along, UV3.x, VC.g, VC.b, Nn, Tv, cross(Nn, Tv), fp, rough, nrm, ao, plateA);
+	col = B.Eval(u1, u1, along, UV3.x, VC.g, VC.b, Nn, Tv, cross(Nn, Tv), fp, rough, nrm, ao, plateA);
 }
 else
 {
-	// Both evaluations take their "around" direction from derivatives near the seam (blended in from the vertex tangent), and the
-	// colour space (qw) of the own side eases to the ridge-space radius, as the other side's always is, so the two halves
-	// compute the same thing on the seam row.
+	// Both evaluations take their "around" direction from derivatives near the seam (blended in from the vertex tangent),
+	// "along" as cross(N, around) as M_TreeBark2 does, and the colour space (qw) of this side eases to the ridge-space
+	// radius, as the other side's always is, so the two halves compute the same thing on the seam row.
 	float k = saturate(2.0 * w);
-	float3 dpx = ddx(WP.xyz), dpy = ddy(WP.xyz);
-	float2 u1 = UV1.xy;
 	float d1 = max(dot(u1, u1), 1e-4);
-	float3 TaD = B.GradDir((u1.x * ddx(u1.y) - u1.y * ddx(u1.x)) / d1, (u1.x * ddy(u1.y) - u1.y * ddy(u1.x)) / d1, dpx, dpy, Nn, Tv);
-	TaD = dot(TaD, Tv) < 0.0 ? -TaD : TaD; // same sense as the vertex tangent (increasing angle), whatever the derivatives say
+	float3 TaD = B.GradDir((u1.x * du1x.y - u1.y * du1x.x) / d1, (u1.x * du1y.y - u1.y * du1y.x) / d1, dpx, dpy, Nn, Tv);
+	TaD = dot(TaD, Tv) < 0.0 ? -TaD : TaD; // same sense as the vertex tangent (increasing angle)
 	float3 Ta = normalize(lerp(Tv, TaD, k));
-	// "Along" as M_TreeBark2 takes it, cross(N, around), on both sides, so the two halves agree on its sign at the seam.
 	float3 Aa = cross(Nn, Ta);
 	float R1 = max(length(u1), 0.001);
 	float Rq1 = UV3.x > 0.5 ? UV3.x : R1;
 	float2 uq = lerp(u1, u1 / R1 * Rq1, k);
-
-	float2 u0 = UV0.xy;
-	float alongB = UV3.y - 512.0;
-	float d0 = max(dot(u0, u0), 1e-4);
-	float3 TbD = B.GradDir((u0.x * ddx(u0.y) - u0.y * ddx(u0.x)) / d0, (u0.x * ddy(u0.y) - u0.y * ddy(u0.x)) / d0, dpx, dpy, Nn, Ta);
-	float3 Ab = cross(Nn, TbD);
-
-	float roughB, aoB, plateB;
-	float3 nrmB;
 	col = B.Eval(u1, uq, along, UV3.x, VC.g, VC.b, Nn, Ta, Aa, fp, rough, nrm, ao, plateA);
-	float3 colB = B.Eval(u0, u0, alongB, length(u0), VC.r, VC.b, Nn, TbD, Ab, fp, roughB, nrmB, aoB, plateB);
-	// Height blend: at w = 0.5 the higher plate shows; as w falls the own bark takes over everywhere.
-	float b = smoothstep(-0.15, 0.15, plateB - plateA + (2.0 * w - 1.0) * 1.3);
-	col = lerp(col, colB, b);
-	rough = lerp(rough, roughB, b);
-	ao = lerp(ao, aoB, b);
-	nrm = normalize(lerp(nrm, nrmB, b));
+	[branch] if (w > W_OTHER)
+	{
+		float alongB = UV3.y - 512.0;
+		float d0 = max(dot(u0, u0), 1e-4);
+		float3 TbD = B.GradDir((u0.x * du0x.y - u0.y * du0x.x) / d0, (u0.x * du0y.y - u0.y * du0y.x) / d0, dpx, dpy, Nn, Ta);
+		float3 Ab = cross(Nn, TbD);
+		float roughB, aoB, plateB;
+		float3 nrmB;
+		float3 colB = B.Eval(u0, u0, alongB, length(u0), VC.r, VC.b, Nn, TbD, Ab, fp, roughB, nrmB, aoB, plateB);
+		b = smoothstep(-EDGE, EDGE, HEIGHT_MIX * (plateB - plateA) + WEIGHT_MIX * (2.0 * w - 1.0));
+		col = lerp(col, colB, b);
+		rough = lerp(rough, roughB, b);
+		ao = lerp(ao, aoB, b);
+		nrm = normalize(lerp(nrm, nrmB, b));
+	}
 }
 // Trunk foot: the bark darkens into the soil over its last 30 to 50 cm above the ground plane (world Z 0 near the tree:
 // the relief starts 160 m out), at a height that wanders with a slow noise, so the line where bark meets the ground
 // (M_Ground2's soil is about 0.03 linear) is not a hard edge. Only bark within reach of the ground is affected.
 [branch] if (WP.z < 60.0)
 {
-	float soilH = 40.0 + 10.0 * (B.VN(float3(UV1.xy, along) / 45.0 + 61.0).x * 2.0 - 1.0);
+	float soilH = 40.0 + 10.0 * (B.VN(float3(WP.xy / 45.0, 61.0)).x * 2.0 - 1.0); // world XY: no step at root-trunk seams
 	float soil = (1.0 - smoothstep(0.0, soilH, WP.z)) * 0.8;
 	col = lerp(col, float3(0.05, 0.042, 0.027), soil);
 	rough = lerp(rough, 0.95, soil);
@@ -228,8 +237,9 @@ else
 Rough = rough;
 AO = ao;
 NormalW = nrm;
-// Debug views: 0 normal; 1 the seam weight (red) and which bark shows (green: the other branch's); 2 M_TreeBark2's
-// look everywhere (no cross-fade).
+// Debug views: 0 normal; 1 the seam weight (red, 1 on the seam row) and the blend factor (green: the other branch's bark
+// showing); 2 the weight only.
 const int DEBUG_VIEW = 0;
-if (DEBUG_VIEW == 1) { NormalW = Nn; return float3(w * 2.0, (w > 0.002 ? 1.0 : 0.0) * 0.5, 0.0); }
+if (DEBUG_VIEW == 1) { NormalW = Nn; return float3(w * 2.0, b, 0.0); }
+if (DEBUG_VIEW == 2) { NormalW = Nn; return (w * 2.0).xxx; }
 return col;
