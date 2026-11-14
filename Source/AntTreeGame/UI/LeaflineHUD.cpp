@@ -784,6 +784,16 @@ void ALeaflineHUD::DrawDayInfo(const ADayDirector* D, float Scale)
 	}
 }
 
+namespace
+{
+	/** The piece's value multiplier as shown beside its weight ("\u00D71.6"): the leaf's Richness, as the haul uses it
+	 *  (AAntPawn::GetCarriedValue), so weight times it is the "+N" on arrival. Hidden when it rounds to \u00D71.0. */
+	bool ShowsMultiplier(float Richness) { return FMath::RoundToInt(Richness * 10.f) > 10; }
+	FString MultiplierText(float Richness) { return FString::Printf(TEXT("\u00D7%.1f"), Richness); }
+	/** The multiplier beside the carry read-out's number: a little smaller than the HUD's secondary text. */
+	float MultiplierTextScale(float Scale) { return ScaleForHeight(Style.SecondaryHeight * 0.85f * Scale); }
+}
+
 void ALeaflineHUD::DrawCarry(const AAntPawn* Ant, float Scale)
 {
 	if (GHudIcons)
@@ -793,8 +803,13 @@ void ALeaflineHUD::DrawCarry(const AAntPawn* Ant, float Scale)
 	}
 	// The day panel's third row, from its left edge; the size bar as wide as the panel (440 at least, as in DrawDayInfo).
 	const float X = (Style.Edge + Style.Padding) * Scale, Y = (Style.Edge + Style.Padding + 84.f) * Scale;
-	DrawTextAt(Ant->IsCarrying() ? FString::Printf(TEXT("Carrying %.1f"), Ant->GetCarriedMass()) : FString(TEXT("Carrying nothing")),
-		X, Y, TextColor, SecondaryText(Scale), GEngine->GetMediumFont());
+	const FString CarryText = Ant->IsCarrying() ? FString::Printf(TEXT("Carrying %.1f"), Ant->GetCarriedMass()) : FString(TEXT("Carrying nothing"));
+	DrawTextAt(CarryText, X, Y, TextColor, SecondaryText(Scale), GEngine->GetMediumFont());
+	if (Ant->IsCarrying() && ShowsMultiplier(Ant->GetCarriedRichness()))
+	{
+		const float MX = X + MeasureText(CarryText, GEngine->GetMediumFont(), SecondaryText(Scale)).X + 6.f * Scale;
+		DrawTextAt(MultiplierText(Ant->GetCarriedRichness()), MX, Y + 2.f * Scale, Style.Rich, MultiplierTextScale(Scale), GEngine->GetMediumFont());
+	}
 	const float W = 440.f * Scale, H = Style.Bar * Scale, BY = Y + Style.Row * Scale;
 	DrawRect(Style.Track, X, BY, W, H);
 	if (Ant->IsCarrying()) DrawRect(Style.Leaf, X, BY, W * FMath::Clamp(Ant->GetCarriedSize(), 0.f, 1.f), H);
@@ -827,7 +842,27 @@ void ALeaflineHUD::DrawCutArc(const AAntPawn* Ant, float Scale)
 		DrawArc(CX, CY, R, A, FMath::Max(B, A + 0.002f), RiskColor(B, Ratio), Style.Bar * Scale);
 	}
 	const FLinearColor Now = RiskColor(Size, Ratio);
-	DrawTextPanel(FString::Printf(TEXT("%.1f"), Ant->MassForSize(Size)), CX, CY - Style.PrimaryHeight * 0.5f * Scale, TextColor, PrimaryText(Scale), Scale);
+	// The piece's weight, and under it the leaf's value multiplier when above \u00D71.0 (weight times it arrives as "+N").
+	const FString Weight = FString::Printf(TEXT("%.1f"), Ant->MassForSize(Size));
+	const ATreeActor* CutTree = ATreeActor::Get(this);
+	const int32 CutLeaf = Ant->GetCuttingLeaf();
+	const float Richness = CutTree && CutLeaf != INDEX_NONE && CutLeaf < CutTree->GetLeaves().Num()
+		? FMath::Max(CutTree->GetLeaves().Get(CutLeaf).Richness, 1.f) : 1.f; // as AAntPawn sets CarriedRichness
+	if (!ShowsMultiplier(Richness))
+	{
+		DrawTextPanel(Weight, CX, CY - Style.PrimaryHeight * 0.5f * Scale, TextColor, PrimaryText(Scale), Scale);
+	}
+	else
+	{
+		UFont* Font = GEngine->GetMediumFont();
+		const FString Mul = MultiplierText(Richness);
+		const float NumH = Style.PrimaryHeight * Scale, MulH = Style.SecondaryHeight * Scale, G = 2.f * Scale;
+		const float Top = CY - 0.5f * (NumH + G + MulH);
+		const float W = FMath::Max(float(MeasureText(Weight, Font, PrimaryText(Scale)).X), float(MeasureText(Mul, Font, SecondaryText(Scale)).X));
+		DrawPanel(CX - 0.5f * W, Top, W, NumH + G + MulH, Scale, 1.f, LeafSkin::EKind::Tag);
+		DrawTextCentered(Weight, CX, Top, TextColor, PrimaryText(Scale), Font);
+		DrawTextCentered(Mul, CX, Top + NumH + G, Style.Rich, SecondaryText(Scale), Font);
+	}
 	// The label judges the size being cut as the arc grows (good, getting big, too big), not the ant or the leaf.
 	const TCHAR* Label = Ratio >= 1.f ? TEXT("Too big: a gust will blow it away")
 		: (Wind && Ratio >= Wind->Tuning.RiskyRatio ? TEXT("Getting big: risky in gusts") : TEXT("Good size: safe in gusts"));
@@ -1754,7 +1789,13 @@ void ALeaflineHUD::DrawCarryIcons(const AAntPawn* Ant, float Scale)
 	if (bCarry)
 	{
 		DrawIcon(TEXT("Icon_Leaf"), X + 0.5f * Icon, ICY, Icon * (0.6f + 0.4f * Size01), Style.Leaf, FMath::Sin(Now * 2.f * PI * 0.7f) * 8.f);
-		DrawTextAt(FString::Printf(TEXT("%.1f"), Ant->GetCarriedMass()), TextX, Y, TextColor, SecondaryText(Scale), Font);
+		const FString Weight = FString::Printf(TEXT("%.1f"), Ant->GetCarriedMass());
+		DrawTextAt(Weight, TextX, Y, TextColor, SecondaryText(Scale), Font);
+		if (ShowsMultiplier(Ant->GetCarriedRichness()))
+		{
+			DrawTextAt(MultiplierText(Ant->GetCarriedRichness()), TextX + MeasureText(Weight, Font, SecondaryText(Scale)).X + 5.f * Scale, Y + 2.f * Scale,
+				Style.Rich, MultiplierTextScale(Scale), Font);
+		}
 	}
 	else
 	{
