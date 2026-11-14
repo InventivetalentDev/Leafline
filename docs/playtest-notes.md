@@ -91,16 +91,25 @@
   - Input view: F3 (or `Leaf.InputViz`) shows where W/A/S/D would go, the actual movement and the rule in charge; the log records junction crossings and moments the ant goes against the stick. F3 is turned off before the submission build (`plan.md`, M7). In the package of 13 Nov 14:40.
   - Follow-ups the same afternoon (owner): diagonals did not work on branches (the twig snap): snap now off by default (`bSnapOnBranches`). On the side of a branch running away from the camera, W went over the top (screen-up on that patch of bark): on branches the stick is now read against how the whole branch lies on screen, with perspective, so W walks along a branch that runs up or away on screen and A/D along one that runs across it, wherever the ant is round it. Going round is limited to one lap a second (`MaxLapsPerSecond`), walking along is not. The input view draws its paths with depth, so a path that goes over an edge disappears there. In the package of 13 Nov 15:37.
   - Owner (13 Nov, after the 15:37 package): "that feels pretty good now".
-- [ ] new wind gust graphics look more like a snowstorm than wind
-  - Sent to the cues agent (14 Nov 14:00): far fewer specks, warm dust colours instead of near-white, stretched along the wind; the streaks carry the gust; the dust wall subtler. For the 17:00 package.
-- [ ] polish: add a simple controls overview to the pause menu
+- [x] new wind gust graphics look more like a snowstorm than wind
+  - Done (cues agent): 60 specks in view instead of 280, small and warm (ochre pollen, tan dust, olive-brown leaf bits), each a short streak along its motion; long thin curved wind lines carry the gust; the dust wall fainter; calm shows nothing. In main since 14 Nov 15:40.
+- [x] polish: add a simple controls overview to the pause menu
+  - Done: Controls page in the pause menu (Resume, Controls, Options, Credits, Quit), icons for the last device used. In the package of 14 Nov 14:14.
   - Sent to the ui agent (14 Nov 14:00): a Controls page in the pause menu with the prompt icons, next to the new Credits page. For the 17:00 package.
-- [ ] small branches should have fillets too
+- [x] small branches should have fillets too
+  - Done: twigs from 3 cm base radius get fillets and skirts too; ants walk on them (fillets are walked again since fil-walk's fix); twenty unattended days: no rescues, the same haul; trees grow about 0.3 s slower. In main since 14 Nov 15:40.
   - Sent to lk-fillet (14 Nov 14:35): fillet zones and skirts on twigs too, within a triangle and build-time budget; looks only, like the rest since the lift. For the 17:00 package.
-- [ ] polish: make scent lines different colors per run so they're easier to tell apart
+- [x] polish: make scent lines different colors per run so they're easier to tell apart
+  - Done: line 1 cyan, 2 magenta-pink, 3 violet, 4 blue, 5 ice white, repeating; ribbon and HUD rows alike; a shared stretch shows the brightest line's colour. In main since 14 Nov 15:47.
   - Sent to bd-core (14 Nov 14:35): each line its own colour from a fixed palette (cyan first; no green, amber or red, which mean exposure), trail ribbon and HUD row alike. For the 17:00 package.
 - [ ] there's not much incentive to go further up the tree than like the 2 lowest layers of branches; look into that later
   - Noted for after the freeze (design: richer or bigger leaves higher up, the end card or milestones asking for height, wind risk as the price). Not started.
+- [ ] scent lines should be most visible in a short radius around the player so they don't clutter the screen; fade out with distance.
+  - Sent to the cues agent (14 Nov 16:15): both trail materials fade with distance from the controlled ant (near and far distances tunable), relaxed when the camera is far away (harvest, nest view). Needs an editor session for the material change. For the 20:00 candidate.
+- [ ] UI polish: replace a bunch of text with icons and animations (e.g. bird status, wind, ant status)
+  - Sent to the ui agent (14 Nov 16:15): icons for the wind group (direction arrow that pulses and shakes with gusts, exposure icon), the bird line (silhouette, diving and flashing in a dive) and the ant status (carrying, gripping), drawn procedurally or made by our own script; short words stay where needed; behind `Leaf.HudIcons`. For the 20:00 candidate.
+- [ ] bird is barely noticable, mostly affects recruits (maybe just keep it like this, doesn't really add much to the gameplay atm)
+  - Bird agent is bringing its circle in (20-25 m instead of 30-40, about twice as large on screen) and checking its shadow. The decision (keep, make it about the player's ant, or ship it off) is yours at 20:00.
 
 ## To revisit: thin-branch controls (2026-11-12)
 
