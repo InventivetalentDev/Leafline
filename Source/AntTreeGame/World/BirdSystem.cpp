@@ -7,6 +7,7 @@
 #include "World/DayDirector.h"
 #include "World/ExposureBands.h"
 #include "Colony/LineSystem.h"
+#include "Game/Upgrades.h"
 #include "Audio/LeafSound.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -20,9 +21,6 @@
 
 namespace
 {
-	/** The bird has met the colony this session (nothing is saved): the first bird day gets one swoop and the hint. */
-	bool GBirdMetThisSession = false;
-
 	enum EVisMode : uint8 { VisHidden, VisCircle, VisDive, VisExit, VisLeave };
 
 	/** Laden, and in a state a gust can blow off (AAntPawn::UpdateWind's check). */
@@ -84,8 +82,6 @@ void ABirdSystem::Init(ATreeActor* InTree, AWindSystem* InWind, ADayDirector* In
 	Wind = InWind;
 	Director = InDirector;
 	Lines = InLines;
-	// A new game (also a new Play In Editor session, where statics survive): the first bird day comes again.
-	GBirdMetThisSession = false;
 }
 
 void ABirdSystem::BeginPlay()
@@ -165,14 +161,16 @@ void ABirdSystem::StartDay(int32 InDay, int32 InSeed, bool bInRecruitsOn, int32 
 	// Its own stream: the wind's gusts come out the same with the bird on and off.
 	Rand.Initialize((int32)(HashCombine(GetTypeHash(Seed), GetTypeHash(Day * 7919 + 4111)) & 0x7fffffff));
 
-	// The bird comes once the colony has recruits (with recruits off: from FirstBirdDay). A colony that has not reached
-	// that yet (a new one, or after Leaf.ResetSave) will get the gentle first day again.
+	// The bird comes once the colony has recruits (with recruits off: from FirstBirdDay). The gentle first bird day follows
+	// from the day and the pool alone (nothing is saved, and no session history counts): with recruits off it is
+	// FirstBirdDay, with recruits on every day the pool is still the first Brood level's (or smaller, with Leaf.Pool).
 	const bool bEligible = bRecruitsOn ? Pool > 0 : Day >= Tuning.FirstBirdDay;
-	if (!bEligible) GBirdMetThisSession = false;
-	bActiveToday = Tuning.bBird && bEligible;
-	bFirstBirdDay = bActiveToday && !GBirdMetThisSession;
-	if (bActiveToday) GBirdMetThisSession = true;
-	SwoopsLeft = bFirstBirdDay ? FMath::Max(Tuning.FirstDaySwoops, 0) : FMath::Max(Tuning.MaxSwoopsPerDay, 0);
+	const int32 FirstPool = FMath::Max(FMath::RoundToInt(LeaflineUpgrades::GetEffect(static_cast<int32>(ELeaflineUpgrade::Brood), 1)), 1);
+	bFirstBirdDay = bEligible && (bRecruitsOn ? Pool <= FirstPool : Day == Tuning.FirstBirdDay);
+	SwoopsLeft = !bEligible ? 0 : bFirstBirdDay ? FMath::Max(Tuning.FirstDaySwoops, 0) : FMath::Max(Tuning.MaxSwoopsPerDay, 0);
+	bActiveToday = Tuning.bBird && bEligible && SwoopsLeft > 0;
+	bDiveRequested = false;
+	DropRequest = nullptr;
 	if (bActiveToday)
 	{
 		UE_LOG(LogLeafline, Log, TEXT("Bird: day %d, the bird hunts today (%d swoops%s; recruits %s, pool %d)"), Day, SwoopsLeft,
@@ -182,12 +180,21 @@ void ABirdSystem::StartDay(int32 InDay, int32 InSeed, bool bInRecruitsOn, int32 
 	else
 	{
 		UE_LOG(LogLeafline, Log, TEXT("Bird: day %d, no bird (%s)"), Day, !Tuning.bBird ? TEXT("Leaf.Bird 0")
-			: bRecruitsOn ? TEXT("no recruits yet") : TEXT("recruits off, before FirstBirdDay"));
+			: !bEligible ? (bRecruitsOn ? TEXT("no recruits yet") : TEXT("recruits off, before FirstBirdDay")) : TEXT("no swoops today: MaxSwoopsPerDay or FirstDaySwoops is 0"));
 	}
 }
 
 void ABirdSystem::EnterCircling(bool bFromAway)
 {
+	if (SwoopsLeft <= 0)
+	{
+		// The day's swoops are used up: it stays away (also after Leaf.Bird 0 and 1).
+		State = EBirdState::Away;
+		StateTime = 0.0;
+		AwayFor = 1e9;
+		UE_LOG(LogLeafline, Log, TEXT("Bird: no swoops left today; it stays away"));
+		return;
+	}
 	State = EBirdState::Circling;
 	StateTime = 0.0;
 	bLoggedNoTarget = false;
@@ -199,8 +206,11 @@ void ABirdSystem::EnterCircling(bool bFromAway)
 
 void ABirdSystem::Advance(float Dt)
 {
-	if (!bActiveToday || State == EBirdState::Off || !Director) return;
+	if (!Director) return;
 	const EDayPhase Ph = Director->GetPhase();
+	// Leaf.BirdNow and the drop button are taken here, at the start of a fixed step, never between steps.
+	if (bDiveRequested || DropRequest.IsValid()) ConsumeRequests(Ph == EDayPhase::Shift);
+	if (!bActiveToday || State == EBirdState::Off) return;
 	if (Ph != EDayPhase::Shift)
 	{
 		// Before the day's first shift (title, move card) it waits; once the shifts are over it leaves for the day.
@@ -213,7 +223,11 @@ void ABirdSystem::Advance(float Dt)
 	switch (State)
 	{
 	case EBirdState::Circling:
-		if (StateTime + 1e-6 >= NextLook)
+		if (SwoopsLeft <= 0)
+		{
+			EnterCircling(true); // stays away
+		}
+		else if (StateTime + 1e-6 >= NextLook)
 		{
 			AAntPawn* Ant = nullptr;
 			int32 Bait = INDEX_NONE, Laden = 0;
@@ -245,6 +259,12 @@ void ABirdSystem::Advance(float Dt)
 					TargetLastNormal = M->GetSurfaceNormal();
 				}
 			}
+		}
+		// The way in is checked again as the target moves (20 times a second): wood in it, and the bird breaks off.
+		if ((DiveSteps++ % 6) == 5 && !IsCorridorClear(PassPoint(), ApproachDir))
+		{
+			BreakOff();
+			break;
 		}
 		if (StateTime + 1e-6 >= Tuning.WarnSeconds) Pass();
 		break;
@@ -338,7 +358,65 @@ void ABirdSystem::StartDive(AAntPawn* Ant, int32 BaitIndex)
 			*Describe(Ant), Exposure, Ant->GetCarriedMass(), *UEnum::GetValueAsString(Ant->GetAntMovement()->GetState()),
 			*TargetLastPos.ToCompactString(), Tuning.WarnSeconds);
 	}
+	DiveSteps = 0;
+	ChooseApproach();
 	++DiveSerial;
+}
+
+FVector ABirdSystem::PassPoint() const
+{
+	FVector N;
+	const FVector T = TargetSurfacePos(&N);
+	return T + N * (DiveGap + BirdBelow());
+}
+
+bool ABirdSystem::IsCorridorClear(const FVector& Pp, const FVector& Dir) const
+{
+	if (!Tree || !Tree->GetField().IsValid()) return true;
+	double Hit = 1.0;
+	if (Tree->GetField().March(Pp + Dir * 60.f, Pp + Dir * 600.f, 70.0, Hit)) return false;
+	return !Tree->GetField().March(Pp + Dir * 600.f, Pp + Dir * Tuning.ApproachDistance, FMath::Min(BirdHalfSpan(), 250.f), Hit);
+}
+
+void ABirdSystem::ChooseApproach()
+{
+	// Come in from upwind along a corridor clear of wood (exposure means open toward the wind): between the bark's
+	// normal and upwind first. No clear corridor: the first check during the dive breaks it off.
+	FVector N;
+	TargetSurfacePos(&N);
+	const FVector W = Wind ? Wind->GetDirection().GetSafeNormal() : FVector::ForwardVector;
+	DiveGap = PassGap();
+	const FVector Pp = PassPoint();
+	const FVector Cands[] = {
+		(N - W).GetSafeNormal(), (-W).GetSafeNormal2D(), N, (N - W + FVector(0, 0, 0.7)).GetSafeNormal(), (N + FVector(0, 0, 0.8)).GetSafeNormal(), FVector::UpVector
+	};
+	ApproachDir = N;
+	for (const FVector& D : Cands)
+	{
+		if (D.IsNearlyZero() || FVector::DotProduct(D, N) < 0.15f) continue;
+		if (IsCorridorClear(Pp, D))
+		{
+			ApproachDir = D;
+			return;
+		}
+	}
+	UE_LOG(LogLeafline, Log, TEXT("Bird: no clear way in to its target"));
+}
+
+void ABirdSystem::BreakOff()
+{
+	++Swoops;
+	++Missed;
+	SwoopsLeft = FMath::Max(SwoopsLeft - 1, 0);
+	UE_LOG(LogLeafline, Log, TEXT("Bird: pass %d breaks off: wood in its way in to %s (a miss)"), Swoops,
+		TargetBait != INDEX_NONE ? TEXT("the dropped piece") : *Describe(Target.Get()));
+	State = EBirdState::Away;
+	StateTime = 0.0;
+	AwayFor = Tuning.AwaySeconds;
+	Target = nullptr;
+	TargetBait = INDEX_NONE;
+	++BreakSerial;
+	if (SwoopsLeft <= 0) UE_LOG(LogLeafline, Log, TEXT("Bird: that was its last swoop today; it does not come back"));
 }
 
 static const TCHAR* OutcomeName(EBirdOutcome O)
@@ -471,13 +549,15 @@ void ABirdSystem::SetBirdOn(bool bOn)
 	const bool bEligible = bRecruitsOn ? Pool > 0 : Day >= Tuning.FirstBirdDay;
 	const EDayPhase Ph = Director ? Director->GetPhase() : EDayPhase::Starting;
 	const bool bBeforeShiftEnd = Ph == EDayPhase::Shift || Ph == EDayPhase::Title || Ph == EDayPhase::Starting || Ph == EDayPhase::Move;
-	if (bEligible && !bActiveToday && bBeforeShiftEnd)
+	// The day's remaining swoops are kept across Leaf.Bird 0 and 1: a toggle never buys more.
+	if (bEligible && SwoopsLeft > 0 && !bActiveToday && bBeforeShiftEnd)
 	{
 		bActiveToday = true;
 		bDaySummaryLogged = false;
 		EnterCircling(false);
 	}
-	UE_LOG(LogLeafline, Log, TEXT("Leaf.Bird 1: %s"), bActiveToday ? TEXT("the bird hunts today") : TEXT("from the next bird day"));
+	UE_LOG(LogLeafline, Log, TEXT("Leaf.Bird 1: %s"), bActiveToday ? TEXT("the bird hunts today")
+		: bEligible && SwoopsLeft <= 0 ? TEXT("no swoops left today") : TEXT("from the next bird day"));
 }
 
 void ABirdSystem::SetBaitOn(bool bOn)
@@ -487,22 +567,38 @@ void ABirdSystem::SetBaitOn(bool bOn)
 	UE_LOG(LogLeafline, Log, TEXT("Leaf.Bait %d"), bOn ? 1 : 0);
 }
 
-bool ABirdSystem::DiveNow()
+void ABirdSystem::DiveNow()
+{
+	bDiveRequested = true;
+}
+
+void ABirdSystem::ConsumeRequests(bool bShift)
+{
+	if (AAntPawn* Ant = DropRequest.Get())
+	{
+		DropRequest = nullptr;
+		if (bShift) DoDrop(Ant);
+	}
+	DropRequest = nullptr;
+	if (bDiveRequested)
+	{
+		bDiveRequested = false;
+		if (bShift) DoDiveNow();
+		else UE_LOG(LogLeafline, Warning, TEXT("Leaf.BirdNow: only during a shift"));
+	}
+}
+
+void ABirdSystem::DoDiveNow()
 {
 	if (!Tuning.bBird)
 	{
 		UE_LOG(LogLeafline, Warning, TEXT("Leaf.BirdNow: the bird is off (Leaf.Bird 1)"));
-		return false;
-	}
-	if (!InShift())
-	{
-		UE_LOG(LogLeafline, Warning, TEXT("Leaf.BirdNow: only during a shift"));
-		return false;
+		return;
 	}
 	if (State == EBirdState::Diving)
 	{
 		UE_LOG(LogLeafline, Log, TEXT("Leaf.BirdNow: already diving"));
-		return false;
+		return;
 	}
 	AAntPawn* Ant = nullptr;
 	int32 Bait = INDEX_NONE, Laden = 0;
@@ -510,17 +606,15 @@ bool ABirdSystem::DiveNow()
 	if (!ChooseTarget(Ant, Bait, Exposure, Laden))
 	{
 		UE_LOG(LogLeafline, Log, TEXT("Leaf.BirdNow: no target (%d laden ants, none on exposed bark); the bird does not dive"), Laden);
-		return false;
+		return;
 	}
 	if (!bActiveToday)
 	{
 		bActiveToday = true;
 		bDaySummaryLogged = false;
 	}
-	SwoopsLeft = FMath::Max(SwoopsLeft, 1);
-	UE_LOG(LogLeafline, Log, TEXT("Leaf.BirdNow"));
+	UE_LOG(LogLeafline, Log, TEXT("Leaf.BirdNow (at sim %.3f)"), Lines ? Lines->GetSimTime() : 0.0);
 	StartDive(Ant, Bait);
-	return true;
 }
 
 void ABirdSystem::LogInfo() const
@@ -545,6 +639,17 @@ bool ABirdSystem::CanDrop(const AAntPawn* Ant) const
 bool ABirdSystem::DropPiece(AAntPawn* Ant)
 {
 	if (!CanDrop(Ant)) return false;
+	DropRequest = Ant;
+	return true;
+}
+
+void ABirdSystem::DoDrop(AAntPawn* Ant)
+{
+	if (!CanDrop(Ant))
+	{
+		UE_LOG(LogLeafline, Log, TEXT("Bird bait: the drop is no longer possible at this step"));
+		return;
+	}
 	const UAntMovementComponent* M = Ant->GetAntMovement();
 	FBirdBait B;
 	B.Normal = M->GetSurfaceNormal();
@@ -583,9 +688,9 @@ bool ABirdSystem::DropPiece(AAntPawn* Ant)
 		Target = nullptr;
 		TargetLastPos = B.Pos;
 		TargetLastNormal = B.Normal;
+		ChooseApproach();
 		UE_LOG(LogLeafline, Log, TEXT("Bird: turns to the dropped piece (pass in %.1f s)"), FMath::Max(Tuning.WarnSeconds - StateTime, 0.0));
 	}
-	return true;
 }
 
 void ABirdSystem::ClearBaits()
@@ -705,40 +810,12 @@ void ABirdSystem::SetVisible(bool bVisible)
 
 void ABirdSystem::BeginVisualDive()
 {
+	// The way in (ApproachDir) and the pull-up distance (DiveGap) are the schedule's (ChooseApproach): the visible bird
+	// only flies them.
 	FVector N;
-	const FVector T = TargetSurfacePos(&N);
-	const FVector W = Wind ? Wind->GetDirection().GetSafeNormal() : FVector::ForwardVector;
-	DiveGap = PassGap();
-	const FVector Pp = T + N * (DiveGap + BirdBelow());
-	// Come in from upwind along a corridor that is clear of wood (exposure means open toward the wind).
-	const FVector Cands[] = {
-		(N - W).GetSafeNormal(), (-W).GetSafeNormal2D(), N, (N - W + FVector(0, 0, 0.7)).GetSafeNormal(), (N + FVector(0, 0, 0.8)).GetSafeNormal(), FVector::UpVector
-	};
-	float BestClear = -1.f;
-	ApproachDir = N;
-	if (Tree && Tree->GetField().IsValid())
-	{
-		for (const FVector& D : Cands)
-		{
-			if (D.IsNearlyZero() || FVector::DotProduct(D, N) < 0.15f) continue;
-			double HitNear = 1.0, HitFar = 1.0;
-			const bool bNear = Tree->GetField().March(Pp + D * 60.f, Pp + D * 600.f, 70.0, HitNear);
-			const bool bFar = !bNear && Tree->GetField().March(Pp + D * 600.f, Pp + D * Tuning.ApproachDistance, FMath::Min(BirdHalfSpan(), 250.f), HitFar);
-			const float Clear = bNear ? 0.3f * float(HitNear) : (bFar ? 0.3f + 0.7f * float(HitFar) : 2.f);
-			if (Clear > BestClear)
-			{
-				BestClear = Clear;
-				ApproachDir = D;
-			}
-			if (Clear >= 2.f) break;
-		}
-	}
-	// Where it leaves after the pass: upward along the surface (or straight up off a flat top), never on through the wood.
-	FVector Tup = FVector::UpVector - N * FVector::DotProduct(N, FVector::UpVector);
-	ExitNormal = N;
-	ExitTangent = Tup.SizeSquared() > 0.09 ? Tup.GetSafeNormal() : FVector::CrossProduct(N, FVector::CrossProduct(-W, N)).GetSafeNormal();
-	if (ExitTangent.IsNearlyZero()) ExitTangent = FVector::CrossProduct(N, FVector::RightVector).GetSafeNormal();
-
+	TargetSurfacePos(&N);
+	const FVector Pp = PassPoint();
+	UpdateExitTangent(N);
 	if (!bVisShown || VisMode == VisHidden)
 	{
 		// Out of sight (away): it comes in from far upwind of its target.
@@ -751,17 +828,34 @@ void ABirdSystem::BeginVisualDive()
 	DiveCtrl = DiveFrom + DiveFromVel.GetSafeNormal() * FMath::Min(FVector::Dist(DiveFrom, Pp) * 0.35f, 1500.f);
 	if (Tree && Tree->GetField().IsValid())
 	{
-		double Hit = 1.0;
-		if (Tree->GetField().March(DiveFrom, Pp + ApproachDir * Tuning.ApproachDistance, FMath::Min(BirdHalfSpan(), 250.f), Hit))
+		// Sweep the turn-in (the curve out to the start of the straight run in) with the bird's half span: if it would
+		// pass near wood, swing wide, out along the approach first.
+		const FVector B2 = Pp + ApproachDir * Tuning.ApproachDistance;
+		const float Need = BirdHalfSpan() * 0.8f;
+		for (int32 i = 0; i <= 24; ++i)
 		{
-			// Something in the way of the turn-in: swing wide, out along the approach first.
-			DiveCtrl = Pp + ApproachDir * (Tuning.ApproachDistance * 2.f) + FVector(0, 0, 600);
+			const float U = i / 24.f;
+			if (Tree->GetField().DistanceMT(Bezier(DiveFrom, DiveCtrl, B2, B2, U)) < Need)
+			{
+				DiveCtrl = Pp + ApproachDir * (Tuning.ApproachDistance * 2.f) + FVector(0, 0, 600);
+				break;
+			}
 		}
 	}
 	VisMode = VisDive;
 	VisModeTime = 0.f;
 	SetVisible(true);
 	PlaySound(TEXT("bird_call"), TEXT("gust_warning"), Tuning.CallVolume, VisPos);
+}
+
+void ABirdSystem::UpdateExitTangent(const FVector& N)
+{
+	// Where it leaves after the pass: upward along the surface (or up and upwind off a flat top), never on through the wood.
+	const FVector W = Wind ? Wind->GetDirection().GetSafeNormal() : FVector::ForwardVector;
+	const FVector Tup = FVector::UpVector - N * FVector::DotProduct(N, FVector::UpVector);
+	ExitNormal = N;
+	ExitTangent = Tup.SizeSquared() > 0.09 ? Tup.GetSafeNormal() : FVector::CrossProduct(N, FVector::CrossProduct(-W, N)).GetSafeNormal();
+	if (ExitTangent.IsNearlyZero()) ExitTangent = FVector::CrossProduct(N, FVector::RightVector).GetSafeNormal();
 }
 
 void ABirdSystem::BeginVisualExit()
@@ -801,6 +895,17 @@ void ABirdSystem::UpdateVisual(float Dt)
 	{
 		VisPassSerial = PassSerial;
 		if (VisMode == VisDive || bVisShown) BeginVisualExit();
+	}
+	if (BreakSerial != VisBreakSerial)
+	{
+		// Broke off: it pulls back out the way it came, and up.
+		VisBreakSerial = BreakSerial;
+		if (bVisShown)
+		{
+			VisMode = VisLeave;
+			VisModeTime = 0.f;
+			LeaveDir = (ApproachDir + FVector(0, 0, 0.8)).GetSafeNormal();
+		}
 	}
 	VisModeTime += Dt;
 	const bool bShift = InShift();
@@ -873,6 +978,7 @@ void ABirdSystem::UpdateVisual(float Dt)
 		FVector N;
 		const FVector T = TargetSurfacePos(&N);
 		const FVector Pp = T + N * (DiveGap + BirdBelow());
+		UpdateExitTangent(N);
 		const float S = FMath::Clamp(float(StateTime / FMath::Max(Tuning.WarnSeconds, 0.1f)), 0.f, 1.f);
 		const FVector B2 = Pp + ApproachDir * Tuning.ApproachDistance;
 		const float L = FMath::Max(FVector::Dist(DiveFrom, Pp), 1.f);
@@ -882,7 +988,6 @@ void ABirdSystem::UpdateVisual(float Dt)
 		NewPos = Bezier(DiveFrom, DiveCtrl, B2, Pp, U);
 		VisVel = (NewPos - VisPos) / FMath::Max(Dt, 1e-3f);
 		FlareW = FMath::SmoothStep(0.55f, 0.88f, S);
-		ExitNormal = N;
 		FlapWant = S > 0.75f ? 1.f : 0.f;
 		break;
 	}

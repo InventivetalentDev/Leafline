@@ -126,12 +126,13 @@ public:
 	void SetBaitOn(bool bOn);
 	bool IsBirdOn() const { return Tuning.bBird; }
 	bool IsBaitOn() const { return Tuning.bBird && Tuning.bBait; }
-	/** Leaf.BirdNow: look for a target and dive now (ignores the schedule and the day's swoop count). */
-	bool DiveNow();
+	/** Leaf.BirdNow: at the next fixed step, look for a target and dive (ignores the schedule; counts as one of the day's
+	 *  swoops, but also works when they are used up). */
+	void DiveNow();
 	/** Leaf.BirdInfo. */
 	void LogInfo() const;
 
-	/** Tier 2: drop the ant's piece where it stands (the drop action). False if not allowed now. */
+	/** Tier 2: the drop action. The piece is put down at the next fixed step (if still allowed then). False if not allowed now. */
 	bool DropPiece(AAntPawn* Ant);
 	/** The drop prompt and action: bait on, the bird circling or diving, the ant carrying and in a state that can drop. */
 	bool CanDrop(const AAntPawn* Ant) const;
@@ -142,7 +143,8 @@ public:
 	bool IsDiving() const { return bActiveToday && State == EBirdState::Diving; }
 	bool IsDivingAt(const AAntPawn* Ant) const;
 	bool IsActiveToday() const { return bActiveToday; }
-	/** The first bird day of the session: one swoop, and the hint. */
+	/** The first bird day (from the day and the pool: FirstBirdDay with recruits off, the first Brood level's pool with
+	 *  recruits on): FirstDaySwoops, and the hint. */
 	bool IsFirstBirdDay() const { return bActiveToday && bFirstBirdDay; }
 	/** Pieces the bird knocked off today (all ants), and how many of those were recruits' (they also count as recruit losses). */
 	int32 GetPiecesTaken() const { return PiecesTaken; }
@@ -155,6 +157,16 @@ private:
 	void EnterCircling(bool bFromAway);
 	void StartDive(AAntPawn* Ant, int32 BaitIndex);
 	void Pass();
+	/** The way in to the pass is blocked by wood (the target moved round a branch): the bird breaks off, a miss. */
+	void BreakOff();
+	/** Requests from the console and the drop button, taken at the start of a fixed step. */
+	void ConsumeRequests(bool bShift);
+	void DoDiveNow();
+	void DoDrop(AAntPawn* Ant);
+	/** The pass point and the approach corridor toward it (sim): chosen at the dive's start, checked as the target moves. */
+	void ChooseApproach();
+	bool IsCorridorClear(const FVector& PassPoint, const FVector& Dir) const;
+	FVector PassPoint() const;
 	EBirdOutcome TestAnt(AAntPawn* Ant, float& OutExposure);
 	/** Laden ants a gust could blow off, scouts by roster index then recruits by pool index (a fixed order). */
 	void GatherLaden(TArray<AAntPawn*>& Out) const;
@@ -172,6 +184,7 @@ private:
 	void ComputeCircle(float Height);
 	void BeginVisualDive();
 	void BeginVisualExit();
+	void UpdateExitTangent(const FVector& Normal);
 	FVector TargetSurfacePos(FVector* OutNormal = nullptr) const;
 	float BirdHalfSpan() const;
 	/** From the bird's origin (the shoulder line) down to its belly, at the current scale. */
@@ -220,9 +233,16 @@ private:
 	TArray<FBirdBait> Baits;
 	bool bHasCallSound = false;
 	bool bHasPassSound = false;
-	/** Count dives and passes, so the visible bird reacts to each exactly once even if several steps run in a frame. */
+	/** Count dives, passes and break-offs, so the visible bird reacts to each once even if several steps run in a frame. */
 	int32 DiveSerial = 0;
 	int32 PassSerial = 0;
+	int32 BreakSerial = 0;
+	int32 DiveSteps = 0;
+	bool bDiveRequested = false;
+	TWeakObjectPtr<AAntPawn> DropRequest;
+	/** Sim: how the bird comes in to its pass (from the target's bark out along this), and how far out it pulls up. */
+	FVector ApproachDir = FVector::ForwardVector;
+	float DiveGap = 80.f;
 
 	// Visible bird (real time).
 	bool bVisShown = false;
@@ -230,6 +250,7 @@ private:
 	float VisModeTime = 0.f;
 	int32 VisDiveSerial = 0;
 	int32 VisPassSerial = 0;
+	int32 VisBreakSerial = 0;
 	FVector VisPos = FVector::ZeroVector;
 	FVector VisVel = FVector::ZeroVector;
 	FQuat VisRot = FQuat::Identity;
@@ -242,8 +263,6 @@ private:
 	FVector DiveFrom = FVector::ZeroVector;
 	FVector DiveFromVel = FVector::ZeroVector;
 	FVector DiveCtrl = FVector::ZeroVector;
-	float DiveGap = 80.f;
-	FVector ApproachDir = FVector::ForwardVector;
 	FVector ExitFrom = FVector::ZeroVector;
 	FVector ExitDir = FVector::UpVector;
 	FVector ExitNormal = FVector::UpVector;
