@@ -252,13 +252,17 @@ Tagged `pre-look` before it started. Commits start `Look:` (and `HUD:` for the H
 
 Agents in herdr tab `sat`; the main session merges, builds materials and imports, and packages.
 
-- [ ] Baseline before the bird (bird brief test 1): `Tools/tree_test.sh auto20` twice, fillets on (Sonnet `bd-base`). Results in `Saved/RefShots/bird-baseline/summary.md`.
-- [ ] Bird tier 1 with a placeholder shape, tests 2 to 5 (Opus `bd-core`, worktree `leafline-bird`, brief `docs/briefs/bird.md`). Codex reviews the bird's clock.
-- [ ] Bird mesh `Tools/blender/make_bird.py` and `Tools/materials/bird.hlsl` (`lk-nest`); main session imports `SM_Bird` and builds `M_Bird` (wing flap through a MID, like the ant's gait).
-- [ ] Bird sounds `bird_call`, `bird_pass`, checked with earshot (Sonnet `bd-sound`).
+- [x] Baseline before the bird (bird brief test 1): `Tools/tree_test.sh auto20` twice, fillets on (Sonnet `bd-base`). Results in `Saved/RefShots/bird-baseline/summary.md`.
+- [x] Bird tier 1 with a placeholder shape, tests 2 to 5 (Opus `bd-core`, worktree `leafline-bird`, brief `docs/briefs/bird.md`). Codex reviews the bird's clock.
+- [x] Bird mesh `Tools/blender/make_bird.py` and `Tools/materials/bird.hlsl` (`lk-nest`); main session imports `SM_Bird` and builds `M_Bird` (wing flap through a MID, like the ant's gait).
+- [x] Bird sounds `bird_call`, `bird_pass`, checked with earshot (Sonnet `bd-sound`).
 - [ ] Package for the owner by 14:00 (tier 1). Second package by 17:00 (model, sounds, tier 2 if tier 1 is clean). Owner's go or no-go at 20:00, tier by tier.
-- [ ] In-world wind cues (Opus `cues`, worktree `leafline-cues`, brief `docs/briefs/in-world-cues.md`): gust front, the ant's own spot, gripping.
+- [x] In-world wind cues (Opus `cues`, worktree `leafline-cues`, brief `docs/briefs/in-world-cues.md`): gust front, the ant's own spot, gripping.
 - [ ] Video kit (Codex `video`, worktree `leafline-video`, brief `docs/briefs/video-kit.md`): `Leaf.Cinematic`, `Leaf.Shot`, `Leaf.ShotList`, `Leaf.Slomo`; built and tested by `bd-base`.
+
+- [x] Package of 14 Nov 13:30 (98bf4e0): the bird (tiers 1 and 2, MaxSwoopsPerDay 2, camera nudge during a dive at the player's ant), in-world wind cues, the ant's new look (`Leaf.AntLook`, default A) and the forest floor (`Leaf.Floor`), the video kit (reveal ending still being simplified). Fillets off. Twenty `auto20` days on merged main identical to the fillets-off baseline; packaged smoke test with and without ray tracing and DX11 passed (GPU 4.2 to 4.6 ms). Zip 0.44 GB.
+- [ ] Bird: shadow and wing flap not yet seen in a frame; the camera shows the bird only just before the pass (`Leaf.Tune bird NudgeKeepAnt`); economy rerun with PassHeight 150 and BirdScale 4.
+- [ ] Fillets display-only lift (`lk-fillet`, by 15:00), credits screen (`ui`), video reveal ending (Codex), owner's go or no-go at 20:00.
 
 ## M7: Ship (Sunday)
 
