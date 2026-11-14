@@ -98,6 +98,7 @@ void ATrailNetwork::LoadYesterday(const TArray<FSavedTrail>& Routes)
 		Path.DirtyFromChunk = INDEX_NONE;
 		Path.GlowDirtyChunks.Reset();
 	}
+	if (const ATreeActor* Tree = ATreeActor::Get(this)) ShownShape = Tree->GetShapeVersion();
 	UE_LOG(LogLeafline, Log, TEXT("Trails: loaded %d yesterday paths (%d points)"), Count, PointCount);
 }
 

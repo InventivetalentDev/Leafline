@@ -305,6 +305,7 @@ private:
 	FVector DiveFrom = FVector::ZeroVector;
 	FVector DiveFromVel = FVector::ZeroVector;
 	FVector DiveCtrl = FVector::ZeroVector;
+	double DiveRetargetTime = -1.0; // sim time when the remaining visual curve was rebuilt; -1 for the original dive
 	FVector ExitFrom = FVector::ZeroVector;
 	FVector ExitDir = FVector::UpVector;
 	FVector ExitNormal = FVector::UpVector;

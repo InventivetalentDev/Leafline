@@ -727,6 +727,15 @@ void ABirdSystem::DoDrop(AAntPawn* Ant)
 		TargetLastPos = B.Pos;
 		TargetLastNormal = B.Normal;
 		ChooseApproach();
+		if (VisMode == VisDive && VisDiveSerial == DiveSerial)
+		{
+			// Continue from here with the current velocity, reaching the new pass at the original scheduled time.
+			DiveRetargetTime = StateTime;
+			DiveFrom = VisPos;
+			DiveFromVel = VisVel;
+			const float Remaining = FMath::Max(float(Tuning.WarnSeconds - DiveRetargetTime), 0.35f); // a late drop still turns, not snaps
+			DiveCtrl = DiveFrom + DiveFromVel * (Remaining / 3.f);
+		}
 		UE_LOG(LogLeafline, Log, TEXT("Bird: turns to the dropped piece (pass in %.1f s)"), FMath::Max(Tuning.WarnSeconds - StateTime, 0.0));
 	}
 }
@@ -864,6 +873,7 @@ void ABirdSystem::BeginVisualDive()
 	}
 	DiveFrom = VisPos;
 	DiveFromVel = VisVel;
+	DiveRetargetTime = -1.0;
 	DiveCtrl = DiveFrom + DiveFromVel.GetSafeNormal() * FMath::Min(FVector::Dist(DiveFrom, Pp) * 0.35f, 1500.f);
 	if (Tree && Tree->GetField().IsValid())
 	{
@@ -923,6 +933,11 @@ float ABirdSystem::GetCameraNudge(const AAntPawn* Ant, float Dt, bool bPlayerLoo
 		NudgeDiveSerial = DiveSerial; // a new dive: the player's earlier look input no longer counts
 		bNudgeCancelled = false;
 		NudgeAnt = IsDivingAt(Ant) ? Ant : nullptr;
+	}
+	if (NudgeAnt.Get() != Ant)
+	{
+		NudgeWeight = 0.f;
+		return 0.f;
 	}
 	// On while the dive targets this ant and until the visible pass is over (its exit); off for any other dive.
 	const bool bOurDive = Ant && NudgeAnt.Get() == Ant && (IsDivingAt(Ant) || (VisMode == VisExit && State == EBirdState::Away));
@@ -1038,10 +1053,14 @@ void ABirdSystem::UpdateVisual(float Dt)
 		const FVector T = TargetSurfacePos(&N);
 		const FVector Pp = T + N * (DiveGap + BirdBelow());
 		UpdateExitTangent(N);
-		const float S = FMath::Clamp(float(StateTime / FMath::Max(Tuning.WarnSeconds, 0.1f)), 0.f, 1.f);
+		const bool bRetargeted = DiveRetargetTime >= 0.0;
+		const float Duration = bRetargeted ? FMath::Max(float(Tuning.WarnSeconds - DiveRetargetTime), 0.35f)
+			: FMath::Max(Tuning.WarnSeconds, 0.1f);
+		const float S = FMath::Clamp(float((StateTime - (bRetargeted ? DiveRetargetTime : 0.0)) / Duration), 0.f, 1.f);
 		const FVector B2 = Pp + ApproachDir * Tuning.ApproachDistance;
 		const float L = FMath::Max(FVector::Dist(DiveFrom, Pp), 1.f);
-		const float M0 = FMath::Clamp(DiveFromVel.Size() * Tuning.WarnSeconds / L, 0.f, 1.5f);
+		// The rebuilt curve's first control already encodes velocity over its remaining duration.
+		const float M0 = bRetargeted ? 1.f : FMath::Clamp(DiveFromVel.Size() * Tuning.WarnSeconds / L, 0.f, 1.5f);
 		// Hermite in time: it leaves the circle at its gliding speed, speeds up, and flares to a stop at the pass.
 		const float U = FMath::Clamp((3.f * S * S - 2.f * S * S * S) + M0 * (S * S * S - 2.f * S * S + S), 0.f, 1.f);
 		NewPos = Bezier(DiveFrom, DiveCtrl, B2, Pp, U);
