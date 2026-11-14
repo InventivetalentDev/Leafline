@@ -27,6 +27,13 @@ public:
 	static constexpr int32 MenuOptRow = 1100;   // + row: the whole options row (hover selects)
 	static constexpr int32 MenuOptMinus = 1200; // + row: the "<" on a value row
 	static constexpr int32 MenuOptPlus = 1300;  // + row: the ">" on a value row
+	static constexpr int32 MenuCredits = 1003;     // the pause menu's Credits button, and the title's "credits" line
+	static constexpr int32 MenuCreditsBack = 1004; // the credits page's Back button
+
+	/** Credits page: scroll by this many 1080p design pixels (clamped to the text when drawn). */
+	void ScrollCredits(float DesignPixels);
+	/** Credits page just opened: start at this scroll (design pixels; negative = the end), snapped, and log the layout. */
+	void ResetCreditsScroll(float DesignPixels);
 
 	/**
 	 * A faint line in the bottom-left corner for reproducing what a screenshot shows: build, tree, seed, day and a
@@ -74,6 +81,8 @@ private:
 	void DrawEndCard(const ADayDirector* D, float Scale);
 	void DrawMoveCard(const ADayDirector* D, float Scale);
 	void DrawPause(float Scale);
+	/** Pause page 2: the rows of credits.txt (UI/Credits.h) in a scrolling window, and Back. */
+	void DrawCredits(float Scale);
 	void DrawColonyMeter(float CenterX, float Y, float Width, float Scale);
 	/** Text may hold button tokens ("Hold {Cut}: cut", "{orclick}"): drawn as icons for the device in use (PromptIcons.h). */
 	void DrawTextCentered(const FString& Text, float CenterX, float Y, const FLinearColor& Color, float TextScale, UFont* Font);
@@ -101,6 +110,13 @@ private:
 	void AddMenuHit(float X, float Y, float W, float H, int32 Id) { MenuHits.Add({ FBox2D(FVector2D(X, Y), FVector2D(X + W, Y + H)), Id }); }
 	/** The mouse cursor is showing and over this item. */
 	bool IsHovered(int32 Id) const;
+
+	// Credits page scroll in 1080p design pixels: the target, the eased value drawn, and the most there is to scroll
+	// (from the last frame drawn; negative before that).
+	float CreditsScroll = 0.f;
+	float CreditsScrollShown = 0.f;
+	float CreditsMaxScroll = -1.f;
+	bool bCreditsJustOpened = false;
 
 	// Wind exposure of the ant's spot, sampled a few times a second (it marches the field).
 	float ExposureShown = -1.f;

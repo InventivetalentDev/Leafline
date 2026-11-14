@@ -695,7 +695,7 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs CmdPauseMenu(
 		TEXT("Leaf.PauseMenu"),
-		TEXT("Leaf.PauseMenu <page 0|1> [row]: pause and show the pause menu (0) or the options (1) with a row selected (screenshots)."),
+		TEXT("Leaf.PauseMenu <page 0|1|2> [row]: pause and show the pause menu (0), the options (1) with a row selected, or the credits (2; the row is the scroll in design pixels, -1 the end) (screenshots)."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 		{
 			ALeaflinePlayerController* PC = World ? Cast<ALeaflinePlayerController>(World->GetFirstPlayerController()) : nullptr;
