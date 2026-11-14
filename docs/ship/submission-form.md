@@ -1,92 +1,67 @@
 # MegaJam submission form: draft answers
 
-Refreshed Sat 14 Nov 2026. Fields follow `docs/plan.md`, M7. **The owner submits in person** (MegaJam rules §17). Our deadline is Sun 15 Nov 22:00 CET; the hard deadline is Mon 16 Nov 02:59 CET. Resolve placeholders and conditional lines against the final package before copying answers.
+<!-- Field by field, in the order of the itch.io form (saved in docs/ship/temp/ on 14 Nov). Everything marked Private is seen only by the organisers. The owner submits in person by Sun 15 Nov 22:00 CET (the form closes Mon 16 Nov 02:59 CET). Square brackets are still open. -->
 
-| Field | Answer |
-|---|---|
-| Full name | Haylee Schäfer |
-| Epic account email | mail@inventivetalent.org |
-| Game name | Leafline |
-| Team / entrant name | inventivetalent (solo) [TODO: get rid of the solo tag] |
-| Build | `inventivetalent_Leafline.zip`, Windows Development build; [FINAL ZIP SIZE], under 1 GB |
-| Gameplay video | [VIDEO URL — 30–60 s, 1920×1080 or higher, English] |
-| Dev log link (optional) | [DEV LOG URL — public repo file or a copy on itch] |
-| MegaJam itch page | [MEGAJAM PAGE URL] |
-| Game Off itch page | [GAME OFF PAGE URL — separate page, updated independently] |
-| Source | [PUBLIC REPO URL — expected https://github.com/InventivetalentDev/Leafline; owner must authorise publication] |
-| Repository licence | [LICENCE — owner to choose; add LICENSE] |
-| Engine | Unreal Engine 5.8 (developed with 5.8.4) |
+**Project:** the itch page "Leafline - 2026 Epic AI MegaJam" (publish it first; the form only lists published projects).
 
-## Short description
+**Team Name:** inventivetalent
 
-You are a leafcutter ant on an enormous tree. Climb, lay a scent trail and choose how much to cut from a leaf. A bigger piece is worth more, but it slows the ant and catches the wind like a sail. Send the loaded ant home and shift to the next scout while recruits follow your route, cut pieces from nearby leaves and carry them home. Patches run dry; leaf mass buys upgrades between days. The colony keeps its tree until it moves at a milestone, and cut leaves never grow back. The third milestone shows an end card; play continues afterwards.
+**Game Name:** Leafline
 
-## How the game uses Director's Cut
+**How many people on your team?** 1 (solo) <!-- 2 only if Friend B joins as an Entrant; see open-questions.md -->
 
-You choose the size of every cut, trading leaf mass against carrying speed and wind risk. Your scent trail directs the colony: once a scout's piece is on its way home, recruits walk your route without you and harvest the patch around your cut. Where you lay the route and how big you cut decide how many pieces come home. The recap is the day's cut.
+**List each team member's name & email address** (private): Haylee Schäfer, mail@inventivetalent.org
 
-The theme post's vision, delegation and final choices are the route, the workers following it and the size of each piece. The author directs the AI agents making the game too. This is an idea from the author's notes that had not found a home; the earlier prototype and what carried over are disclosed below.
+**Are you entering as a student or student team?** (private): N/A
 
-## Current build details (use if the form has room)
+**Link to gameplay footage (30-60 sec)** (private): [VIDEO URL]
 
-Three scouts work each day. Brood buys the recruit pool; recruits never grip, so your route and cut size determine their wind risk. The harvest runs at five times speed and can be skipped. When no recruit trips remain, the last workers' walk home also fast-forwards and can be skipped. Effects are quieter during fast-forward and the end jingle plays afterwards.
+**Gameplay instructions:**
 
-Hold Tab / LB for the wind map; tap it to cycle worker views. Movement follows the branch's direction on screen, with working diagonals on twigs. Key and pad prompt icons follow the last device used and show Xbox-style buttons for every pad. Full keyboard and gamepad tables are in the README and itch drafts, checked against `LeaflinePlayerController.cpp` and `PromptIcons.cpp`.
+> Windows 10 or 11. Unzip and run Leafline/AntTreeGame.exe. Keyboard and mouse or any gamepad; the pause menu lists all controls.
+>
+> You're a leafcutter ant. Climb from the nest to a leafy branch (WASD and mouse, or the sticks); your ant leaves a scent trail. Hold Cut (E or left mouse button, pad X) at a leaf to choose the size of the piece, then let go: bigger pieces are worth more but slower and riskier in the wind. Send the ant home (Q, pad Y). It follows the trail by itself while you take over the next worker. When a gust comes, hold Grip (Space, pad A) or get into shelter; hold Tab (pad LB) for the wind map, where green bark is sheltered and red is exposed. At the end of the day, spend leaf mass on upgrades at the nest. Brood adds recruits who follow your trails and harvest around your cuts.
+>
+> [IF BIRD SHIPS] A bird hunts on the wind and dives at ants carrying leaves on exposed bark. It never touches them; its wing gust knocks them off. Grip or get into shelter when it dives. [IF BAIT SHIPS] Drop your piece in the open (G, pad B) to draw it away.
 
-The look passes added warm ridged bark and moss, a closer camera with a wider look-up range and a conditional dithered bark cutaway, a scripted dug-soil nest mound, and larger HUD text on backed panels. The ant's neck joins its head to its thorax, and its feet sit on the bark. Junction fillets are off for the jam unless a verified fix lands today; do not claim smooth filleted junctions.
+**What platform is your game built for?** Windows 10 and Windows 11 <!-- the form takes one; pick Windows 11 and mention 10 in the instructions, as above -->
 
-The tree persists across days; yesterday's trails stay for one more day. At the second and third milestones, the next day starts on a new, taller tree with richer leaves and stronger gusts. Saves are written at day end; quitting mid-day loses that day's haul and cuts.
+**Private version island code:** leave empty (not a UEFN game).
 
-## Saturday additions: one line per feature, keep only if shipped
+**Pre-jam content list** (private):
 
-[IF BIRD SHIPS] A bird hunts on the wind, choosing laden ants on exposed bark. It never touches an ant: its wing gust knocks the ant off, the piece flutters away and the ant walks home unharmed. Reach shelter or hold Grip when it dives; gripping holds.
+> Game content: none. The project was created on 12 November 2026 and all game content was made from then on, except the CC0 button prompt icons ("Xelu's FREE Controller Prompts" by Nicolae (Xelu) Berbece, updated by Paul Paun, https://thoseawesomeguys.com/prompts/), which are a sourced asset.
+>
+> Made before 12 November:
+> - An earlier prototype of a tree-climbing ant game (1 and 2 November, a separate project). No files from it are used: no code, assets, materials or models. What carried over is knowledge: my idea notes (docs/concept-main.md in the repository, unchanged) and workflow and engine lessons from the prototype's notes. The planning agent read those notes, its commit list and its file listing, not its source code.
+> - Two helper scripts adapted from another of my projects, with no game content: Scripts/unreal-lock.sh (lets only one or two Unreal processes run on the machine at a time) and Scripts/RunGame.bat (starts the game from the editor binaries).
+> - Agent setup: Claude Code with my global instructions and a few general-purpose skills (writing style, planning interviews, a Codex hand-off workflow), the Codex CLI and its Claude Code plugin, herdr (a terminal multiplexer for running several agents), and the MCP servers blender-mcp (Blender add-on) and earshot (audio analysis). Epic's Model Context Protocol plugin ships with the engine. [OWNER: check this list against your setup; add or remove anything.]
+> - The level started as the engine's default template map, with the floor and props removed.
 
-[IF BAIT SHIPS] Drop your carried piece on exposed bark to draw the bird away for a while; bait in shelter is ignored. Keyboard: [BAIT KEY]; pad: [BAIT BUTTON]. <!-- Requires bird tier 1 and bait tier 2; verify both bindings against landed code and prompt icons. -->
+**Dev log link (Glass Box modifier)** (private, optional): [DEV LOG URL] <!-- docs/devlog.md in the public repository, or a copy on itch. Owner: check every statement first; it is written in your voice. -->
 
-[IF WIND CUES SHIP] Streaming specks and streaks show an approaching gust and how exposed the ant's own spot is, alongside the wind map and HUD.
+**Tell us about your take on the theme and how it influenced your game?** (private):
 
-[IF ANT LOOK SHIPS] A richer copper-rust ant with broad shell highlights keeps its colour in shade without an outline-like rim light.
+> Director's Cut works on two levels in Leafline. You direct the colony: you lay the routes with your scent trail, and recruits walk them and harvest around your cuts without you, so where you lay a route decides how much comes home. And you choose the cut: every piece's size trades leaf mass against carrying speed and wind risk, and the recruits copy your choice. The day's recap is "the day's cut", what your lines brought home and what the wind took. Behind the game, one person directed AI agents through planning, building and review, deciding what went in and what didn't.
 
-[IF FOREST FLOOR SHIPS] Fallen leaves and sparse grass surround the colony's clearing while keeping the nest and its trails clear.
+**Which modifier categories?** (optional): Solo Driver; Glass Box (only with the dev log link); Render Royalty [OWNER: your call].
 
-## Tools and AI use
+**NVIDIA RTX Award:** no. <!-- The game uses hardware ray tracing when available but none of the listed NVIDIA features. -->
 
-Leafline is made by one person directing AI agents. Most programming is agent-written; concept and key art are AI-generated too.
+**What tools did your team use to make your game?** (private, optional):
 
-- Unreal Engine 5.8.
-- Claude (Anthropic): planning and most programming, driving the Unreal editor through Epic's Model Context Protocol plugin.
-- Codex (OpenAI): concept and key art, code reviews, and programming contributions including saves, upgrades, runtime audio and the HUD restyle.
-- Blender 5.1: scripted mesh generation (the ant and nest mound).
-- Python scripts: asset generation and audio synthesis, checked with the earshot audio analysis tool.
+> Unreal Engine 5.8 (5.8.4), with Epic's Model Context Protocol plugin and ProceduralMeshComponent. Claude Code (Anthropic Claude models) for planning and most of the programming, driving the Unreal editor through the Model Context Protocol plugin. Codex (OpenAI) for concept and key art, code reviews and some programming. Blender 5.1 with the blender-mcp add-on for the scripted meshes (ant, nest mound, bird). Python for asset scripts and sound synthesis, with earshot for checking the sounds. Visual Studio 2022 Build Tools. Sourced asset: Xelu's CC0 button prompt icons. No Hyper3D Rodin.
 
-The game's code, procedural geometry, shaders and scripted assets were created during the jam, starting 12 November 2026. Disclosed exceptions are the sourced CC0 HUD prompts, pre-jam tooling and the engine template map described below. The tree, bark, leaves, ground, sky, trail and wind effects use code and shaders, with no textures in the world and no hand-made tree models. Ant leg motion is shader-driven. AI-generated content is disclosed as AI use; the rules recorded in `docs/design.md` do not classify it as sourced content.
+**Which OpenAI models or products did you use, and how?** (private, optional):
 
-## Sourced assets
+> Codex (OpenAI) during development only, nothing at runtime. It made the concept art and the itch page key art, reviewed code (for example the bird's timing logic and a diagnosis of why ants got stuck at branch junctions), and wrote some features: the save game and upgrades, runtime audio, the HUD restyle and the video camera tools. Claude orchestrated it alongside Claude agents; Codex's quota and its separate perspective made it useful for reviews and self-contained jobs.
 
-[“Xelu's FREE Controller Prompts”](https://thoseawesomeguys.com/prompts/) by Nicolae (Xelu) Berbece, updated by Paul Paun (2021), CC0 1.0 (public domain). Resized light keyboard/mouse keys and Xbox Series buttons. They are used only for HUD prompts; every pad shows Xbox-style buttons. See `docs/sourced-assets.md`.
+**Contact:** your call.
 
-No marketplace content or third-party sound samples, world textures or models are listed in the current sourced-assets record.
+**Official rules:** Yes (required).
 
-## Earlier prototype
+## Before you submit
 
-The following is word for word from `docs/devlog.md`, whose owner-review comment is still present:
-
-> **Earlier prototype.** On 1–2 November I made a quick prototype of a tree-climbing ant game in a separate project (`TreeAntGame`). No files from it are used here: no code, assets, materials or models. This project was created on 12 November and all game content in it was made from that day on. What did carry over is knowledge: my idea notes (`concept-main.md`), and workflow and engine lessons from that prototype's notes, which the planning agent read (its `CLAUDE.md` and to-do list, not its source code) and used when writing the plan.
-
-`docs/design.md` additionally records that the planning session read the prototype's commit list and file listing. No source was read or adapted. The CC0 prompt icons, added on 13 Nov, are the disclosed sourced exception to the dev log's “all game content” timing statement. [OWNER: confirm the disclosure before publishing.]
-
-## Pre-jam tooling and engine template
-
-Two helper scripts predate the jam, as recorded in the dev log: `Scripts/unreal-lock.sh` and `Scripts/RunGame.bat`, adapted from another project and containing no game content. The lock now allows two Unreal processes (14 Nov); the dev log's older “one process” wording is historical. `L_Main` began as a copy of the engine's default template map; the floor and props were removed, leaving sky and lighting.
-
-## Owner's recording and submission checklist
-
-[IF VIDEO KIT SHIPS] Recording only: after packaged verification, use `Leaf.Cinematic 0|1`, `Leaf.Shot <name> [seconds]` (orbit/crane/dolly/reveal/follow), `Leaf.ShotList <name> <name> ...` and `Leaf.Slomo <factor>` (1 = normal); confirm final syntax in `docs/tech.md`. These are capture aids, not claims about the shipped gameplay or a video already recorded.
-
-- Confirm the final title, licence, optional features, archive name and actual zip size. The latest recorded package is 13 Nov 22:28; the Sunday package has not been made. Do not reuse the old 463 MB figure as the final size.
-- Disable `bInputVizKey` and `bShowBuildLine` as M7 requires, then verify the final Development package from a fresh folder and a path with spaces, with no local save included.
-- Record 30–60 s at 1920×1080 or higher, in English; fill the video URL. No trademarks or logos in game, video or page art except the Unreal Engine logo used per Epic's branding guidelines.
-- Publish two itch pages. Freeze the MegaJam page and build at submission; date later Game Off updates separately.
-- Owner confirms the prototype disclosure and AI/tool credits. Check the sourced-assets record again after Saturday work, especially any new bait key icon.
-- Owner authorises repo publication, chooses a licence and checks links while signed out. Game Off needs a public source repo. If the repo remains private, an itch dev log can serve MegaJam, but it does not meet Game Off's public-repo requirement.
-- Owner fills their full name and Epic email, submits personally by Sun 15 Nov 22:00 CET, and tags the submitted commit `megajam-submission`.
+- Publish the itch page, upload the final zip, and set the page's Windows download.
+- Fill the video link; check the dev log link opens while signed out.
+- Tag the submitted commit `megajam-submission`.

@@ -17,13 +17,7 @@ You're a leafcutter ant on an enormous tree. Climb, lay a scent trail and cut a 
 
 The colony keeps its tree from day to day. Cut leaves don't grow back, so you climb higher and into stronger wind until the colony moves to a new, taller tree.
 
-## The jam theme: Director's Cut
-
-Leafline was made for the Epic AI MegaJam 2026, whose theme is "Director's Cut". In the game:
-
-- **You direct the colony.** Recruits walk the routes you lay and harvest around your cuts without you.
-- **You choose the cut.** Each piece's size trades leaf mass against speed and wind risk.
-- **The day's cut** is the recap: what your lines brought home and what the wind took.
+Made for the Epic AI MegaJam 2026 (theme: Director's Cut): you direct the colony with your trails and choose every cut.
 
 ## How to play
 
@@ -56,26 +50,9 @@ The pause menu lists all controls and has options for sensitivity, volume and gr
 
 ## How it's made
 
-The tree, bark, leaves, forest floor, sky, scent trails and wind are generated with code and shaders. The world has no textures and no hand-made tree models. The ant, the nest mound and the bird are meshes made by Blender Python scripts. The sounds and music are synthesised by scripts.
+The tree, leaves, forest floor, sky, scent trails and wind are all generated with code and shaders: no textures, no hand-made tree models. Made with Unreal Engine 5.8 by one person directing AI agents (Claude and Codex), which wrote most of the code and the key art.
 
-One person directed AI agents to make the game. Most of the code is written by AI, and the concept and key art are AI-generated.
-
-- Unreal Engine 5.8
-- Claude (Anthropic): planning and most of the programming, including driving the Unreal editor through Epic's Model Context Protocol plugin
-- Codex (OpenAI): concept and key art, code reviews and some programming
-- Blender 5.1 and Python: the scripted meshes and the sound synthesis
-
-## Sourced assets
-
-Button prompt icons: ["Xelu's FREE Controller Prompts"](https://thoseawesomeguys.com/prompts/) by Nicolae (Xelu) Berbece, updated by Paul Paun, CC0 1.0. They're the only content in the game that wasn't made for it.
-
-## Made before the jam
-
-On 1 and 2 November I made a quick prototype of a tree-climbing ant game in a separate project. Leafline uses no files from it: no code, assets, materials or models. This project started on 12 November, and all its game content was made from then on, except the CC0 icons above. What carried over was knowledge: my idea notes, and workflow and engine lessons from the prototype's notes. The planning agent read those notes, its commit list and its file listing, but not its source code.
-
-Two helper scripts are older than the jam and contain no game content: `Scripts/unreal-lock.sh` and `Scripts/RunGame.bat`. The level started as the engine's default template map, with the floor and props removed.
-
-<!-- Owner: check this section against docs/devlog.md before publishing. It is written in your voice. -->
+Button prompt icons: ["Xelu's FREE Controller Prompts"](https://thoseawesomeguys.com/prompts/) by Nicolae (Xelu) Berbece, updated by Paul Paun, CC0 1.0.
 
 ## Credits and links
 
