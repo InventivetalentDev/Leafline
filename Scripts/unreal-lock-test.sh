@@ -6,7 +6,7 @@
 cd "$(dirname "$0")/.." || exit 1
 T=$PWD/Saved/locktest; mkdir -p "$T/trash" "$T/fakebin"
 printf '#!/bin/sh\nsleep 3; echo slowhost\n' > "$T/fakebin/hostname"; chmod +x "$T/fakebin/hostname"
-export FOREST_LOCK_DIR=$T/unreal FOREST_LOCK_POLL=1 FOREST_LOCK_REPORT=3 FOREST_LOCK_WATCH=
+export UNREAL_LOCK_SLOTS=1 FOREST_LOCK_DIR=$T/unreal FOREST_LOCK_POLL=1 FOREST_LOCK_REPORT=3 FOREST_LOCK_WATCH=
 L=$PWD/Scripts/unreal-lock.sh; D=$FOREST_LOCK_DIR
 pass=0; fail=0; n=0
 ok() { if [[ $1 == "$2" ]]; then pass=$((pass+1)); echo "  ok   $3 ($1)"; else fail=$((fail+1)); echo "  FAIL $3: got '$1', want '$2'"; fi; }
