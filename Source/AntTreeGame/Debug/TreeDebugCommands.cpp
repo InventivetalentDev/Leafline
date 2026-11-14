@@ -149,8 +149,8 @@ namespace
 		ATreeActor* Tree = ATreeActor::Get(World);
 		if (Tree) Tree->RebuildGroundAndGrove();
 		const FVector Base = Tree ? Tree->GetSkeleton().TrunkBase : FVector::ZeroVector;
-		UE_LOG(LogLeafline, Log, TEXT("Leaf.Relief: %s, from %.0f m to full at %.0f m round the trunk axis (%.0f %.0f), near bands x%.2f, far bands x%.2f, rim %.0f m, ground to %.1f km"),
-			bOn ? TEXT("on") : TEXT("off"), LeafRelief::GetStartRadius() / 100.f, (LeafRelief::GetStartRadius() + LeafRelief::RampLength) / 100.f,
+		UE_LOG(LogLeafline, Log, TEXT("Leaf.Relief: %s, from %.0f m (asked %.0f m) to full at %.0f m round the trunk axis (%.0f %.0f), near bands x%.2f, far bands x%.2f, rim %.0f m, ground to %.1f km"),
+			bOn ? TEXT("on") : TEXT("off"), LeafRelief::GetEffectiveStart() / 100.f, LeafRelief::GetStartRadius() / 100.f, (LeafRelief::GetEffectiveStart() + LeafRelief::RampLength) / 100.f,
 			Base.X, Base.Y, LeafRelief::GetNearScale(), LeafRelief::GetFarScale(), LeafRelief::GetRimHeight() / 100.f,
 			(LeafRelief::IsOn() && LeafRelief::GetOuterRadius() > 0.f ? LeafRelief::GetOuterRadius() : (Tree ? Tree->Params.GroundRadius : 0.f)) / 100000.f);
 	}

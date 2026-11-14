@@ -1,0 +1,83 @@
+# Relief checks: frame time off/on/off/on (+ on with the usual 5 km ground) at the owner's pose and the canopy horizon;
+# litter over the 100-140 m ring from 15 m up; the video reveal shot; the canopy horizon on two more seeds.
+0|t.MaxFPS 0
+0|r.VSync 0
+0|Leaf.Tune wind CalmMin 400
+0|Leaf.Tune wind CalmMax 400
+0|Leaf.Tune wind StreakCount 0
+0|Leaf.Cues 0
+0|Leaf.NewDay 675856
+4|Leaf.Cinematic 1
+5|Leaf.Goto 504 1008 5966 -37 -14
+10|Leaf.Relief 0
+12|CsvProfile START
+20|CsvProfile STOP
+20.5|Leaf.Relief 1 90 1 4 250 30
+22.5|CsvProfile START
+30.5|CsvProfile STOP
+31|Leaf.Relief 0
+33|CsvProfile START
+41|CsvProfile STOP
+41.5|Leaf.Relief 1 90 1 4 250 30
+43.5|CsvProfile START
+51.5|CsvProfile STOP
+52|Leaf.Relief 1 90 1 4 250 0
+54|CsvProfile START
+62|CsvProfile STOP
+62.5|Leaf.Teleport 17 0.6
+64.5|Leaf.Aim -37 -4
+67.5|Leaf.Relief 0
+69.5|CsvProfile START
+77.5|CsvProfile STOP
+78|Leaf.Relief 1 90 1 4 250 30
+80|CsvProfile START
+88|CsvProfile STOP
+88.5|Leaf.Relief 0
+90.5|CsvProfile START
+98.5|CsvProfile STOP
+99|Leaf.Relief 1 90 1 4 250 30
+101|CsvProfile START
+109|CsvProfile STOP
+109.5|Leaf.Relief 1 90 1 4 250 0
+111.5|CsvProfile START
+119.5|CsvProfile STOP
+120|Leaf.Relief 0 90 1 4 250 30
+120.5|Leaf.TopDown 1500 90 12000 0
+124.5|SHOT litter-off
+125|Leaf.Relief 1
+128|SHOT litter-on
+128.5|Leaf.TopDown 0
+129|Leaf.Relief 0
+129.5|Leaf.Shot reveal 8
+135.5|SHOT reveal-off
+138.5|Leaf.Relief 1
+139.5|Leaf.Shot reveal 8
+145.5|SHOT reveal-on
+148.5|Leaf.Shot stop
+149|Leaf.Relief 0
+149.5|Leaf.NewDay 517192
+154.5|Leaf.Teleport 0 0.6
+156.5|Leaf.Aim -37 -4
+159.5|SHOT s517192-h-37-off
+160|Leaf.Relief 1
+163|SHOT s517192-h-37-on
+163.5|Leaf.Relief 0
+164|Leaf.Aim 143 -4
+167|SHOT s517192-h143-off
+167.5|Leaf.Relief 1
+170.5|SHOT s517192-h143-on
+171|Leaf.Relief 0
+171.5|Leaf.Relief 0
+172|Leaf.NewDay 15161
+177|Leaf.Teleport 0 0.6
+179|Leaf.Aim -37 -4
+182|SHOT s15161-h-37-off
+182.5|Leaf.Relief 1
+185.5|SHOT s15161-h-37-on
+186|Leaf.Relief 0
+186.5|Leaf.Aim 143 -4
+189.5|SHOT s15161-h143-off
+190|Leaf.Relief 1
+193|SHOT s15161-h143-on
+193.5|Leaf.Relief 0
+194|Leaf.QuitAfter 1

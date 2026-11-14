@@ -14,6 +14,7 @@ namespace LeafReliefDetail
 	float GFarScale = 4.f;
 	float GRimHeight = 25000.f;
 	float GOuterRadius = 3000000.f;
+	float GCrownReach = 0.f;
 	int32 GStamp = 1;
 	FVector2D GCentre = FVector2D::ZeroVector;
 	FVector2D GOffset = FVector2D::ZeroVector;
@@ -95,13 +96,19 @@ namespace LeafRelief
 	float GetNearScale() { return GNearScale; }
 	float GetFarScale() { return GFarScale; }
 
-	void SetFrame(const FVector2D& Centre, int32 Seed)
+	void SetFrame(const FVector2D& Centre, int32 Seed, float CrownReach)
 	{
 		const uint32 H = Hash2(Seed, 7177);
 		const FVector2D Offset(double(H & 0xffffu) * 37.0, double(H >> 16) * 41.0);
-		if (!Centre.Equals(GCentre, 1.0) || !Offset.Equals(GOffset, 1.0)) ++GStamp;
+		if (!Centre.Equals(GCentre, 1.0) || !Offset.Equals(GOffset, 1.0) || FMath::Abs(CrownReach - GCrownReach) > 1.f) ++GStamp;
 		GCentre = Centre;
 		GOffset = Offset;
+		GCrownReach = CrownReach;
+	}
+
+	float GetEffectiveStart()
+	{
+		return FMath::Max(GStartRadius, GCrownReach + 2200.f);
 	}
 
 	float Height(double X, double Y)
@@ -109,9 +116,10 @@ namespace LeafRelief
 		if (!GReliefOn) return 0.f;
 		const FVector2D Rel(X - GCentre.X, Y - GCentre.Y);
 		const double R = Rel.Size();
-		if (R <= GStartRadius) return 0.f;
-		const double FullRadius = GStartRadius + RampLength;
-		const double Ramp = SmoothStep(GStartRadius, FullRadius, R);
+		const double Start = GetEffectiveStart();
+		if (R <= Start) return 0.f;
+		const double FullRadius = Start + RampLength;
+		const double Ramp = SmoothStep(Start, FullRadius, R);
 		const FVector2D Q = Rel + GOffset;
 		double H = 0.0;
 		for (const FBand& B : Bands)

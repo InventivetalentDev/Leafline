@@ -33,8 +33,12 @@ namespace LeafRelief
 	ANTTREEGAME_API float GetOuterRadius();
 	/** Changes whenever the relief is switched or its frame moves: things built on it compare it to rebuild. */
 	ANTTREEGAME_API int32 Stamp();
-	/** The trunk axis (world X, Y) and the tree seed, which offsets the pattern. Set when the ground is built. */
-	ANTTREEGAME_API void SetFrame(const FVector2D& Centre, int32 Seed);
+	/** The trunk axis (world X, Y), the tree seed (offsets the pattern) and the crown's reach (cm from the axis: the
+	 *  farthest branch sample). Set when the ground is built. */
+	ANTTREEGAME_API void SetFrame(const FVector2D& Centre, int32 Seed, float CrownReach = 0.f);
+	/** Where the relief really starts: the start radius, or the crown's reach plus a blown-off ant's drift (16.6 m at most
+	 *  in still air: at most 5.8 m/s sideways, drag 0.35/s) plus 5.4 m, whichever is farther. */
+	ANTTREEGAME_API float GetEffectiveStart();
 	/** Height (cm) of the visible ground above the ground plane at world X, Y; 0 when off or inside the start radius. */
 	ANTTREEGAME_API float Height(double X, double Y);
 	/** Upward unit normal of the visible ground at world X, Y. */
