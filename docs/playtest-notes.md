@@ -110,6 +110,10 @@
   - Sent to the ui agent (14 Nov 16:15): icons for the wind group (direction arrow that pulses and shakes with gusts, exposure icon), the bird line (silhouette, diving and flashing in a dive) and the ant status (carrying, gripping), drawn procedurally or made by our own script; short words stay where needed; behind `Leaf.HudIcons`. For the 20:00 candidate.
 - [ ] bird is barely noticable, mostly affects recruits (maybe just keep it like this, doesn't really add much to the gameplay atm)
   - Bird agent is bringing its circle in (20-25 m instead of 30-40, about twice as large on screen) and checking its shadow. The decision (keep, make it about the player's ant, or ship it off) is yours at 20:00.
+- [ ] the "Colony ..." number at the top could use an icon; it confused me from the start (I assumed it was leaves in storage)
+  - It is the colony's total hauled ever (what the milestones count); the spendable leaf only shows at the nest. Sent to the ui agent (14 Nov 17:05): a leaf-pile icon, the word "hauled", today's +N, and progress toward the next milestone. Behind `Leaf.HudIcons`. For the 20:00 candidate.
+- [ ] the 1/2/3 out/ready could use icons too
+  - Sent to the ui agent with the note above: an ant icon per worker showing its state (out, carrying home, home, ready, blown off), numbers kept.
 
 ## To revisit: thin-branch controls (2026-11-12)
 
