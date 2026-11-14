@@ -83,7 +83,9 @@ namespace
 
 float AAntCamera::OcclusionDepth(const FVector& From, const FVector& To, float EndSkip) const
 {
-	const FTreeField* Field = Tree.IsValid() ? &Tree->GetField() : nullptr;
+	// The surface the player sees: with fillets the ant walks on the field without them, so where a junction's skirt hides
+	// it the cutaway still opens.
+	const FTreeField* Field = Tree.IsValid() ? &Tree->GetVisualField() : nullptr;
 	if (!Field || !Field->IsValid()) return 0.f;
 	const FVector Seg = To - From;
 	const double Len = Seg.Size() - EndSkip;
@@ -409,7 +411,14 @@ void AAntCamera::Tick(float DeltaTime)
 	// The cutaway aims at the ant's body, not at the look-at point: that one sits above the ant and lags behind it on a
 	// spring, so the see-through hole in the bark was often beside the ant (owner note).
 	{
-		const float Depth = OcclusionDepth(CamPos, AntPos + AntUp * 3.0, 10.f);
+		float Depth = OcclusionDepth(CamPos, AntPos + AntUp * 3.0, 10.f);
+		// With fillets the ant walks on the field without them and sinks into a junction's skirt. The trace skips its last
+		// 10 cm (the bark under the ant), which is where the skirt covers it: open fully once the body is a few cm under.
+		if (Tree.IsValid() && Tree->GetVisualField().HasFillets())
+		{
+			const double Sink = -Tree->GetVisualField().Distance(AntPos + AntUp * 3.0);
+			if (Sink > 0.0) Depth = FMath::Max(Depth, (float)(Sink * 6.0));
+		}
 		const float WantCut = FMath::SmoothStep(2.f, FMath::Max(Tuning.CutawayDepthFull, 3.f), Depth);
 		BarkCut = FMath::FInterpTo(BarkCut, WantCut, (float)Dt, WantCut > BarkCut ? Tuning.CutawayEaseIn : Tuning.CutawayEaseOut);
 		if (GCutLog && (CutLogTimer -= (float)Dt) <= 0.f)
