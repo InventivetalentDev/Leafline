@@ -2,6 +2,7 @@
 #include "Ant/AntPawn.h"
 #include "Ant/AntMovementComponent.h"
 #include "Tree/TreeActor.h"
+#include "World/BirdSystem.h"
 #include "Debug/LeafDebug.h"
 #include "Camera/CameraComponent.h"
 #include "Kismet/KismetMaterialLibrary.h"
@@ -253,6 +254,7 @@ void AAntCamera::Tick(float DeltaTime)
 	if (RefForward.IsNearlyZero()) RefForward = CamAnyPerpendicular(CamUp);
 
 	// 2. Orbit.
+	const bool bPlayerLook = !PendingLook.IsNearlyZero(0.01); // the bird's nudge gives way to the player's own look
 	if (bCinematic)
 	{
 		// Filter angular displacement, retaining the unconsumed part so a mouse gesture keeps its total turn.
@@ -328,25 +330,31 @@ void AAntCamera::Tick(float DeltaTime)
 	// Wood between camera and ant must not make the camera jump. The tree's faces are one-sided, so a camera behind or
 	// inside a branch sees through it, and the bark material dithers away whatever lies along the line to the ant.
 	// Optionally (bAvoidThickOcclusion) a thick occluder pulls the boom in after it has blocked the view for a moment.
-	double Want = Tuning.BoomLength;
+	// The bird (World/BirdSystem.*): while it dives at this ant, the boom eases out and the view turns toward the bird
+	// (below). The wood handling that follows (occlusion, ground, thick wood) stays in charge of the longer boom.
+	FVector NudgeLookAt = FVector::ZeroVector;
+	ABirdSystem* NudgeBird = ABirdSystem::Get(this);
+	const float NudgeW = NudgeBird ? NudgeBird->GetCameraNudge(Target.Get(), (float)Dt, bPlayerLook, NudgeLookAt) : 0.f;
+	const double BoomLen = Tuning.BoomLength * (1.0 + (NudgeBird ? FMath::Max(NudgeBird->Tuning.NudgeBoomScale - 1.f, 0.f) : 0.f) * NudgeW);
+	double Want = BoomLen;
 	float& OccludedTime = SpareFloat;
 	bool bThickOcclusion = false;
 	if (Tuning.bAvoidThickOcclusion && Field && Field->IsValid())
 	{
 		double HitT;
-		if (Field->March(Focus, Focus - View * Tuning.BoomLength, Tuning.ProbeRadius, HitT))
+		if (Field->March(Focus, Focus - View * BoomLen, Tuning.ProbeRadius, HitT))
 		{
-			const double HitDist = HitT * Tuning.BoomLength;
+			const double HitDist = HitT * BoomLen;
 			// Thickness of the obstruction along the ray: step through it until outside again.
 			// March reports contact within 0.5 cm of the probe, so walk while touching or inside.
 			double Exit = HitDist;
-			for (int32 i = 0; i < 40 && Exit < Tuning.BoomLength; ++i)
+			for (int32 i = 0; i < 40 && Exit < BoomLen; ++i)
 			{
 				const double Gap = Field->Distance(Focus - View * Exit) - Tuning.ProbeRadius;
 				if (Gap > 1.0) break;
 				Exit += FMath::Max(FMath::Abs(Gap), 2.0);
 			}
-			if (Exit - HitDist > 60.0 || Exit >= Tuning.BoomLength)
+			if (Exit - HitDist > 60.0 || Exit >= BoomLen)
 			{
 				bThickOcclusion = true;
 				if (OccludedTime > 0.25f) Want = FMath::Max(HitDist - 10.0, (double)Tuning.MinBoomLength);
@@ -417,6 +425,23 @@ void AAntCamera::Tick(float DeltaTime)
 				const FVector ToFocus = Focus - CamPos;
 				if (ToFocus.SizeSquared() > 1.0) LookDir = ToFocus.GetSafeNormal();
 			}
+		}
+	}
+	// The bird (World/BirdSystem.*): while it dives at this ant, the view turns toward a point between the ant and the bird.
+	// Only the look direction changes, never the camera's position (so its wood clearance holds).
+	if (ABirdSystem* Bird = NudgeBird)
+	{
+		const float W = NudgeW;
+		const FVector ToLook = (NudgeLookAt - CamPos).GetSafeNormal();
+		if (W > 0.f && !ToLook.IsNearlyZero())
+		{
+			LookDir = FQuat::Slerp(FQuat::Identity, FQuat::FindBetweenNormals(LookDir, ToLook), W).RotateVector(LookDir).GetSafeNormal();
+			// The ant stays in the frame: at most NudgeKeepAnt of half the vertical field of view from the line to the ant.
+			const FVector ToAnt = (AntPos - CamPos).GetSafeNormal();
+			const double HalfV = FMath::Atan(FMath::Tan(FMath::DegreesToRadians(Tuning.FieldOfView * 0.5)) * 9.0 / 16.0);
+			const double MaxOff = HalfV * FMath::Max(Bird->Tuning.NudgeKeepAnt, 0.1f);
+			const double Off = FMath::Acos(FMath::Clamp(FVector::DotProduct(ToAnt, LookDir), -1.0, 1.0));
+			if (Off > MaxOff && Off > 1e-3) LookDir = FQuat::Slerp(FQuat::Identity, FQuat::FindBetweenNormals(ToAnt, LookDir), MaxOff / Off).RotateVector(ToAnt).GetSafeNormal();
 		}
 	}
 	SetActorLocationAndRotation(CamPos, FRotationMatrix::MakeFromXZ(LookDir, CamUp).ToQuat());

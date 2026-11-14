@@ -12,6 +12,7 @@
 #include "Tree/TreeActor.h"
 #include "UObject/ConstructorHelpers.h"
 #include "World/WindSystem.h"
+#include "World/ExposureBands.h"
 
 namespace
 {
@@ -71,8 +72,8 @@ AExposureOverlay* AExposureOverlay::Get(UWorld* World)
 
 int32 AExposureOverlay::BandOf(float Exposure)
 {
-	// Same thresholds as the HUD's "Here: sheltered / partly exposed / exposed" (UI/LeaflineHUD.cpp).
-	return Exposure < 0.25f ? 0 : (Exposure < 0.6f ? 1 : 2);
+	// Same thresholds as the HUD's "Here: sheltered / partly exposed / exposed" and the bird (World/ExposureBands.h).
+	return LeafExposure::Band(Exposure);
 }
 
 FLinearColor AExposureOverlay::BandColor(int32 Band)

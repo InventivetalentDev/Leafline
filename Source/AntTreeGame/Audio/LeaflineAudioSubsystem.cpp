@@ -1,4 +1,5 @@
 #include "Audio/LeaflineAudioSubsystem.h"
+#include "Sound/SoundAttenuation.h"
 #include "AntTreeGame.h"
 #include "Components/AudioComponent.h"
 #include "HAL/PlatformTime.h"
@@ -166,6 +167,16 @@ void ULeaflineAudioSubsystem::SetPlaybackSpeed(float Speed)
 
 void ULeaflineAudioSubsystem::PlayOneShot(FName Sound, float Volume, float Pitch)
 {
+	if (AllowOneShot(Sound, Volume)) CreateVoice(Sound, Volume, Pitch, false);
+}
+
+void ULeaflineAudioSubsystem::PlayOneShotAt(FName Sound, const FVector& Location, float Volume, float Pitch)
+{
+	if (AllowOneShot(Sound, Volume)) CreateVoice(Sound, Volume, Pitch, false, &Location);
+}
+
+bool ULeaflineAudioSubsystem::AllowOneShot(FName Sound, float& Volume)
+{
 	if (PlaybackSpeed > 1.5f)
 	{
 		const FString Name = Sound.ToString();
@@ -185,14 +196,14 @@ void ULeaflineAudioSubsystem::PlayOneShot(FName Sound, float Volume, float Pitch
 			if (Starts.Num() >= MaxPerWindow)
 			{
 				++DroppedFast;
-				return;
+				return false;
 			}
 			Starts.Add(Now);
 			Volume *= FMath::Pow(PlaybackSpeed, -0.7f);
 			UE_LOG(LogLeafline, Log, TEXT("Audio: fast-forward start '%s' at volume %.2f (x%.1f)"), *Name, Volume, PlaybackSpeed);
 		}
 	}
-	CreateVoice(Sound, Volume, Pitch, false);
+	return true;
 }
 
 ULeaflineAudioLoop* ULeaflineAudioSubsystem::StartLoop(FName Sound, float Volume)
@@ -200,7 +211,7 @@ ULeaflineAudioLoop* ULeaflineAudioSubsystem::StartLoop(FName Sound, float Volume
 	return CreateVoice(Sound, Volume, 1.f, true);
 }
 
-ULeaflineAudioLoop* ULeaflineAudioSubsystem::CreateVoice(FName Sound, float Volume, float Pitch, bool bLooping)
+ULeaflineAudioLoop* ULeaflineAudioSubsystem::CreateVoice(FName Sound, float Volume, float Pitch, bool bLooping, const FVector* Location)
 {
 	if (bDeinitializing || !FMath::IsFinite(Volume) || !FMath::IsFinite(Pitch) || Pitch <= 0.f) return nullptr;
 	const auto PCM = LoadPCM(Sound);
@@ -233,7 +244,34 @@ ULeaflineAudioLoop* ULeaflineAudioSubsystem::CreateVoice(FName Sound, float Volu
 	});
 	// Prime before Play; after this call, only the render thread advances the cursor.
 	Wave->OnSoundWaveProceduralUnderflow.Execute(Wave, 1024);
-	UAudioComponent* Component = UGameplayStatics::CreateSound2D(this, Wave, FMath::Max(0.f, Volume), FMath::Clamp(Pitch, 0.125f, 4.f), 0.f, nullptr, false, false);
+	UAudioComponent* Component = nullptr;
+	if (Location)
+	{
+		// Placed in the world: full volume within about 30 m (the bird circles 20 to 60 m out), fading to silence at 150 m.
+		USoundAttenuation* Attenuation = NewObject<USoundAttenuation>(this);
+		Attenuation->Attenuation.bAttenuate = true;
+		Attenuation->Attenuation.bSpatialize = true;
+		Attenuation->Attenuation.AttenuationShape = EAttenuationShape::Sphere;
+		Attenuation->Attenuation.AttenuationShapeExtents = FVector(3000.f, 0.f, 0.f);
+		Attenuation->Attenuation.FalloffDistance = 12000.f;
+		Component = UGameplayStatics::SpawnSoundAtLocation(this, Wave, *Location, FRotator::ZeroRotator, FMath::Max(0.f, Volume),
+			FMath::Clamp(Pitch, 0.125f, 4.f), 0.f, Attenuation, nullptr, false);
+		if (Component)
+		{
+			Component->bIsUISound = false;
+			ULeaflineAudioLoop* Voice = NewObject<ULeaflineAudioLoop>(this);
+			Voice->Owner = this;
+			Voice->Component = Component;
+			Voice->Wave = Wave;
+			Active.Add(Voice);
+			Component->OnAudioFinishedNative.AddUObject(Voice, &ULeaflineAudioLoop::OnFinished);
+			if (!bLooping) Component->OnAudioPlaybackPercentNative.AddUObject(Voice, &ULeaflineAudioLoop::OnPlaybackPercent);
+			if (!Component->IsPlaying()) Component->Play();
+			return Voice;
+		}
+		return nullptr; // out of earshot (the engine does not create inaudible one-shots)
+	}
+	Component = UGameplayStatics::CreateSound2D(this, Wave, FMath::Max(0.f, Volume), FMath::Clamp(Pitch, 0.125f, 4.f), 0.f, nullptr, false, false);
 	if (!Component)
 	{
 		UE_LOG(LogLeafline, Warning, TEXT("Cannot create 2D playback for '%s' in this world."), *Sound.ToString());

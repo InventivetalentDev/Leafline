@@ -13,6 +13,8 @@
 #include "Camera/PlayerCameraManager.h"
 #include "Game/LeaflineGameInstance.h"
 #include "World/WindSystem.h"
+#include "World/ExposureBands.h"
+#include "World/BirdSystem.h"
 #include "Tree/TreeActor.h"
 #include "Colony/TrailNetwork.h"
 #include "Colony/LineSystem.h"
@@ -48,8 +50,8 @@ namespace
 		FLinearColor Rich = FLinearColor(0.95f, 0.9f, 0.5f);
 		FLinearColor Delivery = FLinearColor(0.7f, 0.98f, 0.5f);
 		// ExposureOverlay converts these exact HUD hues to linear emissive. Keep the bands too.
-		float ShelteredBelow = 0.25f;
-		float PartlyBelow = 0.6f;
+		float ShelteredBelow = LeafExposure::ShelteredBelow; // World/ExposureBands.h, shared with the bird
+		float PartlyBelow = LeafExposure::PartlyBelow;
 		FLinearColor Sheltered = FLinearColor(0.6f, 0.95f, 0.5f);
 		FLinearColor Partly = FLinearColor(1.f, 0.8f, 0.35f);
 		FLinearColor Warning = FLinearColor(1.f, 0.72f, 0.2f);
@@ -227,6 +229,7 @@ void ALeaflineHUD::DrawHUD()
 	// First-day goals, instead of a tutorial.
 	// The climb goal shows on the first day of each tree (day 1 only with one tree off); the riding goal on day 1 only.
 	const bool bTreeFirstDay = D && (D->IsOneTree() ? D->GetDayOnTree() == 1 : D->GetDay() == 1);
+	bool bGoalShown = false;
 	if (D && Ant && (bTreeFirstDay || D->GetDay() == 1) && D->GetPhase() == EDayPhase::Shift)
 	{
 		const UAntMovementComponent* M = Ant->GetAntMovement();
@@ -245,6 +248,19 @@ void ALeaflineHUD::DrawHUD()
 		if (!Goal.IsEmpty())
 		{
 			DrawTextPanel(Goal, Canvas->ClipX * 0.5f, 160.f * Scale, AccentColor, SecondaryText(Scale), Scale, 1.f, 700.f);
+			bGoalShown = true;
+		}
+	}
+	// The first bird day (of the session): what the bird does and what helps, while it is about.
+	if (D && Ant && D->GetPhase() == EDayPhase::Shift)
+	{
+		const ABirdSystem* Bird = ABirdSystem::Get(this);
+		if (Bird && Bird->ShouldShowHint() && !bGoalShown)
+		{
+			DrawTextPanel(Bird->IsBaitOn()
+				? TEXT("A bird hunts on the wind. Stay off the red, grip when it dives, or drop your piece in the open to draw it away.")
+				: TEXT("A bird hunts on the wind. Stay off the red, or grip when it dives."),
+				Canvas->ClipX * 0.5f, 160.f * Scale, AccentColor, SecondaryText(Scale), Scale, 1.f, 700.f);
 		}
 	}
 	if (Ant)
@@ -600,8 +616,11 @@ void ALeaflineHUD::DrawDayInfo(const ADayDirector* D, float Scale)
 		const float GX = Canvas->ClipX - (Style.Edge + Style.Padding) * Scale - GW, GY = 90.f * Scale;
 		const ALeaflinePlayerController* WindPC = Cast<ALeaflinePlayerController>(GetOwningPlayerController());
 		const bool bMap = WindPC && WindPC->IsWindMapShown();
+		// The bird's line (World/BirdSystem.*): only while it circles or dives in a shift; otherwise the panel is as before.
+		const ABirdSystem* Bird = D->GetPhase() == EDayPhase::Shift ? ABirdSystem::Get(this) : nullptr;
+		const bool bBirdLine = Bird && Bird->IsPresent();
 		DrawPanel(GX - 42.f * Scale, (Style.Edge + Style.Padding) * Scale, GW + 42.f * Scale,
-			(D->GetPhase() == EDayPhase::Shift ? (bMap ? 214.f : 154.f) : 100.f) * Scale, Scale);
+			((D->GetPhase() == EDayPhase::Shift ? (bMap ? 214.f : 154.f) : 100.f) + (bBirdLine ? Style.Row : 0.f)) * Scale, Scale);
 		const EWindPhase Ph = Wind->GetPhase();
 		const TCHAR* Label = Ph == EWindPhase::Calm ? TEXT("Wind: calm") : Ph == EWindPhase::Warning ? TEXT("Wind: gust coming")
 			: Ph == EWindPhase::Falling ? TEXT("Wind: easing") : TEXT("Wind: GUST");
@@ -667,6 +686,12 @@ void ALeaflineHUD::DrawDayInfo(const ADayDirector* D, float Scale)
 			else
 			{
 				DrawTextAt(TEXT("Hold {Cycle}: wind map"), GX, LY, Style.Muted, SecondaryText(Scale), Font);
+			}
+			if (bBirdLine)
+			{
+				// Plain text colour: green, amber and red in this panel mean exposure.
+				DrawTextAt(Bird->IsDiving() ? TEXT("Bird diving!") : TEXT("Bird circling"), GX, LY + ((bMap ? 4.f : 1.f) * Style.Row + 6.f) * Scale,
+					TextColor, SecondaryText(Scale), Font);
 			}
 		}
 	}
@@ -942,7 +967,12 @@ void ALeaflineHUD::DrawPrompt(const AAntPawn* Ant, const ADayDirector* D, float 
 		const EAntState S = M ? M->GetState() : EAntState::Walking;
 		const AWindSystem* Wind = D ? D->GetWind() : nullptr;
 		const bool bGustSoon = Wind && (Wind->GetPhase() == EWindPhase::Warning || Wind->IsGustActive());
+		const ABirdSystem* Bird = D && D->GetPhase() == EDayPhase::Shift ? ABirdSystem::Get(this) : nullptr;
+		const bool bCanDrop = Bird && Bird->CanDrop(Ant);
 		if (S == EAntState::Falling) Prompt = TEXT("Blown off! The fragment is lost");
+		else if (Bird && Bird->IsDivingAt(Ant) && S == EAntState::Gripping) Prompt = TEXT("Gripping. Hold on until the bird has passed");
+		else if (Bird && Bird->IsDivingAt(Ant) && (S == EAntState::Walking || S == EAntState::Riding || S == EAntState::Cutting))
+			Prompt = bCanDrop ? TEXT("Bird diving! Hold {Grip} to grip      {Drop}: drop your piece") : TEXT("Bird diving! Hold {Grip} to grip");
 		else if (S == EAntState::WalkingHome) Prompt = TEXT("Walking home empty-handed.   {Cycle}: switch ant");
 		else if (S == EAntState::Gripping) Prompt = TEXT("Gripping. Release {Grip} when the gust passes");
 		else if (bGustSoon && (S == EAntState::Walking || S == EAntState::Riding || S == EAntState::Cutting))
@@ -954,7 +984,8 @@ void ALeaflineHUD::DrawPrompt(const AAntPawn* Ant, const ADayDirector* D, float 
 		}
 		else if (S == EAntState::Returning) Prompt = TEXT("Heading home on the trail.   {Cycle}: switch ant");
 		else if (Ant->IsCutting()) Prompt = TEXT("Release to finish the cut");
-		else if (Ant->IsCarrying()) Prompt = TEXT("{Send}: send home      or carry it to the nest yourself");
+		else if (Ant->IsCarrying()) Prompt = bCanDrop ? TEXT("{Send}: send home      {Drop}: drop your piece for the bird")
+			: TEXT("{Send}: send home      or carry it to the nest yourself");
 		else if (Ant->GetLeafInReach() != INDEX_NONE) Prompt = TEXT("Hold {Cut}: cut");
 		else if (D && S == EAntState::Walking && M && D->IsNearNest(M->GetSurfacePosition()) && D->GetWorkerState(Ant->GetWorkerIndex()) == EWorkerState::Out && Ant->GetPathIndex() != INDEX_NONE && D->GetTrails() && D->GetTrails()->GetPoints(Ant->GetPathIndex()).Num() > 30)
 			Prompt = TEXT("{Send}: end this worker's trip");
@@ -985,7 +1016,11 @@ void ALeaflineHUD::DrawRecap(const ADayDirector* D, float Scale)
 		FString::Printf(TEXT("Workers blown off: %d"), S.BlownOff),
 		FString::Printf(TEXT("Trail laid: %.0f m"), S.TrailLaid / 100.f),
 	};
-	if (bShowLines && D->AreRecruitsOn()) Rows.Insert(FString::Printf(TEXT("Recruits: %d pieces home, %d lost to the wind"), S.RecruitPieces, S.RecruitLost), 1);
+	const ABirdSystem* Bird = ABirdSystem::Get(this);
+	const bool bBirdRow = Bird && Bird->IsBirdOn() && Bird->IsActiveToday();
+	const int32 RecruitWindLost = FMath::Max(S.RecruitLost - (bBirdRow ? Bird->GetRecruitPiecesTaken() : 0), 0);
+	if (bShowLines && D->AreRecruitsOn()) Rows.Insert(FString::Printf(TEXT("Recruits: %d pieces home, %d lost to the wind"), S.RecruitPieces, RecruitWindLost), 1);
+	if (bBirdRow) Rows.Add(FString::Printf(TEXT("Pieces lost to the bird: %d"), Bird->GetPiecesTaken()));
 	const float CX = Canvas->ClipX * 0.5f, W = Style.CardWidth * Scale;
 	const float H = (96.f + (Shown + (bMore ? 1 : 0)) * Style.Row + Style.Gap + 74.f
 		+ Rows.Num() * Style.Row + Style.Gap + 128.f + (bMove ? Style.Row : 0.f) + 28.f) * Scale;

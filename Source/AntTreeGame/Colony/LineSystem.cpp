@@ -7,6 +7,7 @@
 #include "Colony/NestActor.h"
 #include "World/WindSystem.h"
 #include "World/DayDirector.h"
+#include "World/BirdSystem.h"
 #include "Game/LeaflineGameInstance.h"
 #include "Audio/LeafSound.h"
 #include "EngineUtils.h"
@@ -103,6 +104,7 @@ void ALineSystem::StartDay()
 	for (FRecruit& R : Recruits) R.TripsLeft = Tuning.TripsPerRecruit;
 	UE_LOG(LogLeafline, Log, TEXT("Recruits: pool of %d, %d trips each%s"), Pool, Tuning.TripsPerRecruit,
 		Director && !Director->AreRecruitsOn() ? TEXT(" (recruits off)") : PoolOverride >= 0 ? TEXT(" (Leaf.Pool)") : TEXT(""));
+	if (Bird && Director) Bird->StartDay(Director->GetDay(), Director->GetSeed(), bOnToday, Pool);
 	bGlowDirty = true;
 	UpdateTrailGlow();
 }
@@ -763,6 +765,8 @@ void ALineSystem::StepAnts(float Dt)
 		}
 		Ant->SimStep(Dt, false);
 	}
+	// The bird's schedule and its hits, after the ants have moved (it only acts during the Shift).
+	if (Bird) Bird->Advance(Dt);
 }
 
 void ALineSystem::SimStep(float Dt)

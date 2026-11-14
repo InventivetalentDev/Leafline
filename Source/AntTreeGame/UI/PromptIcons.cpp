@@ -52,6 +52,7 @@ namespace LeafPrompts
 			{ TEXT("Cycle"), { TEXT("Key_Tab") }, { TEXT("Pad_LB") }, TEXT("Tab"), TEXT("LB") },
 			{ TEXT("Sprint"), { TEXT("Key_Shift") }, { TEXT("Pad_LT") }, TEXT("Shift"), TEXT("LT") },
 			{ TEXT("Pause"), { TEXT("Key_Esc") }, { TEXT("Pad_Menu") }, TEXT("Esc"), TEXT("Start") },
+			{ TEXT("Drop"), { TEXT("Key_G") }, { TEXT("Pad_B") }, TEXT("G"), TEXT("B") },
 			{ TEXT("Confirm"), { TEXT("Key_E"), TEXT("Key_Space") }, { TEXT("Pad_A") }, TEXT("E / Space"), TEXT("A") },
 			{ TEXT("Back"), { TEXT("Key_Q") }, { TEXT("Pad_Y") }, TEXT("Q"), TEXT("Y") },
 			{ TEXT("Move"), { TEXT("Key_W"), TEXT("Key_A"), TEXT("Key_S"), TEXT("Key_D") }, { TEXT("Pad_Left_Stick") }, TEXT("WASD"), TEXT("left stick") },

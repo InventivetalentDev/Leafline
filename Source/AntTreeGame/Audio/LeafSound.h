@@ -18,6 +18,12 @@ namespace LeafSound
 		if (ULeaflineAudioSubsystem* S = Get(Context)) S->PlayOneShot(FName(Name), Volume, Pitch);
 	}
 
+	/** Placed in the world at At (fades with distance from the listener). */
+	inline void PlayAt(const UObject* Context, const TCHAR* Name, const FVector& At, float Volume = 1.f, float Pitch = 1.f)
+	{
+		if (ULeaflineAudioSubsystem* S = Get(Context)) S->PlayOneShotAt(FName(Name), At, Volume, Pitch);
+	}
+
 	inline ULeaflineAudioLoop* Loop(const UObject* Context, const TCHAR* Name, float Volume)
 	{
 		ULeaflineAudioSubsystem* S = Get(Context);

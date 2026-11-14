@@ -47,6 +47,13 @@ struct FAntLookTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Look") float RimStrength = 0.f;
 };
 
+/** What knocked an ant off the bark: the log line and the day's stats tell them apart. */
+enum class EBlowOffCause : uint8
+{
+	Wind,
+	Bird // the bird's wing gust (World/BirdSystem.*)
+};
+
 /** A worker ant. The same class is used for the controlled ant and unattended ones. */
 UCLASS()
 class ANTTREEGAME_API AAntPawn : public APawn
@@ -152,8 +159,10 @@ public:
 	void DepositAndVanish(const FVector& Entrance);
 	bool IsVanishing() const { return VanishTime >= 0.f; }
 
-	/** Wind knocked the ant off: it drops its fragment, falls and walks home. */
-	void BlowOff(float Force, float Hold, float Exposure);
+	/** Wind (or the bird's wing gust) knocked the ant off: it drops its fragment, falls and walks home. */
+	void BlowOff(float Force, float Hold, float Exposure, EBlowOffCause Cause = EBlowOffCause::Wind);
+	/** Bait (the bird, tier 2): the piece is put down where the ant stands and the ant is as before its cut (no line). */
+	void DropCarried();
 	bool IsGripping() const;
 
 protected:

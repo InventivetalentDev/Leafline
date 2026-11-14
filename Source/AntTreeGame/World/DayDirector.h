@@ -182,6 +182,8 @@ public:
 	/** Workers sent out so far today (1 during the first shift). */
 	int32 GetShiftsStarted() const { return ShiftsStarted; }
 	EWorkerState GetWorkerState(int32 Index) const { return Roster.IsValidIndex(Index) ? Roster[Index].State : EWorkerState::Waiting; }
+	/** The scout's ant (null when it has none: waiting, or home and gone). */
+	AAntPawn* GetWorkerPawn(int32 Index) const { return Roster.IsValidIndex(Index) ? Roster[Index].Pawn.Get() : nullptr; }
 	int32 GetCurrentWorker() const { return Current; }
 	int32 NumWaiting() const;
 	ATreeActor* GetTree() const { return Tree; }
