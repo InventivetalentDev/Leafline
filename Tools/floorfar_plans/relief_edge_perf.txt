@@ -1,0 +1,46 @@
+# Feet on the relief: from the walking boundary (70 m) looking out four ways, relief off and on (candidate: near x1,
+# far x4, 250 m rim, ground to 30 km); then frame time off/on at the owner's pose and the canopy horizon.
+0|t.MaxFPS 0
+0|r.VSync 0
+0|Leaf.Tune wind CalmMin 400
+0|Leaf.Tune wind CalmMax 400
+0|Leaf.Tune wind StreakCount 0
+0|Leaf.Cues 0
+0|Leaf.NewDay 675856
+4|Leaf.Cinematic 1
+5|Leaf.Goto 7000 0 0 0 2
+9.5|SHOT e0-off
+10|Leaf.Relief 1 90 1 4 250 30
+13|SHOT e0-on
+13.5|Leaf.Relief 0
+14|Leaf.Goto 0 7000 0 90 2
+18.5|SHOT e90-off
+19|Leaf.Relief 1 90 1 4 250 30
+22|SHOT e90-on
+22.5|Leaf.Relief 0
+23|Leaf.Goto -7000 0 0 180 2
+27.5|SHOT e180-off
+28|Leaf.Relief 1 90 1 4 250 30
+31|SHOT e180-on
+31.5|Leaf.Relief 0
+32|Leaf.Goto 0 -7000 0 -90 2
+36.5|SHOT e270-off
+37|Leaf.Relief 1 90 1 4 250 30
+40|SHOT e270-on
+40.5|Leaf.Relief 0
+41|Leaf.Goto 504 1008 5966 -37 -14
+46|CsvProfile START
+56|CsvProfile STOP
+57|Leaf.Relief 1 90 1 4 250 30
+59|CsvProfile START
+69|CsvProfile STOP
+70|Leaf.Relief 0
+70.5|Leaf.Teleport 17 0.6
+72.5|Leaf.Aim -37 -4
+75.5|CsvProfile START
+85.5|CsvProfile STOP
+86.5|Leaf.Relief 1 90 1 4 250 30
+88.5|CsvProfile START
+98.5|CsvProfile STOP
+99.5|Leaf.Relief 0
+100|Leaf.QuitAfter 1

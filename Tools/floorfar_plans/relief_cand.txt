@@ -1,0 +1,30 @@
+# Candidate relief with the hillier rim: edge views from the boundary, the canopy horizon, 94 m, the nest, the owner.
+0|Leaf.Tune wind CalmMin 400
+0|Leaf.Tune wind CalmMax 400
+0|Leaf.Tune wind StreakCount 0
+0|Leaf.Cues 0
+0|Leaf.NewDay 675856
+4|Leaf.Cinematic 1
+4.5|Leaf.Relief 1 90 1 4 250 30
+5|Leaf.Goto 7000 0 0 0 2
+10|SHOT e0-cand
+10.5|Leaf.Goto 0 7000 0 90 2
+15.5|SHOT e90-cand
+16|Leaf.Goto 0 -7000 0 -90 2
+21|SHOT e270-cand
+21.5|Leaf.Teleport 17 0.6
+23.5|Leaf.Aim -37 -4
+26.5|SHOT canopyhz-cand
+27|Leaf.Teleport 9 0.5
+29|Leaf.Aim -37 -20
+32|SHOT h94-cand
+32.5|Leaf.Goto 1204 3148 2 -60 -4
+37.5|SHOT nesthz-cand
+38|Leaf.Goto 504 1008 5966 -37 -14
+43|SHOT owner-cand
+43.5|Leaf.Teleport 11 0.5
+45.5|Leaf.Aim -37 -25
+48.5|SHOT h121-cand
+49|Leaf.Goto 1198 -903 2200 -37 -14
+54|SHOT h22-cand
+54.5|Leaf.QuitAfter 1

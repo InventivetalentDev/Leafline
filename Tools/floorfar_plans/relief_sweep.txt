@@ -1,0 +1,46 @@
+# Relief sweep: near bands (80, 240 m) x3, far bands (900 m, 3 km) x4, both, against off. Wind calm, no cues.
+0|Leaf.Tune wind CalmMin 400
+0|Leaf.Tune wind CalmMax 400
+0|Leaf.Tune wind StreakCount 0
+0|Leaf.Cues 0
+0|Leaf.NewDay 675856
+4|Leaf.Cinematic 1
+5|Leaf.Goto 504 1008 5966 -37 -14
+9.5|Leaf.Relief 0 90 1 1
+12.5|SHOT owner-off
+13|Leaf.Relief 1 90 3 1
+16|SHOT owner-n3f1
+16.5|Leaf.Relief 1 90 1 4
+19.5|SHOT owner-n1f4
+20|Leaf.Relief 1 90 3 4
+23|SHOT owner-n3f4
+23.5|Leaf.Teleport 9 0.5
+25.5|Leaf.Aim -37 -20
+28|Leaf.Relief 0 90 1 1
+31|SHOT h94-off
+31.5|Leaf.Relief 1 90 3 1
+34.5|SHOT h94-n3f1
+35|Leaf.Relief 1 90 1 4
+38|SHOT h94-n1f4
+38.5|Leaf.Relief 1 90 3 4
+41.5|SHOT h94-n3f4
+42|Leaf.Teleport 17 0.6
+44|Leaf.Aim -37 -4
+46.5|Leaf.Relief 0 90 1 1
+49.5|SHOT canopyhz-off
+50|Leaf.Relief 1 90 3 1
+53|SHOT canopyhz-n3f1
+53.5|Leaf.Relief 1 90 1 4
+56.5|SHOT canopyhz-n1f4
+57|Leaf.Relief 1 90 3 4
+60|SHOT canopyhz-n3f4
+60.5|Leaf.Goto 1204 3148 2 -60 -4
+65|Leaf.Relief 0 90 1 1
+68|SHOT nesthz-off
+68.5|Leaf.Relief 1 90 3 1
+71.5|SHOT nesthz-n3f1
+72|Leaf.Relief 1 90 1 4
+75|SHOT nesthz-n1f4
+75.5|Leaf.Relief 1 90 3 4
+78.5|SHOT nesthz-n3f4
+79|Leaf.QuitAfter 1

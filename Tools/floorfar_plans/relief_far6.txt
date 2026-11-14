@@ -1,0 +1,41 @@
+# With the 6 km band: far bands x4 and the ground to 30 km, with and without the 250 m rim. Wind calm, no cues.
+0|Leaf.Tune wind CalmMin 400
+0|Leaf.Tune wind CalmMax 400
+0|Leaf.Tune wind StreakCount 0
+0|Leaf.Cues 0
+0|Leaf.NewDay 675856
+4|Leaf.Cinematic 1
+5|Leaf.Teleport 17 0.6
+7|Leaf.Aim -37 -4
+9.5|Leaf.Relief 1 90 1 4 0 30
+12.5|SHOT canopyhz-f4o30
+13|Leaf.Relief 1 90 1 4 250 30
+16|SHOT canopyhz-f4r250o30
+16.5|Leaf.Teleport 26 0.6
+18.5|Leaf.Aim -37 -6
+21|Leaf.Relief 1 90 1 4 0 30
+24|SHOT top-f4o30
+24.5|Leaf.Relief 1 90 1 4 250 30
+27.5|SHOT top-f4r250o30
+28|Leaf.Teleport 9 0.5
+30|Leaf.Aim -37 -20
+32.5|Leaf.Relief 1 90 1 4 0 30
+35.5|SHOT h94-f4o30
+36|Leaf.Relief 1 90 1 4 250 30
+39|SHOT h94-f4r250o30
+39.5|Leaf.Goto 0 7000 0 90 2
+44|Leaf.Relief 1 90 1 4 0 30
+47|SHOT e90-f4o30
+47.5|Leaf.Relief 1 90 1 4 250 30
+50.5|SHOT e90-f4r250o30
+51|Leaf.Goto 7000 0 0 0 2
+55.5|Leaf.Relief 1 90 1 4 0 30
+58.5|SHOT e0-f4o30
+59|Leaf.Relief 1 90 1 4 250 30
+62|SHOT e0-f4r250o30
+62.5|Leaf.Goto 1204 3148 2 -60 -4
+67|Leaf.Relief 1 90 1 4 0 30
+70|SHOT nesthz-f4o30
+70.5|Leaf.Relief 1 90 1 4 250 30
+73.5|SHOT nesthz-f4r250o30
+74|Leaf.QuitAfter 1
