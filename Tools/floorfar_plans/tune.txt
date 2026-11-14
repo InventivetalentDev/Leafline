@@ -1,0 +1,35 @@
+# Owner's pose and 120 m: dimmer haze (sky tint, sun in the volumetric fog), darker far look, weaker undulation.
+0|Leaf.NewDay 675856
+4|Leaf.Cinematic 1
+5|Leaf.Goto 504 1008 5966 -37 -14
+10|SHOT o-base
+11|Leaf.Tune look FogSkyTint (R=0.6;G=0.65;B=0.75;A=1)
+16|SHOT o-tint
+17|Leaf.Tune look SunVolumetricScattering 1.5
+22|SHOT o-tint-vol
+23|Leaf.Ground 1 FarDark 0.75 Undulate 0.15
+27|SHOT o-tint-vol-dark
+28|Leaf.Tune look FogSkyTint (R=1;G=1;B=1;A=1)
+28.1|Leaf.Tune look SunVolumetricScattering 3
+33|SHOT o-dark
+34|Leaf.Goto 1198 -903 12000 -37 -30
+39|SHOT h-dark
+40|Leaf.Ground 1 Undulate 0.07
+43|SHOT h-und07
+44|Leaf.Tune look FogSkyTint (R=0.6;G=0.65;B=0.75;A=1)
+44.1|Leaf.Tune look SunVolumetricScattering 1.5
+49|SHOT h-und07-tint-vol
+50|Leaf.Goto 1198 -903 2000 -37 -12
+55|SHOT m20-und07-tint-vol
+56|Leaf.Goto 1204 3148 2 120 -6
+61|SHOT n-und07-tint-vol
+62|Leaf.Tune look FogSkyTint (R=1;G=1;B=1;A=1)
+62.1|Leaf.Tune look SunVolumetricScattering 3
+67|SHOT n-base
+68|Leaf.Teleport 0 0.6
+69|Leaf.Aim up 25
+73|SHOT canopy-base
+74|Leaf.Tune look FogSkyTint (R=0.6;G=0.65;B=0.75;A=1)
+74.1|Leaf.Tune look SunVolumetricScattering 1.5
+79|SHOT canopy-tint-vol
+80|Leaf.QuitAfter 1

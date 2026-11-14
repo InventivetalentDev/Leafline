@@ -1,0 +1,20 @@
+# Relief on and off: 120 m up looking down and toward the horizon, the owner's pose, the nest horizon.
+0|Leaf.NewDay 675856
+4|Leaf.Cinematic 1
+5|Leaf.Goto 1198 -903 12000 -37 -30
+10|SHOT up120
+11|Leaf.Relief 0
+14|SHOT up120-flat
+15|Leaf.Relief 1
+15.5|Leaf.Aim -37 -8
+19|SHOT up120hz
+20|Leaf.Relief 0
+23|SHOT up120hz-flat
+24|Leaf.Relief 1
+24.5|Leaf.Goto 504 1008 5966 -37 -14
+30|SHOT owner
+31|Leaf.Goto 1204 3148 2 -60 -4
+36|SHOT nesthz
+37|Leaf.Relief 0
+40|SHOT nesthz-flat
+41|Leaf.QuitAfter 1

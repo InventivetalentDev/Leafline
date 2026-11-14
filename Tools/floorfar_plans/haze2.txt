@@ -1,0 +1,34 @@
+# Haze candidates at the owner's pose: denser height fog beyond the volumetric range, volumetric extinction compensated so
+# the nest (inside 90 m) keeps its fog; cooler sky tint. Plus poses looking down from 20 and 120 m.
+0|Leaf.NewDay 675856
+4|Leaf.Cinematic 1
+6|Leaf.Goto 504 1008 5966 -37 -14
+11|SHOT owner-base
+12|Leaf.Tune look FogDensity 0.09
+12.1|Leaf.Tune look VolumetricFogExtinction 0.4
+14|SHOT owner-d09
+15|Leaf.Tune look FogSkyTint (R=0.8;G=0.95;B=1.35;A=1)
+17|SHOT owner-d09tint
+18|Leaf.Tune look FogDensity 0.12
+18.1|Leaf.Tune look VolumetricFogExtinction 0.3
+20|SHOT owner-d12tint
+21|Leaf.Tune look FogDensity 0.09
+21.1|Leaf.Tune look VolumetricFogExtinction 0.4
+22|Leaf.Goto 1204 3148 2 120 -6
+27|SHOT nest-d09tint
+28|Leaf.Tune look FogDensity 0.06
+28.1|Leaf.Tune look VolumetricFogExtinction 0.6
+28.2|Leaf.Tune look FogSkyTint (R=1;G=1;B=1;A=1)
+30|SHOT nest-base
+31|Leaf.Teleport 0 0.07
+33|Leaf.Aim -37 -35
+36|SHOT trunk20a
+36.5|Leaf.Aim 143 -35
+39|SHOT trunk20b
+40|Leaf.Teleport 0 0.4
+42|Leaf.Aim -37 -35
+45|SHOT trunk120a
+45.5|Leaf.Aim 143 -35
+48|SHOT trunk120b
+49|Leaf.LightInfo
+50|Leaf.QuitAfter 1

@@ -1,0 +1,19 @@
+# Near-to-far transition seen straight down from 10, 20, 30, 45 and 80 m over open floor (3,000 / -3,000 cm), leaves
+# hidden: the blend runs from FarStart 18 m to FarEnd 50 m from the camera, so a ring would show as a radial gradient.
+0|Leaf.NewDay 675856
+4|Leaf.Cinematic 1
+4.5|Leaf.Ground 1 Undulate 0.15
+5|Leaf.TopDown 1000 90 3000 -3000
+9|SHOT td10
+10|Leaf.TopDown 2000 90 3000 -3000
+14|SHOT td20
+15|Leaf.TopDown 3000 90 3000 -3000
+19|SHOT td30
+20|Leaf.TopDown 4500 90 3000 -3000
+24|SHOT td45
+25|Leaf.TopDown 8000 90 3000 -3000
+29|SHOT td80
+30|Leaf.TopDown 0
+30.5|Leaf.Goto 1198 -903 1200 -37 -35
+35|SHOT slope12
+36|Leaf.QuitAfter 1

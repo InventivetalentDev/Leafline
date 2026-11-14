@@ -1,0 +1,28 @@
+# Fog start regression on ref_shots' seed and views (trunk up, canopy, sunward): start 0 (before the floor pass) against
+# 1500 (now), for the height fog and the volumetric fog together. Wind calm, no streaks, no cues.
+0|Leaf.Tune wind CalmMin 400
+0|Leaf.Tune wind CalmMax 400
+0|Leaf.Tune wind StreakCount 0
+0|Leaf.Cues 0
+0|Leaf.NewDay 517192
+4|Leaf.Cinematic 1
+5|Leaf.Teleport 0 0.3
+7|Leaf.Aim up 25
+11|SHOT trunk-15
+11.5|Leaf.Tune look FogStartDistance 0
+11.6|Leaf.Tune look VolumetricFogStartDistance 0
+17|SHOT trunk-0
+17.5|Leaf.Teleport 400 0.5
+19.5|Leaf.Aim 170 -10
+24|SHOT canopy-0
+24.5|Leaf.Tune look FogStartDistance 1500
+24.6|Leaf.Tune look VolumetricFogStartDistance 1500
+30|SHOT canopy-15
+30.5|Leaf.Teleport 0 0.02
+31|Leaf.FaceWind sheltered
+33|Leaf.Aim 170 30
+37|SHOT sunward-15
+37.5|Leaf.Tune look FogStartDistance 0
+37.6|Leaf.Tune look VolumetricFogStartDistance 0
+43|SHOT sunward-0
+44|Leaf.QuitAfter 1

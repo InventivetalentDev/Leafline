@@ -9,7 +9,8 @@
 # nothing and returns what feeds M_Ground's outputs (for SOURCES below if the automatic lookup fails).
 import json
 MODE = 'build'
-HLSL = 'D:/UnrealProjects/leafline-floorfar/Tools/materials/ground2.hlsl'
+# The editor can only read files inside the main project: merge the HLSL into main first.
+HLSL = 'D:/UnrealProjects/AntTreeGame/Tools/materials/ground2.hlsl'
 SRC = '/Game/Leafline/Materials/M_Ground.M_Ground'
 MAT = '/Game/Leafline/Materials/M_Ground2.M_Ground2'
 # Fill from a dump if the lookup fails: material property -> (expression path in M_Ground2, output name ('' = first)).
@@ -89,6 +90,13 @@ def out(e, name, prop):
 
 def dup():
     # As in build_ant2_mcp.py: the duplicate tool's argument names, tried in turn.
+    # 14 Nov: the tool is AssetTools.duplicate(path, new_path) (main session's build of M_Ground2).
+    for a in ({'path': SRC, 'new_path': '/Game/Leafline/Materials/M_Ground2'},
+              {'path': '/Game/Leafline/Materials/M_Ground', 'new_path': '/Game/Leafline/Materials/M_Ground2'}):
+        try:
+            return t(A + 'duplicate', a)
+        except Exception:
+            pass
     tries = [
         {'source_asset_path': SRC, 'destination_path': '/Game/Leafline/Materials/M_Ground2'},
         {'source_path': SRC, 'destination_path': '/Game/Leafline/Materials/M_Ground2'},
@@ -131,12 +139,33 @@ def field(v, name, default=None):
                 return v[k]
     return default
 
+def property_input(mat_path, prop):
+    # 14 Nov: MaterialTools.get_property_input on the copy gave the sources (Base Colour LinearInterpolate_1, Roughness
+    # Constant_3, no Normal). Argument names tried in turn; None if the tool or the input is missing.
+    for a in ({'material': {'refPath': mat_path}, 'material_property': prop}, {'material': {'refPath': mat_path}, 'property': prop},
+              {'material_or_function': {'refPath': mat_path}, 'material_property': prop}):
+        try:
+            return t(M + 'get_property_input', a)['returnValue']
+        except Exception:
+            pass
+    return None
+
 def read_inputs(mat_path, mat_name):
     # The material outputs' inputs live on the material (older engines) or its editor-only data subobject (UE5); the
     # subobject keeps the source's name in a duplicate, so try both names.
     found, tried = {}, []
+    for prop in PROPS:
+        v = property_input(mat_path, prop)
+        tried.append('get_property_input %s -> %s' % (prop, json.dumps(v)[:300]))
+        ref = find_ref(v)
+        if ref:
+            found[prop] = (ref, v)
+    if len(found) == len(PROPS):
+        return found, tried
     hosts = [mat_path, mat_path + ':' + mat_name + 'EditorOnlyData', mat_path + ':M_GroundEditorOnlyData', mat_path + ':M_Ground2EditorOnlyData']
     for prop, pname in PROPS.items():
+        if prop in found:
+            continue
         for h in hosts:
             try:
                 v = gp(h, pname)

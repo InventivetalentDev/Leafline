@@ -146,7 +146,7 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs CmdRelief(
 		TEXT("Leaf.Relief"),
-		TEXT("Leaf.Relief [0|1]: the visible ground rises and falls beyond 160 m (1, default) or stays a plane (0); no argument toggles. The walking field is a plane either way."),
+		TEXT("Leaf.Relief [0|1]: the visible ground rises and falls beyond 160 m (1) or stays a plane (0, default); no argument toggles. The walking field is a plane either way."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World) { Relief(World, Args); }));
 
 	/** Leaf.Collars [0|1]: branch collars on or off (toggle with no argument), then today's tree grows again, fresh. */

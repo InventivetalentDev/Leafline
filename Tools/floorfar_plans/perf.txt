@@ -1,0 +1,34 @@
+# Frame times (CSV profiler, 10 s per capture) at the owner's pose and the nest with M_Ground2 (g2) and M_Ground (g1),
+# then the climb at the owner's pitch (screenshots after the captures).
+0|t.MaxFPS 0
+0.1|r.VSync 0
+0.2|Leaf.NewDay 675856
+4|Leaf.Cinematic 1
+4.5|Leaf.Ground 1 Undulate 0.15
+5|Leaf.Goto 504 1008 5966 -37 -14
+9|CsvProfile START
+19|CsvProfile STOP
+20|Leaf.Ground 0
+22|CsvProfile START
+32|CsvProfile STOP
+33|Leaf.Ground 1
+33.5|Leaf.Goto 1204 3148 2 120 -6
+37|CsvProfile START
+47|CsvProfile STOP
+48|Leaf.Ground 0
+50|CsvProfile START
+60|CsvProfile STOP
+61|Leaf.Ground 1
+61.5|Leaf.Goto 1198 -903 300 -37 -12
+66|SHOT climb03
+67|Leaf.Goto 1198 -903 800 -37 -12
+72|SHOT climb08
+73|Leaf.Goto 1198 -903 1500 -37 -13
+78|SHOT climb15
+79|Leaf.Goto 1198 -903 2200 -37 -14
+84|SHOT climb22
+85|Leaf.Goto 1198 -903 3000 -37 -14
+90|SHOT climb30
+91|Leaf.Goto 504 1008 5966 -37 -14
+96|SHOT owner-und15
+97|Leaf.QuitAfter 1

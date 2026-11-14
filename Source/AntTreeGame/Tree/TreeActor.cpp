@@ -519,6 +519,8 @@ UMaterialInterface* ATreeActor::PickGround()
 		if (UMaterialInterface* M2 = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Leafline/Materials/M_Ground2.M_Ground2"), nullptr, LOAD_NoWarn | LOAD_Quiet))
 		{
 			Ground2MID = UMaterialInstanceDynamic::Create(M2, this);
+			// Half the material's default undulation (0.3): from 60 to 120 m up it read as a dimpled mud flat (floor pass).
+			Ground2MID->SetScalarParameterValue(TEXT("Undulate"), 0.15f);
 		}
 		else
 		{
