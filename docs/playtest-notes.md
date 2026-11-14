@@ -56,8 +56,9 @@
   - Done: the carried piece shakes with the wind the ant feels on its spot (gust strength times exposure): barely in shelter, hard on an exposed face in a gust. In the package of 13 Nov 09:16.
 - [x] can probably move the leaves start down to the lower branches
   - Done: on day 1 every bough and twig is leafy, so leaves start on the lowest limbs (about 26 m). Later days raise it 7 m a day (was 15: day 4 now starts at 41 m instead of 85). The first goal text says the real height. In the package of 13 Nov 09:16.
-- [ ] overall, try to move as much of what's currently UI text (like "gust, you're sheltered here") to have an in-world visual indicator (can still keep the UI text as well, but needs some proper in-world feedback imo)
+- [x] overall, try to move as much of what's currently UI text (like "gust, you're sheltered here") to have an in-world visual indicator (can still keep the UI text as well, but needs some proper in-world feedback imo)
   - Started: the carried piece shakes and the ant leans away from the wind and shivers in proportion to how exposed its spot is, so a sheltered spot is visibly calm; gripping has its own pose; at the nest the ant visibly goes in. More to do (for example the gust warning itself). In the package of 13 Nov 09:16.
+  - Done 14 Nov (`cues`, `Leaf.Cues`): a dust wall blows in a couple of seconds ahead of each gust, the ant's own spot shows how exposed it is, gripping has its own cue, and leaves and grass sway harder in gusts. The HUD text stays alongside. In the packages from 13:30.
 - [x] when the sprint expires, keep it expired until the next explicit press of the sprint button
   - Fixed: after the bar runs dry, sprint stays off (bar red) until you let go of the button and press it again. In the package of 13 Nov 09:16.
 - [x] the see-through stem "hole" is often offset from where the ant would be
@@ -106,14 +107,18 @@
   - Noted for after the freeze (design: richer or bigger leaves higher up, the end card or milestones asking for height, wind risk as the price). Not started.
 - [x] scent lines should be most visible in a short radius around the player so they don't clutter the screen; fade out with distance.
   - Done (bb587e0, in the c5d301b candidate): both trail materials are full strength within 5 m of your ant and fade to a faint trace by 18 m (`Leaf.Tune cam TrailFadeNear`/`TrailFadeFar`/`TrailFadeFloor`). The harvest views, the recap and `Leaf.Shot` camera moves show whole routes. Checked in real runs at 18:49: no hard edge, and the far trail keeps about a quarter of its strength.
-- [ ] UI polish: replace a bunch of text with icons and animations (e.g. bird status, wind, ant status)
+- [x] UI polish: replace a bunch of text with icons and animations (e.g. bird status, wind, ant status)
   - Sent to the ui agent (14 Nov 16:15): icons for the wind group (direction arrow that pulses and shakes with gusts, exposure icon), the bird line (silhouette, diving and flashing in a dive) and the ant status (carrying, gripping), drawn procedurally or made by our own script; short words stay where needed; behind `Leaf.HudIcons`. For the 20:00 candidate.
+  - Done: in the packages from 15:47 (`Leaf.HudIcons 0` gives the text-only HUD back).
 - [ ] bird is barely noticable, mostly affects recruits (maybe just keep it like this, doesn't really add much to the gameplay atm)
   - Bird agent is bringing its circle in (20-25 m instead of 30-40, about twice as large on screen) and checking its shadow. The decision (keep, make it about the player's ant, or ship it off) is yours at 20:00.
-- [ ] the "Colony ..." number at the top could use an icon; it confused me from the start (I assumed it was leaves in storage)
+  - Since then: the circle is closer, the shadow shows on sunlit windward days, and the bird now prefers your laden ant over recruits when you're exposed (`Leaf.Tune bird PlayerPreference`, 1). Still your call at 20:00.
+- [x] the "Colony ..." number at the top could use an icon; it confused me from the start (I assumed it was leaves in storage)
   - It is the colony's total hauled ever (what the milestones count); the spendable leaf only shows at the nest. Sent to the ui agent (14 Nov 17:05): a leaf-pile icon, the word "hauled", today's +N, and progress toward the next milestone. Behind `Leaf.HudIcons`. For the 20:00 candidate.
-- [ ] the 1/2/3 out/ready could use icons too
+  - Done: an icon with "hauled in all" and a bar to the next milestone, in the 18:25 candidate.
+- [x] the 1/2/3 out/ready could use icons too
   - Sent to the ui agent with the note above: an ant icon per worker showing its state (out, carrying home, home, ready, blown off), numbers kept.
+  - Done: in the 18:25 candidate.
 
 ## To revisit: thin-branch controls (2026-11-12)
 
