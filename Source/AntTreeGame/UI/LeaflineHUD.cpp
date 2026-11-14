@@ -255,7 +255,7 @@ void ALeaflineHUD::DrawHUD()
 	if (D && Ant && D->GetPhase() == EDayPhase::Shift)
 	{
 		const ABirdSystem* Bird = ABirdSystem::Get(this);
-		if (Bird && Bird->IsFirstBirdDay() && Bird->IsPresent() && !bGoalShown)
+		if (Bird && Bird->ShouldShowHint() && !bGoalShown)
 		{
 			DrawTextPanel(Bird->IsBaitOn()
 				? TEXT("A bird hunts on the wind. Stay off the red, grip when it dives, or drop your piece in the open to draw it away.")

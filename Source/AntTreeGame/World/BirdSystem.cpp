@@ -23,6 +23,9 @@ namespace
 {
 	enum EVisMode : uint8 { VisHidden, VisCircle, VisDive, VisExit, VisLeave };
 
+	/** Display only: the day the hint showed this game session (reset in Init); never read by the schedule. */
+	int32 GHintSessionDay = -1;
+
 	/** Laden, and in a state a gust can blow off (AAntPawn::UpdateWind's check). */
 	bool CanBeKnocked(const AAntPawn* A)
 	{
@@ -82,6 +85,7 @@ void ABirdSystem::Init(ATreeActor* InTree, AWindSystem* InWind, ADayDirector* In
 	Wind = InWind;
 	Director = InDirector;
 	Lines = InLines;
+	GHintSessionDay = -1;
 }
 
 void ABirdSystem::BeginPlay()
@@ -169,6 +173,8 @@ void ABirdSystem::StartDay(int32 InDay, int32 InSeed, bool bInRecruitsOn, int32 
 	bFirstBirdDay = bEligible && (bRecruitsOn ? Pool <= FirstPool : Day == Tuning.FirstBirdDay);
 	SwoopsLeft = !bEligible ? 0 : bFirstBirdDay ? FMath::Max(Tuning.FirstDaySwoops, 0) : FMath::Max(Tuning.MaxSwoopsPerDay, 0);
 	bActiveToday = Tuning.bBird && bEligible && SwoopsLeft > 0;
+	if (bActiveToday && GHintSessionDay < 0) GHintSessionDay = Day;
+	bHintDay = bActiveToday && GHintSessionDay == Day;
 	bDiveRequested = false;
 	DropRequest = nullptr;
 	if (bActiveToday)

@@ -23,7 +23,9 @@ enum class EBirdState : uint8
 	Away      // out of sight after a pass (or gone for the day when its swoops are used up)
 };
 
-/** The bird's numbers (docs/briefs/bird.md). Schedule values are sim seconds; Look values only move the visible bird. */
+/** The bird's numbers (docs/briefs/bird.md). Schedule values are sim seconds. Look values move the visible bird, and the
+ *  size and clearances (BirdScale, PassHeight, PieceClearance, ApproachDistance) also set the way-in check, so changing
+ *  them changes how often a dive breaks off. */
 USTRUCT(BlueprintType)
 struct FBirdTuning
 {
@@ -146,6 +148,9 @@ public:
 	/** The first bird day (from the day and the pool: FirstBirdDay with recruits off, the first Brood level's pool with
 	 *  recruits on): FirstDaySwoops, and the hint. */
 	bool IsFirstBirdDay() const { return bActiveToday && bFirstBirdDay; }
+	/** The hint: on the first bird day, and also on the first bird day of this game session (display only: a save that is
+	 *  past its first bird day still sees the hint once; the swoop budget does not change). */
+	bool ShouldShowHint() const { return IsPresent() && (bFirstBirdDay || bHintDay); }
 	/** Pieces the bird knocked off today (all ants), and how many of those were recruits' (they also count as recruit losses). */
 	int32 GetPiecesTaken() const { return PiecesTaken; }
 	int32 GetRecruitPiecesTaken() const { return RecruitPiecesTaken; }
@@ -217,6 +222,8 @@ private:
 	int32 Pool = 0;
 	bool bActiveToday = false;
 	bool bFirstBirdDay = false;
+	/** Display only (ShouldShowHint): today is the first day this game session that the bird hunts. */
+	bool bHintDay = false;
 	bool bLoggedNoTarget = false;
 	int32 SwoopsLeft = 0;
 	int32 Swoops = 0;
