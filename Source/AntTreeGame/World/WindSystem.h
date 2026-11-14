@@ -90,7 +90,7 @@ struct FWindTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") FLinearColor CueFrontPuffColor = FLinearColor(0.42f, 0.4f, 0.34f);
 	/** Half the puffs take this darker tone, so the wall shows over a bright sky as well as over bark and ground. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") FLinearColor CueFrontPuffDark = FLinearColor(0.04f, 0.036f, 0.03f);
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") FLinearColor CueStreakColor = FLinearColor(0.42f, 0.42f, 0.4f);
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") FLinearColor CueStreakColor = FLinearColor(0.5f, 0.5f, 0.47f);
 	/** Extra specks gathered at the front's edge (0 none). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueFrontDust = 0.5f;
 	/** Nothing nearer the camera than these is drawn (it fades in over the second half): streaks, specks, the ant's air (cm). */
@@ -100,7 +100,7 @@ struct FWindTuning
 	/** Streaks fill the view out to this distance, so the front shows well before it arrives (cm). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueFar = 2600.f;
 	/** Streak half width (cm) in calm air; CueStreakThick more in full gust air. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueStreakWidth = 0.6f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueStreakWidth = 0.7f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueStreakThick = 0.5f;
 	/** Streak length (cm) in full gust air (half of it in calm air). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueStreakLength = 650.f;
@@ -110,7 +110,7 @@ struct FWindTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueStreakSpeed = 1.f;
 	/** Alpha at a quad streak's tail relative to its head (CueStreakMaterial 1 only; strips fade at both ends). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueStreakTail = 0.35f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueStreakAlpha = 0.85f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueStreakAlpha = 0.95f;
 	/** Nothing is drawn thinner than this many pixels, so far streaks and specks still show. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueMinPixels = 2.f;
 	/** Speck radius (cm); leaf bits are CueLeafBitSize and make up CueLeafBitShare of the specks. */
