@@ -8,6 +8,7 @@
 #include "Tree/TreeActor.h"
 #include "Tree/TreeMeshBuilder.h"
 #include "World/DayDirector.h"
+#include "World/GroundRelief.h"
 
 namespace
 {
@@ -110,6 +111,43 @@ namespace
 		TEXT("Leaf.Bark"),
 		TEXT("Leaf.Bark [0|1]: the look-pass bark M_TreeBark2 (1, default) or the older M_TreeBark (0); no argument toggles."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World) { Bark(World, Args); }));
+
+	/** Leaf.Ground [0|1] [Name Value ...]: the floor-pass ground M_Ground2 or the older M_Ground, plus scalar parameters on
+	 *  M_Ground2's instance (e.g. Leaf.Ground 1 FarStart 2500). */
+	void GroundLook(UWorld* World, const TArray<FString>& Args)
+	{
+		ATreeActor* Tree = ATreeActor::Get(World);
+		if (!Tree) return;
+		const bool bOn = Args.Num() > 0 ? FCString::Atoi(*Args[0]) != 0 : !ATreeActor::IsGroundLook2();
+		Tree->SetGroundLook(bOn);
+		for (int32 i = 1; i + 1 < Args.Num(); i += 2)
+		{
+			const float V = FCString::Atof(*Args[i + 1]);
+			const bool bSet = Tree->SetGroundParam(FName(*Args[i]), V);
+			UE_LOG(LogLeafline, Log, TEXT("Leaf.Ground: %s = %.3f%s"), *Args[i], V, bSet ? TEXT("") : TEXT(" (no M_Ground2 instance, not set)"));
+		}
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs CmdGround(
+		TEXT("Leaf.Ground"),
+		TEXT("Leaf.Ground [0|1] [Name Value ...]: the floor-pass ground M_Ground2 (1, default; far look beyond about 20 m) or the older M_Ground (0); no argument toggles. Name Value pairs set scalar parameters on M_Ground2's instance."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World) { GroundLook(World, Args); }));
+
+	/** Leaf.Relief [0|1]: the visible ground's relief beyond the ants' reach on or off; rebuilds the ground, the grove and
+	 *  (by the relief's stamp) the forest floor. */
+	void Relief(UWorld* World, const TArray<FString>& Args)
+	{
+		const bool bOn = Args.Num() > 0 ? FCString::Atoi(*Args[0]) != 0 : !LeafRelief::IsOn();
+		LeafRelief::SetOn(bOn);
+		if (ATreeActor* Tree = ATreeActor::Get(World)) Tree->RebuildGroundAndGrove();
+		UE_LOG(LogLeafline, Log, TEXT("Leaf.Relief: %s (from %.0f m, full at %.0f m)"), bOn ? TEXT("on") : TEXT("off"),
+			LeafRelief::StartRadius / 100.f, LeafRelief::FullRadius / 100.f);
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs CmdRelief(
+		TEXT("Leaf.Relief"),
+		TEXT("Leaf.Relief [0|1]: the visible ground rises and falls beyond 160 m (1, default) or stays a plane (0); no argument toggles. The walking field is a plane either way."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World) { Relief(World, Args); }));
 
 	/** Leaf.Collars [0|1]: branch collars on or off (toggle with no argument), then today's tree grows again, fresh. */
 	void Collars(UWorld* World, const TArray<FString>& Args)

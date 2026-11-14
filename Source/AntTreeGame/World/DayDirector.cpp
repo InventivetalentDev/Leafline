@@ -112,6 +112,9 @@ void ADayDirector::ApplyLook()
 				Fog->SetVolumetricFogExtinctionScale(L.VolumetricFogExtinction);
 				Fog->SetVolumetricFogDistance(L.VolumetricFogDistance);
 				Fog->SetVolumetricFogScatteringDistribution(L.VolumetricFogScattering);
+				Fog->SetVolumetricFogStartDistance(L.VolumetricFogStartDistance);
+				Fog->SetVolumetricFogNearFadeInDistance(L.VolumetricFogNearFadeIn);
+				Fog->SetSkyAtmosphereAmbientContributionColorScale(L.FogSkyTint);
 				Fog->SetSecondFogDensity(L.GroundHazeDensity);
 				Fog->SetSecondFogHeightFalloff(L.GroundHazeFalloff);
 				Fog->SetSecondFogHeightOffset(L.GroundHazeHeightOffset);

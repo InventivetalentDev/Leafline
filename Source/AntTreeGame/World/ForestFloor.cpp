@@ -1,6 +1,7 @@
 #include "World/ForestFloor.h"
 #include "AntTreeGame.h"
 #include "Tree/TreeActor.h"
+#include "World/GroundRelief.h"
 #include "ProceduralMeshComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "UObject/ConstructorHelpers.h"
@@ -295,6 +296,12 @@ namespace
 		}));
 }
 
+namespace
+{
+	/** The relief stamp the floor was built on (LeafRelief): Leaf.Relief rebuilds it. */
+	int32 GFloorReliefStamp = -1;
+}
+
 AForestFloor::AForestFloor()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -315,7 +322,7 @@ void AForestFloor::Tick(float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 	const ATreeActor* Tree = ATreeActor::Get(this);
 	if (!Tree || Tree->GetSkeleton().Branches.Num() == 0) return;
-	if (Tree->GetSeed() != BuiltSeed) Build(*Tree);
+	if (Tree->GetSeed() != BuiltSeed || GFloorReliefStamp != LeafRelief::Stamp()) Build(*Tree);
 }
 
 void AForestFloor::LogView(const FVector& From, float YawDeg) const
@@ -348,6 +355,7 @@ void AForestFloor::Build(const ATreeActor& Tree)
 	Clear();
 	const FTreeSkeleton& Sk = Tree.GetSkeleton();
 	BuiltSeed = Sk.Seed;
+	GFloorReliefStamp = LeafRelief::Stamp();
 	const FForestFloorTuning& T = Tuning;
 	const FVector Trunk = Sk.TrunkBase;
 	const float Z0 = Tree.GetField().GroundZ;
@@ -473,7 +481,9 @@ void AForestFloor::Build(const ATreeActor& Tree)
 			const float Yaw = R.FRand() * 2.f * PI;
 			const float Lean = R.FRandRange(0.25f, 0.7f);
 			const float Phase = R.FRand();
-			AddBlade(B, FVector(Trunk.X + Foot.X, Trunk.Y + Foot.Y, Z0 - 0.5f), Yaw, H, FMath::Max(3.f, 0.022f * H), Lean, Z0, Phase);
+			// The foot on the visible ground's relief (zero inside 160 m, so only the far tufts move).
+			const float Lift = LeafRelief::Height(Trunk.X + Foot.X, Trunk.Y + Foot.Y);
+			AddBlade(B, FVector(Trunk.X + Foot.X, Trunk.Y + Foot.Y, Z0 - 0.5f + Lift), Yaw, H, FMath::Max(3.f, 0.022f * H), Lean, Z0, Phase);
 			++NBlades;
 		}
 		++NTufts;

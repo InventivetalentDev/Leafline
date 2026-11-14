@@ -52,7 +52,9 @@ struct FLookTuning
 	/** Height of the fog's base (cm); below -100000 leaves the level's value. With the falloff, the fog thins upward:
 	 *  the ground far below hazes over while the canopy keeps enough for light shafts. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fog") float FogBaseHeight = 0.f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fog") float FogStartDistance = 0.f;
+	/** Distance (cm) from the camera before the height fog starts. 1500 since the floor pass (14 Nov, was 0): ground near
+	 *  the camera (the nest view) stays clear while the floor seen from the tree sits behind haze. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fog") float FogStartDistance = 1500.f;
 	/** Sun-coloured glow in the fog looking toward the sun; black turns it off. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fog") FLinearColor FogSunGlowColor = FLinearColor(0.6f, 0.42f, 0.22f, 1.f);
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fog") float FogSunGlowExponent = 6.f;
@@ -60,6 +62,12 @@ struct FLookTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fog") float VolumetricFogExtinction = 0.6f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fog") float VolumetricFogDistance = 9000.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fog") float VolumetricFogScattering = 0.7f;
+	/** The volumetric fog's own start distance and fade-in (cm); the height fog's start distance does not apply to it. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fog") float VolumetricFogStartDistance = 1500.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fog") float VolumetricFogNearFadeIn = 600.f;
+	/** Scales the sky atmosphere's colour in the height fog (the level leaves the fog's own colour black, so the sky
+	 *  gives it): above 1 in blue cools the haze over the distant floor. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fog") FLinearColor FogSkyTint = FLinearColor(1.f, 1.f, 1.f, 1.f);
 	/** A second, lower fog layer: ground haze. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fog") float GroundHazeDensity = 0.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fog") float GroundHazeFalloff = 0.2f;
