@@ -1,0 +1,37 @@
+# Frame time without ray tracing (pass -noraytracing): off/on/off/on at the owner's pose and the canopy horizon.
+0|t.MaxFPS 0
+0|r.VSync 0
+0|Leaf.Tune wind CalmMin 400
+0|Leaf.Tune wind CalmMax 400
+0|Leaf.Tune wind StreakCount 0
+0|Leaf.Cues 0
+0|Leaf.NewDay 675856
+4|Leaf.Cinematic 1
+5|Leaf.Goto 504 1008 5966 -37 -14
+10|Leaf.Relief 0
+12|CsvProfile START
+20|CsvProfile STOP
+20.5|Leaf.Relief 1
+22.5|CsvProfile START
+30.5|CsvProfile STOP
+31|Leaf.Relief 0
+33|CsvProfile START
+41|CsvProfile STOP
+41.5|Leaf.Relief 1
+43.5|CsvProfile START
+51.5|CsvProfile STOP
+52|Leaf.Teleport 17 0.6
+54|Leaf.Aim -37 -4
+57|Leaf.Relief 0
+59|CsvProfile START
+67|CsvProfile STOP
+67.5|Leaf.Relief 1
+69.5|CsvProfile START
+77.5|CsvProfile STOP
+78|Leaf.Relief 0
+80|CsvProfile START
+88|CsvProfile STOP
+88.5|Leaf.Relief 1
+90.5|CsvProfile START
+98.5|CsvProfile STOP
+99|Leaf.QuitAfter 1

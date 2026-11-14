@@ -414,6 +414,40 @@ namespace
 	}
 
 	/**
+	 * Roots (level -1): their bark radius stays near R_exit, the radius at the first sample outside the trunk's tube (measured with
+	 * the radii as grown, flare included): R_exit + RootBarkTaper * (R - R_exit). Changes UV3.x only, never the geometry.
+	 */
+	void HoldRootBarkRadius(FTreeSkeleton& S, const FTreeParams& P, const TArray<TArray<float>>& Orig)
+	{
+		const float Taper = FMath::Clamp(P.RootBarkTaper, 0.f, 1.f);
+		if (Taper >= 1.f || S.Branches.Num() == 0) return;
+		const FTreeBranch& Trunk = S.Branches[0];
+		if (Trunk.Level != 0 || Trunk.Samples.Num() < 2) return;
+		TArray<FString> Report;
+		for (int32 b = 1; b < S.Branches.Num(); ++b)
+		{
+			FTreeBranch& B = S.Branches[b];
+			if (B.Level != -1 || B.Samples.Num() < 2 || B.BarkRadius.Num() != B.Samples.Num()) continue;
+			int32 Exit = 0;
+			for (int32 i = 0; i < B.Samples.Num(); ++i)
+			{
+				double D = TNumericLimits<double>::Max();
+				for (int32 sg = 0; sg + 1 < Trunk.Samples.Num(); ++sg) D = FMath::Min(D, TubeSegDist(B.Samples[i], Trunk.Samples, Orig[0], sg));
+				if (D >= 0.0)
+				{
+					Exit = i;
+					break;
+				}
+			}
+			const float RExit = Orig[b][Exit];
+			for (int32 i = 0; i < B.BarkRadius.Num(); ++i) B.BarkRadius[i] = RExit + Taper * (Orig[b][i] - RExit);
+			Report.Add(FString::Printf(TEXT("%.0f cm at %.0f m (tip %.0f -> %.0f)"), RExit, B.SampleDist[Exit] / 100.f, Orig[b].Last(), B.BarkRadius.Last()));
+		}
+		if (Report.Num() > 0) UE_LOG(LogLeafline, Log, TEXT("TreeSkeleton: roots' bark radius held near where they leave the trunk (taper %.2f): %s"),
+			Taper, *FString::Join(Report, TEXT("; ")));
+	}
+
+	/**
 	 * After all branches are grown (draws no random numbers): fills BarkRadius, and when bBranchCollars is on swells every
 	 * branch with a parent where it leaves that parent. s_exit is the arc length of the child's first sample outside the
 	 * parent's tube; the swelling ramps in over [s_exit / 2, s_exit] (so the base ring buried in the parent does not grow
@@ -440,6 +474,7 @@ namespace
 				}
 			}
 		}
+		HoldRootBarkRadius(S, P, Orig);
 		if (!P.bBranchCollars) return;
 
 		for (int32 c = 0; c < NB; ++c)

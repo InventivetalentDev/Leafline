@@ -3,9 +3,18 @@
 // A named namespace, not an anonymous one: unity builds merge this file with others that have their own Noise or Hash.
 namespace LeafReliefDetail
 {
-	// Off by default (14 Nov, 18:15): on and off differed by 3 to 6 grey levels in every test view (the ground beyond 160 m
-	// lies behind thick fog), so it bought nothing for the risk of grove feet on slopes. Leaf.Relief 1 turns it on.
+	// Off by default until the owner decides (14 Nov night); Leaf.Relief 1 turns it on with the shape below. The first
+	// version (from 160 m, far bands x1, no rim, ground to 5 km) did not show through the fog at all.
 	bool GReliefOn = false;
+	float GStartRadius = LeafRelief::DefaultStartRadius;
+	// The shape chosen on 14 Nov night (docs/tech.md): near bands as they are (x3 still did not read from the tree), far
+	// bands x4 (rolling hills toward the horizon), a 250 m rim toward 5 km and the ground out to 30 km, so the outline from
+	// the canopy is a ridge line instead of the ground's ruled edge.
+	float GNearScale = 1.f;
+	float GFarScale = 4.f;
+	float GRimHeight = 25000.f;
+	float GOuterRadius = 3000000.f;
+	float GCrownReach = 0.f;
 	int32 GStamp = 1;
 	FVector2D GCentre = FVector2D::ZeroVector;
 	FVector2D GOffset = FVector2D::ZeroVector;
@@ -47,6 +56,7 @@ namespace LeafReliefDetail
 		{ 24000.0, 700.0, 0.9 },    // swells, 240 m
 		{ 90000.0, 2500.0, 2.1 },   // rises, 900 m
 		{ 300000.0, 5000.0, 3.7 },  // the land's lie, 3 km: lifts and drops the far ground
+		{ 600000.0, 6000.0, 5.1 },  // 6 km, reaching the 30 km edge (with the rings out there): an uneven far outline
 	};
 }
 
@@ -64,13 +74,41 @@ namespace LeafRelief
 
 	int32 Stamp() { return GStamp; }
 
-	void SetFrame(const FVector2D& Centre, int32 Seed)
+	void SetShape(float StartRadius, float NearScale, float FarScale, float RimHeight, float OuterRadius)
+	{
+		StartRadius = FMath::Max(StartRadius, 1000.f);
+		NearScale = FMath::Max(NearScale, 0.f);
+		FarScale = FMath::Max(FarScale, 0.f);
+		RimHeight = FMath::Max(RimHeight, 0.f);
+		OuterRadius = FMath::Max(OuterRadius, 0.f);
+		if (StartRadius != GStartRadius || NearScale != GNearScale || FarScale != GFarScale || RimHeight != GRimHeight || OuterRadius != GOuterRadius) ++GStamp;
+		GStartRadius = StartRadius;
+		GNearScale = NearScale;
+		GFarScale = FarScale;
+		GRimHeight = RimHeight;
+		GOuterRadius = OuterRadius;
+	}
+
+	float GetRimHeight() { return GRimHeight; }
+	float GetOuterRadius() { return GOuterRadius; }
+
+	float GetStartRadius() { return GStartRadius; }
+	float GetNearScale() { return GNearScale; }
+	float GetFarScale() { return GFarScale; }
+
+	void SetFrame(const FVector2D& Centre, int32 Seed, float CrownReach)
 	{
 		const uint32 H = Hash2(Seed, 7177);
 		const FVector2D Offset(double(H & 0xffffu) * 37.0, double(H >> 16) * 41.0);
-		if (!Centre.Equals(GCentre, 1.0) || !Offset.Equals(GOffset, 1.0)) ++GStamp;
+		if (!Centre.Equals(GCentre, 1.0) || !Offset.Equals(GOffset, 1.0) || FMath::Abs(CrownReach - GCrownReach) > 1.f) ++GStamp;
 		GCentre = Centre;
 		GOffset = Offset;
+		GCrownReach = CrownReach;
+	}
+
+	float GetEffectiveStart()
+	{
+		return FMath::Max(GStartRadius, GCrownReach + 2200.f);
 	}
 
 	float Height(double X, double Y)
@@ -78,8 +116,10 @@ namespace LeafRelief
 		if (!GReliefOn) return 0.f;
 		const FVector2D Rel(X - GCentre.X, Y - GCentre.Y);
 		const double R = Rel.Size();
-		if (R <= StartRadius) return 0.f;
-		const double Ramp = SmoothStep(StartRadius, FullRadius, R);
+		const double Start = GetEffectiveStart();
+		if (R <= Start) return 0.f;
+		const double FullRadius = Start + RampLength;
+		const double Ramp = SmoothStep(Start, FullRadius, R);
 		const FVector2D Q = Rel + GOffset;
 		double H = 0.0;
 		for (const FBand& B : Bands)
@@ -92,7 +132,15 @@ namespace LeafRelief
 			const double U = (C * Q.X - S * Q.Y) / B.Wavelength, V = (S * Q.X + C * Q.Y) / B.Wavelength;
 			// The far bands grow with the distance, so near the walking field the ground only swells gently.
 			const double Grow = B.Wavelength > 50000.0 ? SmoothStep(FullRadius, FullRadius + B.Wavelength, R) : 1.0;
-			H += B.Height * Keep * Grow * Noise(U, V);
+			H += B.Height * Keep * Grow * Noise(U, V) * (B.Wavelength > 50000.0 ? GFarScale : GNearScale);
+		}
+		if (GRimHeight > 0.f)
+		{
+			// A rim: the ground rises from 1.5 km to the 5 km mark (and stays up beyond), unevenly (a 2 km band from 55% to
+			// 100%), so the far outline is a ridge line, not the ground's ruled edge. Deeper dips (35%) let the flat ground
+			// beyond show through them as a ruled band again.
+			const double Rise = SmoothStep(150000.0, 500000.0, R);
+			if (Rise > 0.0) H += GRimHeight * Rise * (0.775 + 0.225 * Noise(Q.X / 200000.0 + 31.7, Q.Y / 200000.0 - 12.9));
 		}
 		return float(H * Ramp);
 	}

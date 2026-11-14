@@ -1,0 +1,56 @@
+# The far outline: far bands x4 alone, with the ground reaching 30 km, with a 250 m rim, and both; from the canopy
+# (188 m), near the top (283 m), 94 m up and the nest. Wind calm, no cues.
+0|Leaf.Tune wind CalmMin 400
+0|Leaf.Tune wind CalmMax 400
+0|Leaf.Tune wind StreakCount 0
+0|Leaf.Cues 0
+0|Leaf.NewDay 675856
+4|Leaf.Cinematic 1
+5|Leaf.Teleport 17 0.6
+7|Leaf.Aim -37 -4
+9.5|Leaf.Relief 0 90 1 1 0 0
+12.5|SHOT canopyhz-off
+13|Leaf.Relief 1 90 1 4 0 0
+16|SHOT canopyhz-f4
+16.5|Leaf.Relief 1 90 1 4 0 30
+19.5|SHOT canopyhz-f4o30
+20|Leaf.Relief 1 90 1 4 250 0
+23|SHOT canopyhz-f4r250
+23.5|Leaf.Relief 1 90 1 4 250 30
+26.5|SHOT canopyhz-f4r250o30
+27|Leaf.Teleport 26 0.6
+29|Leaf.Aim -37 -6
+31.5|Leaf.Relief 0 90 1 1 0 0
+34.5|SHOT top-off
+35|Leaf.Relief 1 90 1 4 0 0
+38|SHOT top-f4
+38.5|Leaf.Relief 1 90 1 4 0 30
+41.5|SHOT top-f4o30
+42|Leaf.Relief 1 90 1 4 250 0
+45|SHOT top-f4r250
+45.5|Leaf.Relief 1 90 1 4 250 30
+48.5|SHOT top-f4r250o30
+49|Leaf.Teleport 9 0.5
+51|Leaf.Aim -37 -20
+53.5|Leaf.Relief 0 90 1 1 0 0
+56.5|SHOT h94-off
+57|Leaf.Relief 1 90 1 4 0 0
+60|SHOT h94-f4
+60.5|Leaf.Relief 1 90 1 4 0 30
+63.5|SHOT h94-f4o30
+64|Leaf.Relief 1 90 1 4 250 0
+67|SHOT h94-f4r250
+67.5|Leaf.Relief 1 90 1 4 250 30
+70.5|SHOT h94-f4r250o30
+71|Leaf.Goto 1204 3148 2 -60 -4
+75.5|Leaf.Relief 0 90 1 1 0 0
+78.5|SHOT nesthz-off
+79|Leaf.Relief 1 90 1 4 0 0
+82|SHOT nesthz-f4
+82.5|Leaf.Relief 1 90 1 4 0 30
+85.5|SHOT nesthz-f4o30
+86|Leaf.Relief 1 90 1 4 250 0
+89|SHOT nesthz-f4r250
+89.5|Leaf.Relief 1 90 1 4 250 30
+92.5|SHOT nesthz-f4r250o30
+93|Leaf.QuitAfter 1
