@@ -270,7 +270,8 @@ void AForestFloor::Build(const ATreeActor& Tree)
 	// round every root. Clear(P) is the distance outside it (negative inside), with a wavy edge.
 	FRandomStream R(Sk.Seed * 104729 + 9161);
 	float Reach = 0.f, TrunkR = 0.f;
-	TArray<FVector2D> RootPts, NestPts;
+	TArray<FVector> RootPts;   // x y relative to the trunk axis, z the root's radius there
+	TArray<FVector2D> NestPts;
 	for (const FTreeBranch& Br : Sk.Branches)
 	{
 		if (Br.Level == 0 && Br.SampleRadius.Num() > 0 && TrunkR == 0.f) TrunkR = Br.SampleRadius[0];
@@ -278,12 +279,12 @@ void AForestFloor::Build(const ATreeActor& Tree)
 		for (int32 k = 0; k < Br.Samples.Num(); k += 3)
 		{
 			const FVector2D S = FVector2D(Br.Samples[k]) - FVector2D(Trunk);
-			RootPts.Add(S);
+			RootPts.Add(FVector(S.X, S.Y, Br.SampleRadius.IsValidIndex(k) ? Br.SampleRadius[k] : 0.f));
 			Reach = FMath::Max(Reach, float(S.Size()));
 		}
 	}
 	for (const FVector& N : Sk.NestSpots) NestPts.Add(FVector2D(N) - FVector2D(Trunk));
-	const float TrunkClearR = FMath::Max(T.TrunkClear, TrunkR + 500.f);
+	const float TrunkClearR = FMath::Max(T.TrunkClear, TrunkR + 300.f);
 	const float PhaseA = R.FRand() * 6.28f, PhaseB = R.FRand() * 6.28f;
 	auto SegDist = [](const FVector2D& P, const FVector2D& A, const FVector2D& B)
 	{
@@ -299,18 +300,9 @@ void AForestFloor::Build(const ATreeActor& Tree)
 			D = FMath::Min(D, float(FVector2D::Distance(P, N)) - T.NestClear);
 			D = FMath::Min(D, SegDist(P, N, FVector2D::ZeroVector) - T.CorridorHalf);
 		}
-		for (const FVector2D& Rp : RootPts) D = FMath::Min(D, float(FVector2D::Distance(P, Rp)) - T.RootBand);
+		for (const FVector& Rp : RootPts) D = FMath::Min(D, float(FVector2D::Distance(P, FVector2D(Rp.X, Rp.Y))) - Rp.Z - T.RootBand);
 		return D - T.EdgeWave * FMath::Sin(P.X * 0.0021f + PhaseA) * FMath::Sin(P.Y * 0.0027f + PhaseB);
 	};
-	// Anchors on the clearing's edge, where the litter gathers.
-	TArray<FVector2D> Anchors;
-	for (int32 k = 0; k < 24; ++k) Anchors.Add(FVector2D(FMath::Cos(k * PI / 12.f), FMath::Sin(k * PI / 12.f)) * TrunkClearR);
-	for (const FVector2D& Rp : RootPts) Anchors.Add(Rp);
-	for (const FVector2D& N : NestPts)
-	{
-		for (int32 k = 0; k < 8; ++k) Anchors.Add(N + FVector2D(FMath::Cos(k * PI / 4.f), FMath::Sin(k * PI / 4.f)) * T.NestClear);
-		for (int32 k = 1; k < 6; ++k) Anchors.Add(N * (float(k) / 6.f));
-	}
 	const float FlatEnd = T.FlatRing;  // distance outside the clearing up to which only flat leaves lie
 
 	TArray<FBuf> Bufs;
@@ -325,21 +317,23 @@ void AForestFloor::Build(const ATreeActor& Tree)
 	};
 
 	// 1. Fallen leaves, in clusters with bare gaps. Flat near the clearing, curled and tilted farther out.
+	// Both litter and grass are stratified by angle (NumStrata sectors, an equal share each) so no side of the trunk is
+	// favoured; within a sector the clusters are random.
+	constexpr int32 NumStrata = 24;
 	auto Leaves = [&](int32 Count, bool bRing, float Sigma)
 	{
+		for (int32 Sector = 0; Sector < NumStrata; ++Sector)
+		{
+		const int32 Target = (Count * (Sector + 1)) / NumStrata - (Count * Sector) / NumStrata;
 		int32 Made = 0, Guard = 0;
-		while (Made < Count && Guard++ < Count * 60)
+		while (Made < Target && Guard++ < Target * 60 + 60)
 		{
 			FVector2D Centre;
-			if (bRing)
 			{
-				const float A = R.FRand() * 2.f * PI;
-				Centre = Anchors[R.RandRange(0, Anchors.Num() - 1)] + FVector2D(FMath::Cos(A), FMath::Sin(A)) * (FlatEnd + 900.f) * FMath::Pow(R.FRand(), 1.3f);
-			}
-			else
-			{
-				const float A = R.FRand() * 2.f * PI;
-				Centre = FVector2D(FMath::Cos(A), FMath::Sin(A)) * (T.LitterRadius * FMath::Pow(R.FRand(), 0.7f));
+				const float A = (Sector + R.FRand()) * 2.f * PI / NumStrata;
+				const float Rr = bRing ? TrunkClearR - 200.f + (FlatEnd + 3500.f) * FMath::Pow(R.FRand(), 1.3f)
+									   : T.LitterRadius * FMath::Pow(R.FRand(), 0.7f);
+				Centre = FVector2D(FMath::Cos(A), FMath::Sin(A)) * Rr;
 			}
 			const int32 InCluster = 8 + R.RandRange(0, 18);
 			for (int32 i = 0; i < InCluster && Made < Count; ++i)
@@ -373,10 +367,12 @@ void AForestFloor::Build(const ATreeActor& Tree)
 				if (Out < FlatEnd) ++NFlat;
 			}
 		}
+		}
 	};
 	Leaves(T.RingLeaves, true, 260.f);
 	Leaves(T.OuterLeaves, false, 450.f);
 
+	TArray<FVector2D> TuftPos;
 	// 2. Grass: patches of tufts of three to five curved blades, beyond the flat ring; a few tall, far ones to break the
 	// flat horizon.
 	auto Tuft = [&](const FVector2D& Rel, float HeightScale)
@@ -394,25 +390,32 @@ void AForestFloor::Build(const ATreeActor& Tree)
 		++NTufts;
 	};
 	{
-		int32 Made = 0, Guard = 0;
-		while (Made < T.Tufts && Guard++ < T.Tufts * 20)
+		// Clumps of about nine tufts, per angular sector; the radius law keeps most grass within about 40 m of the trunk
+		// axis' clearing edge and thins out to the litter radius.
+		const float Rmax = T.LitterRadius * 1.1f;
+		for (int32 Sector = 0; Sector < NumStrata; ++Sector)
 		{
-			const float A = R.FRand() * 2.f * PI;
-			const FVector2D Centre = (R.FRand() < 0.7f)
-				? Anchors[R.RandRange(0, Anchors.Num() - 1)] + FVector2D(FMath::Cos(A), FMath::Sin(A)) * (FlatEnd + 600.f + 2400.f * FMath::Pow(R.FRand(), 1.2f))
-				: FVector2D(FMath::Cos(A), FMath::Sin(A)) * (T.LitterRadius * 1.1f * FMath::Pow(R.FRand(), 0.8f));
-			for (int32 i = 0; i < 9 && Made < T.Tufts; ++i)
+			const int32 Target = (T.Tufts * (Sector + 1)) / NumStrata - (T.Tufts * Sector) / NumStrata;
+			int32 Made = 0, Guard = 0;
+			while (Made < Target && Guard++ < Target * 40 + 40)
 			{
-				const FVector2D Rel = Centre + FVector2D(Gauss(R), Gauss(R)) * 320.f;
-				if (ClearDist(Rel) < FlatEnd) continue;
-				Tuft(Rel, 1.f);
-				++Made;
+				const float A = (Sector + R.FRand()) * 2.f * PI / NumStrata;
+				const float Rr = TrunkClearR + (Rmax - TrunkClearR) * FMath::Pow(R.FRand(), 3.f);
+				const FVector2D Centre = FVector2D(FMath::Cos(A), FMath::Sin(A)) * Rr;
+				for (int32 i = 0; i < 9 && Made < Target; ++i)
+				{
+					const FVector2D Rel = Centre + FVector2D(Gauss(R), Gauss(R)) * 250.f;
+					if (ClearDist(Rel) < FlatEnd + 150.f) continue;
+					Tuft(Rel, 1.f);
+					TuftPos.Add(Rel);
+					++Made;
+				}
 			}
 		}
 		for (int32 i = 0; i < T.FarTufts; ++i)
 		{
 			const float Rr = FMath::Sqrt(FMath::Lerp(FMath::Square(T.LitterRadius), FMath::Square(T.FarRadius), R.FRand()));
-			const float A = R.FRand() * 2.f * PI;
+			const float A = (i % NumStrata + R.FRand()) * 2.f * PI / NumStrata;
 			Tuft(FVector2D(FMath::Cos(A), FMath::Sin(A)) * Rr, 1.f + 3.f * Rr / T.FarRadius);
 		}
 	}
@@ -466,6 +469,21 @@ void AForestFloor::Build(const ATreeActor& Tree)
 		Sectors.Add(C);
 	}
 	SetFloorEnabled(bEnabled);
+	{
+		// Evenness evidence: near tufts per octant of the compass, and their distance from the trunk axis.
+		int32 Octant[8] = {};
+		TArray<float> Dist;
+		for (const FVector2D& P : TuftPos)
+		{
+			Octant[FMath::Clamp(int32((FMath::Atan2(P.Y, P.X) + PI) / (2.f * PI) * 8.f), 0, 7)]++;
+			Dist.Add(float(P.Size()) / 100.f);
+		}
+		Dist.Sort();
+		const int32 N = Dist.Num();
+		UE_LOG(LogLeafline, Log, TEXT("Forest floor grass: %d near tufts by octant %d %d %d %d %d %d %d %d, distance from the trunk axis p10 %.0f m, median %.0f m, p90 %.0f m"),
+			N, Octant[0], Octant[1], Octant[2], Octant[3], Octant[4], Octant[5], Octant[6], Octant[7],
+			N ? Dist[N / 10] : 0.f, N ? Dist[N / 2] : 0.f, N ? Dist[N * 9 / 10] : 0.f);
+	}
 	UE_LOG(LogLeafline, Log, TEXT("Forest floor: seed %d, trunk disc %.0f cm (flared radius %.0f), root reach %.0f, %d leaves (%d flat in the ring), %d tufts (%d blades), %d twigs, %lld triangles, built in %.1f ms"),
 		Sk.Seed, TrunkClearR, TrunkR, Reach, NLeaves, NFlat, NTufts, NBlades, NTwigs, Tris, (FPlatformTime::Seconds() - Start) * 1000.0);
 }

@@ -15,8 +15,8 @@ mkdir -p "$SHOTDIR" "$OUT"
 STEPS=(
  "0|Leaf.NewDay $SEED" "4|Leaf.Cinematic 1"
  "5|Leaf.Tune look FogDensity 0.004" "6|Leaf.TopDown 40000 50" "10|HighResShot 1"
- "11|Leaf.TopDown 15000 60" "15|HighResShot 1"
- "16|Leaf.TopDown 6000 70" "20|HighResShot 1"
+ "11|Leaf.TopDown 25000 60 6000 0" "15|HighResShot 1"
+ "16|Leaf.TopDown 12000 75 6000 0" "20|HighResShot 1"
  "21|Leaf.TopDown 0" "22|Leaf.Tune look FogDensity 0.06"
  "23|Leaf.Goto -547 1550 7 -165 -7" "27|HighResShot 1"
  "28|Leaf.Goto -547 1550 7 -70 -7" "32|HighResShot 1"
@@ -24,7 +24,7 @@ STEPS=(
  "38|Leaf.Goto -547 1550 7 120 -7" "42|HighResShot 1"
  "45|Leaf.QuitAfter 1"
 )
-VIEWS=(top-400m top-150m top-60m nest-away nest-trunk nest-east nest-west)
+VIEWS=(top-400m top-250m-east top-120m-east nest-away nest-trunk nest-east nest-west)
 CMDS=""
 for s in "${STEPS[@]}"; do
 	t=${s%%|*}; c=${s#*|}
@@ -40,4 +40,4 @@ for f in $(find "$SHOTDIR" -name '*.png' -newer "$MARK" | sort); do
 done
 rm -f "$MARK"
 echo "$i screenshots in $OUT (label $LABEL)"
-grep -a "Forest floor:\|Leaf.TopDown" "$LOG" | sed 's/^\[[^]]*\]\[[^]]*\]//' | cut -c1-300
+grep -a "Forest floor\|Leaf.TopDown:" "$LOG" | sed 's/^\[[^]]*\]\[[^]]*\]//' | cut -c1-300
