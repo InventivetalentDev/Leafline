@@ -441,6 +441,7 @@ void ATreeActor::Grow(int32 Seed)
 namespace
 {
 	bool GNewBark = true;
+	bool GBark3 = false; // Leaf.Bark 2
 	int32 GCollarsOverride = -1; // -1: FTreeParams::bBranchCollars decides; 0/1: Leaf.Collars
 	int32 GFilletsOverride = -1; // -1: FTreeParams::bFillets decides; 0/1: Leaf.Fillets
 	int32 GFilletWalkOverride = -1; // -1: FTreeParams::bFilletWalk decides; 0/1: Leaf.FilletWalk
@@ -490,8 +491,44 @@ bool ATreeActor::IsNewBark()
 	return GNewBark;
 }
 
+void ATreeActor::SetBark3(bool bOn)
+{
+	GBark3 = bOn;
+}
+
+bool ATreeActor::IsBark3()
+{
+	return GBark3;
+}
+
+void ATreeActor::RebuildWoodMesh()
+{
+	if (!WoodMesh) return;
+	FTreeMeshData Data, GroundSkirt;
+	TreeMeshBuilder::Build(Skeleton, Data, &GetVisualField(), nullptr, &GroundSkirt);
+	WoodMesh->CreateMeshSection_LinearColor(0, Data.Vertices, Data.Triangles, Data.Normals, Data.UV0, Data.UV1, Data.UV2, Data.UV3,
+		Data.Colors, Data.Tangents, false, false);
+	if (UMaterialInterface* Mat = PickBark()) WoodMesh->SetMaterial(0, Mat);
+	BuildGrove();
+	UE_LOG(LogLeafline, Log, TEXT("Bark mesh rebuilt: %d vertices"), Data.Vertices.Num());
+}
+
 UMaterialInterface* ATreeActor::PickBark()
 {
+	if (GNewBark && GBark3)
+	{
+		if (!Bark3Material)
+		{
+			Bark3Material = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Leafline/Materials/M_TreeBark3.M_TreeBark3"), nullptr, LOAD_NoWarn | LOAD_Quiet);
+			static bool bWarned = false;
+			if (!Bark3Material && !bWarned)
+			{
+				bWarned = true;
+				UE_LOG(LogLeafline, Warning, TEXT("M_TreeBark3 not found; the bark uses M_TreeBark2 (the seam data is in the mesh, unread)"));
+			}
+		}
+		if (Bark3Material) return Bark3Material.Get();
+	}
 	if (GNewBark && !NewBarkMaterial)
 	{
 		// Loaded by path (the folder is always cooked) so a missing asset only falls back to M_TreeBark.
