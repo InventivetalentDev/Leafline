@@ -168,7 +168,8 @@ namespace
 	}
 
 	/** Leaf.RootBark [0|1|taper]: the roots' bark ridges held long (1, FTreeParams::RootBarkTaper) or following the root's own
-	 *  taper as before (0); a value between 0 and 1 sets the taper. Bark only, so today's tree grows again with its saved bites. */
+	 *  taper as before (0); a value with a point sets the taper (so 1.0 is the old look). Bark only, so today's tree grows again with
+	 *  the bites saved at the last day end (StartDay's GrowWithBites); the day restarts from dawn. */
 	void RootBark(UWorld* World, const TArray<FString>& Args)
 	{
 		ADayDirector* D = ADayDirector::Get(World);
@@ -184,7 +185,8 @@ namespace
 		ATreeActor::SetRootBarkTaperOverride(Override);
 		UE_LOG(LogLeafline, Log, TEXT("Leaf.RootBark: roots' bark taper %.2f (%s); growing today's tree again"),
 			ATreeActor::GetRootBarkTaper(Tree->Params), Override < 0.f ? TEXT("params") : TEXT("override"));
-		// No vertex moves, so the saved bites stay: the day restarts on the same tree grown again.
+		// No vertex moves, so no SetTree / SetTreeState as in Leaf.Collars: StartDay regrows the same tree with the bites saved at
+		// the last day end (GrowWithBites); the day itself restarts from dawn, as any StartDay does.
 		D->DebugForceRegrow();
 		D->StartDay(D->GetDay());
 	}
@@ -393,7 +395,7 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs CmdRootBark(
 		TEXT("Leaf.RootBark"),
-		TEXT("Leaf.RootBark [0|1|taper]: roots' bark ridges held long (1, default) or following the root's own taper as before (0); a value with a point (0.3) sets the taper; no argument toggles. Grows today's tree again (bark only, bites kept)."),
+		TEXT("Leaf.RootBark [0|1|taper]: roots' bark ridges held long (1, default) or following the root's own taper as before (0); a value with a point (0.3) sets the taper; no argument toggles. Grows today's tree again with its saved bites; the day restarts (bark only)."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World) { RootBark(World, Args); }));
 
 	FAutoConsoleCommandWithWorldAndArgs CmdStage(
