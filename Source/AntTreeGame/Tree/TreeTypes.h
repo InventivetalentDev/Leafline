@@ -138,6 +138,15 @@ struct FTreeParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grove") int32 GroveCrownClumps = 9;
 	/** Leaves per clump; each is about a quarter of the clump radius long, so this sets how closed the crown looks. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grove") int32 GroveLeavesPerClump = 260;
+	/** Understory (Leaf.GroveUnder): smaller grove trees between and in front of the giants, leafy from a quarter of their
+	 *  height, so foliage frames the horizon from the nest and the low trunk (the giants' crowns start above that view).
+	 *  Grove only: nothing on the play tree, never walked on. Own random stream, so the giants are the same either way. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grove") bool bGroveUnderstory = true;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grove") int32 GroveUnderCount = 16;
+	/** Past the forest floor's litter and tufts (to 154 m) and every logged landing of a blown-off ant (at most 80 m). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grove") float GroveUnderMinDistance = 17000.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grove") float GroveUnderMaxDistance = 26000.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grove") int32 GroveUnderLeavesPerClump = 160;
 	/** Radius of the ground disk (cm). Far enough that the height fog swallows its edge. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grove") float GroundRadius = 500000.f;
 

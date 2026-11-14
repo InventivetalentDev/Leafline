@@ -160,6 +160,9 @@ public:
 	/** Roots' bark taper (Leaf.RootBark): overrides FTreeParams::RootBarkTaper for every tree grown from now on (< 0: the params decide). */
 	static void SetRootBarkTaperOverride(float Taper);
 	static float GetRootBarkTaper(const FTreeParams& P);
+	/** Grove understory (Leaf.GroveUnder): overrides FTreeParams::bGroveUnderstory (-1: the params decide). */
+	static void SetGroveUnderstoryOverride(int32 On);
+	static bool IsGroveUnderstoryOn(const FTreeParams& P);
 
 	/** Junction fillets (Leaf.Fillets): override FTreeParams::bFillets, and FilletFrac / FilletMax / FilletBoughMul / FilletGroundK where
 	 *  the value is >= 0, for every tree grown from now on. */
