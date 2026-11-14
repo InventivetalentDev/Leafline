@@ -31,7 +31,7 @@ Each leaf is worth 1× to 3× from its height and how far out it sits, times the
 | 1.6 and up | ", each worth much more" |
 
 - **Why divide by the tree's multiplier.** The leaf colour does the same (paler is richer, `LeafSet.h`), so the word matches what the player sees. Every leaf on a later tree would otherwise read "worth more". The move card already says the new tree's leaves are worth more.
-- **Why these steps.** A leaf at 70 m on tree 1 (where the first days are played) is worth about 1.1–1.3×, one at 120 m about 1.3–1.7×, and one at 200 m about 1.5–2.3×. All three steps show up in a normal climb.
+- **Why these steps.** From the formula in `LeafSet.cpp`, a leaf at 70 m on tree 1 is worth about 1.1–1.3×, at 120 m 1.3–1.7× and at 200 m 1.5–2.3×. The test runs logged all three steps on tree 1: the lowest-band patch at ×1.00 (no word), patches at random leaves (`Leaf.GoLeaf`) at ×1.30 and ×1.36 ("each worth more"), and a cut leaf at ×1.67 ("each worth much more").
 - The trail rows no longer show value. By then the trail is laid, and the value doesn't help any decision. The rows say how many pieces are left.
 
 ## HUD during a shift
@@ -79,7 +79,7 @@ The text version (`DrawDayInfo`, `Leaf.HudIcons 0`) and the icon version (`DrawW
 
 | Old | New | Why |
 |---|---|---|
-| number in the arc, "2.4" | keep | It is the piece's value, the same number that appears when it reaches the nest. |
+| number in the arc, "2.4" | keep | It is the piece's **weight** (size only), as is "Carrying 2.4". What reaches the nest ("+2.8", the haul) is weight × leaf value, so on a rich leaf the two differ. See [For the owner](#for-the-owner-not-changed-here). |
 | "This piece: safe in a gust" | "Good size: safe in gusts" | The owner found the label switching from "safe" to a wind warning confusing (playtest 1), and still found "This piece: …" odd. As the arc grows the label now judges the **size**: good size, getting big, too big. The colours stay green, amber, red. |
 | "This piece: risky in a gust" | "Getting big: risky in gusts" | |
 | "This piece: too big for a gust" | "Too big: a gust will blow it away" | Says what happens. The worker walks home unharmed, so "blow it away" is the piece. |
@@ -99,7 +99,7 @@ The text version (`DrawDayInfo`, `Leaf.HudIcons 0`) and the icon version (`DrawW
 |---|---|---|
 | "Line 1" | "Trail 1" | See the glossary. |
 | "Home 3   Lost 0" | keep | |
-| "5 left   rich ×1.2" | "5 pieces left" ("1 piece left", "Used up") | The bar beside it shows the same thing. Value is dropped here (see [Leaf value](#leaf-value)). |
+| "5 left   rich ×1.2" | "5 pieces left" ("1 piece left", "Used up") | Counted as the bar is: pieces still on the leaves, including those recruits are on their way to cut. The old number left those out, so a trail could read "0 left" beside a half-full bar. Value is dropped here (see [Leaf value](#leaf-value)). |
 | "2 workers idle: lay a new line" | "2 recruits waiting for a new trail" ("1 recruit waiting…") | These are recruits, not workers. "Lay a new line" is jargon. |
 
 ### Prompts, bottom centre (`DrawPrompt`)
@@ -158,7 +158,7 @@ The text version (`DrawDayInfo`, `Leaf.HudIcons 0`) and the icon version (`DrawW
 | "Tree 1: day 3 on this tree" | keep | |
 | row: "Line 1" | "Trail 1" | Glossary. |
 | row: "Home 3", "Lost 0", "Hauled 6.2" | keep | |
-| row: "Patch left 5" | "Left 5" | "Patch" is never taught. It sits beside "Home" and "Lost". |
+| row: "Patch left 5" | "Left 5" | "Patch" is never taught. It sits beside "Home" and "Lost". Counted as in the trail rows. |
 | "and 2 more" | "and 2 more trails" | Says more of what. |
 | "Leaf hauled: 12.3", "Best day yet!", "Best day so far: 15.0" | keep | |
 | "Fragments brought home: 12" | "Pieces brought home: 12" | Glossary. This counts every piece, recruits' included. |
@@ -229,6 +229,8 @@ All kept: "The colony thrives", "Enough leaf has come home to feed the fungus ga
 
 - **Credits placeholders.** `Content/Leafline/UIRaw/credits.txt` still shows players "[FRIEND A]", "# [IF UI SHIPS] UI art" and "[FRIEND B]". Fill them in or delete them before the submission build; only you know the names.
 - **Build line.** The faint bottom-left line ("dev build | the old giant, seed …, day 3 | Leaf.Goto …") is debug text and is on by default. `docs/plan.md` already says to set `bShowBuildLine=False` in `DefaultGame.ini` before the submission build.
+- **Two numbers for one piece.** The cut arc and "Carrying 2.4" show the piece's weight (what slows the ant). The "+N" pop, the haul and "Largest piece" show its value (weight × leaf value). On a rich leaf a piece cut at "3.0" arrives as "+5.0". Showing value in the arc would make the two match; that is a logic change, so it is left for you to decide.
+- **design.md** still quotes the old read-out ("about 8 pieces, rich ×2.1", line 121).
 - **Prompt fallbacks.** `UI/PromptIcons.cpp` has text fallbacks ("E / LMB", "left stick") that show only if a button image is missing. Left as they are.
 
 ## Checked: nothing a player sees

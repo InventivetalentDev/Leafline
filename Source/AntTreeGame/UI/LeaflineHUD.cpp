@@ -970,7 +970,8 @@ void ALeaflineHUD::DrawColonyCounter(const ADayDirector* D, float Scale, float D
 
 namespace
 {
-	/** A trail row's "5 pieces left" (singular at one, "Used up" at none). */
+	/** A trail row's "5 pieces left" (singular at one, "Used up" at none). Counted as the bar is (FColonyLine::Fullness):
+	 *  pieces still on the leaves, including those recruits are on their way to cut. */
 	FString PiecesLeftText(int32 N)
 	{
 		return N <= 0 ? FString(TEXT("Used up")) : N == 1 ? FString(TEXT("1 piece left")) : FString::Printf(TEXT("%d pieces left"), N);
@@ -1007,7 +1008,7 @@ void ALeaflineHUD::DrawLineRows(const ADayDirector* D, const ALineSystem* Lines,
 		const float BY = Y + Style.Row * Scale, BW = 100.f * Scale, BH = Style.Bar * Scale;
 		DrawRect(Style.Track, X, BY + 5.f * Scale, BW, BH);
 		DrawRect(FLinearColor(Style.Leaf.R, Style.Leaf.G, Style.Leaf.B, Dim), X, BY + 5.f * Scale, BW * L.Fullness(), BH);
-		DrawTextAt(PiecesLeftText(L.PatchRemaining),
+		DrawTextAt(PiecesLeftText(L.PatchRemaining + L.Reserved),
 			X + 115.f * Scale, BY, FLinearColor(Style.Rich.R, Style.Rich.G, Style.Rich.B, Dim), SecondaryText(Scale), Font);
 		Y += RowH;
 	}
@@ -1181,7 +1182,7 @@ void ALeaflineHUD::DrawRecap(const ADayDirector* D, float Scale)
 			DrawTextAt(FString::Printf(TEXT("Home %d"), FMath::RoundToInt(L.PiecesHome * K)), X + 140.f * Scale, RY, T, SecondaryText(Scale), Font);
 			DrawTextAt(FString::Printf(TEXT("Lost %d"), FMath::RoundToInt(L.PiecesLost * K)), X + 330.f * Scale, RY,
 				L.PiecesLost > 0 ? FLinearColor(StaminaLockedColor.R, StaminaLockedColor.G, StaminaLockedColor.B, Fade) : T, SecondaryText(Scale), Font);
-			DrawTextAt(FString::Printf(TEXT("Left %d"), FMath::Max(L.PatchRemaining, 0)), X + 490.f * Scale, RY, T, SecondaryText(Scale), Font);
+			DrawTextAt(FString::Printf(TEXT("Left %d"), FMath::Max(L.PatchRemaining + L.Reserved, 0)), X + 490.f * Scale, RY, T, SecondaryText(Scale), Font);
 			DrawTextAt(FString::Printf(TEXT("Hauled %.1f"), L.MassHome * K), X + 750.f * Scale, RY,
 				FLinearColor(Style.Delivery.R, Style.Delivery.G, Style.Delivery.B, Fade), SecondaryText(Scale), Font);
 		}
