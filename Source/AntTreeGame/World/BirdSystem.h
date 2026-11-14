@@ -49,6 +49,9 @@ struct FBirdTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Schedule") float LookAgain = 4.f;
 	/** From the call to the pass. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Schedule") float WarnSeconds = 2.5f;
+	/** In the last this many seconds before the pass the bird is committed: a piece dropped then does not turn it (the
+	 *  piece stays on the bark as bait for its next look). Earlier drops turn it toward the piece. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Schedule") float CommitSeconds = 0.6f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Schedule") float AwaySeconds = 30.f;
 	/** Away after taking a dropped piece. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Schedule") float BaitAwaySeconds = 45.f;
@@ -215,6 +218,9 @@ private:
 	/** The circle round a point upwind of Anchor (the followed ant), clear of wood. */
 	void ComputeCircle(const FVector& Anchor);
 	void BeginVisualDive();
+	/** The visible dive's curve at time T of the dive (its state time): position, and velocity (cm/s) and progress 0..1 if
+	 *  asked. For the current target and approach; display only. */
+	FVector DiveCurveAt(double T, FVector* OutVel = nullptr, float* OutS = nullptr) const;
 	void BeginVisualExit();
 	void UpdateExitTangent(const FVector& Normal);
 	FVector TargetSurfacePos(FVector* OutNormal = nullptr) const;

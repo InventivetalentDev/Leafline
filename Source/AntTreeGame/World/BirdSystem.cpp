@@ -719,24 +719,45 @@ void ABirdSystem::DoDrop(AAntPawn* Ant)
 		*B.Pos.ToCompactString(), B.Exposure, LeafExposure::IsExposed(B.Exposure) ? TEXT("in the bird's view") : TEXT("sheltered: the bird does not see it"));
 	Baits.Add(B);
 	Ant->DropCarried();
-	if (State == EBirdState::Diving && TargetBait == INDEX_NONE && LeafExposure::IsExposed(B.Exposure))
+	const double PassIn = FMath::Max(Tuning.WarnSeconds - StateTime, 0.0);
+	if (State == EBirdState::Diving && TargetBait == INDEX_NONE && LeafExposure::IsExposed(B.Exposure) && PassIn < Tuning.CommitSeconds)
+	{
+		// Too late to turn (decided on the fixed step, so the same in every run): the pass goes on at its target, and the
+		// piece stays on the bark for the bird's next look.
+		UE_LOG(LogLeafline, Log, TEXT("Bird: too late to turn (pass in %.2f s, committed in the last %.1f s); the dropped piece stays as bait"),
+			PassIn, Tuning.CommitSeconds);
+	}
+	else if (State == EBirdState::Diving && TargetBait == INDEX_NONE && LeafExposure::IsExposed(B.Exposure))
 	{
 		// A piece lying in the open beats every ant, also in the middle of a dive: the bird takes it and stays away.
+		// The visible curve is read where it is now, before the target and approach change.
+		const bool bVisDive = VisMode == VisDive && VisDiveSerial == DiveSerial;
+		FVector CurVel = FVector::ZeroVector;
+		const FVector CurPos = bVisDive ? DiveCurveAt(StateTime, &CurVel) : FVector::ZeroVector;
 		TargetBait = Baits.Num() - 1;
 		Target = nullptr;
 		TargetLastPos = B.Pos;
 		TargetLastNormal = B.Normal;
 		ChooseApproach();
-		if (VisMode == VisDive && VisDiveSerial == DiveSerial)
+		if (bVisDive)
 		{
-			// Continue from here with the current velocity, reaching the new pass at the original scheduled time.
+			// Continue from here with the curve's own velocity, reaching the new pass at the original scheduled time.
 			DiveRetargetTime = StateTime;
-			DiveFrom = VisPos;
-			DiveFromVel = VisVel;
-			const float Remaining = FMath::Max(float(Tuning.WarnSeconds - DiveRetargetTime), 0.35f); // a late drop still turns, not snaps
+			DiveFrom = CurPos;
+			DiveFromVel = CurVel;
+			const float Remaining = FMath::Max(float(Tuning.WarnSeconds - DiveRetargetTime), 0.35f);
 			DiveCtrl = DiveFrom + DiveFromVel * (Remaining / 3.f);
 		}
-		UE_LOG(LogLeafline, Log, TEXT("Bird: turns to the dropped piece (pass in %.1f s)"), FMath::Max(Tuning.WarnSeconds - StateTime, 0.0));
+		if (bVisDive)
+		{
+			// Display check: where the drawn bird was last frame against the curve now, and the speed it carries into the turn.
+			UE_LOG(LogLeafline, Log, TEXT("Bird: turns to the dropped piece (pass in %.1f s; curve %.0f cm from the drawn bird, %.1f m/s into the turn, last frame %.1f m/s)"),
+				PassIn, FVector::Dist(CurPos, VisPos), CurVel.Size() / 100.f, VisVel.Size() / 100.f);
+		}
+		else
+		{
+			UE_LOG(LogLeafline, Log, TEXT("Bird: turns to the dropped piece (pass in %.1f s)"), PassIn);
+		}
 	}
 }
 
@@ -897,6 +918,34 @@ void ABirdSystem::BeginVisualDive()
 	PlaySound(TEXT("bird_call"), TEXT("gust_warning"), Tuning.CallVolume, VisPos);
 }
 
+FVector ABirdSystem::DiveCurveAt(double T, FVector* OutVel, float* OutS) const
+{
+	const FVector Pp = PassPoint();
+	const bool bRetargeted = DiveRetargetTime >= 0.0;
+	const float Duration = bRetargeted ? FMath::Max(float(Tuning.WarnSeconds - DiveRetargetTime), 0.35f)
+		: FMath::Max(Tuning.WarnSeconds, 0.1f);
+	const float SRaw = float((T - (bRetargeted ? DiveRetargetTime : 0.0)) / Duration);
+	const float S = FMath::Clamp(SRaw, 0.f, 1.f);
+	const FVector B2 = Pp + ApproachDir * Tuning.ApproachDistance;
+	const float L = FMath::Max(FVector::Dist(DiveFrom, Pp), 1.f);
+	// The rebuilt curve's first control already encodes velocity over its remaining duration.
+	const float M0 = bRetargeted ? 1.f : FMath::Clamp(DiveFromVel.Size() * Tuning.WarnSeconds / L, 0.f, 1.5f);
+	// Hermite in time: it leaves the circle at its gliding speed, speeds up, and flares to a stop at the pass.
+	const float UH = (3.f * S * S - 2.f * S * S * S) + M0 * (S * S * S - 2.f * S * S + S);
+	const float U = FMath::Clamp(UH, 0.f, 1.f);
+	if (OutVel)
+	{
+		// d/dt of Bezier(U(S(t))); the pass point's own motion (a walking target) is left out.
+		const float W = 1.f - U;
+		const FVector DB = (DiveCtrl - DiveFrom) * (3.f * W * W) + (B2 - DiveCtrl) * (6.f * W * U) + (Pp - B2) * (3.f * U * U);
+		const float DU = (6.f * S - 6.f * S * S) + M0 * (3.f * S * S - 4.f * S + 1.f);
+		const bool bMoving = SRaw > 0.f && SRaw < 1.f && UH > 0.f && UH < 1.f;
+		*OutVel = bMoving ? DB * (DU / Duration) : FVector::ZeroVector;
+	}
+	if (OutS) *OutS = S;
+	return Bezier(DiveFrom, DiveCtrl, B2, Pp, U);
+}
+
 void ABirdSystem::UpdateExitTangent(const FVector& N)
 {
 	// Where it leaves after the pass: upward along the surface (or up and upwind off a flat top), never on through the wood.
@@ -1050,20 +1099,10 @@ void ABirdSystem::UpdateVisual(float Dt)
 	case VisDive:
 	{
 		FVector N;
-		const FVector T = TargetSurfacePos(&N);
-		const FVector Pp = T + N * (DiveGap + BirdBelow());
+		TargetSurfacePos(&N);
 		UpdateExitTangent(N);
-		const bool bRetargeted = DiveRetargetTime >= 0.0;
-		const float Duration = bRetargeted ? FMath::Max(float(Tuning.WarnSeconds - DiveRetargetTime), 0.35f)
-			: FMath::Max(Tuning.WarnSeconds, 0.1f);
-		const float S = FMath::Clamp(float((StateTime - (bRetargeted ? DiveRetargetTime : 0.0)) / Duration), 0.f, 1.f);
-		const FVector B2 = Pp + ApproachDir * Tuning.ApproachDistance;
-		const float L = FMath::Max(FVector::Dist(DiveFrom, Pp), 1.f);
-		// The rebuilt curve's first control already encodes velocity over its remaining duration.
-		const float M0 = bRetargeted ? 1.f : FMath::Clamp(DiveFromVel.Size() * Tuning.WarnSeconds / L, 0.f, 1.5f);
-		// Hermite in time: it leaves the circle at its gliding speed, speeds up, and flares to a stop at the pass.
-		const float U = FMath::Clamp((3.f * S * S - 2.f * S * S * S) + M0 * (S * S * S - 2.f * S * S + S), 0.f, 1.f);
-		NewPos = Bezier(DiveFrom, DiveCtrl, B2, Pp, U);
+		float S = 0.f;
+		NewPos = DiveCurveAt(StateTime, nullptr, &S);
 		VisVel = (NewPos - VisPos) / FMath::Max(Dt, 1e-3f);
 		FlareW = FMath::SmoothStep(0.55f, 0.88f, S);
 		FlapWant = (S < 0.35f || S > 0.75f) ? 1.f : 0.f;
