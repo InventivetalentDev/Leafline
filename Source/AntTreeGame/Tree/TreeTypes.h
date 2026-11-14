@@ -153,6 +153,11 @@ struct FTreeParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh") float CollarAmount = 0.45f;
 	/** How far the swelling fades out along the branch, in base radii. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh") float CollarLength = 1.2f;
+	/** Roots' bark radius (FTreeBranch::BarkRadius, the cylinder M_TreeBark2's ridges follow): R_exit + RootBarkTaper * (R - R_exit),
+	 *  R_exit being the root's radius where it leaves the trunk. A root narrows by about 0.17 cm per cm along near the trunk, faster
+	 *  than the bark's along compression (ALONG 0.13 in bark2_bark.hlsl), so with 1 (the radius itself) its plates broke into
+	 *  cobbles; 0.15 keeps the ridges long as on the trunk flare. Bark only: no vertex moves (Leaf.RootBark). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh", meta = (ClampMin = "0", ClampMax = "1")) float RootBarkTaper = 0.15f;
 
 	// Fillets: where a limb, bough, twig or root leaves its parent, the mesh gets a skirt that rounds the corner (a field with a
 	// larger blend round the junction, which the skirt lies on). Twigs thinner than FilletTwigMinRadius keep their crease. Draws no random numbers, and

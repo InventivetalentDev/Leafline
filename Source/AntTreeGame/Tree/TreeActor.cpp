@@ -442,6 +442,7 @@ namespace
 {
 	bool GNewBark = true;
 	int32 GCollarsOverride = -1; // -1: FTreeParams::bBranchCollars decides; 0/1: Leaf.Collars
+	float GRootBarkTaperOverride = -1.f; // < 0: FTreeParams::RootBarkTaper decides; else Leaf.RootBark's value
 	int32 GFilletsOverride = -1; // -1: FTreeParams::bFillets decides; 0/1: Leaf.Fillets
 	int32 GFilletWalkOverride = -1; // -1: FTreeParams::bFilletWalk decides; 0/1: Leaf.FilletWalk
 	float GFilletFrac = -1.f, GFilletMax = -1.f, GFilletBoughMul = -1.f, GFilletGroundK = -1.f, GFilletTwigMin = -1.f; // < 0: FTreeParams decides
@@ -483,6 +484,16 @@ void ATreeActor::SetBranchCollarsOverride(bool bOn)
 bool ATreeActor::AreBranchCollarsOn(const FTreeParams& P)
 {
 	return GCollarsOverride >= 0 ? GCollarsOverride != 0 : P.bBranchCollars;
+}
+
+void ATreeActor::SetRootBarkTaperOverride(float Taper)
+{
+	GRootBarkTaperOverride = Taper < 0.f ? -1.f : FMath::Clamp(Taper, 0.f, 1.f);
+}
+
+float ATreeActor::GetRootBarkTaper(const FTreeParams& P)
+{
+	return GRootBarkTaperOverride >= 0.f ? GRootBarkTaperOverride : P.RootBarkTaper;
 }
 
 bool ATreeActor::IsNewBark()
@@ -579,7 +590,10 @@ void ATreeActor::GrowShape(int32 Seed)
 	Params.bBranchCollars = AreBranchCollarsOn(Params);
 	Params = WithFilletOverrides(Params);
 	++ShapeVersion;
-	TreeSkeleton::Grow(Skeleton, Params, Seed);
+	// The roots' bark taper is applied to a copy, so Leaf.RootBark 1 returns to the actor's own value.
+	FTreeParams GrowParams = Params;
+	GrowParams.RootBarkTaper = GetRootBarkTaper(Params);
+	TreeSkeleton::Grow(Skeleton, GrowParams, Seed);
 	const double FieldStart = FPlatformTime::Seconds();
 	// With bFilletWalk the sim walks on the fillets (the walking field has them and the skirts lie on it); otherwise the
 	// fillets only shape the skirts over the junctions in the mesh and the sim walks on the field without them. Leaves are
