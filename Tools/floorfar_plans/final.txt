@@ -1,0 +1,26 @@
+# Final state on the current build (no Leaf.Ground / Leaf.Relief overrides), wind held calm with no streaks or cues so
+# nothing but the fog changes between shots; then fog at five times the density (Leaf.LightInfo confirms it took).
+0|Leaf.Tune wind CalmMin 400
+0|Leaf.Tune wind CalmMax 400
+0|Leaf.Tune wind StreakCount 0
+0|Leaf.Cues 0
+0|Leaf.NewDay 675856
+4|Leaf.Cinematic 1
+5|Leaf.Goto 504 1008 5966 -37 -14
+11|SHOT owner
+12|Leaf.Tune look FogDensity 0.3
+13|Leaf.LightInfo
+19|SHOT owner-fog5
+20|Leaf.Tune look FogDensity 0.06
+21|Leaf.Goto 1198 -903 2200 -37 -14
+27|SHOT trunk22
+28|Leaf.Goto 1198 -903 12000 -37 -30
+34|SHOT up120
+35|Leaf.Goto 1204 3148 2 120 -6
+41|SHOT nest
+42|Leaf.Tune look FogDensity 0.3
+48|SHOT nest-fog5
+49|Leaf.Tune look FogDensity 0.06
+50|Leaf.Goto 1204 3148 2 -60 -6
+56|SHOT nestb
+57|Leaf.QuitAfter 1
