@@ -9,6 +9,8 @@
 #   grip                  windward side, cues off then on; the ant grips as the gust rises (Leaf.Hold grip)
 #   limb                  (in PASSES) on a limb, the wind running across its surface: LIMB (default "Leaf.Teleport 21 0.4")
 #   leaf / leafgrip       (in PASSES) beside a cuttable leaf (Leaf.GoLeaf, the usual play view); leafgrip grips as the gust rises
+#   canopy                (in PASSES) a fixed canopy view with the wind across the screen: CANOPY (default
+#                         "Leaf.Goto 1489 530 26801 -22 -12", day 1 of seed 517192; Leaf.GoLeaf picks a random leaf)
 #   Placement and aim happen only when the spot changes, so off and on passes of one spot see the same bark.
 #   Negative AT values shoot before the gust (calm). OFFSET (seconds, default 0) starts every pass later, e.g. to run
 #   commands first in TUNE (shift 3: "Leaf.Delay 1.1 Leaf.Carry 1,Leaf.Delay 1.3 Leaf.SendHome,Leaf.Delay 3.1 Leaf.Carry 1,
@@ -46,7 +48,7 @@ for pass in $PASSES; do
 	IFS=: read -r spot c tune <<< "$pass"
 	face=$spot; [ "$spot" = grip ] && face=exposed
 	PLACE="Leaf.FaceWind $face"; [ "$spot" = limb ] && PLACE=${LIMB:-Leaf.Teleport 21 0.4}
-	case "$spot" in leaf|leafgrip) PLACE="Leaf.GoLeaf" ;; esac
+	case "$spot" in leaf|leafgrip) PLACE="Leaf.GoLeaf" ;; canopy) PLACE=${CANOPY:-Leaf.Goto 1489 530 26801 -22 -12} ;; esac
 	GRIP=0; case "$spot" in grip|leafgrip) GRIP=1 ;; esac
 	onoff=off; [ "$c" = 1 ] && onoff=on
 	B=$((${OFFSET:-0} + 6 + 14 * k))

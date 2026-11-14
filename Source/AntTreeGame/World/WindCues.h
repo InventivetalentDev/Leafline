@@ -70,13 +70,17 @@ private:
 		bool bSlid = false;   // the ant's air: slid along the bark after striking it
 	};
 
+	/** Fixed-size buffer of camera-facing items, each Rows rows of two vertices (2: a quad; streaks are strips). */
 	struct FQuads
 	{
 		TArray<FVector> V;
 		TArray<FLinearColor> C;
 		int32 Used = 0;
 		int32 Capacity = 0;
+		int32 Rows = 2;
 	};
+	/** Rows of a streak strip (StripRows - 1 segments). */
+	static constexpr int32 StripRows = 6;
 
 	/** The front and the ant's spot, computed once per frame. */
 	struct FAir
@@ -120,6 +124,8 @@ private:
 	/** BurstAngle >= 0: a grain of the grip's burst, thrown out along the bark at that angle; < 0: blown downwind. */
 	void SpawnScrape(const FAir& Air, float Strength01, float BurstAngle);
 	void AddQuad(FQuads& Q, const FAir& Air, const FVector& A, const FVector& B, float HalfWidth, const FLinearColor& Col, float TailAlpha, float FadeNear);
+	/** A thin strip through StripRows points: tapered, fading in and out along its length (alpha peaks mid-way). */
+	void AddStrip(FQuads& Q, const FAir& Air, const FVector* Points, float HalfWidth, const FLinearColor& Col, float FadeNear);
 	void Flush(int32 Section, FQuads& Q, UMaterialInterface* Material, bool bCentredUV);
 
 	UPROPERTY(VisibleAnywhere, Category = "Wind")
