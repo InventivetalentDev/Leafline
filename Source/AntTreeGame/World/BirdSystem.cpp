@@ -13,6 +13,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "UObject/ConstructorHelpers.h"
 #include "GameFramework/PlayerController.h"
+#include "Camera/PlayerCameraManager.h"
 #include "EngineUtils.h"
 #include "Misc/Paths.h"
 #include "Engine/World.h"
@@ -83,6 +84,8 @@ void ABirdSystem::Init(ATreeActor* InTree, AWindSystem* InWind, ADayDirector* In
 	Wind = InWind;
 	Director = InDirector;
 	Lines = InLines;
+	// A new game (also a new Play In Editor session, where statics survive): the first bird day comes again.
+	GBirdMetThisSession = false;
 }
 
 void ABirdSystem::BeginPlay()
@@ -573,6 +576,15 @@ bool ABirdSystem::DropPiece(AAntPawn* Ant)
 		*B.Pos.ToCompactString(), B.Exposure, LeafExposure::IsExposed(B.Exposure) ? TEXT("in the bird's view") : TEXT("sheltered: the bird does not see it"));
 	Baits.Add(B);
 	Ant->DropCarried();
+	if (State == EBirdState::Diving && TargetBait == INDEX_NONE && LeafExposure::IsExposed(B.Exposure))
+	{
+		// A piece lying in the open beats every ant, also in the middle of a dive: the bird takes it and stays away.
+		TargetBait = Baits.Num() - 1;
+		Target = nullptr;
+		TargetLastPos = B.Pos;
+		TargetLastNormal = B.Normal;
+		UE_LOG(LogLeafline, Log, TEXT("Bird: turns to the dropped piece (pass in %.1f s)"), FMath::Max(Tuning.WarnSeconds - StateTime, 0.0));
+	}
 	return true;
 }
 
@@ -594,6 +606,9 @@ void ABirdSystem::PlaySound(const TCHAR* Name, const TCHAR* Fallback, float Volu
 	if (Lines && Lines->GetSpeedFactor() > 20.f) return; // a fast-forward runs many seconds a frame
 	const bool bHave = FCString::Strcmp(Name, TEXT("bird_call")) == 0 ? bHasCallSound : bHasPassSound;
 	LeafSound::PlayAt(this, bHave ? Name : Fallback, At, Volume);
+	const APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
+	const FVector Ear = PC && PC->PlayerCameraManager ? PC->PlayerCameraManager->GetCameraLocation() : At;
+	UE_LOG(LogLeafline, Log, TEXT("Bird: sound %s at the bird, %.0f m from the camera"), bHave ? Name : Fallback, FVector::Dist(At, Ear) / 100.0);
 }
 
 float ABirdSystem::BirdHalfSpan() const

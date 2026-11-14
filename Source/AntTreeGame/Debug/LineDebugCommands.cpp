@@ -444,10 +444,18 @@ namespace
 				Auto.Held = HeldAnt;
 				if (HeldAnt && HL)
 				{
+					// The end of the hold is scheduled at a sim time (as Leaf.AtSim does), so two runs end it at the same step.
 					Auto.HoldUntil = HL->GetSimTime() + Auto.HoldSeconds;
 					HL->SetSpeedFactor(Auto.HoldSpeed);
-					if (Auto.bHoldGrip) LeafDebug::HoldGrip = Auto.HoldSeconds / FMath::Max(Auto.HoldSpeed, 1.f) + 30.f;
-					UE_LOG(LogLeafline, Log, TEXT("AutoPlay: worker %d holds the shift open for %.0f sim s at x%.0f"), HeldAnt->GetWorkerIndex(), Auto.HoldSeconds, Auto.HoldSpeed);
+					if (Auto.bHoldGrip)
+					{
+						LeafDebug::HoldGrip = Auto.HoldSeconds / FMath::Max(Auto.HoldSpeed, 1.f) + 60.f;
+						HL->ScheduleAtSim(Auto.HoldUntil, TEXT("Leaf.Hold grip 0"));
+					}
+					HL->ScheduleAtSim(Auto.HoldUntil, TEXT("Leaf.SendHome"));
+					HL->ScheduleAtSim(Auto.HoldUntil, TEXT("Leaf.Harvest"));
+					UE_LOG(LogLeafline, Log, TEXT("AutoPlay: worker %d holds the shift open for %.0f sim s at x%.0f%s"), HeldAnt->GetWorkerIndex(), Auto.HoldSeconds,
+						Auto.HoldSpeed, Auto.bHoldGrip ? TEXT(", gripping") : TEXT(""));
 				}
 				else
 				{
@@ -456,16 +464,7 @@ namespace
 			}
 			else if (Auto.HoldUntil >= 0.0)
 			{
-				ALineSystem* HL = LinesOf(World);
-				if (!HL || HL->GetSimTime() >= Auto.HoldUntil)
-				{
-					Auto.HoldUntil = -1.0;
-					AAntPawn* HeldAnt = Auto.Held.Get();
-					UE_LOG(LogLeafline, Log, TEXT("AutoPlay: hold over (worker %s)"), HeldAnt && HeldAnt->IsCarrying() ? TEXT("sent home with its piece") : TEXT("has no piece left"));
-					if (Auto.bHoldGrip) LeafDebug::HoldGrip = 0.f;
-					if (HeldAnt && HeldAnt->IsCarrying()) D->SendHome(HeldAnt);
-					D->ForceHarvest();
-				}
+				// Holding: the scheduled Leaf.SendHome and Leaf.Harvest end it (and the shift with it).
 			}
 			else if (Auto.bSkip && Now - Auto.DayStart > 2.0)
 			{

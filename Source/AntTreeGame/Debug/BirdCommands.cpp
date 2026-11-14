@@ -33,7 +33,7 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs CmdBirdNow(
 		TEXT("Leaf.BirdNow"),
-		TEXT("Leaf.BirdNow: the bird picks its target and dives now (during a shift; ignores the schedule and the day's swoop count)."),
+		TEXT("Leaf.BirdNow: the bird picks its target and dives now (during a shift; ignores the schedule; counts as one of the day's swoops but works when they are used up)."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>&, UWorld* World)
 		{
 			if (ABirdSystem* B = BirdOf(World)) B->DiveNow();
