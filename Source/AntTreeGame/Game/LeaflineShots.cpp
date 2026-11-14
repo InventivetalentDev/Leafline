@@ -127,26 +127,6 @@ namespace
 		return Result;
 	}
 
-	void VideoSampleRail(const TArray<FVector>& Points, bool bSmooth, TArray<FVector>& Out)
-	{
-		Out.Reset();
-		if (Points.IsEmpty()) return;
-		Out.Add(Points[0]);
-		for (int32 I = 0; I + 1 < Points.Num(); ++I)
-		{
-			const FVector P0 = Points[FMath::Max(I - 1, 0)], P1 = Points[I], P2 = Points[I + 1], P3 = Points[FMath::Min(I + 2, Points.Num() - 1)];
-			const double Length = FVector::Dist(P0, P1) + FVector::Dist(P1, P2) + FVector::Dist(P2, P3);
-			const FVector M1 = (P2 - P0).GetSafeNormal() * (FMath::Min(FVector::Dist(P0, P1), FVector::Dist(P1, P2)) * 0.7);
-			const FVector M2 = (P3 - P1).GetSafeNormal() * (FMath::Min(FVector::Dist(P1, P2), FVector::Dist(P2, P3)) * 0.7);
-			const int32 Steps = FMath::Max(2, FMath::CeilToInt(Length / 100.0));
-			for (int32 J = 1; J <= Steps; ++J)
-			{
-				const double T = (double)J / Steps;
-				Out.Add(bSmooth ? FMath::CubicInterp(P1, M1, P2, M2, T) : FMath::Lerp(P1, P2, T));
-			}
-		}
-	}
-
 	bool VideoGroveInView(const FBox& Bounds, const FVector& Camera, const FVector& View, const FVector& Right,
 		const FVector& Up, double TanHalfH, double TanHalfV, double Far, double& OutGap)
 	{
@@ -333,36 +313,13 @@ bool ALeaflineShots::StartShot(const FString& Name, float Seconds)
 
 void ALeaflineShots::PrepareReveal()
 {
+	RevealMaxRoll = 0.f;
+	RevealNextSample = 0;
 	const double GroundZ = ShotTree->GetField().GroundZ;
 	const double Height = FMath::Max(TreeBounds.Max.Z - GroundZ, 1000.0);
 	RevealFocus = TreeBounds.GetCenter();
 	RevealFocus.Z = GroundZ + Height * 0.5;
 	const double Distance = FMath::Clamp(Height * 0.75, 5000.0, 26000.0);
-	RevealCrownBounds = FBox(ForceInit);
-	const FLeafSet& Leaves = ShotTree->GetLeaves();
-	for (int32 I = 0; I < Leaves.Num(); ++I)
-	{
-		const FTreeLeaf& L = Leaves.Get(I);
-		RevealCrownBounds += L.Base;
-		const FVector HalfWidth = L.Side * (L.Width * 0.5);
-		RevealCrownBounds += L.Origin - HalfWidth;
-		RevealCrownBounds += L.Origin + HalfWidth;
-		RevealCrownBounds += L.Origin + L.Dir * L.Length - HalfWidth;
-		RevealCrownBounds += L.Origin + L.Dir * L.Length + HalfWidth;
-	}
-	if (RevealCrownBounds.IsValid) RevealCrownBounds = RevealCrownBounds.ExpandBy(250.0);
-	RevealRail.Reset();
-	bRevealFallback = false;
-	RevealMaxRoll = 0.f;
-	RevealStoppedFrames = 0;
-	bRevealHoldLogged = false;
-	FVector FallbackEnd = RevealFocus + NestOut * Distance;
-	FallbackEnd.Z = GroundZ + Height / 3.0;
-	float FallbackFOV = 110.f;
-	int32 FallbackBlockers = MAX_int32, FallbackHeroHits = MAX_int32;
-	double FallbackGap = -TNumericLimits<double>::Max(), FallbackTurn = 180.0;
-	int32 FallbackCandidate = 0;
-	FString SelectedRoute;
 	const FVideoGroveGeometry Grove = VideoGroveGeometry(ShotTree.Get());
 	int32 BestBlockers = MAX_int32, BestHeroHits = MAX_int32;
 	double BestGap = -TNumericLimits<double>::Max(), BestTurn = 180.0;
@@ -417,29 +374,12 @@ void ALeaflineShots::PrepareReveal()
 			if (Flags & 1) ++Trunks;
 			if (Flags & 2) ++Crowns;
 		}
-		if (Blockers < FallbackBlockers || (Blockers == FallbackBlockers && (HeroHits < FallbackHeroHits ||
-			(HeroHits == FallbackHeroHits && (Gap > FallbackGap + 1.0 ||
-			(FMath::Abs(Gap - FallbackGap) <= 1.0 && FMath::Abs(Degrees) < FallbackTurn))))))
-		{
-			FallbackBlockers = Blockers;
-			FallbackHeroHits = HeroHits;
-			FallbackGap = Gap;
-			FallbackTurn = FMath::Abs(Degrees);
-			FallbackCandidate = I + 1;
-			FallbackEnd = End;
-			FallbackFOV = FOV;
-		}
-		TArray<FVector> CandidateRail;
-		FString Route;
-		const bool bCleanPath = BuildRevealRail(End, CandidateRail, Route);
-		UE_LOG(LogLeafline, Log, TEXT("Reveal candidate %d/12: azimuth offset %.1f, foreground trees %d (wood %d, crowns %d), hero volumes %d, cone gap %.0f cm, path %s (%s)"),
-			I + 1, Degrees, Blockers, Trunks, Crowns, HeroHits, Gap, bCleanPath ? TEXT("clear") : TEXT("blocked"), *Route);
+		UE_LOG(LogLeafline, Log, TEXT("Reveal candidate %d/12: azimuth offset %.1f, foreground trees %d (wood %d, crowns %d), hero volumes %d, cone gap %.0f cm"),
+			I + 1, Degrees, Blockers, Trunks, Crowns, HeroHits, Gap);
 		const bool bBetter = Blockers < BestBlockers || (Blockers == BestBlockers && (HeroHits < BestHeroHits ||
 			(HeroHits == BestHeroHits && (Gap > BestGap + 1.0 || (FMath::Abs(Gap - BestGap) <= 1.0 && FMath::Abs(Degrees) < BestTurn)))));
-		if (bCleanPath && bBetter)
+		if (bBetter)
 		{
-			RevealRail = MoveTemp(CandidateRail);
-			SelectedRoute = Route;
 			BestBlockers = Blockers;
 			BestHeroHits = HeroHits;
 			BestGap = Gap;
@@ -450,172 +390,53 @@ void ALeaflineShots::PrepareReveal()
 			BestSpan = (float)(ProjectedHeight / (2.0 * TanHalfV));
 		}
 	}
-	if (RevealRail.IsEmpty())
-	{
-		bRevealFallback = true;
-		const double BlendTime = FMath::Min(0.8, Duration * 0.2);
-		// Freeze the previous reveal's six-second (75%-duration) composition, before its animated return.
-		const double SixT = Ease((Duration * 0.75 - BlendTime) / (Duration - 2.0 * BlendTime));
-		const FVector Start = Nest + NestOut * 180.0 + FVector::UpVector * 65.0;
-		RevealEnd = FMath::Lerp(Start, FallbackEnd, SixT);
-		RevealFOV = FMath::Lerp(65.f, FallbackFOV, (float)SixT);
-		if (!BuildRevealRail(RevealEnd, RevealRail, SelectedRoute))
-		{
-			// An unreachable prefix must never be pushed through wood. Hold the incoming safe position instead.
-			RevealRail.Reset();
-			RevealRail.Add(EntryView.GetLocation());
-			RevealEnd = EntryView.GetLocation();
-			RevealFOV = EntryFOV;
-			SelectedRoute = TEXT("entry hold: six-second pose unreachable");
-		}
-		BestBlockers = FallbackBlockers;
-		BestHeroHits = FallbackHeroHits;
-		Chosen = FallbackCandidate;
-	}
-	RevealDistances.Reset();
-	RevealDistances.Add(0.0);
-	for (int32 I = 1; I < RevealRail.Num(); ++I)
-		RevealDistances.Add(RevealDistances.Last() + FVector::Dist(RevealRail[I - 1], RevealRail[I]));
-	ValidateRevealRail(RevealRail, &RevealMinPlannedClearance);
-	const FVector FinalView = (RevealFocus - RevealEnd).GetSafeNormal();
-	const FVector FinalUp = FVector::VectorPlaneProject(FVector::UpVector, FinalView).GetSafeNormal();
-	FVector ToTop = RevealFocus - RevealEnd, ToBottom = ToTop;
-	ToTop.Z += Height * 0.5;
-	ToBottom.Z -= Height * 0.5;
-	BestSpan = (float)((FVector::DotProduct(ToTop, FinalUp) / FMath::Max(FVector::DotProduct(ToTop, FinalView), 1.0) -
-		FVector::DotProduct(ToBottom, FinalUp) / FMath::Max(FVector::DotProduct(ToBottom, FinalView), 1.0)) /
-		(2.0 * FMath::Tan(FMath::DegreesToRadians(RevealFOV * 0.5)) * 9.0 / 16.0));
 	UE_LOG(LogLeafline, Log, TEXT("Reveal plan: height %.0f cm, pullback %.0f cm (cap 26000), camera height %.0f cm (1/3), frame height %.3f, FOV %.1f, grove bases %d, volumes %d, candidate %d/12, foreground blockers %d, hero volumes %d, end %s, focus %s"),
 		Height, Distance, RevealEnd.Z - GroundZ, BestSpan, RevealFOV, Grove.Bases.Num(), Grove.Volumes.Num(), Chosen, BestBlockers, BestHeroHits,
 		*RevealEnd.ToCompactString(), *RevealFocus.ToCompactString());
-	UE_LOG(LogLeafline, Log, TEXT("Reveal rail: %s; %d samples, planned clearance %.2f cm, fallback-six %d; move ends at %.2f s, hold until %.2f s, no animated return"),
-		*SelectedRoute, RevealRail.Num(), RevealMinPlannedClearance, bRevealFallback ? 1 : 0, Duration * 0.75f, Duration);
-}
-
-bool ALeaflineShots::ValidateRevealRail(const TArray<FVector>& Rail, double* OutMinClearance) const
-{
-	double Minimum = TNumericLimits<double>::Max();
-	if (OutMinClearance) *OutMinClearance = 0.0;
-	if (Rail.IsEmpty() || !ShotTree.IsValid()) return false;
-	const FTreeField& Field = ShotTree->GetField();
-	for (int32 I = 0; I < Rail.Num(); ++I)
-	{
-		Minimum = FMath::Min(Minimum, Field.Distance(Rail[I]));
-		if (OutMinClearance) *OutMinClearance = Minimum;
-		if (Minimum < 13.0 || (RevealCrownBounds.IsValid && RevealCrownBounds.IsInsideOrOn(Rail[I]))) return false;
-		if (I == 0) continue;
-		double Hit;
-		if (Field.March(Rail[I - 1], Rail[I], 12.0, Hit)) return false;
-		if (RevealCrownBounds.IsValid && FMath::LineBoxIntersection(RevealCrownBounds, Rail[I - 1], Rail[I], Rail[I] - Rail[I - 1])) return false;
-	}
-	return true;
-}
-
-bool ALeaflineShots::BuildRevealRail(const FVector& End, TArray<FVector>& OutRail, FString& OutRoute) const
-{
-	const double GroundZ = ShotTree->GetField().GroundZ;
-	const FVector Start = Nest + NestOut * 180.0 + FVector::UpVector * 65.0;
-	FVector Centre = RevealCrownBounds.IsValid ? RevealCrownBounds.GetCenter() : TreeBounds.GetCenter();
-	Centre.Z = 0.0;
-	const double Radius = (RevealCrownBounds.IsValid ? RevealCrownBounds.GetExtent().Size2D() : TreeBounds.GetExtent().Size2D()) + 750.0;
-	const double TravelZ = FMath::Max(GroundZ + 150.0, FMath::Min(GroundZ + 500.0,
-		RevealCrownBounds.IsValid ? RevealCrownBounds.Min.Z - 300.0 : GroundZ + 500.0));
-	FVector FromDir = (Start - Centre).GetSafeNormal2D(), ToDir = (End - Centre).GetSafeNormal2D();
-	if (FromDir.IsNearlyZero()) FromDir = NestOut;
-	if (ToDir.IsNearlyZero()) ToDir = NestOut;
-	const double Turn = FMath::RadiansToDegrees(FMath::Atan2(FVector::CrossProduct(FromDir, ToDir).Z, FVector::DotProduct(FromDir, ToDir)));
-	auto Try = [this, &OutRail, &OutRoute](const TArray<FVector>& Points, const FString& Name)
-	{
-		VideoSampleRail(Points, true, OutRail);
-		if (ValidateRevealRail(OutRail)) { OutRoute = Name + TEXT(" / smooth"); return true; }
-		VideoSampleRail(Points, false, OutRail);
-		if (ValidateRevealRail(OutRail)) { OutRoute = Name + TEXT(" / linear"); return true; }
-		return false;
-	};
-	for (int32 Entrance = 0; Entrance < 3; ++Entrance)
-	{
-		TArray<FVector> Points;
-		Points.Add(EntryView.GetLocation());
-		if (Entrance == 1)
-		{
-			Points.Add(EntryView.GetLocation() + NestOut * 400.0 + FVector::UpVector * 400.0);
-			Points.Add(Start + NestOut * 400.0 + FVector::UpVector * 400.0);
-		}
-		else if (Entrance == 2)
-		{
-			Points.Add(EntryView.GetLocation() + FVector::UpVector * 800.0);
-			Points.Add(Start + FVector::UpVector * 800.0);
-		}
-		Points.Add(Start);
-		TArray<FVector> Direct = Points;
-		Direct.Add(End);
-		if (Try(Direct, FString::Printf(TEXT("direct, entrance %d"), Entrance))) return true;
-
-		// Pull outside the crown below its lowest leaves, arc round its horizontal envelope, then rise/pull back.
-		const int32 ArcSteps = FMath::Max(1, FMath::CeilToInt(FMath::Abs(Turn) / 15.0));
-		for (int32 I = 0; I <= ArcSteps; ++I)
-		{
-			FVector P = Centre + FromDir.RotateAngleAxis(Turn * I / ArcSteps, FVector::UpVector) * Radius;
-			P.Z = TravelZ;
-			if (FVector::DistSquared(Points.Last(), P) > 0.01) Points.Add(P);
-		}
-		if (FVector::DistSquared(Points.Last(), End) > 0.01) Points.Add(End);
-		if (Try(Points, FString::Printf(TEXT("crown arc radius %.0f cm, entrance %d"), Radius, Entrance))) return true;
-	}
-	OutRoute = TEXT("no complete field/crown-clear path");
-	OutRail.Reset();
-	return false;
+	UE_LOG(LogLeafline, Log, TEXT("Reveal timing: step-4 path trimmed at reference 6/8 seconds; retimed across %.2f s; no planner, fallback or hold"), Duration);
 }
 
 void ALeaflineShots::TickReveal()
 {
 	AAntCamera* Camera = ActiveCamera.Get();
-	// Reach the composition by six seconds of an eight-second shot, then hold it through the end.
-	const double Phase = Ease(Elapsed / (Duration * 0.75));
-	const double Along = RevealDistances.Last() * Phase;
-	FVector Position = RevealRail.Last();
-	for (int32 I = 1; I < RevealRail.Num(); ++I)
-	{
-		if (RevealDistances[I] < Along) continue;
-		const double Length = RevealDistances[I] - RevealDistances[I - 1];
-		Position = FMath::Lerp(RevealRail[I - 1], RevealRail[I], Length > 0.0001 ? (Along - RevealDistances[I - 1]) / Length : 1.0);
-		break;
-	}
-	const FTreeField& Field = ShotTree->GetField();
-	if (Field.Distance(Position) < 13.0 || (RevealCrownBounds.IsValid && RevealCrownBounds.IsInsideOrOn(Position)))
-	{
-		// The rail was prevalidated. If the world changed, stop at the last safe point; never project or slide it.
-		Position = LastSafePosition;
-		++RevealStoppedFrames;
-	}
+	// Step 4's tested eight-second move was good through t=6, before its animated return.
+	// Retain that exact spatial prefix, and ease from its start to its t=6 pose across the requested duration.
+	const double EndPhase = Ease((6.0 - 0.8) / (8.0 - 2.0 * 0.8));
+	const double IntroTime = FMath::Min(0.8, Duration * 0.2);
+	const double Phase = EndPhase * Ease((Elapsed - IntroTime) / (Duration - IntroTime));
+	const double Intro = Ease(Elapsed / IntroTime);
+	const FVector Start = Nest + NestOut * 180.0 + FVector::UpVector * 65.0;
+	FVector Position = FMath::Lerp(EntryView.GetLocation(), FMath::Lerp(Start, RevealEnd, Phase), Intro);
+	const FVector Wanted = Position;
+	// Retain step 4's field handling on its known prefix; there is no rail preflight or crown-envelope rejection.
+	if (!SweepPosition(Position)) { Position = LastSafePosition; ++HeldFrames; }
+	if (FVector::DistSquared(Wanted, Position) > 1.0) ++ClippedFrames;
 	LastSafePosition = Position;
 	History.Add(Position);
-	MinClearance = FMath::Min(MinClearance, Field.Distance(Position));
+	MinClearance = FMath::Min(MinClearance, ShotTree->GetField().Distance(Position));
 	const FVector LookAt = FMath::Lerp(Nest + FVector::UpVector * 15.0, RevealFocus, Ease(Phase / 0.55));
 	FVector Direction = (LookAt - Position).GetSafeNormal();
 	if (Direction.IsNearlyZero()) Direction = EntryView.GetRotation().GetForwardVector();
-	const double Intro = Ease(Elapsed / FMath::Min(0.8, Duration * 0.2));
 	const FVector EntryForward = EntryView.GetRotation().GetForwardVector();
 	Direction = FQuat::Slerp(FQuat::Identity, FQuat::FindBetweenNormals(EntryForward, Direction), Intro).RotateVector(EntryForward);
-	// Interpolate direction only. Reconstruct against world up every frame, including entrance and the end hold.
 	FRotator Rotation = Direction.Rotation();
 	Rotation.Pitch = FMath::Clamp(Rotation.Pitch, -85.0, 85.0);
 	Rotation.Roll = 0.0;
 	const float FOV = FMath::Lerp(EntryFOV, FMath::Lerp(65.f, RevealFOV, (float)Phase), (float)Intro);
 	Camera->DriveExternal(FTransform(Rotation, Position), FOV, LookAt);
 	RevealMaxRoll = FMath::Max(RevealMaxRoll, (float)FMath::Abs(Camera->GetActorRotation().GetNormalized().Roll));
-	if (!bRevealHoldLogged && Elapsed >= Duration * 0.75)
+	const double SampleTimes[] = { 0.25, 0.5, 0.6875, 0.875, 0.9375 };
+	while (RevealNextSample < (int32)UE_ARRAY_COUNT(SampleTimes) && Elapsed >= Duration * SampleTimes[RevealNextSample])
 	{
-		bRevealHoldLogged = true;
-		UE_LOG(LogLeafline, Log, TEXT("Reveal hold: %.2f s, clearance %.2f cm, roll %.5f deg, FOV %.2f, position %s"),
-			Elapsed, Field.Distance(Position), Camera->GetActorRotation().GetNormalized().Roll, FOV, *Position.ToCompactString());
+		UE_LOG(LogLeafline, Log, TEXT("Reveal sample: %.2f s, phase %.8f, roll %.5f deg, position %s"),
+			Elapsed, Phase, Camera->GetActorRotation().GetNormalized().Roll, *Position.ToCompactString());
+		++RevealNextSample;
 	}
 	if (Elapsed < Duration) return;
-	if (Queue.IsEmpty()) Stop(); // exact player view restored at the boundary, never animated through the reveal
+	if (Queue.IsEmpty()) Stop(); // exact player view restored at completion; no animated return through the shot
 	else
 	{
-		UE_LOG(LogLeafline, Log, TEXT("Shot reveal segment ends: min clearance %.2f cm, max roll %.5f deg, stopped frames %d; continuing list"),
-			MinClearance, RevealMaxRoll, RevealStoppedFrames);
+		UE_LOG(LogLeafline, Log, TEXT("Shot reveal segment ends: min clearance %.2f cm, max roll %.5f deg; continuing list"), MinClearance, RevealMaxRoll);
 		const FString Next = Queue[0];
 		Queue.RemoveAt(0);
 		if (!StartShot(Next, 8.f)) Stop();
@@ -827,8 +648,8 @@ void ALeaflineShots::Stop()
 	if (AAntCamera* Camera = ActiveCamera.Get())
 	{
 		if (ShotName == TEXT("reveal"))
-			UE_LOG(LogLeafline, Log, TEXT("Reveal playback: max roll %.5f deg, stopped frames %d, fallback-six %d, end %s; hold ends here, restore player view now"),
-				RevealMaxRoll, RevealStoppedFrames, bRevealFallback ? 1 : 0, *Camera->GetActorLocation().ToCompactString());
+			UE_LOG(LogLeafline, Log, TEXT("Reveal playback: max roll %.5f deg, end %s; retimed move ends here, restore player view now"),
+				RevealMaxRoll, *Camera->GetActorLocation().ToCompactString());
 		Camera->EndExternalDrive();
 		Camera->RemoveTickPrerequisiteActor(this);
 		UE_LOG(LogLeafline, Log, TEXT("Shot %s ends: min clearance %.2f cm, held frames %d, clipped frames %d, return error %.4f cm / %.4f deg, FOV error %.4f"),
