@@ -1,0 +1,101 @@
+# Itch page screenshots (Tools/itch_shots.sh), one packaged run, HUD on as players see it, wind held calm except for the
+# forced gust. Staging after Tools/video_capture.sh's shot_def; a few takes of most shots, the owner picks about five.
+# Leaf.Bird 0 for the whole run: with recruits from day 1 the bird hunts on day 1 and its hint line covers the top of
+# the frame; the bird shots are in bird.txt (BIRD=1).
+# Timing: every tree regrow (Leaf.ResetSave, Leaf.Move, Leaf.StartDay) stalls the game about 1.5 s and Leaf.Delay's game
+# clock jumps over the stall, so steps after a regrow chain keep a buffer of several seconds (else they fire together).
+0|Leaf.Bird 0
+0|Leaf.Tune wind CalmMin 400
+0|Leaf.Tune wind CalmMax 400
+0|Leaf.Tune wind StreakCount 0
+0|Leaf.ResetSave
+0|Leaf.OneTree 1
+0|Leaf.StartDay 1 517192
+0|Leaf.BuildLine 0
+0|Leaf.PadIcons 0
+# cutting: a leaf, hold to cut (the pulsing outline and the pale tear line); after the day-start banner has gone
+8|Leaf.GoLeaf
+10.5|Leaf.Hold cut 3
+11.6|SHOT cutting-a
+12.6|SHOT cutting-b
+# carrying: a piece on the back, climbing the trunk, chase camera
+15|Leaf.Teleport 0 0.2
+15.2|Leaf.Carry 0.7
+15.5|Leaf.AutoMove 0.6
+15.7|Leaf.Shot follow 12
+20|SHOT carrying-a
+23|SHOT carrying-b
+25|Leaf.AutoMove 0
+25.1|Leaf.Shot stop
+# exposure map: the wind map shown on bark (what holding Tab shows)
+25.5|Leaf.Teleport 21 0.4
+26|Leaf.Aim trunk -25
+27|Leaf.WindMap 1
+30|SHOT windmap-a
+30.5|Leaf.Aim up 20
+32.5|SHOT windmap-b
+33|Leaf.WindMap 0
+# a gust: exposed side, a piece, a forced gust (warning 3 s, rising 1.2 s), gripping as it rises; camera from above
+33.5|Leaf.FaceWind exposed
+33.6|Leaf.Carry 0.7
+34|Leaf.WindAim 90 -35
+34.5|Leaf.Gust 1
+37|Leaf.Hold grip 6
+37.8|SHOT gust-a
+38.6|SHOT gust-b
+# the recap, then the nest screen with Brood bought
+42|Leaf.StartDay 1 517192
+47|Leaf.Carry 0.7
+49|Leaf.Carry 0.7
+51|Leaf.Carry 0.7
+54.5|SHOT recap
+58|Leaf.Hold grip 0.2
+58.5|Leaf.Give 200
+60|Leaf.Buy 4
+61.5|SHOT nest-brood
+# hero: the tall spire in evening light (two pieces delivered: shift 3), an orbit round the ant on limb 26 (the run of
+# 15 Nov 10:18 put the low sun behind the trunk there; Leaf.Teleport L1 picks a random limb each run)
+64|Leaf.ResetSave
+64.1|Leaf.OneTree 1
+64.2|Leaf.Move
+64.3|Leaf.Move
+64.4|Leaf.StartDay 3 15161
+73|Leaf.Carry 0.5
+77|Leaf.Carry 0.5
+81|Leaf.Teleport 26 0.5
+82|Leaf.Shot orbit 14
+# The hero and scale shots go without the HUD (owner, 15 Nov): showhud toggles it; no Leaf command reloads the level.
+83.8|showhud
+84.5|SHOT hero-a
+87.5|SHOT hero-b
+90.5|SHOT hero-c
+93.5|SHOT hero-d
+96.5|Leaf.Shot stop
+# scale: up the spire from its roots, still in the evening light
+97|Leaf.Teleport 0 0.03
+97.5|Leaf.Aim up 40
+100.5|SHOT scale-up
+# scale: the floor and the grove from 60 m up the old giant (the owner's pose of 14 Nov). After Leaf.ResetSave the day is
+# on stage 1's tree, the old giant (seed 675856); Leaf.NewDay and Leaf.StartDay with that seed keep the current stage's tree.
+101|Leaf.ResetSave
+109|Leaf.Goto 504 1008 5966 -37 -14
+114|SHOT scale-floor
+114.5|showhud
+# the line: six recruits on two lines; the third scout rides one a few seconds and stops beside it, the camera looks
+# up the trunk as the recruits come and go (last: it changes the camera tuning).
+115|Leaf.OneTree 1
+115.2|Leaf.Pool 6
+115.3|Leaf.StartDay 1 517192
+123|Leaf.TestLines 2 0.6 climb
+130|Leaf.Hold follow 3
+134|Leaf.Tune cam BoomLength 240
+134.1|Leaf.Tune cam DepthOfFieldFstop 0
+134.2|Leaf.Aim up 25
+141|SHOT line-a
+145|SHOT line-b
+149|SHOT line-c
+# carrying on a trail: the scout with a piece on the line's scent trail
+150|Leaf.Carry 0.7
+150.5|Leaf.Aim up 12
+153|SHOT carrying-trail
+155|Leaf.QuitAfter 1

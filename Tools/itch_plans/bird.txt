@@ -1,0 +1,25 @@
+# The bird's shadow passing (only if the bird ships; BIRD=1 Tools/itch_shots.sh): a laden ant on exposed bark, the bird
+# sent at once, the camera turned toward it (staging after Tools/video_capture.sh's bird shot).
+0|Leaf.Tune wind CalmMin 400
+0|Leaf.Tune wind CalmMax 400
+0|Leaf.Tune wind StreakCount 0
+0|Leaf.ResetSave
+0|Leaf.OneTree 1
+0|Leaf.Pool 2
+0|Leaf.StartDay 1 517192
+0|Leaf.BuildLine 0
+0|Leaf.PadIcons 0
+# after the day-start banner has gone; a small piece (a big one filled the frame) and a longer boom so the camera turned
+# toward the bird stays off the bark
+8|Leaf.FaceWind exposed
+8.1|Leaf.Carry 0.35
+8.2|Leaf.Tune cam SurfaceFollow 0
+8.3|Leaf.Tune cam BoomLength 320
+10|Leaf.BirdNow
+10.3|Leaf.BirdInfo aim
+10.6|SHOT bird-a
+11.1|SHOT bird-b
+11.6|SHOT bird-c
+12.1|SHOT bird-d
+12.6|SHOT bird-e
+14|Leaf.QuitAfter 1
