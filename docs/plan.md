@@ -308,6 +308,8 @@ Agents in herdr tab `sat`; the main session merges, builds materials and imports
 
 ## After the MegaJam (to 1 Dec)
 
+- [ ] A proper app icon (`Build/Windows/Application.ico` in the project, baked into the exe at packaging), e.g. from the key art; and a friendlier exe or launcher name than `AntTreeGame.exe` (renaming the project is risky; the zip already unpacks to `Leafline/`). Owner, 15 Nov.
+
 Pick from `design.md`, "Out of the MegaJam build", after seeing what players say. Likely order: taking over returning ants, the visible fungus garden and skill tree, several trees. The bird already shipped in the MegaJam build.
 
 ## If time runs short
