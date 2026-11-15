@@ -282,7 +282,7 @@ Agents in herdr tab `sat`; the main session merges, builds materials and imports
 - [x] Climbing pays: `RichnessHeightScale` 40 and one-tree milestones 25 / 190 / 335 with recruits (variant B of `docs/economy.md`, 5be2add).
 - [x] Relief (rolling hills on the far ground) and the seam-blended bark `M_TreeBark3` (`Leaf.Bark 2`) on by default (cd5b935).
 - [x] Wind mix: the calm bed about 4.5 dB lower, gusts as loud as before, the gust loop without its whistle (volumes in `FWindTuning`, ef61b1b).
-- [x] Background music switch (`FWindTuning::bMusic`, off by default) and `Tools/audio/make_music.py` with options A to C (1d8d468). The owner picks one; until then the game ships without music.
+- [x] Background music: three tracks from `Tools/audio/make_music.py`, one per day in turn (golden pads, kalimba drift, music-box arpeggio, then the first again), on by default (`FWindTuning::bMusic`; 1d8d468, 86c1ff0).
 - [x] UI polish: nest, recap, title, pause, options, move card and end card sized to their content; nest costs coloured by affordability, maxed in gold (5b47275).
 - [x] Build line off in the submission build; the F3 input view stays (9a0c609, 4331542).
 - [x] Credits: no UI art credit; Friend A commented out until their feedback comes in (4333c2d).

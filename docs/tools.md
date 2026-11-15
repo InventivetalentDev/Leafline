@@ -47,7 +47,7 @@ Since one tree per stage (13 Nov) is on by default, the recorded line numbers (s
 Both scripts need numpy only and use fixed seeds, so a rerun gives the same files.
 
 - `uv run --with numpy python Tools/audio/make_audio.py` synthesises every sound effect and loop into `Art/Audio/` (48 kHz, 16-bit). `Art/Audio/README.md` lists each file with its earshot reading. Copy the files to `Content/Leafline/AudioRaw/` as `.wavraw` afterwards (`docs/tech.md`, Audio).
-- `uv run --with numpy python Tools/audio/make_music.py <outdir>` renders the background music options A to C (golden pads, kalimba drift, music-box arpeggio) as seamless stereo loops at about -20 LUFS, each with a 20 s preview mixed with the wind at the in-game volumes. The default folder is `Saved/MusicOptions`. To use one, copy it to `Content/Leafline/AudioRaw/music_loop.wavraw` and turn `FWindTuning::bMusic` on (off by default).
+- `uv run --with numpy python Tools/audio/make_music.py <outdir>` renders the background music options A to C (golden pads, kalimba drift, music-box arpeggio) as seamless stereo loops at about -20 LUFS, each with a 20 s preview mixed with the wind at the in-game volumes. The default folder is `Saved/MusicOptions`. `make_music.py Art/Audio --game` writes only the three in-game files, `music_a/b/c.wav`; copy them to `Content/Leafline/AudioRaw/` as `.wavraw`. The game plays one per day in turn (`FWindTuning::MusicSounds`, `bMusic` on by default).
 
 ## zip_build.py
 
