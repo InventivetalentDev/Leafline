@@ -5,8 +5,9 @@
 # Leafline
 A game by inventivetalent
 
-# UI art
+# UI panel art
 Cookiehero (cookiehero.itch.io)
+The frames and backgrounds of the menu screens and the HUD boxes
 
 ; Friend A is credited once the owner gives the name (their feedback came in on 15 Nov):
 ; then remove the ";" from the next two lines and put the name in place of the brackets.
@@ -20,7 +21,7 @@ Python scripts: asset generation and audio synthesis, checked with earshot
 
 # Built with AI agents
 Claude (Anthropic): planning and most of the programming
-Codex (OpenAI): concept and key art, code reviews and programming
+Codex (OpenAI): concept and key art, the ant and leaf HUD icons, code reviews and programming
 
 # Button prompts
 "Xelu's FREE Controller Prompts"

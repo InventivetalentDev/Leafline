@@ -1757,11 +1757,12 @@ void ALeaflineHUD::DrawControls(float Scale)
 	DrawTextCentered(Prompt, CX, Y, TextColor, TextScale, Font);
 }
 
-bool ALeaflineHUD::DrawIcon(const TCHAR* Name, float CX, float CY, float Size, const FLinearColor& Color, float AngleDeg)
+bool ALeaflineHUD::DrawIcon(const TCHAR* Name, float CX, float CY, float Size, const FLinearColor& Color, float AngleDeg, bool bMirrorHorizontal)
 {
 	UTexture2D* Tex = LeafPrompts::Get(Name);
 	if (!Tex || !Canvas) return false;
-	FCanvasTileItem Tile(FVector2D(CX - 0.5f * Size, CY - 0.5f * Size), Tex->GetResource(), FVector2D(Size, Size), Color);
+	FCanvasTileItem Tile(FVector2D(CX - 0.5f * Size, CY - 0.5f * Size), Tex->GetResource(), FVector2D(Size, Size),
+		FVector2D(bMirrorHorizontal ? 1.f : 0.f, 0.f), FVector2D(bMirrorHorizontal ? 0.f : 1.f, 1.f), Color);
 	Tile.BlendMode = SE_BLEND_Translucent;
 	if (AngleDeg != 0.f)
 	{
@@ -1949,7 +1950,7 @@ void ALeaflineHUD::DrawDayPanelIcons(const ADayDirector* D, float Scale)
 	const float W = FMath::Max(FMath::Max(440.f * Scale, D->NumWorkers() * Cell), float(MeasureText(Title, Font, PrimaryText(Scale)).X));
 	DrawPanel(X, Y, W, 128.f * Scale, Scale);
 	DrawTextAt(Title, X, Y, TextColor, PrimaryText(Scale), Font);
-	const float PY = Y + 44.f * Scale, Icon = 24.f * Scale, T = Style.Stroke * Scale;
+	const float PY = Y + 44.f * Scale, Icon = 28.f * Scale, T = Style.Stroke * Scale;
 	for (int32 i = 0; i < D->NumWorkers(); ++i)
 	{
 		const float PX = X + i * Cell;
@@ -1967,7 +1968,8 @@ void ALeaflineHUD::DrawDayPanelIcons(const ADayDirector* D, float Scale)
 		const FString Num = FString::FromInt(i + 1);
 		DrawTextAt(Num, PX, PY, C, SecondaryText(Scale), Font);
 		const float ICX = PX + MeasureText(Num, Font, SecondaryText(Scale)).X + 4.f * Scale + 0.5f * Icon, ICY = PY + 10.f * Scale;
-		// Ready: faint at the nest; out: heading up; returning: heading down with its piece; home: on the nest line;
+		// Side-profile ants face right (Codex's icon, 15 Nov). Ready: faint; out: heading out; returning: mirrored toward home
+		// with its piece; home: on the nest line;
 		// blown off: tumbling in the wind.
 		switch (State)
 		{
@@ -1978,8 +1980,8 @@ void ALeaflineHUD::DrawDayPanelIcons(const ADayDirector* D, float Scale)
 			DrawIcon(TEXT("Icon_Ant"), ICX, ICY, Icon, C);
 			break;
 		case EWorkerState::Returning:
-			DrawIcon(TEXT("Icon_Ant"), ICX, ICY, Icon, C, 180.f);
-			DrawIcon(TEXT("Icon_Leaf"), ICX + 0.15f * Icon, ICY + 0.1f * Icon, 0.7f * Icon, Style.Leaf);
+			DrawIcon(TEXT("Icon_Ant"), ICX, ICY, Icon, C, 0.f, true);
+			DrawIcon(TEXT("Icon_Leaf"), ICX - 0.2f * Icon, ICY - 0.3f * Icon, 0.65f * Icon, Style.Leaf);
 			break;
 		case EWorkerState::Home:
 			DrawIcon(TEXT("Icon_Ant"), ICX, ICY - 0.1f * Icon, 0.8f * Icon, C);
