@@ -48,7 +48,7 @@
 55.2|r.SetRes 2560x1440w
 57.2|SHOT recap-1440
 57.7|r.SetRes 1920x1080w
-# the nest: Mandibles maxed, Brood and Strength bought, so some costs are affordable and some are not (31 left)
+# the nest: Mandibles maxed, Brood and Strength bought, so some costs are affordable and some are not (49.4 left in the 15 Nov runs)
 59|Leaf.Hold grip 0.2
 60|Leaf.Give 1300
 61|Leaf.Buy 0

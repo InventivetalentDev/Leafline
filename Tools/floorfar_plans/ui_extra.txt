@@ -1,4 +1,5 @@
-# UI polish check, the wind panel's other variants: the bird line (diving, then with the wind map held) and the harvest.
+# UI polish check, the wind panel's other variants: the bird line (diving, then with the wind map held), then Leaf.Harvest
+# (with no live trails it ends at once: the shots show the recap with the bird row).
 # ROOT=<tree> Tools/floorfar_shots.sh <label> Tools/floorfar_plans/ui_extra.txt "-ResX=1920 -ResY=1080"
 0|r.SetRes 1920x1080w
 0|Leaf.Tune wind CalmMin 400

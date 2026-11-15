@@ -1415,7 +1415,8 @@ void ALeaflineHUD::DrawNest(const ADayDirector* D, float Scale)
 			const bool bAfford = GI && GI->CanAfford(i);
 			const bool bMaxed = Level >= LeaflineUpgrades::MaxLevel;
 			DrawTextAt(Info->Name, X + Style.Padding * Scale, Y + NameY, bSel ? AccentColor : TextColor, NameText, Font);
-			DrawTextAt(Info->Description, X + Style.Padding * Scale, Y + DetailY, Style.Detail, DetailText, Font);
+			// On the lighter selection bar the dim colours lose contrast: the selected row uses the brighter ones.
+			DrawTextAt(Info->Description, X + Style.Padding * Scale, Y + DetailY, bSel ? Style.Muted : Style.Detail, DetailText, Font);
 			// Level pips: bought levels solid (gold once maxed), the rest dark with a faint edge (strokes, so they also
 			// read over a skin image).
 			const float PW = 18.f * Scale, PH = Style.Bar * Scale, PY = Y + 0.5f * (BoxH - PH), T = FMath::Max(1.f, FMath::RoundToFloat(Scale));
@@ -1435,7 +1436,7 @@ void ALeaflineHUD::DrawNest(const ADayDirector* D, float Scale)
 			}
 			// The cost, right-aligned: accent when affordable, dimmed when not; maxed rows say so in gold.
 			const FString CostText = Cost > 0 && !bMaxed ? FString::Printf(TEXT("Cost %d"), Cost) : FString(TEXT("Max"));
-			const FLinearColor CostColor = Cost > 0 && !bMaxed ? (bAfford ? AccentColor : Style.Unaffordable) : Style.Rich;
+			const FLinearColor CostColor = Cost > 0 && !bMaxed ? (bAfford ? AccentColor : (bSel ? Style.Detail : Style.Unaffordable)) : Style.Rich;
 			DrawTextAt(CostText, CostRight - MeasureText(CostText, Font, SecondaryText(Scale)).X, Y + 0.5f * (BoxH - LineH), CostColor, SecondaryText(Scale), Font);
 		}
 		else
@@ -1461,24 +1462,35 @@ void ALeaflineHUD::DrawMoveCard(const ADayDirector* D, float Scale)
 {
 	UFont* Font = GEngine->GetMediumFont();
 	const float CX = Canvas->ClipX * 0.5f, W = Style.CardWidth * Scale;
+	const FString Heading = D->GetMoveCardText(), Body = TEXT("A new tree: taller and windier, and its leaves are worth more.");
+	const FString Prompt = FString::Printf(TEXT("Press {Confirm}{orclick} to start day %d"), D->GetDay());
+	// The panel fits what is drawn (the same steps as below).
+	const float H = WrappedHeight(Heading, W, PrimaryText(Scale), Scale) + 44.f * Scale + WrappedHeight(Body, W, SecondaryText(Scale), Scale) + 62.f * Scale
+		+ MeasureText(Prompt, Font, SecondaryText(Scale)).Y;
 	float Y = 340.f * Scale;
-	DrawPanel(CX - W * 0.5f, Y, W, 260.f * Scale, Scale, 1.f, LeafSkin::EKind::Card);
-	Y += DrawWrappedText(D->GetMoveCardText(), CX, Y, W, AccentColor, PrimaryText(Scale), Scale) + 44.f * Scale;
-	Y += DrawWrappedText(TEXT("A new tree: taller and windier, and its leaves are worth more."), CX, Y, W, TextColor, SecondaryText(Scale), Scale) + 62.f * Scale;
-	DrawTextCentered(FString::Printf(TEXT("Press {Confirm}{orclick} to start day %d"), D->GetDay()), CX, Y, AccentColor, SecondaryText(Scale), Font);
+	DrawPanel(CX - W * 0.5f, Y, W, H, Scale, 1.f, LeafSkin::EKind::Card);
+	Y += DrawWrappedText(Heading, CX, Y, W, AccentColor, PrimaryText(Scale), Scale) + 44.f * Scale;
+	Y += DrawWrappedText(Body, CX, Y, W, TextColor, SecondaryText(Scale), Scale) + 62.f * Scale;
+	DrawTextCentered(Prompt, CX, Y, AccentColor, SecondaryText(Scale), Font);
 }
 
 void ALeaflineHUD::DrawEndCard(const ADayDirector* D, float Scale)
 {
 	UFont* Font = GEngine->GetMediumFont();
 	const float CX = Canvas->ClipX * 0.5f, W = Style.CardWidth * Scale;
+	const FString Line1 = TEXT("Enough leaf has come home to feed the fungus garden for a season.");
+	const FString Line2 = TEXT("Thank you for playing Leafline. The trees keep growing, and so can the colony.");
+	const FString Prompt = TEXT("Press {Confirm}{orclick} to keep playing");
+	// The panel fits what is drawn (the same steps as below).
+	const float H = 74.f * Scale + WrappedHeight(Line1, W, SecondaryText(Scale), Scale) + Style.Gap * Scale + WrappedHeight(Line2, W, SecondaryText(Scale), Scale)
+		+ 62.f * Scale + MeasureText(Prompt, Font, SecondaryText(Scale)).Y;
 	float Y = 320.f * Scale;
-	DrawPanel(CX - W * 0.5f, Y, W, 340.f * Scale, Scale, 1.f, LeafSkin::EKind::Card);
+	DrawPanel(CX - W * 0.5f, Y, W, H, Scale, 1.f, LeafSkin::EKind::Card);
 	DrawTextCentered(TEXT("The colony thrives"), CX, Y, AccentColor, PrimaryText(Scale), Font);
 	Y += 74.f * Scale;
-	Y += DrawWrappedText(TEXT("Enough leaf has come home to feed the fungus garden for a season."), CX, Y, W, TextColor, SecondaryText(Scale), Scale) + Style.Gap * Scale;
-	Y += DrawWrappedText(TEXT("Thank you for playing Leafline. The trees keep growing, and so can the colony."), CX, Y, W, TextColor, SecondaryText(Scale), Scale) + 62.f * Scale;
-	DrawTextCentered(TEXT("Press {Confirm}{orclick} to keep playing"), CX, Y, AccentColor, SecondaryText(Scale), Font);
+	Y += DrawWrappedText(Line1, CX, Y, W, TextColor, SecondaryText(Scale), Scale) + Style.Gap * Scale;
+	Y += DrawWrappedText(Line2, CX, Y, W, TextColor, SecondaryText(Scale), Scale) + 62.f * Scale;
+	DrawTextCentered(Prompt, CX, Y, AccentColor, SecondaryText(Scale), Font);
 }
 
 void ALeaflineHUD::DrawPause(float Scale)
