@@ -1,6 +1,6 @@
 # Leafline
 
-<!-- Draft for the repository's README.md. Owner: fill the bracketed placeholders, choose the licence, and keep or delete the bird line after the 20:00 decision. -->
+<!-- Draft for the repository's README.md. Owner: fill the bracketed placeholders and choose the licence. -->
 
 You're a leafcutter ant on an enormous tree. Climb, lay a scent trail and cut a piece from a leaf: a bigger piece is worth more, but it slows you down and catches the wind. Send your ant home, take over the next one, and let your recruits harvest along your trails.
 
@@ -16,9 +16,11 @@ Made by inventivetalent for the [Epic AI MegaJam 2026](https://itch.io/jam/2026-
 2. Hold Cut at a leaf to choose the size of the piece, then let go.
 3. Send the ant home. It follows the trail by itself while you take over the next worker.
 4. When a gust comes, hold Grip or get into shelter. Hold Tab (LB on a pad) to see which bark is exposed.
-5. At the end of the day, spend leaf mass on upgrades. Brood adds recruits who work your trails.
+5. At the end of the day, spend leaf mass on upgrades in the nest. Two recruits work your trails from day 1, and Brood adds more.
 
-A bird hunts on the wind and goes for ants carrying leaves on exposed bark. It never touches them; its wing gust knocks them off.
+Cut leaves don't grow back, and leaves higher up are worth more, so the colony climbs into stronger wind until it moves to a new, taller tree.
+
+From day 2, a bird swoops at ants carrying pieces on exposed bark. It never touches them; its wing gust knocks them off. Drop your piece in the open (G, or B on a pad) to draw it away.
 
 The pause menu lists all controls (keyboard and mouse, or any gamepad).
 
@@ -37,13 +39,15 @@ The project enables these plugins from the engine: ModelContextProtocol, AllTool
 2. The scripts in `Scripts/` contain the author's paths (`C:\Program Files\Epic Games\UE_5.8` and `D:\UnrealProjects\AntTreeGame`). Change them to match your machine.
 3. Close the editor and run `Scripts\build_editor.bat`.
 4. Open `AntTreeGame.uproject`. The game starts in `/Game/Leafline/Maps/L_Main`.
-5. To make a build, run `Scripts\package_win64.bat` and then `python3 Tools/zip_build.py`. The zip lands in `Build/`.
+5. To make a build, run `Scripts\package_win64.bat` and then `python3 Tools/zip_build.py`. The zip lands in `Build/`. `Tools/release_build.sh` (run from WSL) does both and checks the build ([`docs/tools.md`](docs/tools.md)).
 
 A clean build on another machine hasn't been tested yet.
 
 ## How it's made
 
 The tree, bark, leaves, forest floor, sky, scent trails and wind are generated with C++ and shaders; the world has no textures and no hand-made tree models. The ant, the nest mound and the bird are meshes made by Blender Python scripts in `Tools/blender/`. The sounds are synthesised by `Tools/audio/make_audio.py`.
+
+[IF MUSIC SHIPS: one line on the background music and its script]
 
 Sounds and HUD icons load at runtime from `Content/Leafline/AudioRaw/` and `Content/Leafline/UIRaw/`. Debug console commands start with `Leaf.`; [`docs/tech.md`](docs/tech.md) lists them and describes the architecture.
 

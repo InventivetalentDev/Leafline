@@ -22,16 +22,18 @@ This file lists every player-facing string, grouped by screen, with the old text
 
 ## Leaf value
 
-Each leaf is worth 1× to 3× from its height and how far out it sits, times the tree's multiplier (×1.3 on tree 2, ×1.6 on tree 3). The old read-out printed the patch's average multiplier ("rich ×1.2"). The new one gives a word in three steps:
+Each leaf is worth 1× to 3× from its height and how far out it sits, times the tree's multiplier (×1.3 on tree 2, ×1.6 on tree 3). The old read-out printed the patch's average multiplier ("rich ×1.2"). The new one gives a word in three steps, from the patch's average divided by the tree's multiplier:
 
-| Patch average, divided by the tree's multiplier | Text |
-|---|---|
-| below 1.25 | nothing |
-| 1.25 to 1.6 | ", each worth more" |
-| 1.6 and up | ", each worth much more" |
+| Text | Climb curve on (default since 15 Nov) | Linear curve (`RichnessHeightScale` 0) |
+|---|---|---|
+| (no word) | below 1.4 | below 1.25 |
+| ", each worth more" | 1.4 to 2.0 | 1.25 to 1.6 |
+| ", each worth much more" | 2.0 and up | 1.6 and up |
+
+With the climb curve (`RichnessHeightScale` 40) value rises fast above the lowest leaves, so the words start higher and the lowest layers stay plain (`ValueWords` in `LeaflineHUD.cpp`).
 
 - **Why divide by the tree's multiplier.** The leaf colour does the same (paler is richer, `LeafSet.h`), so the word matches what the player sees. Every leaf on a later tree would otherwise read "worth more". The move card already says the new tree's leaves are worth more.
-- **Why these steps.** From the formula in `LeafSet.cpp`, a leaf at 70 m on tree 1 is worth about 1.1–1.3×, at 120 m 1.3–1.7× and at 200 m 1.5–2.3×. The test runs logged all three steps on tree 1: the lowest-band patch at ×1.00 (no word), patches at random leaves (`Leaf.GoLeaf`) at ×1.30 and ×1.36 ("each worth more"), and a cut leaf at ×1.67 ("each worth much more").
+- **Why these steps.** On the linear curve of 14 Nov, from the formula in `LeafSet.cpp`, a leaf at 70 m on tree 1 is worth about 1.1–1.3×, at 120 m 1.3–1.7× and at 200 m 1.5–2.3×. The test runs logged all three steps on tree 1: the lowest-band patch at ×1.00 (no word), patches at random leaves (`Leaf.GoLeaf`) at ×1.30 and ×1.36 ("each worth more"), and a cut leaf at ×1.67 ("each worth much more").
 - The trail rows no longer show value. By then the trail is laid, and the value doesn't help any decision. The rows say how many pieces are left.
 
 ## HUD during a shift
@@ -230,8 +232,8 @@ All kept: "The colony thrives", "Enough leaf has come home to feed the fungus ga
 ## For the owner (not changed here)
 
 - **Credits placeholders.** Done 15 Nov: the UI art credit is gone (no UI art in the MegaJam build), and the Friend A lines in `Content/Leafline/UIRaw/credits.txt` are commented out until their feedback comes in.
-- **Build line.** The faint bottom-left line ("dev build | the old giant, seed …, day 3 | Leaf.Goto …") is debug text and is on by default. `docs/plan.md` already says to set `bShowBuildLine=False` in `DefaultGame.ini` before the submission build.
-- **design.md** still quotes the old read-out ("about 8 pieces, rich ×2.1", line 121).
+- **Build line.** The faint bottom-left line ("dev build | the old giant, seed …, day 3 | Leaf.Goto …") is debug text. Done 15 Nov: `bShowBuildLine=False` in `DefaultGame.ini`, so it is off in the submission build (`Leaf.BuildLine 1` shows it).
+- **design.md** quoted the old read-out ("about 8 pieces, rich ×2.1"). Done 15 Nov: it quotes the new one.
 - **Prompt fallbacks.** `UI/PromptIcons.cpp` has text fallbacks ("E / LMB", "left stick") that show only if a button image is missing. Left as they are.
 
 ## Checked: nothing a player sees

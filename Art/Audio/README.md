@@ -5,6 +5,8 @@ All files are synthesised by `Tools/audio/make_audio.py` (numpy only, fixed per-
 Tonal material shares one key (C major). Loops are built with circular spectral filtering and integer-cycle partials, so the join is seamless by construction (seam sample step checked, no outlier). One-shots start and end at 0.
 Readings are earshot `measure` (peak dBFS, integrated LUFS) and `match` (z >= 3 strong, 2-3 weak, < 2 no match). "not matched" means no semantic reading was taken.
 
+The in-game volumes are set in `FWindTuning` (`Source/AntTreeGame/World/WindSystem.h`), not in the files. Since 15 Nov (owner) the calm bed (`wind_calm_loop`, `leaves_rustle_loop`) plays about 4.5 dB lower than before and a full gust is as loud as before. The music (`music_a/b/c.wav`, one track per day in turn) is on by default (`bMusic`); while it plays the pad is silent and the calm bed drops about 3.5 dB more.
+
 | File | Purpose | Length | Type | Peak dBFS | LUFS | earshot reading |
 |---|---|---|---|---|---|---|
 | `wind_calm_loop.wav` | Light air through leaves, stereo | 10000 ms | loop | -9.0 | -24.7 | wind bed; match 'gentle breeze through leaves': strong, z +3.2 |

@@ -16,7 +16,7 @@
 
 You're a leafcutter ant on an enormous tree. Climb, lay a scent trail and cut a piece from a leaf. A bigger piece is worth more, but it slows you down and catches the wind like a sail. Send your ant home, take over the next one, and let your recruits follow your trails and harvest along them.
 
-The colony keeps its tree from day to day. Cut leaves don't grow back, so you climb higher and into stronger wind until the colony moves to a new, taller tree.
+The colony keeps its tree from day to day. Cut leaves don't grow back, and leaves higher up are worth more, so you climb higher and into stronger wind until the colony moves to a new, taller tree.
 
 Made for the Epic AI MegaJam 2026 (theme: Director's Cut): you direct the colony with your trails and choose every cut.
 
@@ -26,11 +26,11 @@ Made for the Epic AI MegaJam 2026 (theme: Director's Cut): you direct the colony
 2. Hold Cut at a leaf to choose the size of the piece, then let go.
 3. Send the ant home. It follows the trail by itself while you take over the next worker.
 4. When a gust comes, hold Grip or get into shelter. An ant that's blown off loses its piece and walks home.
-5. At the end of the day, spend leaf mass on upgrades. Brood adds recruits who work your trails.
+5. At the end of the day, spend leaf mass on upgrades in the nest. Two recruits work your trails from day 1, and Brood adds more.
 
 Hold Tab (LB on a pad) for the wind map: green bark is sheltered, red is exposed.
 
-A bird hunts on the wind. It goes for ants carrying leaves on exposed bark. It never touches them; its wing gust knocks them off. Grip or get into shelter when it dives.
+From day 2, a bird rides the wind. It swoops at ants carrying pieces on exposed bark. It never touches them; its wing gust knocks them off. Grip or get into shelter when it dives.
 
 Drop your piece in the open (G, or B on a pad) to draw the bird away for a while.
 
@@ -42,16 +42,19 @@ Drop your piece in the open (G, or B on a pad) to draw the bird away for a while
 | Cut (hold) | E or left mouse button | X |
 | Send home | Q | Y |
 | Grip (hold) | Space | A |
-| Follow a trail (hold) | F | RB |
+| Ride a trail (hold) | F | RB |
 | Wind map (hold) / switch ant (tap) | Tab | LB |
 | Sprint (hold) | Left Shift | LT |
+| Drop your piece for the bird | G | B |
 | Pause | Esc | Start |
 
 The pause menu lists all controls and has options for sensitivity, volume and graphics.
 
 ## How it's made
 
-The tree, leaves, forest floor, sky, scent trails and wind are all generated with code and shaders: no textures, no hand-made tree models. Made with Unreal Engine 5.8 by one person directing AI agents (Claude and Codex), which wrote most of the code and the key art.
+The tree, leaves, forest floor, sky, scent trails and wind are all generated with code and shaders: no textures, no hand-made tree models. Made with Unreal Engine 5.8 by one person directing AI agents (Claude and Codex), which wrote most of the code and made the key art.
+
+[IF MUSIC SHIPS: one line on the background music]
 
 Button prompt icons: ["Xelu's FREE Controller Prompts"](https://thoseawesomeguys.com/prompts/) by Nicolae (Xelu) Berbece, updated by Paul Paun, CC0 1.0.
 

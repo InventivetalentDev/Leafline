@@ -13,7 +13,7 @@ You are a leafcutter ant on an enormous tree. You climb, lay a scent trail, and 
 | | Epic AI MegaJam | Game Off 2026 |
 |---|---|---|
 | Deadline (CET) | **Mon 2026-11-16 02:59** | Tue 2026-12-01 22:37 |
-| Our internal deadline | **Sun 2026-11-15 22:00** | to be set after the MegaJam |
+| Our internal deadline | **Sun 2026-11-15 23:00** at the latest (was 22:00) | to be set after the MegaJam |
 | Theme | Director's Cut | SHIFT |
 | Deliverable | Packaged Windows development build, zip `inventivetalent_Leafline.zip` under 1 GB; 30–60 s gameplay video at 1920x1080 or higher; English text; link to dev log (optional) | itch page plus **public GitHub repo** with the source |
 | Judging | Panel, 1–5 each: ambition and innovation, theme, fun, gameplay, visuals, level design and progression, audio | Participant votes: overall, gameplay, graphics, audio, innovation, theme interpretation |
@@ -46,7 +46,7 @@ The MegaJam theme as announced by Unreal Engine on X (full post, supplied by the
 
 - One game, two milestones. The MegaJam build is a vertical slice. The same build goes to Game Off on Sunday, and the Game Off page keeps receiving updates until 1 Dec.
 - **Two itch pages**: one frozen for the MegaJam, one for Game Off.
-- The repo is **private until Sunday**, then made public (owner confirms before the switch).
+- The repo is **private until the owner says otherwise**. Game Off needs it public, so it is switched once the owner confirms.
 - The owner is not chasing specific prizes. A short dev log is kept anyway.
 
 ## Pillar
@@ -118,10 +118,10 @@ A day should take 4–6 minutes: three trips of roughly 90 seconds.
 - Recruits leave the nest a second and a half apart, so several on one line read as a file. Each picks the live line with the most remaining pieces per recruit already on it. A trip is out, one piece of the line's size, home.
 - Recruits face the same wind test as scouts and never grip. A blown-off recruit loses its piece and that trip; one that finds its patch stripped turns round without using a trip.
 - The trail's brightness shows its patch: bright is full, faint is nearly stripped or no line at all.
-- Before committing, the patch around the leaf in reach is outlined, with what it is worth ("about 8 pieces, "each worth more"").
+- Before committing, the patch around the leaf in reach is outlined, with what it is worth ("About 8 pieces on these leaves, each worth more").
 
 **Richer leaves**
-- Each leaf has a value multiplier from 1× at the lowest leafy branches to about 3× at high outer tips, from the tree's shape alone. Rich leaves are paler, younger green. A piece's value is its size-based mass times the multiplier; the carried weight that slows the ant is the size-based mass only.
+- Each leaf has a value multiplier from 1× at the lowest leafy branches to about 3× at high outer tips, from the tree's shape alone. The height part builds up over the first 40 m above the lowest leaves (`RichnessHeightScale` 40, the owner's choice of 15 Nov), so climbing a layer or two pays; before that it rose evenly over the whole crown. Later trees multiply it (×1.3 on tree 2, ×1.6 on tree 3). Rich leaves are paler, younger green. A piece's value is its size-based mass times the multiplier; the carried weight that slows the ant is the size-based mass only.
 
 **Losing an ant**
 - A blown-off ant falls, loses its fragment and walks home empty-handed. Nobody dies. The trip is wasted, which matters when there are only a few per day.
@@ -145,7 +145,7 @@ A day should take 4–6 minutes: three trips of roughly 90 seconds.
 - The day's bites are saved with the day's haul, at the end of the day. Quitting in the middle of a day restarts it from dawn: no bites, no haul.
 - Yesterday's trails stay for one more day: faint, ridable, with no recruits on them. They are gone after the second night and on a move.
 - The wind changes direction every day, so the sheltered side moves. Within a stage only the wind gets harder, a little each day; the big steps are the moves.
-- The colony moves at the second and third milestones: the next day starts on a new tree, a different shape, taller, with richer leaves and stronger gusts, and a card says so ("The colony moves to a tall spire"). The first milestone does not move it (with the end card on about day 5, a move at each milestone would leave too few days per tree). At most one move a day. After the third milestone the end card shows and play continues on the third tree. The shapes come in a fixed order: the old giant, a spreading giant, a tall spire, a leaning elder.
+- The colony moves at the second and third milestones: the next day starts on a new tree, a different shape, taller, with richer leaves and stronger gusts, and a card says so ("The colony moves to a tall spire"). The first milestone does not move it (with the end card on about day 6, a move at each milestone would leave too few days per tree). At most one move a day. After the third milestone the end card shows and play continues on the third tree. The shapes come in a fixed order: the old giant, a spreading giant, a tall spire, a leaning elder.
 - A save from before this change keeps its day count and upgrades and starts on a fresh tree for the stage its milestones put it in.
 - The off switch: `FDayTuning::bOneTree`, `Leaf.OneTree 0|1`. Off, a new tree is grown every day with a rising leafy height, and the old milestone sets apply. It is independent of the recruits switch.
 
@@ -185,12 +185,13 @@ Starting numbers, to be tuned by play:
 | Grip (hold) | Space | A |
 | Send home | Q | Y |
 | Follow trail (hold) | F | Right bumper |
+| Drop the piece (bird bait, while the bird is out) | G | B |
 | Cycle ants (tap) | Tab | Left bumper |
-| Input view (debug, dev builds) | F3 | |
+| Input view (debug; stays in the submission build, owner, 15 Nov) | F3 | |
 | Wind map (hold) | Tab | Left bumper |
-| Pause | Esc | Start |
+| Pause | Esc or P | Start |
 
-The stick is a direction on screen everywhere (13 Nov): up/away and right, read from the camera when you start pushing and kept while you hold it, so the camera is free meanwhile. On thin twigs it snaps to along or around. See `tech.md`, Movement.
+The stick is a direction on screen everywhere (13 Nov): up/away and right, read from the camera when you start pushing and kept while you hold it, so the camera is free meanwhile. A snap to along or around on thin twigs exists but is off by default (`bSnapOnBranches`; the owner found that diagonals did not work with it). See `tech.md`, Movement.
 
 ## Look and sound
 
@@ -198,15 +199,15 @@ The stick is a direction on screen everywhere (13 Nov): up/away and right, read 
 - **Math only**: tree, bark, leaves, ground, sky, trail and wind effects are procedural geometry and shaders. No textures and no hand-made tree models.
 - **Exceptions**: the ant is a mesh generated by a Blender Python script, with leg motion driven by the shader. The nest mound is one too (`Tools/blender/make_nest.py`, the owner's OK on 13 Nov): it follows the walking field's mound exactly, with dug-soil pellets, an entrance shaded to black and a few leaf scraps.
 - **Exception (HUD only)**: button prompt icons from Xelu's CC0 prompt pack (light keyboard keys, Xbox-style buttons for every pad), the owner's choice on 13 Nov; listed in `docs/sourced-assets.md`.
-- **Audio** is synthesised by script: wind, footsteps, leaf-cut crunch, deposit chime, a soft ambient pad. CC0 samples from freesound.org may be added later and must then be listed as sourced assets.
-- **HUD**: stamina, carried load, workers left, colony meter, and contextual key prompts in place of a tutorial. All text in English.
+- **Audio** is synthesised by script: wind, footsteps, leaf-cut crunch, deposit chime, a soft ambient pad (silent while the music plays), the bird. No recorded samples are used; any CC0 sample added later must be listed as a sourced asset. Background music, synthesised the same way (`Tools/audio/make_music.py`): three tracks, one per day in turn (golden pads, kalimba drift, music-box arpeggio), on by default since 15 Nov (`FWindTuning::bMusic`).
+- **HUD**: stamina, carried load, workers left, the colony meter, wind and exposure, the bird, and contextual key prompts in place of a tutorial. All text in English.
 - **Nest**: an entrance among the roots plus the upgrade screen. No interior.
 
 ## Out of the MegaJam build
 
 | Item | Status |
 |---|---|
-| Bird predator, distracted by dropped food | **Stretch for Sunday** if everything else is done; otherwise Game Off |
+| Bird predator, distracted by a dropped piece | **In the MegaJam build**: the bird and its bait ship, on by default (owner, 15 Nov); with recruits on it first comes on day 2, with one gentle swoop and a hint |
 | Taking over an ant that is already returning | Stretch |
 | Walking on leaf blades | Stretch |
 | Skill tree and a visible, growing fungus garden | Game Off |
@@ -218,13 +219,13 @@ The stick is a direction on screen everywhere (13 Nov): up/away and right, read 
 | Trails that slow ants down | Not planned |
 | Drop cutting, relay caches, castes | Game Off ideas |
 | Other predators (for example the parasitic flies that real leafcutters guard against) | Game Off |
-| Food as a second resource | Arrives with the bird |
+| Food as a second resource | Game Off idea (the bird's bait is the carried leaf piece, so the bird did not need one) |
 | Eating to restore stamina | Parked |
 | Rocket launchers | Dropped |
 
 ## Open items for the owner
 
 - Join both jams on itch: <https://itch.io/jam/2026-epic-ai-megajam> and <https://itch.io/jam/game-off-2026>. The MegaJam entry needs your full name and the email on your Epic account.
-- Record the 30–60 s gameplay video at 1080p or higher on Sunday.
+- Upload the 30–60 s gameplay video. It was filmed and cut with the video tools (`docs/ship/video.md`; the final file is `Build/Video/leafline_megajam.mp4` in the main checkout).
 - Choose a licence for the public repo before Sunday.
 - Confirm the final title (alternatives considered: "Cutting Shift", "Canopy Crew").

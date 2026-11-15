@@ -1,6 +1,6 @@
 # MegaJam submission form: draft answers
 
-<!-- Field by field, in the order of the itch.io form (saved in docs/ship/temp/ on 14 Nov). Everything marked Private is seen only by the organisers. The owner submits in person by Sun 15 Nov 22:00 CET (the form closes Mon 16 Nov 02:59 CET). Square brackets are still open. -->
+<!-- Field by field, in the order of the itch.io form (saved in docs/ship/temp/ on 14 Nov). Everything marked Private is seen only by the organisers. The owner submits in person by Sun 15 Nov 23:00 CET at the latest (the MegaJam's own deadline is Mon 16 Nov 02:59 CET). Square brackets are still open. -->
 
 **Project:** the itch page "Leafline - 2026 Epic AI MegaJam" (publish it first; the form only lists published projects).
 
@@ -20,9 +20,9 @@
 
 > Windows 10 or 11. Unzip and run Leafline/AntTreeGame.exe. Keyboard and mouse or any gamepad; the pause menu lists all controls.
 >
-> You're a leafcutter ant. Climb from the nest to a leafy branch (WASD and mouse, or the sticks); your ant leaves a scent trail. Hold Cut (E or left mouse button, pad X) at a leaf to choose the size of the piece, then let go: bigger pieces are worth more but slower and riskier in the wind. Send the ant home (Q, pad Y). It follows the trail by itself while you take over the next worker. When a gust comes, hold Grip (Space, pad A) or get into shelter; hold Tab (pad LB) for the wind map, where green bark is sheltered and red is exposed. At the end of the day, spend leaf mass on upgrades at the nest. Brood adds recruits who follow your trails and harvest around your cuts.
+> You're a leafcutter ant. Climb from the nest to a leafy branch (WASD and mouse, or the sticks); your ant leaves a scent trail. Hold Cut (E or left mouse button, pad X) at a leaf to choose the size of the piece, then let go: bigger pieces are worth more but slower and riskier in the wind. Send the ant home (Q, pad Y). It follows the trail by itself while you take over the next worker, who can ride the trail back up (hold F, pad RB). When a gust comes, hold Grip (Space, pad A) or get into shelter; hold Tab (pad LB) for the wind map, where green bark is sheltered and red is exposed. Cut leaves don't grow back, and leaves higher up are worth more. At the end of the day, spend leaf mass on upgrades in the nest. Two recruits follow your trails from day 1 and harvest around your cuts; Brood adds more.
 >
-> A bird hunts on the wind and dives at ants carrying leaves on exposed bark. It never touches them; its wing gust knocks them off. Grip or get into shelter when it dives. Drop your piece in the open (G, pad B) to draw it away.
+> From day 2, a bird swoops at ants carrying pieces on exposed bark. It never touches them; its wing gust knocks them off. Grip or get into shelter when it dives. Drop your piece in the open (G, pad B) to draw it away.
 
 **What platform is your game built for?** Windows 10 and Windows 11 <!-- the form takes one; pick Windows 11 and mention 10 in the instructions, as above -->
 
@@ -42,7 +42,7 @@
 
 **Tell us about your take on the theme and how it influenced your game?** (private):
 
-> Director's Cut works on two levels in Leafline. You direct the colony: you lay the routes with your scent trail, and recruits walk them and harvest around your cuts without you, so where you lay a route decides how much comes home. And you choose the cut: every piece's size trades leaf mass against carrying speed and wind risk, and the recruits copy your choice. The day's recap is "the day's cut", what your lines brought home and what the wind took. Behind the game, one person directed AI agents through planning, building and review, deciding what went in and what didn't.
+> Director's Cut works on two levels in Leafline. You direct the colony: you lay the routes with your scent trail, and recruits walk them and harvest around your cuts without you, so where you lay a route decides how much comes home. And you choose the cut: every piece's size trades leaf mass against carrying speed and wind risk, and the recruits copy your choice. The end-of-day recap is titled "today's cut": what your trails brought home and what the wind took. Behind the game, one person directed AI agents through planning, building and review, deciding what went in and what didn't.
 
 **Which modifier categories?** (optional): Solo Driver; Glass Box (only with the dev log link); Render Royalty [OWNER: your call].
 
@@ -51,6 +51,8 @@
 **What tools did your team use to make your game?** (private, optional):
 
 > Unreal Engine 5.8 (5.8.4), with Epic's Model Context Protocol plugin and ProceduralMeshComponent. Claude Code (Anthropic Claude models) for planning and most of the programming, driving the Unreal editor through the Model Context Protocol plugin. Codex (OpenAI) for concept and key art, code reviews and some programming. Blender 5.1 with the blender-mcp add-on for the scripted meshes (ant, nest mound, bird). Python for asset scripts and sound synthesis, with earshot for checking the sounds. Visual Studio 2022 Build Tools. Sourced asset: Xelu's CC0 button prompt icons. No Hyper3D Rodin.
+>
+> [IF MUSIC SHIPS: one sentence on how the background music was made]
 
 **Which OpenAI models or products did you use, and how?** (private, optional):
 
@@ -62,6 +64,9 @@
 
 ## Before you submit
 
+- Build the submission zip with `Tools/release_build.sh` (it packages, zips and checks the build, and stops at 1 GB). After uploading, check the zip downloaded back from itch with `Tools/release_build.sh --check <zip>`.
 - Publish the itch page, upload the final zip, and set the page's Windows download.
+- Screenshots: use the JPEG copies from `Tools/itch_shots.sh` (the `jpg/` folder), since itch takes at most 3 MB per screenshot.
 - Fill the video link; check the dev log link opens while signed out.
+- Submit by Sun 15 Nov 23:00 CET at the latest.
 - Tag the submitted commit `megajam-submission`.

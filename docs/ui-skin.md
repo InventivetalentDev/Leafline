@@ -11,7 +11,7 @@ cleanly below that (1280x720 shows it at one third).
 
 | File | Used for | Image size | Corner margins (max) | Smallest it is drawn (at 1080p) |
 |---|---|---|---|---|
-| `Panel_Card.png` | the big screens: title, pause, options, controls, credits, end of day, nest, new tree, end card | 512 x 512 | 64 px | 1152 x 292 |
+| `Panel_Card.png` | the big screens: title, pause, options, controls, credits, end of day, nest, new tree, end card | 512 x 512 | 64 px | about 1152 x 220 (the new-tree card; every card is 1152 wide and as tall as its content) |
 | `Panel_Group.png` | HUD boxes: day and workers (top left), colony (top centre), wind (top right), line rows, stamina, banners | 256 x 256 | 32 px | about 200 x 60 |
 | `Panel_Tag.png` | one-line hints and prompts, cut labels, the "+N" when a piece arrives | 128 x 128 | 24 px | about 70 x 52 |
 | `Button_Selected.png` | the selected or hovered menu row | 512 x 128 | 32 px | 800 x 64 |
@@ -91,7 +91,7 @@ confirm to the owner in writing that:
 - you agree to them being published in that repository under the licence the owner chooses for the game's assets;
 - you tell the owner whether you used AI tools for any part, so it can be disclosed with the entry.
 
-You will be credited in the game's credits and on the game's pages under "UI art", with the name you choose.
+When your images ship, you will be credited in the game's credits and on the game's pages under "UI art", with the name you choose. (The MegaJam build has no UI art and no such credit.)
 
 ## For developers
 

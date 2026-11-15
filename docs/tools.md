@@ -40,7 +40,14 @@ Since one tree per stage (13 Nov) is on by default, the recorded line numbers (s
 
 ## econ_sim.py
 
-`python3 Tools/econ_sim.py [--check-cpp]` (Codex) models a fresh save to the end card with the line on and off, and prints a per-day table and the recommended upgrade costs and milestones; `--check-cpp` checks `Game/Upgrades.cpp` against them. Assumptions are named constants at the top; details in `docs/economy.md`.
+`python3 Tools/econ_sim.py [--check-cpp]` (Codex) models a fresh save to the end card with the line on and off, and prints a per-day table and the recommended upgrade costs and milestones; `--check-cpp` checks `Game/Upgrades.cpp` against them. `--one-tree` runs the default game (one tree per stage), `--milestones a,b,c` evaluates a milestone set, and `--richness height` with `--height-scale m` takes leaf value from the cut height like the game's climb curve. Assumptions are named constants at the top; details in `docs/economy.md`.
+
+## Audio (`Tools/audio`)
+
+Both scripts need numpy only and use fixed seeds, so a rerun gives the same files.
+
+- `uv run --with numpy python Tools/audio/make_audio.py` synthesises every sound effect and loop into `Art/Audio/` (48 kHz, 16-bit). `Art/Audio/README.md` lists each file with its earshot reading. Copy the files to `Content/Leafline/AudioRaw/` as `.wavraw` afterwards (`docs/tech.md`, Audio).
+- `uv run --with numpy python Tools/audio/make_music.py <outdir>` renders the background music options A to C (golden pads, kalimba drift, music-box arpeggio) as seamless stereo loops at about -20 LUFS, each with a 20 s preview mixed with the wind at the in-game volumes. The default folder is `Saved/MusicOptions`. `make_music.py Art/Audio --game` writes only the three in-game files, `music_a/b/c.wav`; copy them to `Content/Leafline/AudioRaw/` as `.wavraw`. The game plays one per day in turn (`FWindTuning::MusicSounds`, `bMusic` on by default).
 
 ## zip_build.py
 
@@ -54,7 +61,7 @@ py Tools\zip_build.py                          # from Windows
 ```
 
 - It leaves out `AntTreeGame/Saved/` and `Engine/Saved/` (logs with local paths, and the save game and config from test runs), `*.pdb` debug symbols and the packager's `Manifest_*.txt` files.
-- It needs only Python 3 and takes about 40 s. The zip is about 0.43 GB (2026-11-12).
+- It needs only Python 3 and takes about 40 s. The zip is about 0.44 GB (every package of 15 Nov).
 - It writes to a `.part` file first, so an interrupted run never leaves a broken zip under the real name.
 - Exit codes: 0 = OK, 1 = the zip is 1 GB or larger (over the MegaJam limit), 2 = no packaged build found.
 - The build has not been tested on another PC yet. Players may need the Visual C++ Redistributable 2015–2022 x64, and Windows SmartScreen may warn about the unsigned exe.
@@ -167,11 +174,11 @@ output); and setting only a node's `Code` did not always mark the package dirty,
 
 ## Build info (`Tools/write_buildinfo.sh`)
 
-Writes `Content/Leafline/UIRaw/buildinfo.txt` (short commit, `+dirty` if tracked files have uncommitted changes, and the time). The HUD's faint bottom-left line starts with it; without the file it says "dev build". The file is staged with the UIRaw folder and ignored by git. Run it right before `Scripts/package_win64.bat`.
+Writes `Content/Leafline/UIRaw/buildinfo.txt` (short commit, `+dirty` if tracked files have uncommitted changes, and the time). The HUD's faint bottom-left line starts with it; without the file it says "dev build". The file is staged with the UIRaw folder and ignored by git. Run it right before `Scripts/package_win64.bat`; `Tools/release_build.sh` does. The line is off in the submission build (`bShowBuildLine=False`); `Leaf.BuildLine 1` shows it while playing.
 
 ## Floor shots (`Tools/floorfar_shots.sh`)
 
-`ROOT=<tree> Tools/floorfar_shots.sh <label> <plan> [extra game args]` runs one standalone game from that tree's editor binaries (slot `RefShot`, through the Unreal lock) and saves each `SHOT` of the plan as `Saved/RefShots/<label>-<name>.png`. A plan is a text file with one step per line, `<seconds>|<console command>` or `<seconds>|SHOT <name>`; several `0|` lines run in order before the first delay. Plans from the floor pass (`docs/briefs/floor-from-above.md`) are in `Tools/floorfar_plans/`: `final.txt` (the owner's pose, 22 and 120 m up, the nest, fog at five times the density), `accept.txt` (M_Ground2 against M_Ground), `perf.txt` (CSV frame-time captures; pass `-noraytracing` as the extra argument for the second set; summarise with `python3 Tools/csv_fps.py --skip 1`), `ring.txt` (the near-to-far blend straight down), `shafts.txt` (fog start regression on the light-shaft views). For look comparisons hold the wind calm first (`0|Leaf.Tune wind CalmMin 400`, `CalmMax 400`, `StreakCount 0`, `0|Leaf.Cues 0`): the gust's dust front otherwise drifts through every 15 s or so.
+`ROOT=<tree> Tools/floorfar_shots.sh <label> <plan> [extra game args]` runs one standalone game from that tree's editor binaries (slot `RefShot`, through the Unreal lock) and saves each `SHOT` of the plan as `Saved/RefShots/<label>-<name>.png`. A plan is a text file with one step per line, `<seconds>|<console command>` or `<seconds>|SHOT <name>`; several `0|` lines run in order before the first delay. Plans from the floor pass (`docs/briefs/floor-from-above.md`) are in `Tools/floorfar_plans/`: `final.txt` (the owner's pose, 22 and 120 m up, the nest, fog at five times the density), `accept.txt` (M_Ground2 against M_Ground), `perf.txt` (CSV frame-time captures; pass `-noraytracing` as the extra argument for the second set; summarise with `python3 Tools/csv_fps.py --skip 1`), `ring.txt` (the near-to-far blend straight down), `shafts.txt` (fog start regression on the light-shaft views). Later plans: `haze.txt`, `haze2.txt`, `tune.txt` and `climb.txt` (haze and fog candidates), the `relief*.txt` plans (the relief pass; `relief_final.txt` checks the defaults against relief off), and `ui.txt`, `ui_extra.txt` and `ui_skin.txt` (the UI polish of 15 Nov: every menu and between-day screen at 1920x1080, 1280x720 and 2560x1440 with keyboard and pad prompts, the wind panel's bird line, and the placeholder skin from `Tools/ui_test_skin.py`). For look comparisons hold the wind calm first (`0|Leaf.Tune wind CalmMin 400`, `CalmMax 400`, `StreakCount 0`, `0|Leaf.Cues 0`): the gust's dust front otherwise drifts through every 15 s or so.
 
 ## Video shots (`Tools/video_capture.sh`)
 
@@ -244,7 +251,7 @@ Sound, as it works since 15 Nov:
 
 ```
 Tools/itch_shots.sh rc1                 # -> Saved/ItchShots/rc1/<nn>-<name>.png and sheet.jpg
-BIRD=1 Tools/itch_shots.sh rc1          # also Tools/itch_plans/bird.txt (only if the bird ships)
+BIRD=1 Tools/itch_shots.sh rc1          # also Tools/itch_plans/bird.txt (the bird shots)
 PLAN=Tools/itch_plans/other.txt Tools/itch_shots.sh x   # any plan in the same format
 ```
 
@@ -252,6 +259,6 @@ PLAN=Tools/itch_plans/other.txt Tools/itch_shots.sh x   # any plan in the same f
 - The game runs offscreen (`-RenderOffscreen`, never takes the focus) in the save slot `ItchShots`, through `Scripts/unreal-lock.sh`. It waits while any `AntTreeGame.exe` runs (the owner playing).
 - The packaged game's `Saved/SaveGames` and `Saved/Config` are backed up to `Build/itchshots-backup-*` first and restored after, also on failure. During the run its `GameUserSettings.ini` is set to 1920x1080 windowed: with the owner's 1280x720 windowed-fullscreen settings `-ResX/-ResY` lost and the shots came out 888x500.
 - Shots are stripped of metadata (`Tools/strip_image_metadata.py`); the contact sheet needs Pillow. A shot that is not 1920x1080 is reported.
-- Wind held calm (`Leaf.Tune wind CalmMin 400`, `CalmMax 400`, `StreakCount 0`) except the forced gust; `Leaf.BuildLine 0` hides the build line; `Leaf.PadIcons 0` shows keyboard prompts; `Leaf.Bird 0` for the whole run (with recruits from day 1 the bird hunts on day 1 and its hint line covers the top of the frame; the bird shots are in the `BIRD=1` run).
+- Wind held calm (`Leaf.Tune wind CalmMin 400`, `CalmMax 400`, `StreakCount 0`) except the forced gust; `Leaf.BuildLine 0` hides the build line; `Leaf.PadIcons 0` shows keyboard prompts; `Leaf.Bird 0` for the whole run (the plan also plays later days, where the bird is out and its hint line covers the top of the frame; with recruits on it first comes on day 2; the bird shots are in the `BIRD=1` run).
 - Timing: every tree regrow (`Leaf.ResetSave`, `Leaf.Move`, `Leaf.StartDay`) stalls the game about 1.5 s and `Leaf.Delay`'s clock jumps over the stall, so steps right after a regrow chain fire together; the plan keeps several seconds of buffer after each chain. `Leaf.NewDay <seed>` and `Leaf.StartDay <day> <seed>` keep the current stage's tree with one tree per stage on; after `Leaf.ResetSave` the day is on stage 1's tree, the old giant (seed 675856).
 - Output always goes to the main checkout's `Saved/ItchShots/<label>/`, whichever tree runs the script. The hero and scale shots are taken without the HUD (`showhud` in the plan, owner 15 Nov). A `jpg/` folder next to the PNGs holds JPEG copies (quality 92, 0.3-0.6 MB) for the upload: itch.io takes screenshots up to 3 MB and the PNGs reach 3.1 MB.
