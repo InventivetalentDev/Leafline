@@ -1450,7 +1450,8 @@ void ALeaflineHUD::DrawNest(const ADayDirector* D, float Scale)
 		AddMenuHit(X, Y, RowW, BoxH, i);
 		const bool bSel = D->GetNestSelection() == i || IsHovered(i);
 		DrawButtonBack(X, Y, RowW, BoxH, Scale, bSel);
-		if (bSel) DrawRect(AccentColor, X, Y, Style.Stroke * Scale, BoxH);
+		// The accent stripe marks the selected row on the flat UI; a skin's button image marks it by itself.
+		if (bSel && !LeafSkin::Get(LeafSkin::EKind::ButtonSelected)) DrawRect(AccentColor, X, Y, Style.Stroke * Scale, BoxH);
 		if (i < LeaflineUpgrades::Count)
 		{
 			const FLeaflineUpgradeInfo* Info = LeaflineUpgrades::Get(i);

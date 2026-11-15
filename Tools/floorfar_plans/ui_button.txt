@@ -1,0 +1,62 @@
+# The artist's menu button (Button_Selected) against the skin without it (Saved/SkinBtnBefore: a copy of UIRaw's panels
+# and skin.txt before the button lines): nest, pause, options, controls, credits at 1080p and 720p, keys and pad.
+# ROOT=<tree> Tools/floorfar_shots.sh <label> Tools/floorfar_plans/ui_button.txt "-ResX=1920 -ResY=1080"
+0|r.SetRes 1920x1080w
+0|Leaf.Bird 0
+0|Leaf.Tune wind CalmMin 400
+0|Leaf.Tune wind CalmMax 400
+0|Leaf.Tune wind StreakCount 0
+0|Leaf.BuildLine 0
+0|Leaf.PadIcons 0
+6|Leaf.ResetSave
+6.1|Leaf.OneTree 1
+8|Leaf.StartDay 1 517192
+14|Leaf.Carry 0.7
+16|Leaf.Carry 0.7
+18|Leaf.Carry 0.7
+24|Leaf.Hold grip 0.2
+27|Leaf.ReloadSkin Saved/SkinBtnBefore
+27.6|SHOT nest-before-1080
+27.8|Leaf.ReloadSkin
+28.4|SHOT nest-after-1080
+28.6|r.SetRes 1280x720w
+30.6|SHOT nest-after-720
+30.8|Leaf.PadIcons 1
+31.6|SHOT nest-after-720-pad
+31.8|Leaf.ReloadSkin Saved/SkinBtnBefore
+32.4|SHOT nest-before-720-pad
+32.6|Leaf.PadIcons 0
+32.8|Leaf.ReloadSkin
+33|r.SetRes 1920x1080w
+34.5|Leaf.PauseMenu 0
+36|SHOT pause-after-1080
+36.2|Leaf.ReloadSkin Saved/SkinBtnBefore
+36.8|SHOT pause-before-1080
+37|Leaf.ReloadSkin
+37.2|r.SetRes 1280x720w
+39.2|SHOT pause-after-720
+39.4|Leaf.PadIcons 1
+40.2|SHOT pause-after-720-pad
+40.4|Leaf.PadIcons 0
+41|Leaf.PauseMenu 1 0
+42.5|SHOT options-after-720
+42.7|r.SetRes 1920x1080w
+44.5|SHOT options-after-1080
+44.7|Leaf.ReloadSkin Saved/SkinBtnBefore
+45.3|SHOT options-before-1080
+45.5|Leaf.ReloadSkin
+46|Leaf.PauseMenu 3
+47.5|SHOT controls-after-1080
+47.7|r.SetRes 1280x720w
+49.7|SHOT controls-after-720
+49.9|Leaf.PadIcons 1
+50.7|SHOT controls-after-720-pad
+50.9|Leaf.PadIcons 0
+51|Leaf.PauseMenu 2 -1
+52.5|SHOT credits-after-720
+52.7|r.SetRes 1920x1080w
+54.5|SHOT credits-after-1080
+54.7|Leaf.ReloadSkin Saved/SkinBtnBefore
+55.3|SHOT credits-before-1080
+55.5|Leaf.ReloadSkin
+56|Leaf.QuitAfter 1

@@ -11,6 +11,10 @@ Panel_Card 386 121 782 125
 Panel_Group 185 60 60 60
 Panel_GroupCenter 185 60 60 60
 mirror_right Panel_Group
+; Button_Selected: her menu button (light cyan, 30% fill, a leaf at two corners), cropped and scaled to 0.33 so both leaf
+; corners fit a 64 px row; the outset puts the leaves just outside the row's corners, clear of the row text.
+Button_Selected 64 65 64 63
+outset Button_Selected 20 9 20 9
 Panel_Tag 92 26 26 26
 
 ; outsets: the light-green outline stays clear of the text (checked at 720/1080/1440, keys and pad, 15 Nov)
