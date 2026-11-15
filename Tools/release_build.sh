@@ -155,6 +155,11 @@ elif [ "$FREE" -lt 15 ]; then note "${FREE} GB free on D: (tight; Build/archive 
 else note "${FREE} GB free on D:"; fi
 note "Unreal lock: $("$LOCK" --status 2>&1 | tr '\n' ' ')"
 [ $REFUSE = 0 ] || { echo; cat "$REPORT"; exit 1; }
+START_HEAD=$(git rev-parse HEAD)
+build_state() { git rev-parse HEAD; git status --porcelain | grep -v buildinfo.txt | grep -E "$BUILD_PATHS"; }
+START_STATE=$(build_state)
+# A merge or checkout while the run builds would put a mix of two commits into the package (15 Nov, RC2).
+unchanged() { [ "$(build_state)" = "$START_STATE" ]; }
 wait_for "someone is playing" someone_playing || { echo "someone kept playing; nothing built"; exit 1; }
 
 # ---- build and package ----
@@ -179,6 +184,8 @@ for i in $(seq 1 20); do
 done
 grep -q 'AutomationTool exiting with ExitCode=0' "$OUT/package.log" || { rep "- **Package failed**, see package.log"; grep -E 'Error:|error ' "$OUT/package.log" | head -8; exit 2; }
 rep "- Packaged: $(grep -o 'BuildCookRun time: [0-9.]* s' "$OUT/package.log" | tail -1)"
+
+unchanged || { rep "- **The commit or the build files changed while building** (was $START_HEAD, now $(git rev-parse HEAD)); this package is a mix. Run again."; echo; cat "$REPORT"; exit 2; }
 
 # ---- zip ----
 if [ -f "$ZIP" ]; then
@@ -210,6 +217,11 @@ someone_playing || {
 	grep -vE '^Restored' "$OUT/perf.log" | tail -16 >> "$REPORT"
 	rep '```'
 	grep -qi 'no capture written' "$OUT/perf.log" && problem "a frame-rate run wrote no capture (failed to start?)"
+	# The DX11 capture (900 frames) is often shorter than csv_fps.py's default 8 s skip: summarise it with a 1 s skip.
+	if grep -q 'trunk-dx11: only' "$OUT/perf.log"; then
+		DXCSV=$(ls -t "$ROOT"/Build/Windows/AntTreeGame/Saved/Profiling/CSV/*.csv 2>/dev/null | head -1)
+		[ -n "$DXCSV" ] && rep "DX11 again with a 1 s skip: $(python3 Tools/csv_fps.py --skip 1 --label trunk-dx11 "$DXCSV" 2>&1 | tail -1)"
+	fi
 }
 PL=$ROOT/Build/Windows/AntTreeGame/Saved/Logs/AntTreeGame.log
 [ -f "$PL" ] && [ "$(grep -a -cE 'Fatal|Assertion failed|Unhandled Exception' "$PL")" != 0 ] && problem "crash lines in the last frame-rate run's log"
@@ -217,6 +229,7 @@ PL=$ROOT/Build/Windows/AntTreeGame/Saved/Logs/AntTreeGame.log
 # ---- twenty days from a fresh folder ----
 fresh_test "$ZIP"
 
+unchanged || problem "the commit or the build files changed during the run (was $START_HEAD, now $(git rev-parse HEAD)): the package may be a mix; run again"
 rep ""
 rep "Result: $([ $FAIL = 0 ] && echo 'all checks passed' || echo 'PROBLEMS, see above')"
 echo; cat "$REPORT"; echo; echo "Report: $REPORT"
