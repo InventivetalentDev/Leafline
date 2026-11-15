@@ -16,6 +16,7 @@ cleanly below that (1280x720 shows it at one third).
 | `Panel_Tag.png` | one-line hints and prompts, cut labels, the "+N" when a piece arrives | 128 x 128 | 24 px | about 70 x 52 |
 | `Button_Selected.png` | the selected or hovered menu row | 512 x 128 | 32 px | 800 x 64 |
 | `Button_Idle.png` | the other menu rows (today they have no background, so this one is extra) | 512 x 128 | 32 px | 800 x 64 |
+| `Panel_GroupCenter.png` | optional: HUD boxes centred on screen (the colony counter, banners); without it they use `Panel_Group` | 256 x 256 | 32 px | about 200 x 60 |
 
 The sizes are what we ask for; other sizes work as long as the margins fit.
 
@@ -62,6 +63,19 @@ Button_Idle 32 32 32 32
 ```
 
 The four numbers are left, top, right, bottom. `scale 2` means "painted at twice the 1080p size"; leave it at 2.
+
+Two optional lines change how an image is placed:
+
+- `mirror_right <image>`, for example `mirror_right Panel_Group`: boxes of that kind whose centre lies right of the
+  screen centre are drawn flipped left to right, with the left and right margins swapped, so the nine slices still line
+  up. Use it when one corner is different and should face outwards on both sides of the screen.
+- `outset <image> <px>` or `outset <image> <left> <top> <right> <bottom>`, for example `outset Panel_Group 6` or
+  `outset Panel_Card 20 16 18 44`: that image is drawn this many pixels further outside the panel (pixels on a 1080p
+  screen, scaled like everything else; without it a frame sits 16 px outside the text). Use it when a frame's outline
+  comes too close to the text. With `mirror_right` the left and right values swap with the image.
+
+`Panel_GroupCenter` is used for HUD boxes whose centre lies within 15% of the screen width from the screen centre.
+Without these lines and without that image, everything is drawn as before.
 
 ## Trying it in the game
 

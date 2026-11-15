@@ -489,7 +489,15 @@ void ALeaflineHUD::DrawPanel(float X, float Y, float W, float H, float Scale, fl
 	FLinearColor C = Style.Panel;
 	C.A *= Alpha;
 	const float P = Style.Padding * Scale;
-	if (const LeafSkin::FImage* Image = LeafSkin::Get(Kind))
+	// A Group panel centred within 15% of the screen width of the screen centre (colony counter, banners) uses the
+	// skin's Panel_GroupCenter when it has one.
+	const LeafSkin::FImage* Image = nullptr;
+	if (Kind == LeafSkin::EKind::Group && FMath::Abs(X + W * 0.5f - Canvas->ClipX * 0.5f) <= 0.15f * Canvas->ClipX)
+	{
+		Image = LeafSkin::Get(LeafSkin::EKind::GroupCenter);
+	}
+	if (!Image) Image = LeafSkin::Get(Kind);
+	if (Image)
 	{
 		DrawNineSlice(*Image, X - P, Y - P, W + 2.f * P, H + 2.f * P, Scale, Alpha);
 		return;
@@ -500,12 +508,19 @@ void ALeaflineHUD::DrawPanel(float X, float Y, float W, float H, float Scale, fl
 void ALeaflineHUD::DrawNineSlice(const LeafSkin::FImage& Image, float X, float Y, float W, float H, float Scale, float Alpha)
 {
 	if (!Canvas || !Image.Texture || Image.Size.X <= 0 || Image.Size.Y <= 0) return;
-	const float L = FMath::RoundToFloat(X), T = FMath::RoundToFloat(Y), R = FMath::RoundToFloat(X + W), B = FMath::RoundToFloat(Y + H);
+	// mirror_right: a panel centred right of the screen centre is drawn flipped left to right, its left and right margins
+	// (and outsets) swapped with the image, so the nine slices still line up.
+	const bool bFlip = Image.bMirrorRight && X + W * 0.5f > Canvas->ClipX * 0.5f;
+	// outset: the image reaches further outside the panel (1080p pixels, scaled).
+	const float OL = (bFlip ? Image.OutsetR : Image.OutsetL) * Scale, OR = (bFlip ? Image.OutsetL : Image.OutsetR) * Scale;
+	const float L = FMath::RoundToFloat(X - OL), T = FMath::RoundToFloat(Y - Image.OutsetT * Scale);
+	const float R = FMath::RoundToFloat(X + W + OR), B = FMath::RoundToFloat(Y + H + Image.OutsetB * Scale);
 	if (R - L < 1.f || B - T < 1.f) return;
 	// Corners keep their painted size (image pixels / pixels per 1080p pixel, times the screen scale), rounded to whole
 	// pixels; a panel smaller than its corners squeezes them to fit.
 	const float K = Scale / FMath::Max(Image.PixelsPerDesign, 0.01f);
-	float CL = FMath::RoundToFloat(Image.Left * K), CR = FMath::RoundToFloat(Image.Right * K);
+	const int32 ML = bFlip ? Image.Right : Image.Left, MR = bFlip ? Image.Left : Image.Right;
+	float CL = FMath::RoundToFloat(ML * K), CR = FMath::RoundToFloat(MR * K);
 	float CT = FMath::RoundToFloat(Image.Top * K), CB = FMath::RoundToFloat(Image.Bottom * K);
 	if (CL + CR > R - L)
 	{
@@ -521,7 +536,8 @@ void ALeaflineHUD::DrawNineSlice(const LeafSkin::FImage& Image, float X, float Y
 	}
 	const float Xs[4] = { L, L + CL, R - CR, R };
 	const float Ys[4] = { T, T + CT, B - CB, B };
-	const float Us[4] = { 0.f, float(Image.Left) / Image.Size.X, 1.f - float(Image.Right) / Image.Size.X, 1.f };
+	const float U1 = float(Image.Left) / Image.Size.X, U2 = 1.f - float(Image.Right) / Image.Size.X;
+	const float Us[4] = { bFlip ? 1.f : 0.f, bFlip ? U2 : U1, bFlip ? U1 : U2, bFlip ? 0.f : 1.f };
 	const float Vs[4] = { 0.f, float(Image.Top) / Image.Size.Y, 1.f - float(Image.Bottom) / Image.Size.Y, 1.f };
 	const FLinearColor Tint(1.f, 1.f, 1.f, Alpha);
 	for (int32 j = 0; j < 3; ++j)
@@ -700,7 +716,7 @@ void ALeaflineHUD::DrawDayInfo(const ADayDirector* D, float Scale)
 		}
 		else
 		{
-			if (LeafSkin::Get(LeafSkin::EKind::Group))
+			if (LeafSkin::Get(LeafSkin::EKind::Group) || LeafSkin::Get(LeafSkin::EKind::GroupCenter))
 			{
 				// Over a skin image the hollow cannot be painted in the panel colour: the outline as four strokes.
 				const float PY0 = MidY - Pip * 0.5f;
