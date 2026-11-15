@@ -291,19 +291,20 @@ Agents in herdr tab `sat`; the main session merges, builds materials and imports
 ## M7: Ship (Sunday)
 
 - [x] Set `bShowBuildLine=False` under `[/Script/AntTreeGame.LeaflineHUD]` in `Config/DefaultGame.ini` (the faint build and position line). `Tools/release_build.sh` refuses to package while it is on. Done: off in the submission build; `Leaf.BuildLine 1` shows it while playing.
-- [ ] Bug fixing from Saturday's playtest.
+- [x] Bug fixing from Saturday's playtest. Done: the playtest notes of 14 Nov and iCeeker's quick fixes of 15 Nov.
 - [x] F3 input view: stays in the submission build (owner, 15 Nov: obscure enough that players won't stumble on it; useful for testing). `bInputVizKey=True`.
-- [ ] Final packaged Windows **development** build. Run it from a path with spaces and from a fresh folder (`Tools/release_build.sh` does both).
-- [ ] Zip as `inventivetalent_Leafline.zip`; confirm it is under 1 GB (0.44 GB in every package of 15 Nov).
-- [ ] A 30–60 s gameplay video at 1920x1080 or higher, uploaded by the owner. Filmed and cut with `Tools/video_capture.sh` and `Tools/video_edit.py` (final cut list of 15 Nov, `docs/ship/video.md`); the upload is still to do.
-- [ ] Codex produces the cover image and screenshots are captured for the itch pages. Key art banner with the title in both sizes (7374d38); screenshots from the packaged build with `Tools/itch_shots.sh` (JPEG copies for itch's 3 MB limit). Retake them from the final build.
-- [ ] Two itch pages: one for the MegaJam (frozen), one for Game Off. Drafts: `docs/ship/itch-megajam.md` and `docs/ship/itch-gameoff.md`, with `.html` copies to paste.
-- [ ] Submission form: full name and Epic account email, game name, video link, dev log link, tools used, sourced assets list, and the note about the earlier prototype (see `devlog.md`). Draft: `docs/ship/submission-form.md`.
+- [x] Final packaged Windows **development** build. Run it from a path with spaces and from a fresh folder (`Tools/release_build.sh` does both). 15 Nov 21:20 from 9a98dd5: all checks passed (`Saved/Release/9a98dd5-2120/report.md`).
+- [x] Zip as `inventivetalent_Leafline.zip`; confirm it is under 1 GB (0.44 GB in every package of 15 Nov). Final: 0.47 GB with the music, SHA-256 ca4f14c4….
+- [x] A 30–60 s gameplay video at 1920x1080 or higher, uploaded by the owner. Filmed and cut with `Tools/video_capture.sh` and `Tools/video_edit.py` (final cut list of 15 Nov, `docs/ship/video.md`); the upload is still to do. Re-filmed with the final UI and uploaded: https://www.youtube.com/watch?v=lo9zXlSoQFE.
+- [x] Codex produces the cover image and screenshots are captured for the itch pages. Key art banner with the title in both sizes (7374d38); screenshots from the packaged build with `Tools/itch_shots.sh` (JPEG copies for itch's 3 MB limit). Retake them from the final build. Final screenshots: `Saved/ItchShots/final/`.
+- [x] Two itch pages: one for the MegaJam (frozen), one for Game Off. Drafts: `docs/ship/itch-megajam.md` and `docs/ship/itch-gameoff.md`, with `.html` copies to paste. MegaJam page published (https://inventivetalent.itch.io/leafline-megajam); the Game Off page is next.
+- [x] Submission form: full name and Epic account email, game name, video link, dev log link, tools used, sourced assets list, and the note about the earlier prototype (see `devlog.md`). Draft: `docs/ship/submission-form.md`.
 - [x] Owner chooses a licence: MIT (15 Nov). `LICENSE` added; `README.md` copied from `docs/ship/README-draft.md` (its URL placeholders are filled once the pages exist).
-- [ ] Owner says yes, then make the GitHub repo public and add its link to the Game Off page. Do this **before** submitting, because the dev log link must open for the judges. If the repo stays private, post the dev log on the itch page instead.
-- [ ] No trademarks or logos anywhere except the Unreal Engine logo.
-- [ ] **The owner submits to both jams in person by 23:00 CET at the latest** (the MegaJam's own deadline is Mon 16 Nov 02:59). Agents must not submit (MegaJam rules §17).
-- [ ] Tag the commit `megajam-submission`.
+- [x] Owner says yes, then make the GitHub repo public and add its link to the Game Off page. Do this **before** submitting, because the dev log link must open for the judges. If the repo stays private, post the dev log on the itch page instead. Public since 15 Nov ~21:35 (the owner flipped it).
+- [x] No trademarks or logos anywhere except the Unreal Engine logo.
+- [x] **The owner submits to both jams in person by 23:00 CET at the latest** (the MegaJam's own deadline is Mon 16 Nov 02:59). Agents must not submit (MegaJam rules §17).
+- [x] Tag the commit `megajam-submission`. On 9a98dd5, the final package's commit.
+  - MegaJam: submitted by the owner on Sun 15 Nov, about 22:08. Game Off: still to submit (deadline Tue 1 Dec 22:37).
 
 ## After the MegaJam (to 1 Dec)
 

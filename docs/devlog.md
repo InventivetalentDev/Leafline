@@ -130,3 +130,5 @@ Leafline is made by one person directing AI agents. Claude (Anthropic) does plan
 - The jam video was filmed in the game with scripted shots, its sound recorded in a second real-time run, and cut together by a script: 46 seconds.
 - A docs pass made the design, plan, technical notes and ship pages agree with what ships, and checked the console command list against the code.
 - The Linux environment (WSL) the agents run in ran out of memory twice: after a crash every agent session restarts at once, and an audio-analysis tool loading its models on top pushed it over. The memory cap was raised, and the scripts the agents rely on now live on the project drive, so a crash no longer wipes them.
+- Late additions: Cookiehero's calmer panels, title card, hint panels and menu button; Codex's nine HUD icons; the exact screen-direction controls; iCeeker's playtest fixes; panels at 80% opacity. The video was re-filmed with the final UI.
+- Submitted to the Epic AI MegaJam at about 22:08 (tag `megajam-submission`, the zip of 9a98dd5). The repository is public.
