@@ -2,11 +2,11 @@
 # release_build.sh: package the submission build from this checkout and check it, in one go.
 #
 #   Tools/release_build.sh                  # the real thing: refuses uncommitted changes and debug flags left on
-#   DEV=1 Tools/release_build.sh            # a trial run: allows uncommitted changes and the debug flags
+#   DEV=1 Tools/release_build.sh            # a trial run: allows uncommitted changes and the build line
 #   Tools/release_build.sh --check [zip]    # only the fresh-folder test, on a zip (default Build/inventivetalent_Leafline.zip),
 #                                           #   e.g. the zip downloaded back from the itch page; prints its SHA-256
 #
-# Steps: preflight (tree clean, flags off, nobody playing, editor closed, disk) -> editor build -> package -> zip
+# Steps: preflight (tree clean, build line off, nobody playing, editor closed, disk) -> editor build -> package -> zip
 # (the previous zip moves to Build/archive/) -> frame rates (Tools/perf_packaged.sh) -> twenty unattended days from a
 # fresh folder with spaces in its path, starting with no save -> report.
 # Everything lands in Saved/Release/<commit>-<time>/: report.md, the build, package and test logs.
@@ -136,7 +136,8 @@ if [ -n "$DIRTY$UNTRACKED" ]; then
 else note "tree clean"; fi
 BL=$(ini_value /Script/AntTreeGame.LeaflineHUD bShowBuildLine)
 IV=$(ini_value /Script/AntTreeGame.LeaflinePlayerController bInputVizKey)
-for pair in "bShowBuildLine:$BL" "bInputVizKey:$IV"; do
+note "bInputVizKey=${IV:-unset (code default True)} (F3 input view; the owner keeps it in, 15 Nov)"
+for pair in "bShowBuildLine:$BL"; do
 	k=${pair%%:*}; v=${pair#*:}
 	if [ "$v" = False ]; then note "$k=False"
 	elif [ "${DEV:-0}" = 1 ]; then note "$k=${v:-unset (code default True)}, allowed (DEV=1)"

@@ -65,12 +65,12 @@ py Tools\zip_build.py                          # from Windows
 
 ```
 Tools/release_build.sh                  # the submission build
-DEV=1 Tools/release_build.sh            # a trial: allows uncommitted changes and the debug flags
+DEV=1 Tools/release_build.sh            # a trial: allows uncommitted changes and the build line
 Tools/release_build.sh --check [zip]    # only the fresh-folder test, e.g. on the zip downloaded back from itch
 DAYS=2 Tools/release_build.sh --check   # a short trial of the fresh-folder test
 ```
 
-1. **Preflight.** It refuses uncommitted changes (the build line would say `+dirty`), untracked files under `Source/`, `Config/`, `Content/` or `Plugins/`, `bShowBuildLine` or `bInputVizKey` not `False` in `Config/DefaultGame.ini`, an editor open on this project, and less than 8 GB free on D:. It waits while someone plays: a packaged or `-game` run without `-RenderOffscreen`.
+1. **Preflight.** It refuses uncommitted changes (the build line would say `+dirty`), untracked files under `Source/`, `Config/`, `Content/` or `Plugins/`, `bShowBuildLine` not `False` in `Config/DefaultGame.ini` (the F3 input view, `bInputVizKey`, stays in by the owner's decision of 15 Nov; the report notes its value), an editor open on this project, and less than 8 GB free on D:. It waits while someone plays: a packaged or `-game` run without `-RenderOffscreen`.
 2. **Build.** It runs the editor build and `Scripts/package_win64.bat` through the Unreal lock, retrying while Live Coding or another run holds them. Before packaging it waits until no run is using `Build/Windows`.
 3. **Zip.** It moves the previous zip to `Build/archive/` and runs `Tools/zip_build.py`. It stops with exit code 3 at 1 GB or more and records the zip's SHA-256.
 4. **Frame rates.** It runs `Tools/perf_packaged.sh` and records the lock holders, because a concurrent run lowers the figures.

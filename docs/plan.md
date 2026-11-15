@@ -277,9 +277,9 @@ Agents in herdr tab `sat`; the main session merges, builds materials and imports
 
 ## M7: Ship (Sunday)
 
-- [ ] Set `bShowBuildLine=False` under `[/Script/AntTreeGame.LeaflineHUD]` in `Config/DefaultGame.ini` (the faint build and position line), alongside `bInputVizKey=False`.
+- [ ] Set `bShowBuildLine=False` under `[/Script/AntTreeGame.LeaflineHUD]` in `Config/DefaultGame.ini` (the faint build and position line). `Tools/release_build.sh` refuses to package while it is on.
 - [ ] Bug fixing from Saturday's playtest.
-- [ ] Before the final package: `bInputVizKey=False` in `Config/DefaultGame.ini` (the F3 input view stays out of players' reach; `Leaf.InputViz` remains as a console command).
+- [x] F3 input view: stays in the submission build (owner, 15 Nov: obscure enough that players won't stumble on it; useful for testing). `bInputVizKey=True`.
 - [ ] Final packaged Windows **development** build. Run it from a path with spaces and from a fresh folder.
 - [ ] Zip as `inventivetalent_Leafline.zip`; confirm it is under 1 GB.
 - [ ] Owner records a 30–60 s gameplay video at 1920x1080 or higher and uploads it.
