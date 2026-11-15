@@ -126,6 +126,27 @@
   - Done: in the 18:25 candidate.
 
 
+## Friend A's playtest (received 15 Nov, 19:50)
+
+Their notes, triaged on ship day. Tonight = quick fixes for the submission build (bd-core, branch `fbfix`); v2 = the Game Off version.
+
+- [ ] Tonight: the gust prompt shows even without a piece ("no reason to grip").
+- [ ] Tonight: one ant was blown off, but the end of the day said all got home.
+- [ ] Tonight: "upgrade costs contain decimals" (the nest showed "Leaf to spend: 7.6" beside whole-number costs).
+- [ ] Tonight: "the worker upgrade doesn't provide more workers?" (Brood adds recruits; the Brood row should show the count).
+- [ ] Tonight: camera look speed too slow by default.
+- [ ] Tonight: routes from the previous day show up the next day (check whether intended).
+- [ ] v2: the ant needs an idle animation.
+- [ ] v2: wind should affect the ant even without a leaf.
+- [ ] v2: no point going past the first layer of branches; make the upper tree relevant (the climb curve of 15 Nov helps; not judged by them yet).
+- [ ] v2: on branches the ant gets forced along ways the player doesn't want; controls feel terrible at trunk-to-branch transitions.
+- [ ] v2: exploring is punished: recruits follow the whole wandering path instead of a short route.
+- [ ] v2: the treetop looks weird; tree shadows make no sense.
+- [ ] v2: the way up gets boring by the third time.
+- [ ] v2: unclear whether wind direction matters, and how to avoid the bird; the bird feels strong but can't be fought.
+- [ ] v2: cutting feels unchallenging and the cut upgrade pointless.
+- [ ] v2: more interaction layers: hide in holes or behind smaller parts during gusts, a nightfall time limit, new opponents each day.
+
 ## notes for v2
 - [ ] "drop your piece to distract the bird" can't happen in practice if you're always sending your ant to go back on its own; could force walking back to the main trunk before the auto option is available
 - [ ] could make the bird target yesterday's (or previous trips') branches as an incentive to climb higher up
