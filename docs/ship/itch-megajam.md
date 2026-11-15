@@ -61,6 +61,7 @@ Button prompt icons: ["Xelu's FREE Controller Prompts"](https://thoseawesomeguys
 ## Credits and links
 
 - Made by inventivetalent
+- UI art (panels): [Cookiehero](https://cookiehero.itch.io/)
 - Playtesting and design feedback: [FRIEND A]
 - Dev log: [DEV LOG URL]
 - Game Off version: [GAME OFF PAGE URL]

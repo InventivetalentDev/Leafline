@@ -64,6 +64,7 @@ Sounds and HUD icons load at runtime from `Content/Leafline/AudioRaw/` and `Cont
 One person directed AI agents to make the game. Most of the code is written by AI, and the concept and key art are AI-generated.
 
 - Made by inventivetalent
+- UI art (panels): [Cookiehero](https://cookiehero.itch.io/)
 - Playtesting and design feedback: [FRIEND A]
 - Claude (Anthropic): planning and most of the programming, including driving the Unreal editor through Epic's Model Context Protocol plugin
 - Codex (OpenAI): concept and key art, code reviews and some programming

@@ -86,6 +86,7 @@ This game is also my entry for the Epic AI MegaJam, whose page stays as it was s
 ## Credits and links
 
 - Made by inventivetalent
+- UI art (panels): [Cookiehero](https://cookiehero.itch.io/)
 - Playtesting and design feedback: [FRIEND A]
 - Dev log: [DEV LOG URL]
 - Epic AI MegaJam version: [MEGAJAM PAGE URL]

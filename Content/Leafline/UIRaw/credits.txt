@@ -5,7 +5,10 @@
 # Leafline
 A game by inventivetalent
 
-; Owner, 15 Nov: no UI art credit in the MegaJam build. Friend A is credited only once their feedback comes in:
+# UI art
+Cookiehero (cookiehero.itch.io)
+
+; Friend A is credited once the owner gives the name (their feedback came in on 15 Nov):
 ; then remove the ";" from the next two lines and put the name in place of the brackets.
 ; # Playtesting and design feedback
 ; [FRIEND A]

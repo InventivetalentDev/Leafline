@@ -30,7 +30,7 @@
 
 **Pre-jam content list** (private):
 
-> Game content: none. The project was created on 12 November 2026 and all game content was made from then on, except the CC0 button prompt icons ("Xelu's FREE Controller Prompts" by Nicolae (Xelu) Berbece, updated by Paul Paun, https://thoseawesomeguys.com/prompts/), which are a sourced asset.
+> Game content: none. The UI panels were painted for the game on 15 November 2026 by the artist Cookiehero (credited; she used AI tools only for research, not for the images). The project was created on 12 November 2026 and all game content was made from then on, except the CC0 button prompt icons ("Xelu's FREE Controller Prompts" by Nicolae (Xelu) Berbece, updated by Paul Paun, https://thoseawesomeguys.com/prompts/), which are a sourced asset.
 >
 > Made before 12 November:
 > - An earlier prototype of a tree-climbing ant game (1 and 2 November, a separate project). No files from it are used: no code, assets, materials or models. What carried over is knowledge: my idea notes (docs/concept-main.md in the repository, unchanged) and workflow and engine lessons from the prototype's notes. The planning agent read those notes, its commit list and its file listing, not its source code.

@@ -1,5 +1,7 @@
 # UI skin: panel and button images for Leafline
 
+**Shipped (15 Nov):** Cookiehero's panels, `Content/Leafline/UIRaw/` (`Panel_Card`, `Panel_Group`, `Panel_GroupCenter` and `skin.txt`); originals and their notes in `Art/UI/cookiehero/`.
+
 Leafline draws its menus and HUD in code. Every panel background and menu button can instead come from an image you
 paint in any program. Each image is optional: anything missing keeps today's flat dark panel, so you can deliver one
 image at a time.
