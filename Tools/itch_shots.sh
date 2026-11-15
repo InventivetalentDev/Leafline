@@ -114,4 +114,11 @@ for i, f in enumerate(files):
     sheet.paste(im, ((i % cols) * w, (i // cols) * h))
 sheet.save(os.path.join(out, 'sheet.jpg'), quality=88)
 print('%d shots, sheet: %s' % (len(files), os.path.join(out, 'sheet.jpg')))
+# itch.io takes screenshots up to 3 MB, and these PNGs are 2.5-3.1 MB: JPEG copies for the upload (quality 92, full
+# colour resolution, about 0.3-0.6 MB each; Pillow writes no metadata).
+os.makedirs(os.path.join(out, 'jpg'), exist_ok=True)
+for f in files:
+    Image.open(os.path.join(out, f)).convert('RGB').save(os.path.join(out, 'jpg', f[:-4] + '.jpg'), 'JPEG', quality=92,
+        optimize=True, progressive=True, subsampling=0)
+print('JPEG copies for itch (3 MB limit): %s' % os.path.join(out, 'jpg'))
 EOF
