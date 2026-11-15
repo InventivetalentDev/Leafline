@@ -7,8 +7,8 @@ Ordered work from an empty template to two jam submissions. Read `design.md` (wh
 | Point | Time (CET) |
 |---|---|
 | Planning finished | Thu 12 Nov, late morning |
-| **Feature freeze** | **Sat 14 Nov 23:00** |
-| **Our submission deadline** | **Sun 15 Nov 22:00** |
+| **Feature freeze** | **Sat 14 Nov 23:00**, moved to Sunday by the owner |
+| **Our submission deadline** | **Sun 15 Nov 23:00 at the latest** (owner, 15 Nov evening; was 22:00) |
 | MegaJam hard deadline | Mon 16 Nov 02:59 |
 | Game Off hard deadline | Tue 1 Dec 22:37 |
 
