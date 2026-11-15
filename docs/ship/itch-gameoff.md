@@ -1,6 +1,6 @@
 # itch page text: Game Off 2026
 
-<!-- Owner: fill the bracketed placeholders. Keep or delete the two bird lines after the 20:00 decision. This page can keep getting dated updates until Tue 1 Dec 2026, 22:37 CET; the MegaJam page stays frozen. -->
+<!-- Owner: fill the bracketed placeholders. This page can keep getting dated updates until Tue 1 Dec 2026, 22:37 CET; the MegaJam page stays frozen. -->
 
 **Title:** Leafline
 **Short description:** You're a leafcutter ant on a giant tree. Send your loaded ant home and shift to the next worker.
