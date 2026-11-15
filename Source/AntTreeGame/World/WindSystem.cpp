@@ -8,6 +8,7 @@
 #include "UObject/ConstructorHelpers.h"
 #include "EngineUtils.h"
 #include "Audio/LeafSound.h"
+#include "Misc/App.h"
 #include "Kismet/KismetMaterialLibrary.h"
 #include "Materials/MaterialParameterCollection.h"
 #include "World/WindCues.h"
@@ -56,7 +57,6 @@ void AWindSystem::BeginPlay()
 	UE_LOG(LogLeafline, Log, TEXT("Wind ambience: calm %.2f -> %.2f, rustle %.2f -> %.2f, gust 0 -> %.2f, pad %.2f (loops calm %d, gust %d, rustle %d, pad %d)"),
 		Tuning.CalmVolume, Tuning.CalmVolumeGust, Tuning.RustleVolume, Tuning.RustleVolumeGust, Tuning.GustVolume, Tuning.PadVolume,
 		CalmLoop != nullptr, GustLoop != nullptr, RustleLoop != nullptr, PadLoop != nullptr);
-	UpdateMusic();
 	// In-world cues (gust front, the ant's own air, grip dust): a separate actor so this one stays as it was.
 	FActorSpawnParameters CueParams;
 	CueParams.Owner = this;
@@ -66,6 +66,7 @@ void AWindSystem::BeginPlay()
 void AWindSystem::StartDay(int32 InDay, int32 Seed, float InForceScale, int32 InRampDay, float InYaw)
 {
 	Day = FMath::Max(1, InDay);
+	bMusicDayKnown = true; // the music follows the day; its track changes here only (UpdateMusic)
 	RampDay = InRampDay > 0 ? InRampDay : Day;
 	ForceScale = InForceScale;
 	Clock = 0.f; // the day's wind must not depend on how long the menus before it were open
@@ -114,27 +115,47 @@ void AWindSystem::TriggerGust(float Peak)
 	GustPeak = Keep;
 }
 
-void AWindSystem::UpdateMusic()
+void AWindSystem::UpdateMusic(float DeltaTime)
 {
-	const FName Want = Tuning.bMusic ? Tuning.MusicSound : NAME_None;
+	// Real time, so a fade takes as long whatever the game's speed; capped so a hitch does not skip a fade.
+	const float Dt = FMath::Min(DeltaTime, 0.1f);
+	if (!bMusicDayKnown) MusicWait += Dt;
+	const int32 NumTracks = Tuning.MusicSounds.Num();
+	const int32 Track = NumTracks > 0 ? (FMath::Max(1, Day) - 1) % NumTracks : -1;
+	const bool bReady = bMusicDayKnown || MusicWait > 2.f;
+	const FName Want = (Tuning.bMusic && bReady && Track >= 0) ? Tuning.MusicSounds[Track] : NAME_None;
+	const float Step = Dt / FMath::Max(0.05f, Tuning.MusicFadeSeconds);
 	if (Want != MusicLoopSound)
 	{
+		// Fade the old track out first, then start the new one from silence.
+		if (MusicLoop && MusicGain > 0.f)
+		{
+			MusicGain = FMath::Max(0.f, MusicGain - Step);
+			MusicLoop->SetVolume(Tuning.MusicVolume * MusicGain);
+			return;
+		}
 		if (MusicLoop) MusicLoop->Stop();
 		MusicLoop = nullptr;
 		MusicLoopSound = Want;
+		MusicGain = 0.f;
 		if (!Want.IsNone())
 		{
-			MusicLoop = LeafSound::Loop(this, *Want.ToString(), Tuning.MusicVolume);
-			UE_LOG(LogLeafline, Log, TEXT("Music: %s at %.2f, pad %.2f, calm %.3f, rustle %.3f (loaded %d)"), *Want.ToString(), Tuning.MusicVolume,
+			MusicLoop = LeafSound::Loop(this, *Want.ToString(), 0.f);
+			UE_LOG(LogLeafline, Log, TEXT("Music: day %d plays %s (track %d of %d) at %.2f, pad %.2f, calm %.3f, rustle %.3f (loaded %d)"),
+				Day, *Want.ToString(), Track + 1, NumTracks, Tuning.MusicVolume,
 				MusicLoop ? Tuning.PadVolumeWithMusic : Tuning.PadVolume, MusicLoop ? Tuning.CalmVolumeWithMusic : Tuning.CalmVolume,
 				MusicLoop ? Tuning.RustleVolumeWithMusic : Tuning.RustleVolume, MusicLoop != nullptr);
 		}
-		else
+		else if (Tuning.bMusic == false || NumTracks == 0)
 		{
 			UE_LOG(LogLeafline, Log, TEXT("Music: off, pad %.2f"), Tuning.PadVolume);
 		}
 	}
-	if (MusicLoop) MusicLoop->SetVolume(Tuning.MusicVolume);
+	else if (MusicLoop)
+	{
+		MusicGain = FMath::Min(1.f, MusicGain + Step);
+	}
+	if (MusicLoop) MusicLoop->SetVolume(Tuning.MusicVolume * MusicGain);
 	if (PadLoop) PadLoop->SetVolume(MusicLoop ? Tuning.PadVolumeWithMusic : Tuning.PadVolume);
 }
 
@@ -143,7 +164,7 @@ void AWindSystem::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 	if (!bExternalClock) Advance(DeltaTime);
 
-	UpdateMusic();
+	UpdateMusic(FApp::GetDeltaTime());
 	const bool bMusicPlaying = MusicLoop != nullptr;
 	const float CalmBase = bMusicPlaying ? Tuning.CalmVolumeWithMusic : Tuning.CalmVolume;
 	const float RustleBase = bMusicPlaying ? Tuning.RustleVolumeWithMusic : Tuning.RustleVolume;

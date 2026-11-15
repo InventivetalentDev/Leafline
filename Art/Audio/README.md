@@ -1,7 +1,7 @@
 # Leafline audio
 
 All files are synthesised by `Tools/audio/make_audio.py` (numpy only, fixed per-sound seeds):
-`uv run --with numpy python Tools/audio/make_audio.py`. 48 kHz, 16-bit; stereo for wind, rustle and pad, mono otherwise.
+`uv run --with numpy python Tools/audio/make_audio.py`. The music (`music_a/b/c.wav`) comes from `Tools/audio/make_music.py Art/Audio --game` (played at volume 0.25, one track per day). 48 kHz, 16-bit; stereo for wind, rustle and pad, mono otherwise.
 Tonal material shares one key (C major). Loops are built with circular spectral filtering and integer-cycle partials, so the join is seamless by construction (seam sample step checked, no outlier). One-shots start and end at 0.
 Readings are earshot `measure` (peak dBFS, integrated LUFS) and `match` (z >= 3 strong, 2-3 weak, < 2 no match). "not matched" means no semantic reading was taken.
 
@@ -27,6 +27,9 @@ Readings are earshot `measure` (peak dBFS, integrated LUFS) and `match` (z >= 3 
 | `milestone.wav` | Fuller chime, C-major chord | 3400 ms | one-shot | -7.0 | -20.6 | not matched |
 | `day_end.wav` | Calm descending phrase G-E-D-C over chord | 4000 ms | one-shot | -10.0 | -21.3 | not matched |
 | `ambient_pad_loop.wav` | Cadd9 pad, stereo, 48 s | 48000 ms | loop | -14.0 | -25.8 | match 'soft warm ambient pad': strong, z +3.3 (rank #2/322) |
+| `music_a.wav` | Music, day 1, 4, 7 ...: golden pads, warm pad chords in C, stereo, `make_music.py` option A | 64000 ms | loop | -8.5 | -20.0 | describe: 'a warm analog synth pad' z +4.1, 'ambient synth pad music' z +3.8, 'a singing bowl' +2.6; LRA 1.7 LU; no harsh tags; loop point: no onset within 100 ms; ab vs ambient_pad_loop on 'calm warm ambient music' z +2.0 (pad +1.7) |
+| `music_b.wav` | Music, day 2, 5, 8 ...: kalimba drift, sparse pentatonic plucks over a low drone, stereo, option B | 72000 ms | loop | -6.4 | -20.0 | describe: 'a music box melody' z +3.2, 'a singing bowl' +3.05, 'a glockenspiel run' +2.9; LRA 8.6 LU; no harsh tags; loop point: no onset within 250 ms |
+| `music_c.wav` | Music, day 3, 6, 9 ...: music-box arpeggio with soft bass, 72 BPM, 3-bar phrases, stereo, option C | 80000 ms | loop | -8.7 | -20.0 | describe: 'a music box melody' z +3.05, 'a glockenspiel run' +2.9, 'a singing bowl' +2.75; LRA 3.0 LU; no harsh tags; the loop point is a phrase start like the 7 inside the loop (its note +8.7 dB over the bed; at 40 s +15.6 dB), no click |
 | `step_01.wav` | Ant foot tick on bark | 30 ms | one-shot | -27.1 | n/a (short) | step_01 match 'tiny dry tick, footstep on bark': weak z +2.4; nearest 'a soft key release click' z +2.9 |
 | `step_02.wav` | Ant foot tick on bark | 30 ms | one-shot | -26.3 | n/a (short) | same recipe, varied seed |
 | `step_03.wav` | Ant foot tick on bark | 30 ms | one-shot | -27.0 | n/a (short) | same recipe, varied seed |
