@@ -261,6 +261,10 @@ FVector UAntMovementComponent::ComputeWish(const FVector& N) const
 float UAntMovementComponent::MakeExactScreenBasis(const FVector& N, const FVector& Axis, FVector& OutFwd, FVector& OutRight) const
 {
 	OutFwd = OutRight = FVector::ZeroVector;
+	// Only on bark that faces the camera: seen through the cutaway from behind, "right on screen" is the opposite turn
+	// round the branch, and a fresh press there would reverse an orbit. The fit is already 0 at the silhouette, so the
+	// hand-over to the old rule is continuous.
+	if (FVector::DotProduct(N, bHasCamPos ? FVector(CamPos - Pos) : -CamForward) <= 0.0) return 0.f;
 	const FVector CamRightV = FVector::CrossProduct(CamUp, CamForward);
 	// Two unit tangent directions at the ant: along the branch (or screen-up on the bark) and across it.
 	FVector T1 = Axis.IsNearlyZero() ? FVector::ZeroVector : ProjectOnPlane(Axis, N);
@@ -291,12 +295,14 @@ float UAntMovementComponent::MakeExactScreenBasis(const FVector& N, const FVecto
 	const double Det = A * D - B * C;
 	const double Longer = FMath::Max(I1.SizeSquared(), I2.SizeSquared());
 	if (Longer < 1e-8) return 0.f;
-	const double Fit = FMath::Abs(Det) / Longer;
-	if (Fit < 1e-4) return 0.f;
+	if (FMath::Abs(Det) / Longer < 0.005) return 0.f; // edge-on: no inverse
 	OutFwd = ((-B * T1 + A * T2) / Det).GetSafeNormal();
 	OutRight = ((D * T1 - C * T2) / Det).GetSafeNormal();
 	if (OutFwd.IsNearlyZero() || OutRight.IsNearlyZero()) return 0.f;
-	return (float)Fit;
+	// The fit: the sine of the angle between W and D on the bark. Foreshortening alone keeps them square (a camera low
+	// over the bark still gets W = away, D = sideways); a rolled, grazing view folds D toward W (toward or away from the
+	// camera), and there the old rule takes over.
+	return (float)FMath::Abs(FVector::DotProduct(FVector::CrossProduct(OutFwd, OutRight), N));
 }
 
 void UAntMovementComponent::MakeScreenBasis(const FVector& N, const FVector& Axis, FVector& OutFwd, FVector& OutRight, int32 Mode) const

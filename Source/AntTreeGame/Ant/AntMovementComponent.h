@@ -93,11 +93,10 @@ struct FAntMoveTuning
 	 *  inverted), instead of the branch-on-screen rule and the "away counts as up" weights. Where the bark is seen nearly
 	 *  edge-on the inverse is unstable, so it blends back to the old rule (see ExactMinFit). Leaf.Tune move bExactScreenDir True. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") bool bExactScreenDir = false;
-	/** Exact screen direction: how well the bark at the ant is seen, |det| / (longer image)^2 of two unit tangent
-	 *  directions on screen (about the sine of the view's angle to the bark): the old rule under ExactMinFit, the exact
-	 *  mapping over ExactFullFit, blended between. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") float ExactMinFit = 0.05f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") float ExactFullFit = 0.15f;
+	/** Exact screen direction: the sine of the angle between the exact W and D on the bark (1 = square; a rolled,
+	 *  grazing view folds D toward W): the old rule under ExactMinFit, the exact mapping over ExactFullFit, blended. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") float ExactMinFit = 0.5f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") float ExactFullFit = 0.8f;
 	/** Screen direction: another of along / around must fit the held direction this much better (dot) before the snap changes. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") float SnapStickiness = 0.15f;
 	/** The wheel applies fully on branches up to this radius and fades out by WheelFadeRadius (cm); thicker wood
