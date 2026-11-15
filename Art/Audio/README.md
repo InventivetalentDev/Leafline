@@ -8,7 +8,7 @@ Readings are earshot `measure` (peak dBFS, integrated LUFS) and `match` (z >= 3 
 | File | Purpose | Length | Type | Peak dBFS | LUFS | earshot reading |
 |---|---|---|---|---|---|---|
 | `wind_calm_loop.wav` | Light air through leaves, stereo | 10000 ms | loop | -9.0 | -24.7 | wind bed; match 'gentle breeze through leaves': strong, z +3.2 |
-| `wind_gust_loop.wav` | Strong wind, rumble + whistle, stereo | 10000 ms | loop | -3.5 | -14.8 | loudest bed; match 'strong wind with low rumble and whistling': strong, z +3.7 (rank #1/322) |
+| `wind_gust_loop.wav` | Strong wind, rumble + body + broad 350 Hz-1.5 kHz howl, no whistle (owner, 15 Nov), stereo | 10000 ms | loop | -2.5 | -15.5 | loudest bed; describe: 'a gust of wind rushing past' z +3.4 (strong), no siren or kettle tags (the old sine-whistle version read 'a police siren' z +3.1, 'a kettle whistling' z +2.5); ab vs old: 'a whistling wind' z +2.4 (old +3.0) |
 | `gust_warning.wav` | Rising swell before a gust | 2600 ms | one-shot | -8.0 | -18.8 | not matched (no reading taken) |
 | `leaves_rustle_loop.wav` | Canopy rustle, stereo | 10000 ms | loop | -12.0 | -34.2 | WEAK: match 'rustling leaves' z +2.5 (was +1.8; plausible); nearest 'a small animal running through grass' z +2.5 |
 | `cut_loop.wav` | Mandible sawing on leaf | 1500 ms | loop | -10.0 | -21.6 | match 'rasping sawing through a leaf' z +2.6 (was +1.0; plausible, rank #5/322); nearest 'a snare roll' z +3.3 |
