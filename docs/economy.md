@@ -28,7 +28,7 @@ All five upgrades have six purchasable levels. Costs for levels 1–6 are **14 /
 | Strength, carry-penalty multiplier | 1 | 0.75 | 0.55 | 0.4 | 0.3 | 0.22 | 0.16 |
 | Grip, hold multiplier | 1 | 1.25 | 1.5 | 1.8 | 2.15 | 2.55 | 3 |
 | Stamina, sprint-drain multiplier | 1 | 0.8 | 0.65 | 0.5 | 0.4 | 0.32 | 0.25 |
-| Brood, shared recruit pool | 0 | 2 | 3 | 4 | 6 | 8 | 10 |
+| Brood, shared recruit pool | 2 | 3 | 4 | 6 | 8 | 10 | 12 |
 
 With one tree off, lifetime-haul milestones are **20 / 95 / 240** with recruits and **5 / 30 / 80** by hand. The separate one-tree sets are described below. Spending never reduces lifetime haul. Scouts remain three per day at every Brood level. High upgrade levels remain available after the end card; a fresh campaign does not need to max them.
 

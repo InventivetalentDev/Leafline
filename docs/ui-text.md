@@ -89,7 +89,7 @@ The text version (`DrawDayInfo`, `Leaf.HudIcons 0`) and the icon version (`DrawW
 
 | Old | New | Why |
 |---|---|---|
-| "Line 2 here: about 9 pieces, rich ×1.2" | "About 9 pieces on these leaves, each worth more" | No internal terms ("line", "here" for the patch, "rich ×"). "These leaves" points at the faint outlines drawn on the patch. The value word follows [Leaf value](#leaf-value). The text keeps the next trail's colour. It promises nothing about recruits, because a fresh save has none (Brood 0) and the read-out shows anyway. |
+| "Line 2 here: about 9 pieces, rich ×1.2" | "About 9 pieces on these leaves, each worth more" | No internal terms ("line", "here" for the patch, "rich ×"). "These leaves" points at the faint outlines drawn on the patch. The value word follows [Leaf value](#leaf-value). The text keeps the next trail's colour. It promises nothing about recruits, because they may be busy on other trails (and with recruits off there are none), and the read-out shows anyway. |
 | (one leaf in the patch) | "About 3 pieces on this leaf" | Singular when the patch is a single leaf. |
 | (one piece) | "1 piece left on these leaves" | No "about 1 pieces". |
 | "Stripped. Fresh leaves are higher up." | "No leaf left here. Climb higher for fresh leaves." | "Stripped." alone read like a status code. Now it says what to do. |
@@ -131,6 +131,7 @@ The text version (`DrawDayInfo`, `Leaf.HudIcons 0`) and the icon version (`DrawW
 |---|---|---|
 | "Climb the trunk: the leaves start about 26 m up" | keep | |
 | "Your first worker walks home on its own. Hold {Follow} on the cyan trail to ride it up" | keep | Trail 1 is cyan, so this stays true. |
+| (new, 15 Nov) day 1, second worker, while recruits are out on the first trail | "Your first worker walks home on its own, and recruits follow its trail to fetch pieces. Hold {Follow} on the cyan trail to ride it up" | A new colony has two recruits from day 1. This is where the player first sees them, so it says what they do; without recruits (Leaf.Recruits 0) the line above shows instead. |
 | "A bird hunts on the wind. Stay off the red, grip when it dives, or drop your piece in the open to draw it away." | "A bird is out today. It swoops at ants carrying pieces on exposed bark: stay off the red, grip when it dives, or drop your piece in the open to draw it away." | "Hunts" suggests the bird eats ants (teen rating, nothing that reads as cruelty). Now says who it goes for and why red matters. |
 | (bait off) "A bird hunts on the wind. Stay off the red, or grip when it dives." | "A bird is out today. It swoops at ants carrying pieces on exposed bark: stay off the red, or grip when it dives." | Same. |
 
@@ -195,7 +196,7 @@ The text version (`DrawDayInfo`, `Leaf.HudIcons 0`) and the icon version (`DrawW
 | Strength: "Reduce carry slowdown." | "Big pieces slow you down less." | Plain words instead of a stat name. |
 | Grip: "Withstand stronger gusts." | "Hold on in stronger gusts (recruits too)." | Plainer. Affects recruits too. |
 | Stamina: "Reduce sprint stamina drain." | "Sprint for longer." | |
-| Brood: "More recruits to work your lines." | "More recruits to fetch pieces along your trails." | No "lines". On a fresh save this is where recruits are first met, so it says what they do. |
+| Brood: "More recruits to work your lines." | "More recruits to fetch pieces along your trails." | No "lines". A new colony already has two recruits (they are first met on day 1's first trail, see the day-1 goal); this line says what more of them do. |
 | upgrade names, "Cost 40", "Max", "Start day 4", "Start day 4 on a new tree" | keep | |
 | "{Choose}: choose      {Confirm}{orclick}: buy or start      {Back}: start the next day" | keep | |
 

@@ -257,7 +257,11 @@ void ALeaflineHUD::DrawHUD()
 		}
 		else if (D->GetDay() == 1 && Ant->GetWorkerIndex() == 1 && !Ant->IsCarrying() && M && M->GetState() == EAntState::Walking)
 		{
-			Goal = TEXT("Your first worker walks home on its own. Hold {Follow} on the cyan trail to ride it up");
+			// A new colony has recruits from day 1: they set out along the first trail while this goal shows.
+			const bool bRecruitsOut = D->AreRecruitsOn() && Lines && (Lines->NumOut() > 0 || Lines->TripsLeft() > 0);
+			Goal = bRecruitsOut
+				? TEXT("Your first worker walks home on its own, and recruits follow its trail to fetch pieces. Hold {Follow} on the cyan trail to ride it up")
+				: TEXT("Your first worker walks home on its own. Hold {Follow} on the cyan trail to ride it up");
 		}
 		if (!Goal.IsEmpty())
 		{

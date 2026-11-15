@@ -30,7 +30,7 @@ EFFECTS = (
     (1, .75, .55, .4, .3, .22, .16),           # Strength
     (1, 1.25, 1.5, 1.8, 2.15, 2.55, 3),       # Grip
     (1, .8, .65, .5, .4, .32, .25),           # Stamina
-    (0, 2, 3, 4, 6, 8, 10),                  # Brood: shared pool
+    (2, 3, 4, 6, 8, 10, 12),                 # Brood: shared pool (level 0: a new colony has two recruits)
 )
 NAMES = ("Mandibles", "Strength", "Grip", "Stamina", "Brood")
 MAX_LEVEL = 6
@@ -94,6 +94,23 @@ GUST_PER_DAY_ON_TREE = 0.06
 BAND_HEIGHT_M = 10.0
 # Observed first leaves; subsequent bands use their absolute lower edge.
 FIRST_LEAF_HEIGHT_M = (32.4, 36.0, 33.0)
+# Highest leaf per tree (LeafSet log lines), for the linear richness curve.
+CROWN_TOP_M = (296.0, 337.0, 405.0)
+# --richness height: richness from the cut height like FLeafSet::Build, 1 + 2 * H * (0.4 + 0.6 * Out) with the mean
+# Out (0.5); H linear over the crown (RICHNESS_HEIGHT_SCALE_M 0) or 1 - exp(-dz / scale). Default "day": the old guess.
+RICHNESS_MODE = "day"
+RICHNESS_HEIGHT_SCALE_M = 0.0
+OUT_MEAN_FACTOR = 0.4 + 0.6 * 0.5
+
+
+def height_richness(stage, height):
+    first = FIRST_LEAF_HEIGHT_M[stage]
+    dz = max(0.0, height - first)
+    if RICHNESS_HEIGHT_SCALE_M > 0:
+        h = 1.0 - math.exp(-dz / RICHNESS_HEIGHT_SCALE_M)
+    else:
+        h = min(1.0, dz / max(1.0, CROWN_TOP_M[stage] - first))
+    return 1.0 + 2.0 * h * OUT_MEAN_FACTOR
 SPARSE_PATCH_LEAVES = (1, 2, 3)
 EXPOSURE_SHARE_PER_METRE = 0.006
 MIN_SHELTERED_SHARE = 0.25
@@ -233,7 +250,8 @@ def simulate_day(day, levels, recruits, line_count=SCOUTS, harvest_factor=HARVES
             wind_day = tree.day_on_tree
             peak = PEAK_DAY_ONE * stage.gust_multiplier * (1 + GUST_PER_DAY_ON_TREE * (wind_day - 1))
         route = (height + LATERAL_ROUTE_M) * ROUTE_DETOUR + GROUND_ROUTE_M
-        value = mass * richness * (stage.richness_multiplier if tree else 1.0)
+        rich = height_richness(tree.stage, height) if (tree and RICHNESS_MODE == "height") else richness
+        value = mass * rich * (stage.richness_multiplier if tree else 1.0)
         home = route / laden_speed
         recruit_trip = route / RECRUIT_OUT_MPS + cut + home / RECRUIT_HOME_MULTIPLIER
         recruit_loss = loss_probability(wind_day, size, grip, recruit_trip, shelter, peak=peak)
@@ -539,10 +557,49 @@ def check_cpp(costs, on, off, tree_on, tree_off):
     print("C++ costs, all four milestone sets, effect ladders, stage defaults and gust rise match.")
 
 
+def report_one_tree_fixed(milestones, costs):
+    """One tree, recruits on, the given milestones: the day table, end day and minutes."""
+    rows = campaign_one_tree(True, costs, milestones)
+    print(f"\nOne tree ON, recruits ON; milestones {milestones} (given); richness {RICHNESS_MODE}"
+          + (f", height scale {RICHNESS_HEIGHT_SCALE_M:g} m" if RICHNESS_MODE == "height" else ""))
+    print("day  tree/day   min   total min    haul  lifetime  cut m  purchases")
+    for row in rows:
+        r = row.result
+        print(f"{row.day:3}  {row.tree.stage + 1:3}/{row.tree.day_on_tree:<3}  {r.seconds / 60:5.2f}  "
+              f"{row.seconds / 60:9.2f}  {r.haul:6.1f}  {row.total:8.1f}  {r.mean_cut_height:5.1f}  "
+              f"{', '.join(row.purchases) or ('end card' if row is rows[-1] else 'save balance')}")
+    days = [sum(row.tree.stage == stage for row in rows) for stage in range(3)]
+    ended = rows[-1].total >= milestones[-1]
+    print(f"Days per tree to end card: {days}; end day {rows[-1].day}{'' if ended else ' (not reached)'}, "
+          f"{rows[-1].seconds / 60:.2f} min.")
+    return rows
+
+
 def main():
+    global RICHNESS_MODE, RICHNESS_HEIGHT_SCALE_M
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check-cpp", action="store_true", help="also verify Upgrades.cpp matches the recommendation")
+    parser.add_argument("--one-tree", action="store_true",
+                        help="only the default game (one tree, recruits on) with today's costs: recommendation, "
+                             "and the --milestones given")
+    parser.add_argument("--milestones", help="one-tree milestones to evaluate, e.g. 25,155,270")
+    parser.add_argument("--richness", choices=("day", "height"), default="day",
+                        help="richness per day (the old guess) or from the cut height like the game")
+    parser.add_argument("--height-scale", type=float, default=0.0,
+                        help="with --richness height: FDayTuning::RichnessHeightScale in metres (0: linear)")
     args = parser.parse_args()
+    RICHNESS_MODE, RICHNESS_HEIGHT_SCALE_M = args.richness, args.height_scale
+    if args.one_tree:
+        costs = (14, 32, 68, 144, 304, 640)
+        print(f"Brood ladder {EFFECTS[4]}; costs {costs}; richness {RICHNESS_MODE}"
+              + (f", height scale {RICHNESS_HEIGHT_SCALE_M:g} m" if RICHNESS_MODE == "height" else ""))
+        try:
+            report_one_tree(True, costs)
+        except AssertionError as error:
+            print(f"(no automatic recommendation: {error})")
+        if args.milestones:
+            report_one_tree_fixed(tuple(float(v) for v in args.milestones.split(",")), costs)
+        return
     candidates = []
     for costs in COST_CANDIDATES:
         on, off = campaign(True, costs), campaign(False, costs)
@@ -553,7 +610,15 @@ def main():
         times_valid = all(TARGET_WINDOW[0] <= end[2] / 60 <= TARGET_WINDOW[1] for end in (end_on, end_off))
         if times_valid and HAUL_GROWTH_WINDOW[0] <= growth <= HAUL_GROWTH_WINDOW[1]:
             candidates.append((score, costs, on, off))
-    assert candidates, "No cost candidate meets both pacing windows and the haul-growth window; retune the inputs."
+    if not candidates:
+        # Recruits from day 1 (Brood level 0 = 2, 15 Nov): the one-tree-off campaign no longer meets its windows with any
+        # cost candidate. One tree is the default game; report its campaigns with today's costs.
+        costs = (14, 32, 68, 144, 304, 640)
+        print("One tree OFF: no cost candidate meets both pacing windows and the haul-growth window with this Brood "
+              f"ladder {EFFECTS[4]}; skipped. One tree ON with today's costs {costs}:")
+        report_one_tree(True, costs)
+        report_one_tree(False, costs)
+        return
     _, costs, on, off = min(candidates, key=lambda candidate: candidate[0])
     for label, rows in (("Recruits ON", on), ("By hand (recruits OFF)", off)):
         end = end_row(rows)
