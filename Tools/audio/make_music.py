@@ -1,7 +1,9 @@
 """Leafline background music options. Pure synthesis (numpy only), fixed seeds, all in C major / C pentatonic.
 Every option is a seamless stereo loop: the buffer is circular (notes that ring past the end wrap to the start,
 sustained tones use windows that are zero at their edges, filters are circular FFT filters).
-Run: uv run --with numpy python Tools/audio/make_music.py <outdir>
+Run: uv run --with numpy python Tools/audio/make_music.py <outdir> [A B C D]   (listening renders and previews)
+     uv run --with numpy python Tools/audio/make_music.py Art/Audio --game  (music_a/b/c.wav for the game; copy them to
+     Content/Leafline/AudioRaw as .wavraw; day 1 plays A, day 2 B, day 3 C, day 4 A again)
 Writes <letter>-<name>.wav (normalised to about -20 LUFS, true peak <= -3 dBTP) and <letter>-preview-with-wind.wav
 (20 s at in-game volumes while the music plays: music 0.25, wind_calm_loop 0.125, leaves_rustle_loop 0.047;
 FWindTuning MusicVolume, CalmVolumeWithMusic, RustleVolumeWithMusic: the calm bed sits about 3.5 dB under its
@@ -267,8 +269,17 @@ def read_st(path):
 def tile(x, n):
     return np.concatenate([x] * (n // len(x) + 1))[:n]
 
+GAME_FILES = {"A": "music_a", "B": "music_b", "C": "music_c"}   # in game: one per day in turn (FWindTuning::MusicSounds)
+
 def main():
-    only = sys.argv[2:] or [o[0] for o in OPTIONS]
+    args = sys.argv[2:]
+    if "--game" in args:  # make_music.py Art/Audio --game: only the in-game files, music_a/b/c.wav
+        os.makedirs(OUT, exist_ok=True)
+        for letter, name, fn in OPTIONS:
+            if letter in GAME_FILES:
+                write_st(os.path.join(OUT, GAME_FILES[letter] + ".wav"), master(fn()))
+        print("done ->", os.path.abspath(OUT)); return
+    only = args or [o[0] for o in OPTIONS]
     os.makedirs(OUT, exist_ok=True)
     wind = read_st(os.path.join(WIND_DIR, "wind_calm_loop.wav")); leaves = read_st(os.path.join(WIND_DIR, "leaves_rustle_loop.wav"))
     for letter, name, fn in OPTIONS:

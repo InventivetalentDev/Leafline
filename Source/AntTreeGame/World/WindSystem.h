@@ -165,15 +165,19 @@ struct FWindTuning
 	 *  CalmVolumeGust / RustleVolumeGust / GustVolume as without music. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound") float CalmVolumeWithMusic = 0.125f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound") float RustleVolumeWithMusic = 0.047f;
-	// Background music (owner, 15 Nov: options from Tools/audio/make_music.py). Off until the owner picks one; picking is
-	// copying that render to Content/Leafline/AudioRaw/<MusicSound>.wavraw and turning bMusic on. A loop like the wind
-	// beds, so it follows the master volume. Leaf.Tune wind bMusic True / MusicSound <file> switch it while playing.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Music") bool bMusic = false;
-	/** File name in Content/Leafline/AudioRaw without .wavraw. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Music") FName MusicSound = TEXT("music_loop");
+	// Background music (owner, 15 Nov: Tools/audio/make_music.py), one track per day: day d plays
+	// MusicSounds[(d - 1) % Num] (A golden pads, B kalimba drift, C music-box arpeggio, then A again), from the colony's
+	// day as the HUD shows it. The track changes only when a day starts (StartDay), with a MusicFadeSeconds fade-out and
+	// fade-in. A loop like the wind beds, so it follows the master volume. Leaf.Tune wind bMusic False turns it off;
+	// Leaf.Tune wind MusicSounds (music_b;music_a;music_c) changes the order (';' for ',').
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Music") bool bMusic = true;
+	/** File names in Content/Leafline/AudioRaw without .wavraw, one per day in turn. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Music") TArray<FName> MusicSounds = { TEXT("music_a"), TEXT("music_b"), TEXT("music_c") };
 	/** The renders are normalised to -20 LUFS; at 0.25 (-12 dB) they play at about -32 LUFS, about 10 dB over the calm
 	 *  wind bed at the with-music volumes (calm wind + rustle -42.5 LUFS; -38.9 at the no-music volumes; earshot). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Music") float MusicVolume = 0.25f;
+	/** Fade-out of the old track, then fade-in of the new one, when the day's track changes (also the first fade-in). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Music") float MusicFadeSeconds = 2.f;
 	/** Gripping pose with the cues on: body height and width scale (claws dug in, legs splayed), and how hard the wind
 	 *  tugs the body downwind (times the wind the ant feels). Before: 0.78 and 1.14, no tug. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueGripSquash = 0.62f;
@@ -272,7 +276,13 @@ private:
 	UPROPERTY(Transient) TObjectPtr<ULeaflineAudioLoop> MusicLoop;
 	/** The music file last started (or tried: a missing file is tried once per name, not every frame). */
 	FName MusicLoopSound;
-	void UpdateMusic();
+	/** 0..1 fade of the playing track. */
+	float MusicGain = 0.f;
+	/** The music waits for the first StartDay (so the title does not start on day 1's track and switch at once);
+	 *  without one (a map with no day director) it starts after 2 s on the default day. */
+	bool bMusicDayKnown = false;
+	float MusicWait = 0.f;
+	void UpdateMusic(float DeltaTime);
 
 	TWeakObjectPtr<ATreeActor> Tree;
 	FRandomStream Rand;
