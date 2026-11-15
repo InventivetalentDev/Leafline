@@ -89,7 +89,7 @@ int32 ULeaflineGameInstance::GetUpgradeCost(int32 Index) const
 bool ULeaflineGameInstance::CanAfford(int32 Index) const
 {
 	const int32 Cost = GetUpgradeCost(Index);
-	return Colony && Cost > 0 && Colony->LeafMass >= Cost;
+	return Colony && Cost > 0 && GetSpendableLeaf() >= Cost;
 }
 
 bool ULeaflineGameInstance::Buy(int32 Index)
@@ -122,6 +122,7 @@ bool ULeaflineGameInstance::AddHaul(float Mass)
 }
 
 float ULeaflineGameInstance::GetLeafMass() const { return Colony ? Colony->LeafMass : 0.f; }
+int32 ULeaflineGameInstance::GetSpendableLeaf() const { return Colony ? FMath::FloorToInt(Colony->LeafMass) : 0; }
 float ULeaflineGameInstance::GetTotalHauled() const { return Colony ? Colony->TotalHauled : 0.f; }
 int32 ULeaflineGameInstance::GetDay() const { return Colony ? Colony->Day : 1; }
 int32 ULeaflineGameInstance::GetBaseSeed() const { return Colony ? Colony->BaseSeed : 1112; }

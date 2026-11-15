@@ -52,7 +52,7 @@ The pause menu lists all controls and has options for sensitivity, volume and gr
 
 ## How it's made
 
-The tree, leaves, forest floor, sky, scent trails and wind are all generated with code and shaders: no textures, no hand-made tree models. Made with Unreal Engine 5.8 by one person directing AI agents (Claude and Codex), which wrote most of the code and made the key art.
+The tree, leaves, forest floor, sky, scent trails and wind are all generated with code and shaders: no textures, no hand-made tree models. Made with Unreal Engine 5.8 by one person directing AI agents (Claude and Codex), which wrote most of the code and made the key art and two HUD icons. The UI panel art is hand-painted by Cookiehero.
 
 The sounds and the three music tracks (one per day: warm pads, kalimba, a music box) are synthesised by Python scripts too.
 
@@ -61,7 +61,7 @@ Button prompt icons: ["Xelu's FREE Controller Prompts"](https://thoseawesomeguys
 ## Credits and links
 
 - Made by inventivetalent
-- UI art (panels): [Cookiehero](https://cookiehero.itch.io/)
+- UI panel art, the frames and backgrounds of the menu screens and the HUD boxes: [Cookiehero](https://cookiehero.itch.io/). The rest of the interface (layout, text, icons, meters) was made with code and AI tools.
 - Playtesting and design feedback: [FRIEND A]
 - Dev log: [DEV LOG URL]
 - Game Off version: [GAME OFF PAGE URL]

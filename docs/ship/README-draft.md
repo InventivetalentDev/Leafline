@@ -64,10 +64,10 @@ Sounds and HUD icons load at runtime from `Content/Leafline/AudioRaw/` and `Cont
 One person directed AI agents to make the game. Most of the code is written by AI, and the concept and key art are AI-generated.
 
 - Made by inventivetalent
-- UI art (panels): [Cookiehero](https://cookiehero.itch.io/)
+- UI panel art, the frames and backgrounds of the menu screens and the HUD boxes: [Cookiehero](https://cookiehero.itch.io/). The rest of the interface (layout, text, icons, meters) was made with code and AI tools.
 - Playtesting and design feedback: [FRIEND A]
 - Claude (Anthropic): planning and most of the programming, including driving the Unreal editor through Epic's Model Context Protocol plugin
-- Codex (OpenAI): concept and key art, code reviews and some programming
+- Codex (OpenAI): concept and key art, the ant and leaf HUD icons, code reviews and some programming
 - Unreal Engine 5.8, Blender 5.1, Python
 
 The button prompt icons are ["Xelu's FREE Controller Prompts"](https://thoseawesomeguys.com/prompts/) by Nicolae (Xelu) Berbece, updated by Paul Paun, CC0 1.0. They're the only content in the game that wasn't made for it ([`docs/sourced-assets.md`](docs/sourced-assets.md)).

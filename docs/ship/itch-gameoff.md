@@ -68,7 +68,7 @@ One person directed AI agents to make the game. Most of the code is written by A
 
 - Unreal Engine 5.8
 - Claude (Anthropic): planning and most of the programming, including driving the Unreal editor through Epic's Model Context Protocol plugin
-- Codex (OpenAI): concept and key art, code reviews and some programming
+- Codex (OpenAI): concept and key art, the ant and leaf HUD icons, code reviews and some programming
 - Blender 5.1 and Python: the scripted meshes and the sound synthesis
 
 The full source code is on GitHub: [REPO URL].
@@ -86,7 +86,7 @@ This game is also my entry for the Epic AI MegaJam, whose page stays as it was s
 ## Credits and links
 
 - Made by inventivetalent
-- UI art (panels): [Cookiehero](https://cookiehero.itch.io/)
+- UI panel art, the frames and backgrounds of the menu screens and the HUD boxes: [Cookiehero](https://cookiehero.itch.io/). The rest of the interface (layout, text, icons, meters) was made with code and AI tools.
 - Playtesting and design feedback: [FRIEND A]
 - Dev log: [DEV LOG URL]
 - Epic AI MegaJam version: [MEGAJAM PAGE URL]

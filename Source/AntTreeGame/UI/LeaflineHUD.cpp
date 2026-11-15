@@ -1203,7 +1203,8 @@ void ALeaflineHUD::DrawPrompt(const AAntPawn* Ant, const ADayDirector* D, float 
 			Prompt = bCanDrop ? TEXT("Bird diving! Hold {Grip} to grip      {Drop}: drop your piece") : TEXT("Bird diving! Hold {Grip} to grip");
 		else if (S == EAntState::WalkingHome) Prompt = TEXT("Walking home empty-handed.   {Cycle}: switch ant");
 		else if (S == EAntState::Gripping) Prompt = TEXT("Gripping. Release {Grip} when the gust passes");
-		else if (bGustSoon && (S == EAntState::Walking || S == EAntState::Riding || S == EAntState::Cutting))
+		// Only with a piece (carried or being cut) is there something to lose: without one the wind panel's warning is enough.
+		else if (bGustSoon && (Ant->IsCarrying() || Ant->IsCutting()) && (S == EAntState::Walking || S == EAntState::Riding || S == EAntState::Cutting))
 		{
 			// Sheltered spots need no grip; elsewhere say what helps: grip, or the side away from the arrow.
 			Prompt = ExposureShown >= 0.f && ExposureShown < Style.ShelteredBelow
@@ -1223,7 +1224,11 @@ void ALeaflineHUD::DrawPrompt(const AAntPawn* Ant, const ADayDirector* D, float 
 	}
 	else if (D && D->GetPhase() == EDayPhase::AllHome)
 	{
-		Prompt = TEXT("Everyone is home");
+		// Blown-off workers walk home empty-handed: say so, or "everyone is home" reads as if nobody fell.
+		const int32 Fell = D->GetStats().BlownOff;
+		Prompt = Fell <= 0 ? FString(TEXT("Everyone is home"))
+			: Fell == 1 ? FString(TEXT("The day is over. Everyone is home: 1 worker was blown off and walked back empty-handed"))
+			: FString::Printf(TEXT("The day is over. Everyone is home: %d workers were blown off and walked back empty-handed"), Fell);
 	}
 	if (Prompt.IsEmpty()) return;
 	DrawTextPanel(Prompt, Canvas->ClipX * 0.5f, Canvas->ClipY - 190.f * Scale, TextColor, SecondaryText(Scale), Scale, 1.f, 1200.f);
@@ -1428,7 +1433,8 @@ void ALeaflineHUD::DrawNest(const ADayDirector* D, float Scale)
 
 	DrawTextCentered(TEXT("The nest"), CX, Y, AccentColor, PrimaryText(Scale), Font);
 	Y += HeadH;
-	if (GI) DrawTextCentered(FString::Printf(TEXT("Leaf to spend: %.1f"), GI->GetLeafMass()), CX, Y, TextColor, SecondaryText(Scale), Font);
+	// Whole leaf, rounded down like CanAfford, so the number agrees with the whole-number costs beside it.
+	if (GI) DrawTextCentered(FString::Printf(TEXT("Leaf to spend: %d"), GI->GetSpendableLeaf()), CX, Y, TextColor, SecondaryText(Scale), Font);
 	Y += SpendH;
 	const float NameH = MeasureText(TEXT("Ag"), Font, NameText).Y, DetailH = MeasureText(TEXT("Ag"), Font, DetailText).Y;
 	const float LineH = MeasureText(TEXT("Ag"), Font, SecondaryText(Scale)).Y;
@@ -1450,6 +1456,15 @@ void ALeaflineHUD::DrawNest(const ADayDirector* D, float Scale)
 			const bool bAfford = GI && GI->CanAfford(i);
 			const bool bMaxed = Level >= LeaflineUpgrades::MaxLevel;
 			DrawTextAt(Info->Name, X + Style.Padding * Scale, Y + NameY, bSel ? AccentColor : TextColor, NameText, Font);
+			// Brood adds recruits, not workers: show the pool now and after buying, beside the name.
+			if (i == static_cast<int32>(ELeaflineUpgrade::Brood))
+			{
+				const int32 Now = FMath::RoundToInt(LeaflineUpgrades::GetEffect(i, Level));
+				const FString Pool = bMaxed ? FString::Printf(TEXT("%d recruits"), Now)
+					: FString::Printf(TEXT("%d -> %d recruits"), Now, FMath::RoundToInt(LeaflineUpgrades::GetEffect(i, Level + 1)));
+				const float PoolX = X + Style.Padding * Scale + MeasureText(Info->Name, Font, NameText).X + 16.f * Scale;
+				DrawTextAt(Pool, PoolX, Y + NameY + NameH - DetailH, bSel ? Style.Muted : Style.Detail, DetailText, Font);
+			}
 			// On the lighter selection bar the dim colours lose contrast: the selected row uses the brighter ones.
 			DrawTextAt(Info->Description, X + Style.Padding * Scale, Y + DetailY, bSel ? Style.Muted : Style.Detail, DetailText, Font);
 			// Level pips: bought levels solid (gold once maxed), the rest dark with a faint edge (strokes, so they also
@@ -1776,11 +1791,12 @@ void ALeaflineHUD::DrawControls(float Scale)
 	DrawTextCentered(Prompt, CX, Y, TextColor, TextScale, Font);
 }
 
-bool ALeaflineHUD::DrawIcon(const TCHAR* Name, float CX, float CY, float Size, const FLinearColor& Color, float AngleDeg)
+bool ALeaflineHUD::DrawIcon(const TCHAR* Name, float CX, float CY, float Size, const FLinearColor& Color, float AngleDeg, bool bMirrorHorizontal)
 {
 	UTexture2D* Tex = LeafPrompts::Get(Name);
 	if (!Tex || !Canvas) return false;
-	FCanvasTileItem Tile(FVector2D(CX - 0.5f * Size, CY - 0.5f * Size), Tex->GetResource(), FVector2D(Size, Size), Color);
+	FCanvasTileItem Tile(FVector2D(CX - 0.5f * Size, CY - 0.5f * Size), Tex->GetResource(), FVector2D(Size, Size),
+		FVector2D(bMirrorHorizontal ? 1.f : 0.f, 0.f), FVector2D(bMirrorHorizontal ? 0.f : 1.f, 1.f), Color);
 	Tile.BlendMode = SE_BLEND_Translucent;
 	if (AngleDeg != 0.f)
 	{
@@ -1970,7 +1986,7 @@ void ALeaflineHUD::DrawDayPanelIcons(const ADayDirector* D, float Scale)
 	const float W = FMath::Max(FMath::Max(440.f * Scale, D->NumWorkers() * Cell), float(MeasureText(Title, Font, PrimaryText(Scale)).X));
 	DrawPanel(X, Y, W, 128.f * Scale, Scale);
 	DrawTextAt(Title, X, Y, TextColor, PrimaryText(Scale), Font);
-	const float PY = Y + 44.f * Scale, Icon = 24.f * Scale, T = Style.Stroke * Scale;
+	const float PY = Y + 44.f * Scale, Icon = 28.f * Scale, T = Style.Stroke * Scale;
 	for (int32 i = 0; i < D->NumWorkers(); ++i)
 	{
 		const float PX = X + i * Cell;
@@ -1988,7 +2004,8 @@ void ALeaflineHUD::DrawDayPanelIcons(const ADayDirector* D, float Scale)
 		const FString Num = FString::FromInt(i + 1);
 		DrawTextAt(Num, PX, PY, C, SecondaryText(Scale), Font);
 		const float ICX = PX + MeasureText(Num, Font, SecondaryText(Scale)).X + 4.f * Scale + 0.5f * Icon, ICY = PY + 10.f * Scale;
-		// Ready: faint at the nest; out: heading up; returning: heading down with its piece; home: on the nest line;
+		// Side-profile ants face right (Codex's icon, 15 Nov). Ready: faint; out: heading out; returning: mirrored toward home
+		// with its piece; home: on the nest line;
 		// blown off: tumbling in the wind.
 		switch (State)
 		{
@@ -1999,8 +2016,8 @@ void ALeaflineHUD::DrawDayPanelIcons(const ADayDirector* D, float Scale)
 			DrawIcon(TEXT("Icon_Ant"), ICX, ICY, Icon, C);
 			break;
 		case EWorkerState::Returning:
-			DrawIcon(TEXT("Icon_Ant"), ICX, ICY, Icon, C, 180.f);
-			DrawIcon(TEXT("Icon_Leaf"), ICX + 0.15f * Icon, ICY + 0.1f * Icon, 0.7f * Icon, Style.Leaf);
+			DrawIcon(TEXT("Icon_Ant"), ICX, ICY, Icon, C, 0.f, true);
+			DrawIcon(TEXT("Icon_Leaf"), ICX - 0.2f * Icon, ICY - 0.3f * Icon, 0.65f * Icon, Style.Leaf);
 			break;
 		case EWorkerState::Home:
 			DrawIcon(TEXT("Icon_Ant"), ICX, ICY - 0.1f * Icon, 0.8f * Icon, C);

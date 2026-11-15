@@ -59,13 +59,13 @@ public:
 	bool bInputVizKey = true;
 	bool IsWindMapShown() const { return bWindMapShown; }
 
-	/** Degrees of camera turn per mouse count. */
+	/** Degrees of camera turn per mouse count (the options slider; 0.25 until a playtest found it slow, 15 Nov). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
-	float MouseSensitivity = 0.25f;
+	float MouseSensitivity = 0.35f;
 
-	/** Degrees per second at full right-stick deflection. */
+	/** Degrees per second at full right-stick deflection (160 until a playtest found it slow, 15 Nov). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
-	float StickLookRate = 160.f;
+	float StickLookRate = 220.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	bool bInvertPitch = false;

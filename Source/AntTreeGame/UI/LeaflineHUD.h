@@ -73,7 +73,7 @@ private:
 	void DrawDayPanelIcons(const ADayDirector* D, float Scale);
 	void DrawColonyIcons(const ADayDirector* D, float Scale);
 	/** A white icon from UIRaw (Tools/ui_icons.py) centred at CX, CY, tinted and turned; false if it is missing. */
-	bool DrawIcon(const TCHAR* Name, float CX, float CY, float Size, const FLinearColor& Color, float AngleDeg = 0.f);
+	bool DrawIcon(const TCHAR* Name, float CX, float CY, float Size, const FLinearColor& Color, float AngleDeg = 0.f, bool bMirrorHorizontal = false);
 	void DrawCutArc(const AAntPawn* Ant, float Scale);
 	/** Outline of the leaf the ant would cut, so the player can see the target before pressing cut. */
 	void DrawLeafTarget(const AAntPawn* Ant, float Scale);
