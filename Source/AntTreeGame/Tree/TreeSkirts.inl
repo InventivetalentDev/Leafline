@@ -25,8 +25,8 @@ namespace
 		TEXT("Ground skirt: fill runs of failed columns from their neighbours (1) or leave the gap (0, the strip ends in an open edge there: the old lip). Takes effect when the tree next grows."));
 	TAutoConsoleVariable<int32> CVarGroundClose(TEXT("leaf.GroundClose"), 1,
 		TEXT("Ground skirt: lay the columns at open ends of the strip onto the wall and the ground underneath (1) or leave them on the fillet (0: the strip ends in a raised edge). Takes effect when the tree next grows."));
-	TAutoConsoleVariable<int32> CVarSkirtBlend(TEXT("leaf.SkirtBlend"), 0,
-		TEXT("Skirt seam cross-fade data for M_TreeBark3 (1; Leaf.Bark 2 sets it and regrows the tree) or none (0, as before). Near the seam each skirt vertex also carries the other side's bark: UV0 = its radial direction times its bark radius, UV3.y = its along + 512, colour R = its per-branch random, alpha = 1 - weight (weight 0.5 on the seam, 0 a band away); tube alpha is 1. M_TreeBark2 reads none of these. Takes effect when the tree next grows."));
+	TAutoConsoleVariable<int32> CVarSkirtBlend(TEXT("leaf.SkirtBlend"), 1,
+		TEXT("Skirt seam cross-fade data for M_TreeBark3 (1, the default with Leaf.Bark 2 since 15 Nov) or none (0; Leaf.Bark 0 and 1 set it). Near the seam each skirt vertex also carries the other side's bark: UV0 = its radial direction times its bark radius, UV3.y = its along + 512, colour R = its per-branch random, alpha = 1 - weight (weight 0.5 on the seam, 0 a band away); tube alpha is 1. M_TreeBark2 reads none of these. Takes effect when the tree next grows."));
 	TAutoConsoleVariable<int32> CVarSkirtSeam(TEXT("leaf.SkirtSeam"), 0,
 		TEXT("Where a skirt switches from the child's bark to the parent's: 0 where the surface is equally far from both tubes (the old crease), 1 at its outer edge on the parent (the child's bark over the whole fillet). Takes effect when the tree next grows."));
 

@@ -120,7 +120,7 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs CmdBark(
 		TEXT("Leaf.Bark"),
-		TEXT("Leaf.Bark [0|1|2]: the older M_TreeBark (0), the look-pass bark M_TreeBark2 (1, default), or M_TreeBark3 with the skirt seams cross-faded (2: also sets leaf.SkirtBlend 1 and rebuilds the bark mesh with the seam data; M_TreeBark2 while the asset is missing); no argument toggles 0 and 1."),
+		TEXT("Leaf.Bark [0|1|2]: the older M_TreeBark (0), the look-pass bark M_TreeBark2 (1), or M_TreeBark3 with the skirt seams cross-faded (2, default since 15 Nov: also sets leaf.SkirtBlend 1 and rebuilds the bark mesh with the seam data; M_TreeBark2 while the asset is missing); no argument toggles 0 and 1."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World) { Bark(World, Args); }));
 
 	/** Leaf.Ground [0|1] [Name Value ...]: the floor-pass ground M_Ground2 or the older M_Ground, plus scalar parameters on

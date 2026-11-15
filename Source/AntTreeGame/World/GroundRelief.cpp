@@ -3,9 +3,9 @@
 // A named namespace, not an anonymous one: unity builds merge this file with others that have their own Noise or Hash.
 namespace LeafReliefDetail
 {
-	// Off by default until the owner decides (14 Nov night); Leaf.Relief 1 turns it on with the shape below. The first
+	// On by default since the owner's decision of 15 Nov (built 14 Nov night); Leaf.Relief 0 gives the flat plane. The first
 	// version (from 160 m, far bands x1, no rim, ground to 5 km) did not show through the fog at all.
-	bool GReliefOn = false;
+	bool GReliefOn = true;
 	float GStartRadius = LeafRelief::DefaultStartRadius;
 	// The shape chosen on 14 Nov night (docs/tech.md): near bands as they are (x3 still did not read from the tree), far
 	// bands x4 (rolling hills toward the horizon), a 250 m rim toward 5 km and the ground out to 30 km, so the outline from

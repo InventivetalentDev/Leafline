@@ -441,7 +441,7 @@ void ATreeActor::Grow(int32 Seed)
 namespace
 {
 	bool GNewBark = true;
-	bool GBark3 = false; // Leaf.Bark 2
+	bool GBark3 = true; // Leaf.Bark 2, the default since the owner's decision of 15 Nov (Leaf.Bark 1 for M_TreeBark2)
 	int32 GCollarsOverride = -1; // -1: FTreeParams::bBranchCollars decides; 0/1: Leaf.Collars
 	float GRootBarkTaperOverride = -1.f; // < 0: FTreeParams::RootBarkTaper decides; else Leaf.RootBark's value
 	int32 GGroveUnderOverride = -1; // -1: FTreeParams::bGroveUnderstory decides; 0/1: Leaf.GroveUnder
