@@ -38,6 +38,7 @@ namespace LeafDebug
 	TArray<FString> InputVizLines;
 	FColor InputVizColor = FColor::White;
 	TArray<FInputVizLabel> InputVizLabels;
+	int32 ScreenDirLogs = 0;
 }
 
 namespace
@@ -881,6 +882,14 @@ namespace
 		{
 			LeafDebug::bInputViz = Args.Num() > 0 ? FCString::Atoi(*Args[0]) != 0 : !LeafDebug::bInputViz;
 			UE_LOG(LogLeafline, Log, TEXT("Input view %s"), LeafDebug::bInputViz ? TEXT("on") : TEXT("off"));
+		}));
+
+	FAutoConsoleCommandWithWorldAndArgs CmdScreenDirLog(
+		TEXT("Leaf.ScreenDirLog"),
+		TEXT("Leaf.ScreenDirLog [frames]: log where W/A/S/D point on screen (deg, 90 = up) under both screen-direction mappings (current and exact), from the player's ant; default one frame."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld*)
+		{
+			LeafDebug::ScreenDirLogs = Args.Num() > 0 ? FMath::Clamp(FCString::Atoi(*Args[0]), 1, 600) : 1;
 		}));
 
 	FAutoConsoleCommandWithWorldAndArgs CmdNoWorld(

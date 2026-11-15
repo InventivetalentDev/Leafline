@@ -34,4 +34,6 @@ namespace LeafDebug
 	extern TArray<FString> InputVizLines;
 	extern FColor InputVizColor;
 	extern TArray<FInputVizLabel> InputVizLabels;
+	/** Leaf.ScreenDirLog: log this many frames of W/A/S/D screen angles (both screen-direction mappings) from the player's ant. */
+	extern int32 ScreenDirLogs;
 }
