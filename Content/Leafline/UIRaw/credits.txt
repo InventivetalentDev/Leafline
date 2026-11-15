@@ -9,10 +9,8 @@ A game by inventivetalent
 Cookiehero (cookiehero.itch.io)
 The frames and backgrounds of the menu screens and the HUD boxes
 
-; Friend A is credited once the owner gives the name (their feedback came in on 15 Nov):
-; then remove the ";" from the next two lines and put the name in place of the brackets.
-; # Playtesting and design feedback
-; [FRIEND A]
+# Playtesting and design feedback
+iCeeker (iceeker.itch.io)
 
 # Made with
 Unreal Engine 5.8

@@ -62,7 +62,7 @@ Button prompt icons: ["Xelu's FREE Controller Prompts"](https://thoseawesomeguys
 
 - Made by inventivetalent
 - UI panel art, the frames and backgrounds of the menu screens and the HUD boxes: [Cookiehero](https://cookiehero.itch.io/). The rest of the interface (layout, text, icons, meters) was made with code and AI tools.
-- Playtesting and design feedback: [FRIEND A]
+- Playtesting and design feedback: [iCeeker](https://iceeker.itch.io/)
 - Dev log: [DEV LOG URL]
 - Game Off version: [GAME OFF PAGE URL]
 - Source code: [REPO URL, once the repository is public]

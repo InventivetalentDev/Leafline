@@ -6,7 +6,8 @@ only). The owner keeps her reply.
 
 | File | What it is | In the game |
 |---|---|---|
-| `UI_Antgame_title.png` | the title card, 1121 x 480 | `Content/Leafline/UIRaw/Panel_Card.pngraw` (upscaled 2x) |
+| `UI_Antgame_titleV2.png` | the calmer title card, 1152 x 480 | `Content/Leafline/UIRaw/Panel_Card.pngraw` (edge cropped, upscaled 2x) |
+| `UI_Antgame_title.png` | the first title card, 1121 x 480 | not used (replaced by titleV2) |
 | `UI_AntGameV5.png` | calmer in-game panel V5: bite, pointy top-right corner | `Panel_Group.pngraw` (edge cropped, mirrored on the right) |
 | `UI_AntGameV4.png` | calmer in-game panel V4: bite, no pointy corner | `Panel_GroupCenter.pngraw` (edge cropped, centred boxes) |
 | `UI_AntGameV7.png` | lighter-green panel V7: bite, no pointy corner | `Panel_Tag.pngraw` (edge cropped, half size): hints and prompts |

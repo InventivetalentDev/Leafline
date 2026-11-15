@@ -126,7 +126,7 @@
   - Done: in the 18:25 candidate.
 
 
-## Friend A's playtest (received 15 Nov, 19:50)
+## iCeeker's playtest (received 15 Nov, 19:50)
 
 Their notes, triaged on ship day. Tonight = quick fixes for the submission build (bd-core, branch `fbfix`); v2 = the Game Off version.
 
