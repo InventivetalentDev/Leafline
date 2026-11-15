@@ -287,7 +287,8 @@ void ALeaflineHUD::DrawHUD()
 			DrawTextPanel(Bird->IsBaitOn()
 				? TEXT("A bird is out today. It swoops at ants carrying pieces on exposed bark: stay off the red, grip when it dives, or drop your piece in the open to draw it away.")
 				: TEXT("A bird is out today. It swoops at ants carrying pieces on exposed bark: stay off the red, or grip when it dives."),
-				Canvas->ClipX * 0.5f, 160.f * Scale, AccentColor, SecondaryText(Scale), Scale, 1.f, 700.f);
+				// The box at 60% so the world shows through this large card (owner, 15 Nov); the text stays fully opaque.
+				Canvas->ClipX * 0.5f, 160.f * Scale, AccentColor, SecondaryText(Scale), Scale, 0.6f, 700.f);
 		}
 	}
 	if (Ant)
