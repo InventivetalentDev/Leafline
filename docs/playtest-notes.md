@@ -130,12 +130,12 @@
 
 Their notes, triaged on ship day. Tonight = quick fixes for the submission build (bd-core, branch `fbfix`); v2 = the Game Off version.
 
-- [ ] Tonight: the gust prompt shows even without a piece ("no reason to grip").
-- [ ] Tonight: one ant was blown off, but the end of the day said all got home.
-- [ ] Tonight: "upgrade costs contain decimals" (the nest showed "Leaf to spend: 7.6" beside whole-number costs).
-- [ ] Tonight: "the worker upgrade doesn't provide more workers?" (Brood adds recruits; the Brood row should show the count).
-- [ ] Tonight: camera look speed too slow by default.
-- [ ] Tonight: routes from the previous day show up the next day (check whether intended).
+- [x] Tonight: the gust prompt shows even without a piece ("no reason to grip"). Fixed: the grip and sheltered prompts show only while carrying or cutting a piece (an ant without a piece can't be blown off with the shipped tuning).
+- [x] Tonight: one ant was blown off, but the end of the day said all got home. Fixed: "The day is over. Everyone is home: N workers were blown off and walked back empty-handed".
+- [x] Tonight: "upgrade costs contain decimals" (the nest showed "Leaf to spend: 7.6" beside whole-number costs). Fixed: leaf to spend is shown and spent as a whole number.
+- [x] Tonight: "the worker upgrade doesn't provide more workers?" Fixed: the Brood row shows "2 -> 3 recruits".
+- [x] Tonight: camera look speed too slow by default. Fixed: mouse 0.35 (was 0.25), right stick 220 deg/s (was 160); a saved setting still wins.
+- [x] Tonight: routes from the previous day show up the next day. Intended (design.md): yesterday's trails stay one more day, faint and ridable; no change.
 - [ ] v2: the ant needs an idle animation.
 - [ ] v2: wind should affect the ant even without a leaf.
 - [ ] v2: no point going past the first layer of branches; make the upper tree relevant (the climb curve of 15 Nov helps; not judged by them yet).
