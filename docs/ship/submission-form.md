@@ -8,7 +8,7 @@
 
 **Game Name:** Leafline
 
-**How many people on your team?** 1 (solo) <!-- 2 only if Friend B joins as an Entrant; see open-questions.md -->
+**How many people on your team?** 1 (solo) <!-- Owner, 15 Nov: the UI art is not in the MegaJam build, so Friend B does not join; solo. -->
 
 **List each team member's name & email address** (private): Haylee Schäfer, mail@inventivetalent.org
 

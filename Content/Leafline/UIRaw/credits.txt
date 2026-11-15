@@ -5,11 +5,10 @@
 # Leafline
 A game by inventivetalent
 
-# Playtesting and design feedback
-[FRIEND A]
-
-# [IF UI SHIPS] UI art
-[FRIEND B]
+; Owner, 15 Nov: no UI art credit in the MegaJam build. Friend A is credited only once their feedback comes in:
+; then remove the ";" from the next two lines and put the name in place of the brackets.
+; # Playtesting and design feedback
+; [FRIEND A]
 
 # Made with
 Unreal Engine 5.8

@@ -229,7 +229,7 @@ All kept: "The colony thrives", "Enough leaf has come home to feed the fungus ga
 
 ## For the owner (not changed here)
 
-- **Credits placeholders.** `Content/Leafline/UIRaw/credits.txt` still shows players "[FRIEND A]", "# [IF UI SHIPS] UI art" and "[FRIEND B]". Fill them in or delete them before the submission build; only you know the names.
+- **Credits placeholders.** Done 15 Nov: the UI art credit is gone (no UI art in the MegaJam build), and the Friend A lines in `Content/Leafline/UIRaw/credits.txt` are commented out until their feedback comes in.
 - **Build line.** The faint bottom-left line ("dev build | the old giant, seed …, day 3 | Leaf.Goto …") is debug text and is on by default. `docs/plan.md` already says to set `bShowBuildLine=False` in `DefaultGame.ini` before the submission build.
 - **design.md** still quotes the old read-out ("about 8 pieces, rich ×2.1", line 121).
 - **Prompt fallbacks.** `UI/PromptIcons.cpp` has text fallbacks ("E / LMB", "left stick") that show only if a button image is missing. Left as they are.
