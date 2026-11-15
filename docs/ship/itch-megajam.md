@@ -6,7 +6,7 @@
 **Short description:** You're a leafcutter ant on a giant tree. Cut leaves, lay scent trails and send the colony after you.
 **Tags (suggested):** Singleplayer, 3D, Procedural Generation, Ants, Unreal Engine
 **Platform:** Windows
-**Download:** `inventivetalent_Leafline.zip` ([FINAL ZIP SIZE]). Unzip it and run `Leafline/AntTreeGame.exe`.
+**Download:** `inventivetalent_Leafline.zip` (0.44 GB). Unzip it and run `Leafline/AntTreeGame.exe`.
 **Video:** [VIDEO URL]
 
 ---
