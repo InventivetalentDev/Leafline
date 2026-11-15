@@ -1550,7 +1550,7 @@ void ALeaflineHUD::DrawEndCard(const ADayDirector* D, float Scale)
 void ALeaflineHUD::DrawPause(float Scale)
 {
 	UFont* Font = GEngine->GetMediumFont();
-	const float CX = Canvas->ClipX * 0.5f, W = Style.CardWidth * Scale;
+	const float CX = Canvas->ClipX * 0.5f;
 	const ALeaflinePlayerController* PC = Cast<ALeaflinePlayerController>(GetOwningPlayerController());
 	const int32 Page = PC ? PC->GetPausePage() : 0;
 	const int32 Sel = PC ? PC->GetPauseRow() : 0;
@@ -1565,6 +1565,9 @@ void ALeaflineHUD::DrawPause(float Scale)
 		return;
 	}
 	float Y = (Page == 0 ? 170.f : 160.f) * Scale;
+	// The pause page is sized to its five short rows (owner and artist, 15 Nov); the options page keeps the full card for
+	// its labels and values.
+	const float W = (Page == 0 ? 680.f : Style.CardWidth) * Scale;
 	const float RowH = Style.MenuRow * Scale, Gap = Style.Gap * Scale;
 	// The two hint lines under the rows; the panel fits what is drawn (the same steps as below).
 	const FString Hint1 = Page == 0 ? TEXT("{Choose}: choose      {Confirm}{orclick}: select") : TEXT("{Choose}: choose      {Change}{orclick}: change");
@@ -1577,7 +1580,7 @@ void ALeaflineHUD::DrawPause(float Scale)
 	Y += 74.f * Scale;
 	if (Page == 0)
 	{
-		const float BW = 800.f * Scale;
+		const float BW = 560.f * Scale;
 		constexpr int32 N = ALeaflinePlayerController::NumPauseRows;
 		// In the order of ALeaflinePlayerController's PauseRow constants.
 		const TCHAR* Labels[N] = { TEXT("Resume"), TEXT("Controls"), TEXT("Options"), TEXT("Credits"), TEXT("Quit") };
