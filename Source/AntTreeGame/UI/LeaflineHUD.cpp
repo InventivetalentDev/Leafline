@@ -37,6 +37,11 @@ namespace
 	{
 		float SecondaryHeight = 20.f; // 1.85% of screen height
 		float PrimaryHeight = 30.f;   // 2.78% of screen height
+		float NameHeight = 24.f;      // a nest row's upgrade name and its start-day row
+		float DetailHeight = 18.f;    // a nest row's description
+		float HeroHeight = 40.f;      // the recap's leaf hauled
+		float MeterBlock = 128.f;     // DrawColonyMeter with its "new tree" labels, and the gap after it
+		float MeterBlockShort = 96.f; // the same without them (one tree off)
 		float Edge = 32.f;
 		float Padding = 16.f;
 		float Gap = 12.f;
@@ -48,6 +53,10 @@ namespace
 		FLinearColor Panel = FLinearColor(0.02f, 0.03f, 0.025f, 0.72f);
 		FLinearColor Track = FLinearColor(0.f, 0.f, 0.f, 0.5f);
 		FLinearColor Muted = FLinearColor(0.8f, 0.8f, 0.75f);
+		FLinearColor Detail = FLinearColor(0.66f, 0.68f, 0.62f);      // descriptions and recap detail rows, under the main line
+		FLinearColor Unaffordable = FLinearColor(0.66f, 0.68f, 0.62f, 0.5f);
+		FLinearColor PipEmpty = FLinearColor(0.f, 0.f, 0.f, 0.45f);
+		FLinearColor PipEdge = FLinearColor(0.8f, 0.8f, 0.75f, 0.35f);
 		FLinearColor Leaf = FLinearColor(0.4f, 0.75f, 0.3f, 0.95f);
 		FLinearColor Rich = FLinearColor(0.95f, 0.9f, 0.5f);
 		FLinearColor Delivery = FLinearColor(0.7f, 0.98f, 0.5f);
@@ -581,6 +590,16 @@ float ALeaflineHUD::DrawWrappedText(const FString& Text, float CX, float Y, floa
 	return Rows.Num() > 0 ? Y - Start - Style.Gap * Scale : 0.f;
 }
 
+float ALeaflineHUD::WrappedHeight(const FString& Text, float Width, float TextScale, float Scale) const
+{
+	// What DrawWrappedText returns for the same text, without drawing it.
+	UFont* Font = GEngine->GetMediumFont();
+	const TArray<FString> Rows = WrapText(Text, Width, TextScale);
+	float H = 0.f;
+	for (const FString& Row : Rows) H += MeasureText(Row, Font, TextScale).Y;
+	return Rows.Num() > 0 ? H + (Rows.Num() - 1) * Style.Gap * Scale : 0.f;
+}
+
 void ALeaflineHUD::DrawTextPanel(const FString& Text, float CX, float Y, const FLinearColor& Color,
 	float TextScale, float Scale, float Alpha, float MaxWidth)
 {
@@ -710,8 +729,28 @@ void ALeaflineHUD::DrawDayInfo(const ADayDirector* D, float Scale)
 		// The bird's line (World/BirdSystem.*): only while it circles or dives in a shift; otherwise the panel is as before.
 		const ABirdSystem* Bird = D->GetPhase() == EDayPhase::Shift ? ABirdSystem::Get(this) : nullptr;
 		const bool bBirdLine = Bird && Bird->IsPresent();
-		DrawPanel(GX - 42.f * Scale, (Style.Edge + Style.Padding) * Scale, GW + 42.f * Scale,
-			((D->GetPhase() == EDayPhase::Shift ? (bMap ? 214.f : 154.f) : 100.f) + (bBirdLine ? Style.Row : 0.f)) * Scale, Scale);
+		// How exposed the ant's spot is: the lee side of the trunk or a limb shelters it. Sampled before the panel,
+		// which fits the rows drawn below.
+		const APlayerController* PC = GetOwningPlayerController();
+		const AAntPawn* Ant = PC ? Cast<AAntPawn>(PC->GetPawn()) : nullptr;
+		const UAntMovementComponent* M = Ant ? Ant->GetAntMovement() : nullptr;
+		ExposureTimer -= GetWorld() ? GetWorld()->GetDeltaSeconds() : 0.016f;
+		if (M && ExposureTimer <= 0.f)
+		{
+			ExposureTimer = 0.2f;
+			ExposureShown = Wind->GetExposure(M->GetSurfacePosition(), M->GetSurfaceNormal());
+		}
+		const float Top = (Style.Edge + Style.Padding) * Scale, LineH = MeasureText(TEXT("Ag"), Font, SecondaryText(Scale)).Y;
+		const float RowY = GY + GH + Style.Gap * Scale, LY = RowY + Style.Row * Scale;
+		const FString MapHint = TEXT("Hold {Cycle}: wind map");
+		float Bottom = GY + GH;
+		if (M && ExposureShown >= 0.f) Bottom = RowY + LineH;
+		if (M && D->GetPhase() == EDayPhase::Shift)
+		{
+			Bottom = bMap ? LY + 3.f * Style.Row * Scale + LineH : LY + MeasureText(MapHint, Font, SecondaryText(Scale)).Y;
+			if (bBirdLine) Bottom = LY + ((bMap ? 4.f : 1.f) * Style.Row + 6.f) * Scale + LineH;
+		}
+		DrawPanel(GX - 42.f * Scale, Top, GW + 42.f * Scale, Bottom - Top, Scale);
 		const EWindPhase Ph = Wind->GetPhase();
 		const TCHAR* Label = Ph == EWindPhase::Calm ? TEXT("Wind: calm") : Ph == EWindPhase::Warning ? TEXT("Wind: gust coming")
 			: Ph == EWindPhase::Falling ? TEXT("Wind: easing") : TEXT("Wind: GUST");
@@ -721,7 +760,6 @@ void ALeaflineHUD::DrawDayInfo(const ADayDirector* D, float Scale)
 		DrawRect(C, GX, GY, GW * FMath::Clamp(Wind->GetStrength(), 0.f, 1.f), GH);
 
 		// Which way it blows, as seen from the camera: up on screen is away from you.
-		const APlayerController* PC = GetOwningPlayerController();
 		if (PC && PC->PlayerCameraManager)
 		{
 			FVector F = PC->PlayerCameraManager->GetCameraRotation().Vector();
@@ -745,29 +783,18 @@ void ALeaflineHUD::DrawDayInfo(const ADayDirector* D, float Scale)
 			}
 		}
 
-		// How exposed the ant's spot is: the lee side of the trunk or a limb shelters it.
-		const AAntPawn* Ant = PC ? Cast<AAntPawn>(PC->GetPawn()) : nullptr;
-		const UAntMovementComponent* M = Ant ? Ant->GetAntMovement() : nullptr;
-		ExposureTimer -= GetWorld() ? GetWorld()->GetDeltaSeconds() : 0.016f;
-		if (M && ExposureTimer <= 0.f)
-		{
-			ExposureTimer = 0.2f;
-			ExposureShown = Wind->GetExposure(M->GetSurfacePosition(), M->GetSurfaceNormal());
-		}
 		if (M && ExposureShown >= 0.f)
 		{
 			const bool bSheltered = ExposureShown < Style.ShelteredBelow, bPartly = ExposureShown < Style.PartlyBelow;
 			const FLinearColor EC = bSheltered ? Style.Sheltered : (bPartly ? Style.Partly : StaminaLockedColor);
 			const TCHAR* EL = bSheltered ? TEXT("You're sheltered") : (bPartly ? TEXT("You're partly exposed") : TEXT("You're exposed"));
-			DrawTextAt(EL, GX, GY + GH + Style.Gap * Scale, EC, SecondaryText(Scale), Font);
+			DrawTextAt(EL, GX, RowY, EC, SecondaryText(Scale), Font);
 		}
 		// The wind map (hold Tab / LB): its legend while shown, otherwise a quiet reminder that it exists (in play only:
 		// in the harvest Tab steps the views).
 		if (M && D->GetPhase() == EDayPhase::Shift)
 		{
-			const ALeaflinePlayerController* LPC = Cast<ALeaflinePlayerController>(PC);
-			const float LY = GY + GH + (Style.Gap + Style.Row) * Scale;
-			if (LPC && LPC->IsWindMapShown())
+			if (bMap)
 			{
 				DrawCrisp(Canvas, TEXT("Wind map"), TextColor, GX, LY, Font, SecondaryText(Scale));
 				DrawCrisp(Canvas, TEXT("Green: sheltered"), Style.Sheltered, GX, LY + Style.Row * Scale, Font, SecondaryText(Scale));
@@ -776,7 +803,7 @@ void ALeaflineHUD::DrawDayInfo(const ADayDirector* D, float Scale)
 			}
 			else
 			{
-				DrawTextAt(TEXT("Hold {Cycle}: wind map"), GX, LY, Style.Muted, SecondaryText(Scale), Font);
+				DrawTextAt(MapHint, GX, LY, Style.Muted, SecondaryText(Scale), Font);
 			}
 			if (bBirdLine)
 			{
@@ -1189,9 +1216,17 @@ void ALeaflineHUD::DrawRecap(const ADayDirector* D, float Scale)
 	if (bShowLines && D->AreRecruitsOn()) Rows.Insert(FString::Printf(TEXT("Recruits: %d pieces home, %d lost to the wind"), S.RecruitPieces, RecruitWindLost), 1);
 	if (bBirdRow) Rows.Add(FString::Printf(TEXT("Pieces lost to the bird: %d"), Bird->GetPiecesTaken()));
 	const float CX = Canvas->ClipX * 0.5f, W = Style.CardWidth * Scale;
-	const float H = (96.f + (Shown + (bMore ? 1 : 0)) * Style.Row + Style.Gap + 74.f
-		+ Rows.Num() * Style.Row + Style.Gap + 128.f + (bMove ? Style.Row : 0.f) + 28.f) * Scale;
-	float Y = (Canvas->ClipY - H) * 0.5f;
+	// The main number (leaf hauled) large, the best-day line under it, then the detail rows closer together and dimmer.
+	// The panel fits what is drawn: the same steps as below.
+	const float HeroText = ScaleForHeight(Style.HeroHeight * Scale);
+	const float HeroH = MeasureText(TEXT("Ag"), Font, HeroText).Y, LineH = MeasureText(TEXT("Ag"), Font, SecondaryText(Scale)).Y;
+	const float HeroBlock = HeroH + 6.f * Scale + LineH + 2.f * Style.Gap * Scale;
+	const float DetailRow = (Style.Row - 4.f) * Scale;
+	const FString Prompt = TEXT("Press {Confirm}{orclick} to go into the nest");
+	const float MeterH = (GI ? (GI->IsOneTree() ? Style.MeterBlock : Style.MeterBlockShort) : 0.f) * Scale;
+	const float H = (96.f + (Shown + (bMore ? 1 : 0)) * Style.Row + Style.Gap) * Scale + HeroBlock
+		+ Rows.Num() * DetailRow + Style.Gap * Scale + MeterH + (bMove ? Style.Row * Scale : 0.f) + MeasureText(Prompt, Font, SecondaryText(Scale)).Y;
+	float Y = FMath::RoundToFloat(FMath::Max((Style.Edge + Style.Padding) * Scale, (Canvas->ClipY - H) * 0.5f));
 	DrawPanel(CX - W * 0.5f, Y, W, H, Scale, 1.f, LeafSkin::EKind::Card);
 
 	// Reserve the whole layout while rows reveal, so the totals and continue prompt stay anchored.
@@ -1241,29 +1276,29 @@ void ALeaflineHUD::DrawRecap(const ADayDirector* D, float Scale)
 	const float TK = Count01(TotalStart, 0.9f);
 	if (RecapTime >= TotalStart)
 	{
-		DrawTextCentered(FString::Printf(TEXT("Leaf hauled: %.1f"), S.MassHauled * TK), CX, Y, TextColor, PrimaryText(Scale), Font);
+		DrawTextCentered(FString::Printf(TEXT("Leaf hauled: %.1f"), S.MassHauled * TK), CX, Y, Style.Delivery, HeroText, Font);
 		if (TK >= 1.f)
 		{
 			const FString Best = S.bNewBest ? FString(TEXT("Best day yet!"))
 				: FString::Printf(TEXT("Best day so far: %.1f"), GI ? GI->GetBestDayHaul() : S.PreviousBest);
-			DrawTextCentered(Best, CX, Y + (Style.PrimaryHeight + Style.Gap) * Scale, S.bNewBest ? Style.Rich : Style.Muted, SecondaryText(Scale), Font);
+			DrawTextCentered(Best, CX, Y + HeroH + 6.f * Scale, S.bNewBest ? Style.Rich : Style.Muted, SecondaryText(Scale), Font);
 		}
 	}
-	Y += 74.f * Scale;
+	Y += HeroBlock;
 	for (const FString& Row : Rows)
 	{
-		DrawTextCentered(Row, CX, Y, TextColor, SecondaryText(Scale), Font);
-		Y += Style.Row * Scale;
+		DrawTextCentered(Row, CX, Y, Style.Detail, SecondaryText(Scale), Font);
+		Y += DetailRow;
 	}
 	Y += Style.Gap * Scale;
 	DrawColonyMeter(CX, Y, 640.f * Scale, Scale);
-	Y += 128.f * Scale;
+	Y += MeterH;
 	if (bMove)
 	{
 		DrawTextCentered(TEXT("Tomorrow the colony moves to a new tree"), CX, Y, Style.Rich, SecondaryText(Scale), Font);
 		Y += Style.Row * Scale;
 	}
-	DrawTextCentered(TEXT("Press {Confirm}{orclick} to go into the nest"), CX, Y, AccentColor, SecondaryText(Scale), Font);
+	DrawTextCentered(Prompt, CX, Y, AccentColor, SecondaryText(Scale), Font);
 }
 
 void ALeaflineHUD::DrawColonyMeter(float CX, float Y, float W, float Scale)
@@ -1301,18 +1336,26 @@ void ALeaflineHUD::DrawTitle(const ADayDirector* D, float Scale)
 {
 	UFont* Font = GEngine->GetMediumFont();
 	const float CX = Canvas->ClipX * 0.5f, W = Style.CardWidth * Scale;
-	float Y = 220.f * Scale;
-	DrawPanel(CX - W * 0.5f, Y, W, 580.f * Scale, Scale, 1.f, LeafSkin::EKind::Card);
-	DrawTextCentered(TEXT("Leafline"), CX, Y, AccentColor, PrimaryText(Scale), Font);
-	Y += 74.f * Scale;
-	Y += DrawWrappedText(TEXT("You are a leafcutter ant on an enormous tree."), CX, Y, W, TextColor, SecondaryText(Scale), Scale) + Style.Gap * Scale;
-	Y += DrawWrappedText(TEXT("Cut a piece of leaf, send the worker home along your scent trail, and take over the next one."), CX, Y, W, TextColor, SecondaryText(Scale), Scale) + 44.f * Scale;
+	const FString Intro1 = TEXT("You are a leafcutter ant on an enormous tree.");
+	const FString Intro2 = TEXT("Cut a piece of leaf, send the worker home along your scent trail, and take over the next one.");
 	const TArray<FString> Controls = {
 		TEXT("{Move} move      {Look} look      {Sprint} sprint"),
 		TEXT("{Cut} cut (hold)      {Send} send home      {Follow} ride a trail (hold)"),
 		TEXT("{Grip} grip in a gust (hold)      {Cycle} switch ant (tap), wind map (hold)"),
 		TEXT("{Pause} pause"),
 	};
+	const FString CreditsLine = TEXT("{Back}: credits");
+	const FVector2D Size = MeasureText(CreditsLine, Font, SecondaryText(Scale));
+	// The panel fits what is drawn (pad prompts are wider and can wrap a controls row): the same steps as below.
+	float H = 74.f * Scale + WrappedHeight(Intro1, W, SecondaryText(Scale), Scale) + Style.Gap * Scale + WrappedHeight(Intro2, W, SecondaryText(Scale), Scale) + 44.f * Scale;
+	for (const FString& C : Controls) H += WrappedHeight(C, W, SecondaryText(Scale), Scale) + Style.Padding * Scale;
+	H += (28.f + 62.f) * Scale + Size.Y;
+	float Y = 220.f * Scale;
+	DrawPanel(CX - W * 0.5f, Y, W, H, Scale, 1.f, LeafSkin::EKind::Card);
+	DrawTextCentered(TEXT("Leafline"), CX, Y, AccentColor, PrimaryText(Scale), Font);
+	Y += 74.f * Scale;
+	Y += DrawWrappedText(Intro1, CX, Y, W, TextColor, SecondaryText(Scale), Scale) + Style.Gap * Scale;
+	Y += DrawWrappedText(Intro2, CX, Y, W, TextColor, SecondaryText(Scale), Scale) + 44.f * Scale;
 	for (const FString& C : Controls)
 	{
 		Y += DrawWrappedText(C, CX, Y, W, Style.Muted, SecondaryText(Scale), Scale) + Style.Padding * Scale;
@@ -1322,8 +1365,6 @@ void ALeaflineHUD::DrawTitle(const ADayDirector* D, float Scale)
 		CX, Y, AccentColor, SecondaryText(Scale), Font);
 	// A quiet way into the credits (the controller opens them on Back, or a click on this line).
 	Y += 62.f * Scale;
-	const FString CreditsLine = TEXT("{Back}: credits");
-	const FVector2D Size = MeasureText(CreditsLine, Font, SecondaryText(Scale));
 	const float P = Style.Padding * Scale;
 	AddMenuHit(CX - Size.X * 0.5f - P, Y - 0.5f * P, Size.X + 2.f * P, Size.Y + P, MenuCredits);
 	DrawTextCentered(CreditsLine, CX, Y, IsHovered(MenuCredits) ? AccentColor : Style.Muted, SecondaryText(Scale), Font);
@@ -1334,52 +1375,86 @@ void ALeaflineHUD::DrawNest(const ADayDirector* D, float Scale)
 	const ULeaflineGameInstance* GI = Cast<ULeaflineGameInstance>(GetGameInstance());
 	UFont* Font = GEngine->GetMediumFont();
 	const float CX = Canvas->ClipX * 0.5f, W = Style.CardWidth * Scale;
-	float Y = 96.f * Scale;
-	DrawPanel(CX - W * 0.5f, Y, W, 824.f * Scale, Scale, 1.f, LeafSkin::EKind::Card);
+	const float NameText = ScaleForHeight(Style.NameHeight * Scale), DetailText = ScaleForHeight(Style.DetailHeight * Scale);
+	const float RowW = 1000.f * Scale, RowH = 76.f * Scale, BoxH = RowH - Style.Gap * Scale, X = CX - RowW * 0.5f;
+	const float HeadH = (Style.PrimaryHeight + Style.Gap) * Scale, SpendH = (Style.Row + 1.5f * Style.Gap) * Scale;
+	const bool bMoveLine = D->IsOneTree() && D->IsMoveDue();
+	const FString Hint = TEXT("{Choose}: choose      {Confirm}{orclick}: buy or start      {Back}: start the next day");
+
+	// The panel fits what is drawn: the same steps as below (pad prompts are wider and can wrap the hint to two rows).
+	int32 NumRows = 1; // the start-day row
+	for (int32 i = 0; i < LeaflineUpgrades::Count; ++i) NumRows += D->IsNestRowVisible(i) ? 1 : 0;
+	const float HintH = WrappedHeight(Hint, W, SecondaryText(Scale), Scale);
+	const float MeterH = (GI ? (GI->IsOneTree() ? Style.MeterBlock : Style.MeterBlockShort) : 0.f) * Scale;
+	const float H = HeadH + SpendH + NumRows * RowH + Style.Gap * Scale + MeterH + (bMoveLine ? Style.Row * Scale : 0.f) + HintH;
+	const float Margin = (Style.Edge + Style.Padding) * Scale;
+	float Y = FMath::RoundToFloat(FMath::Max(Margin, (Canvas->ClipY - H) * 0.5f));
+	DrawPanel(CX - W * 0.5f, Y, W, H, Scale, 1.f, LeafSkin::EKind::Card);
+
 	DrawTextCentered(TEXT("The nest"), CX, Y, AccentColor, PrimaryText(Scale), Font);
-	Y += (Style.PrimaryHeight + Style.Gap) * Scale;
+	Y += HeadH;
 	if (GI) DrawTextCentered(FString::Printf(TEXT("Leaf to spend: %.1f"), GI->GetLeafMass()), CX, Y, TextColor, SecondaryText(Scale), Font);
-	Y += 62.f * Scale;
-	const float RowW = 1000.f * Scale, RowH = 76.f * Scale, X = CX - RowW * 0.5f;
+	Y += SpendH;
+	const float NameH = MeasureText(TEXT("Ag"), Font, NameText).Y, DetailH = MeasureText(TEXT("Ag"), Font, DetailText).Y;
+	const float LineH = MeasureText(TEXT("Ag"), Font, SecondaryText(Scale)).Y;
+	// Name and description as one block, centred in the row's box.
+	const float NameY = 0.5f * (BoxH - (NameH + 4.f * Scale + DetailH)), DetailY = NameY + NameH + 4.f * Scale;
+	const float CostRight = X + RowW - 2.f * Style.Padding * Scale;
 	for (int32 i = 0; i <= LeaflineUpgrades::Count; ++i)
 	{
 		if (i < LeaflineUpgrades::Count && !D->IsNestRowVisible(i)) continue;
-		AddMenuHit(X, Y, RowW, RowH - Style.Gap * Scale, i);
+		AddMenuHit(X, Y, RowW, BoxH, i);
 		const bool bSel = D->GetNestSelection() == i || IsHovered(i);
-		DrawButtonBack(X, Y, RowW, RowH - Style.Gap * Scale, Scale, bSel);
-		if (bSel) DrawRect(AccentColor, X, Y, Style.Stroke * Scale, RowH - Style.Gap * Scale);
+		DrawButtonBack(X, Y, RowW, BoxH, Scale, bSel);
+		if (bSel) DrawRect(AccentColor, X, Y, Style.Stroke * Scale, BoxH);
 		if (i < LeaflineUpgrades::Count)
 		{
 			const FLeaflineUpgradeInfo* Info = LeaflineUpgrades::Get(i);
 			const int32 Level = GI ? GI->GetUpgradeLevel(i) : 0;
 			const int32 Cost = GI ? GI->GetUpgradeCost(i) : 0;
 			const bool bAfford = GI && GI->CanAfford(i);
-			DrawTextAt(Info->Name, X + Style.Padding * Scale, Y + 6.f * Scale, bSel ? AccentColor : TextColor, SecondaryText(Scale), Font);
-			DrawTextAt(Info->Description, X + Style.Padding * Scale, Y + 38.f * Scale, Style.Muted, SecondaryText(Scale), Font);
+			const bool bMaxed = Level >= LeaflineUpgrades::MaxLevel;
+			DrawTextAt(Info->Name, X + Style.Padding * Scale, Y + NameY, bSel ? AccentColor : TextColor, NameText, Font);
+			DrawTextAt(Info->Description, X + Style.Padding * Scale, Y + DetailY, Style.Detail, DetailText, Font);
+			// Level pips: bought levels solid (gold once maxed), the rest dark with a faint edge (strokes, so they also
+			// read over a skin image).
+			const float PW = 18.f * Scale, PH = Style.Bar * Scale, PY = Y + 0.5f * (BoxH - PH), T = FMath::Max(1.f, FMath::RoundToFloat(Scale));
 			for (int32 l = 0; l < LeaflineUpgrades::MaxLevel; ++l)
 			{
-				DrawRect(l < Level ? AccentColor : Style.Home, X + 610.f * Scale + l * 30.f * Scale, Y + 24.f * Scale, 18.f * Scale, Style.Bar * Scale);
+				const float PX = X + 610.f * Scale + l * 30.f * Scale;
+				if (l < Level)
+				{
+					DrawRect(bMaxed ? Style.Rich : AccentColor, PX, PY, PW, PH);
+					continue;
+				}
+				DrawRect(Style.PipEmpty, PX, PY, PW, PH);
+				DrawRect(Style.PipEdge, PX, PY, PW, T);
+				DrawRect(Style.PipEdge, PX, PY + PH - T, PW, T);
+				DrawRect(Style.PipEdge, PX, PY + T, T, PH - 2.f * T);
+				DrawRect(Style.PipEdge, PX + PW - T, PY + T, T, PH - 2.f * T);
 			}
-			const FString CostText = Cost > 0 ? FString::Printf(TEXT("Cost %d"), Cost) : FString(TEXT("Max"));
-			DrawTextAt(CostText, X + 850.f * Scale, Y + 20.f * Scale, Cost > 0 ? (bAfford ? Style.Sheltered : StaminaLockedColor) : TextColor, SecondaryText(Scale), Font);
+			// The cost, right-aligned: accent when affordable, dimmed when not; maxed rows say so in gold.
+			const FString CostText = Cost > 0 && !bMaxed ? FString::Printf(TEXT("Cost %d"), Cost) : FString(TEXT("Max"));
+			const FLinearColor CostColor = Cost > 0 && !bMaxed ? (bAfford ? AccentColor : Style.Unaffordable) : Style.Rich;
+			DrawTextAt(CostText, CostRight - MeasureText(CostText, Font, SecondaryText(Scale)).X, Y + 0.5f * (BoxH - LineH), CostColor, SecondaryText(Scale), Font);
 		}
 		else
 		{
 			const FString Start = D->IsOneTree() ? (D->IsMoveDue() ? FString::Printf(TEXT("Start day %d on a new tree"), D->GetDay() + 1) : FString::Printf(TEXT("Start day %d"), D->GetDay() + 1))
 				: FString::Printf(TEXT("Start day %d: a new tree"), D->GetDay() + 1);
-			DrawTextAt(Start, X + Style.Padding * Scale, Y + 20.f * Scale, AccentColor, SecondaryText(Scale), Font);
+			DrawTextAt(Start, X + Style.Padding * Scale, Y + 0.5f * (BoxH - NameH), AccentColor, NameText, Font);
 		}
 		Y += RowH;
 	}
 	Y += Style.Gap * Scale;
 	DrawColonyMeter(CX, Y, 640.f * Scale, Scale);
-	Y += 128.f * Scale;
-	if (D->IsOneTree() && D->IsMoveDue())
+	Y += MeterH;
+	if (bMoveLine)
 	{
 		DrawTextCentered(TEXT("Tomorrow the colony moves to a new tree"), CX, Y, Style.Rich, SecondaryText(Scale), Font);
 		Y += Style.Row * Scale;
 	}
-	DrawWrappedText(TEXT("{Choose}: choose      {Confirm}{orclick}: buy or start      {Back}: start the next day"), CX, Y, W, Style.Muted, SecondaryText(Scale), Scale);
+	DrawWrappedText(Hint, CX, Y, W, Style.Muted, SecondaryText(Scale), Scale);
 }
 
 void ALeaflineHUD::DrawMoveCard(const ADayDirector* D, float Scale)
@@ -1424,10 +1499,16 @@ void ALeaflineHUD::DrawPause(float Scale)
 		return;
 	}
 	float Y = (Page == 0 ? 170.f : 160.f) * Scale;
-	DrawPanel(CX - W * 0.5f, Y, W, (Page == 0 ? 572.f : 580.f) * Scale, Scale, 1.f, LeafSkin::EKind::Card);
+	const float RowH = Style.MenuRow * Scale, Gap = Style.Gap * Scale;
+	// The two hint lines under the rows; the panel fits what is drawn (the same steps as below).
+	const FString Hint1 = Page == 0 ? TEXT("{Choose}: choose      {Confirm}{orclick}: select") : TEXT("{Choose}: choose      {Change}{orclick}: change");
+	const FString Hint2 = Page == 0 ? TEXT("{Pause}: resume      {Back}: quit") : TEXT("{Confirm}: change or back      {Back}: back");
+	const int32 NumRows = Page == 0 ? ALeaflinePlayerController::NumPauseRows : ALeaflinePlayerController::NumOptionRows;
+	const float H = 74.f * Scale + NumRows * (RowH + Gap) + Style.Gap * Scale + WrappedHeight(Hint1, W, SecondaryText(Scale), Scale) + Style.Padding * Scale
+		+ WrappedHeight(Hint2, W, SecondaryText(Scale), Scale);
+	DrawPanel(CX - W * 0.5f, Y, W, H, Scale, 1.f, LeafSkin::EKind::Card);
 	DrawTextCentered(Page == 0 ? TEXT("Paused") : TEXT("Options"), CX, Y, AccentColor, PrimaryText(Scale), Font);
 	Y += 74.f * Scale;
-	const float RowH = Style.MenuRow * Scale, Gap = Style.Gap * Scale;
 	if (Page == 0)
 	{
 		const float BW = 800.f * Scale;
@@ -1444,8 +1525,8 @@ void ALeaflineHUD::DrawPause(float Scale)
 			Y += RowH + Gap;
 		}
 		Y += Style.Gap * Scale;
-		Y += DrawWrappedText(TEXT("{Choose}: choose      {Confirm}{orclick}: select"), CX, Y, W, TextColor, SecondaryText(Scale), Scale) + Style.Padding * Scale;
-		DrawWrappedText(TEXT("{Pause}: resume      {Back}: quit"), CX, Y, W, Style.Muted, SecondaryText(Scale), Scale);
+		Y += DrawWrappedText(Hint1, CX, Y, W, TextColor, SecondaryText(Scale), Scale) + Style.Padding * Scale;
+		DrawWrappedText(Hint2, CX, Y, W, Style.Muted, SecondaryText(Scale), Scale);
 		return;
 	}
 
@@ -1476,8 +1557,8 @@ void ALeaflineHUD::DrawPause(float Scale)
 		Y += RowH + Gap;
 	}
 	Y += Style.Gap * Scale;
-	Y += DrawWrappedText(TEXT("{Choose}: choose      {Change}{orclick}: change"), CX, Y, W, TextColor, SecondaryText(Scale), Scale) + Style.Padding * Scale;
-	DrawWrappedText(TEXT("{Confirm}: change or back      {Back}: back"), CX, Y, W, Style.Muted, SecondaryText(Scale), Scale);
+	Y += DrawWrappedText(Hint1, CX, Y, W, TextColor, SecondaryText(Scale), Scale) + Style.Padding * Scale;
+	DrawWrappedText(Hint2, CX, Y, W, Style.Muted, SecondaryText(Scale), Scale);
 }
 
 void ALeaflineHUD::ScrollCredits(float DesignPixels)
@@ -1676,8 +1757,28 @@ void ALeaflineHUD::DrawWindIcons(const ADayDirector* D, const AWindSystem* Wind,
 	const bool bMap = LPC && LPC->IsWindMapShown();
 	const ABirdSystem* Bird = D->GetPhase() == EDayPhase::Shift ? ABirdSystem::Get(this) : nullptr;
 	const bool bBirdLine = Bird && Bird->IsPresent();
-	DrawPanel(GX - 42.f * Scale, Top, GW + 42.f * Scale,
-		((D->GetPhase() == EDayPhase::Shift ? (bMap ? 214.f : 154.f) : 100.f) + (bBirdLine ? Style.Row : 0.f)) * Scale, Scale);
+	// How exposed the ant's spot is (sampled as in the text version; DrawPrompt reads ExposureShown too). Sampled before
+	// the panel, which fits the rows drawn below.
+	const APlayerController* PC = GetOwningPlayerController();
+	const AAntPawn* Ant = PC ? Cast<AAntPawn>(PC->GetPawn()) : nullptr;
+	const UAntMovementComponent* M = Ant ? Ant->GetAntMovement() : nullptr;
+	ExposureTimer -= GetWorld() ? GetWorld()->GetDeltaSeconds() : 0.016f;
+	if (M && ExposureTimer <= 0.f)
+	{
+		ExposureTimer = 0.2f;
+		ExposureShown = Wind->GetExposure(M->GetSurfacePosition(), M->GetSurfaceNormal());
+	}
+	const float RowY = GY + GH + Style.Gap * Scale, LY = RowY + Style.Row * Scale;
+	const float LineH = MeasureText(TEXT("Ag"), Font, SecondaryText(Scale)).Y;
+	const FString MapHint = TEXT("Hold {Cycle}: wind map");
+	float Bottom = GY + GH;
+	if (M && ExposureShown >= 0.f) Bottom = RowY + FMath::Max(LineH, 10.f * Scale + 0.5f * IconSize);
+	if (M && D->GetPhase() == EDayPhase::Shift)
+	{
+		Bottom = bMap ? LY + 3.f * Style.Row * Scale + LineH : LY + MeasureText(MapHint, Font, SecondaryText(Scale)).Y;
+		if (bBirdLine) Bottom = LY + ((bMap ? 4.f : 1.f) * Style.Row + 6.f) * Scale + FMath::Max(LineH, 14.f * Scale + 0.55f * IconSize);
+	}
+	DrawPanel(GX - 42.f * Scale, Top, GW + 42.f * Scale, Bottom - Top, Scale);
 
 	const EWindPhase Ph = Wind->GetPhase();
 	const bool bGust = Wind->IsGustActive(), bWarn = Ph == EWindPhase::Warning;
@@ -1692,7 +1793,6 @@ void ALeaflineHUD::DrawWindIcons(const ADayDirector* D, const AWindSystem* Wind,
 
 	// The wind arrow as seen from the camera (up on screen is away from you), with streaks flowing along it: slow when
 	// calm, faster and pulsing before a gust, fast and shaking in it.
-	const APlayerController* PC = GetOwningPlayerController();
 	if (PC && PC->PlayerCameraManager)
 	{
 		FVector F = PC->PlayerCameraManager->GetCameraRotation().Vector();
@@ -1730,16 +1830,6 @@ void ALeaflineHUD::DrawWindIcons(const ADayDirector* D, const AWindSystem* Wind,
 		}
 	}
 
-	// How exposed the ant's spot is (sampled as in the text version; DrawPrompt reads ExposureShown too).
-	const AAntPawn* Ant = PC ? Cast<AAntPawn>(PC->GetPawn()) : nullptr;
-	const UAntMovementComponent* M = Ant ? Ant->GetAntMovement() : nullptr;
-	ExposureTimer -= GetWorld() ? GetWorld()->GetDeltaSeconds() : 0.016f;
-	if (M && ExposureTimer <= 0.f)
-	{
-		ExposureTimer = 0.2f;
-		ExposureShown = Wind->GetExposure(M->GetSurfacePosition(), M->GetSurfaceNormal());
-	}
-	const float RowY = GY + GH + Style.Gap * Scale;
 	if (M && ExposureShown >= 0.f)
 	{
 		const bool bSheltered = ExposureShown < Style.ShelteredBelow, bPartly = ExposureShown < Style.PartlyBelow;
@@ -1749,7 +1839,6 @@ void ALeaflineHUD::DrawWindIcons(const ADayDirector* D, const AWindSystem* Wind,
 	}
 	if (M && D->GetPhase() == EDayPhase::Shift)
 	{
-		const float LY = RowY + Style.Row * Scale;
 		if (bMap)
 		{
 			DrawCrisp(Canvas, TEXT("Wind map"), TextColor, GX, LY, Font, SecondaryText(Scale));
@@ -1759,7 +1848,7 @@ void ALeaflineHUD::DrawWindIcons(const ADayDirector* D, const AWindSystem* Wind,
 		}
 		else
 		{
-			DrawTextAt(TEXT("Hold {Cycle}: wind map"), GX, LY, Style.Muted, SecondaryText(Scale), Font);
+			DrawTextAt(MapHint, GX, LY, Style.Muted, SecondaryText(Scale), Font);
 		}
 		if (bBirdLine)
 		{
