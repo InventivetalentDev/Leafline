@@ -6,7 +6,7 @@
 #   Tools/release_build.sh --check [zip]    # only the fresh-folder test, on a zip (default Build/inventivetalent_Leafline.zip),
 #                                           #   e.g. the zip downloaded back from the itch page; prints its SHA-256
 #
-# Steps: preflight (tree clean, build line off, nobody playing, editor closed, disk) -> editor build -> package -> zip
+# Steps: preflight (build inputs committed, build line off, nobody playing, editor closed, disk) -> editor build -> package -> zip
 # (the previous zip moves to Build/archive/) -> frame rates (Tools/perf_packaged.sh) -> twenty unattended days from a
 # fresh folder with spaces in its path, starting with no save -> report.
 # Everything lands in Saved/Release/<commit>-<time>/: report.md, the build, package and test logs.
@@ -128,12 +128,17 @@ ini_value() { # ini_value <section> <key>: the last value of key in [section] of
 }
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
 [ "$BRANCH" = main ] && note "branch main" || note "branch $BRANCH (not main)"
-DIRTY=$(git status --porcelain --untracked-files=no | grep -v buildinfo.txt)
-UNTRACKED=$(git status --porcelain | grep '^??' | grep -E ' (Source|Config|Content|Plugins)/')
+# Only what goes into the package must be committed: Source, Config, Content, Plugins and the project file. Other
+# uncommitted files (docs, tools, another session's work in progress) are listed, and make the build line say +dirty.
+BUILD_PATHS=' (Source|Config|Content|Plugins)/| [^ ]*[.]uproject$'
+DIRTY=$(git status --porcelain --untracked-files=no | grep -v buildinfo.txt | grep -E "$BUILD_PATHS")
+UNTRACKED=$(git status --porcelain | grep '^??' | grep -E "$BUILD_PATHS")
+OTHER=$(git status --porcelain --untracked-files=no | grep -v buildinfo.txt | grep -vE "$BUILD_PATHS")
 if [ -n "$DIRTY$UNTRACKED" ]; then
-	if [ "${DEV:-0}" = 1 ]; then note "uncommitted changes allowed (DEV=1): $(echo $DIRTY $UNTRACKED | cut -c1-200)"
-	else refuse "uncommitted changes (the build line would say +dirty, or untracked files would go into the build): $(echo $DIRTY $UNTRACKED | cut -c1-300)"; fi
-else note "tree clean"; fi
+	if [ "${DEV:-0}" = 1 ]; then note "uncommitted build files allowed (DEV=1): $(echo $DIRTY $UNTRACKED | cut -c1-200)"
+	else refuse "uncommitted or untracked files that go into the build: $(echo $DIRTY $UNTRACKED | cut -c1-300)"; fi
+else note "everything that goes into the build is committed"; fi
+[ -n "$OTHER" ] && note "uncommitted files outside the build (not in the package; the build line says +dirty): $(echo $OTHER | cut -c1-300)"
 BL=$(ini_value /Script/AntTreeGame.LeaflineHUD bShowBuildLine)
 IV=$(ini_value /Script/AntTreeGame.LeaflinePlayerController bInputVizKey)
 note "bInputVizKey=${IV:-unset (code default True)} (F3 input view; the owner keeps it in, 15 Nov)"
