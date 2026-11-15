@@ -22,7 +22,7 @@
 >
 > You're a leafcutter ant. Climb from the nest to a leafy branch (WASD and mouse, or the sticks); your ant leaves a scent trail. Hold Cut (E or left mouse button, pad X) at a leaf to choose the size of the piece, then let go: bigger pieces are worth more but slower and riskier in the wind. Send the ant home (Q, pad Y). It follows the trail by itself while you take over the next worker. When a gust comes, hold Grip (Space, pad A) or get into shelter; hold Tab (pad LB) for the wind map, where green bark is sheltered and red is exposed. At the end of the day, spend leaf mass on upgrades at the nest. Brood adds recruits who follow your trails and harvest around your cuts.
 >
-> [IF BIRD SHIPS] A bird hunts on the wind and dives at ants carrying leaves on exposed bark. It never touches them; its wing gust knocks them off. Grip or get into shelter when it dives. [IF BAIT SHIPS] Drop your piece in the open (G, pad B) to draw it away.
+> A bird hunts on the wind and dives at ants carrying leaves on exposed bark. It never touches them; its wing gust knocks them off. Grip or get into shelter when it dives. Drop your piece in the open (G, pad B) to draw it away.
 
 **What platform is your game built for?** Windows 10 and Windows 11 <!-- the form takes one; pick Windows 11 and mention 10 in the instructions, as above -->
 

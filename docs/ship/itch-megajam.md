@@ -29,9 +29,9 @@ Made for the Epic AI MegaJam 2026 (theme: Director's Cut): you direct the colony
 
 Hold Tab (LB on a pad) for the wind map: green bark is sheltered, red is exposed.
 
-[IF BIRD SHIPS] A bird hunts on the wind. It goes for ants carrying leaves on exposed bark. It never touches them; its wing gust knocks them off. Grip or get into shelter when it dives.
+A bird hunts on the wind. It goes for ants carrying leaves on exposed bark. It never touches them; its wing gust knocks them off. Grip or get into shelter when it dives.
 
-[IF BAIT SHIPS] Drop your piece in the open (G, or B on a pad) to draw the bird away for a while.
+Drop your piece in the open (G, or B on a pad) to draw the bird away for a while.
 
 ## Controls
 

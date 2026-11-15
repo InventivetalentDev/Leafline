@@ -18,7 +18,7 @@ Made by inventivetalent for the [Epic AI MegaJam 2026](https://itch.io/jam/2026-
 4. When a gust comes, hold Grip or get into shelter. Hold Tab (LB on a pad) to see which bark is exposed.
 5. At the end of the day, spend leaf mass on upgrades. Brood adds recruits who work your trails.
 
-[IF BIRD SHIPS] A bird hunts on the wind and goes for ants carrying leaves on exposed bark. It never touches them; its wing gust knocks them off.
+A bird hunts on the wind and goes for ants carrying leaves on exposed bark. It never touches them; its wing gust knocks them off.
 
 The pause menu lists all controls (keyboard and mouse, or any gamepad).
 
