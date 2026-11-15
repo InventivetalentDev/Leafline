@@ -236,3 +236,21 @@ Sound, as it works since 15 Nov:
 - The sound run uses a fixed frame rate of 60 and puts its three marker clicks just after the window.
 - It prints the drift between game time and the clock. More than about 50 ms is flagged, and means the sounds may sit off the picture.
 - `video_edit.py` cross-fades the takes' sounds at the cuts, can lower the constant beds (wind, rustle, pad) by `--bed` dB (off by default: the expander made the pad cut in and out), puts the loudest three seconds at `--loud` (default −10 LUFS short-term) with one gain, and limits the peaks at `--peak` (default −1.5 dBFS). `vol=<dB>` on a clip changes that clip's level.
+
+## itch_shots.sh
+
+`Tools/itch_shots.sh [label]` takes the itch page screenshots from the packaged build (`Build/Windows` in the main checkout), so the page shows exactly what players download. One run of `Tools/itch_plans/main.txt` gives 20 shots in about 3.5 minutes (2 min 45 s of game run), at 1920x1080 with the HUD as players see it: cutting (2), carrying (2, plus one on a scent trail), the wind map (2), a gust (2), the recap, the nest with Brood bought, hero shots on the tall spire in evening light (4, an orbit round the ant on limb 26), up the spire from its roots, the floor and grove from 60 m up the old giant, and the line (3, recruits passing the scout).
+
+```
+Tools/itch_shots.sh rc1                 # -> Saved/ItchShots/rc1/<nn>-<name>.png and sheet.jpg
+BIRD=1 Tools/itch_shots.sh rc1          # also Tools/itch_plans/bird.txt (only if the bird ships)
+PLAN=Tools/itch_plans/other.txt Tools/itch_shots.sh x   # any plan in the same format
+```
+
+- Plans use the format of `Tools/floorfar_shots.sh`: `<seconds>|<console command>` or `<seconds>|SHOT <name>`, game seconds from launch, `0|` lines run in order at launch.
+- The game runs offscreen (`-RenderOffscreen`, never takes the focus) in the save slot `ItchShots`, through `Scripts/unreal-lock.sh`. It waits while any `AntTreeGame.exe` runs (the owner playing).
+- The packaged game's `Saved/SaveGames` and `Saved/Config` are backed up to `Build/itchshots-backup-*` first and restored after, also on failure. During the run its `GameUserSettings.ini` is set to 1920x1080 windowed: with the owner's 1280x720 windowed-fullscreen settings `-ResX/-ResY` lost and the shots came out 888x500.
+- Shots are stripped of metadata (`Tools/strip_image_metadata.py`); the contact sheet needs Pillow. A shot that is not 1920x1080 is reported.
+- Wind held calm (`Leaf.Tune wind CalmMin 400`, `CalmMax 400`, `StreakCount 0`) except the forced gust; `Leaf.BuildLine 0` hides the build line; `Leaf.PadIcons 0` shows keyboard prompts; `Leaf.Bird 0` for the whole run (with recruits from day 1 the bird hunts on day 1 and its hint line covers the top of the frame; the bird shots are in the `BIRD=1` run).
+- Timing: every tree regrow (`Leaf.ResetSave`, `Leaf.Move`, `Leaf.StartDay`) stalls the game about 1.5 s and `Leaf.Delay`'s clock jumps over the stall, so steps right after a regrow chain fire together; the plan keeps several seconds of buffer after each chain. `Leaf.NewDay <seed>` and `Leaf.StartDay <day> <seed>` keep the current stage's tree with one tree per stage on; after `Leaf.ResetSave` the day is on stage 1's tree, the old giant (seed 675856).
+- Output always goes to the main checkout's `Saved/ItchShots/<label>/`, whichever tree runs the script. The hero and scale shots are taken without the HUD (`showhud` in the plan, owner 15 Nov). A `jpg/` folder next to the PNGs holds JPEG copies (quality 92, 0.3-0.6 MB) for the upload: itch.io takes screenshots up to 3 MB and the PNGs reach 3.1 MB.
