@@ -14,7 +14,7 @@
 
 **Are you entering as a student or student team?** (private): N/A
 
-**Link to gameplay footage (30-60 sec)** (private): [VIDEO URL]
+**Link to gameplay footage (30-60 sec)** (private): https://www.youtube.com/watch?v=lo9zXlSoQFE
 
 **Gameplay instructions:**
 

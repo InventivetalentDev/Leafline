@@ -7,7 +7,7 @@ You're a leafcutter ant on an enormous tree. Climb, lay a scent trail and cut a 
 Made by inventivetalent for the [Epic AI MegaJam 2026](https://itch.io/jam/2026-epic-ai-megajam) (theme: Director's Cut) and [GitHub Game Off 2026](https://itch.io/jam/game-off-2026) (theme: SHIFT), directing AI agents that wrote most of the code.
 
 - Play it: [itch.io page (Epic AI MegaJam)](https://inventivetalent.itch.io/leafline-megajam)
-- Video: [VIDEO URL]
+- Video: [YouTube](https://www.youtube.com/watch?v=lo9zXlSoQFE)
 - Dev log: [`docs/devlog.md`](docs/devlog.md)
 
 ## How to play

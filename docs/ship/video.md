@@ -220,6 +220,20 @@ Still to do (owner):
 - Upload it to YouTube as unlisted, check that it plays signed out, and put the link in the submission form and both itch pages.
 - Set `UnrealEditor.exe` back to the default output device in the Windows Volume mixer.
 
+## Draft 13: the final UI and the music (15 Nov, 21:00–21:50)
+
+The cut is draft 12's. Every shot was filmed again from the build of 15 Nov 21:00 (main at `2a6a04c`): the artist's panel skin, Codex's HUD icons, the music and the quieter wind bed. The takes of drafts 10 to 12 are kept in `Saved/VideoCap/shots_1115a`, and the earlier final in `Saved/VideoCap/leafline_megajam_draft12.mp4`.
+
+- **Picture.** Only the cut, the nest hand-over and the recap show the HUD, so only they look different. Colony, climb, spire and ant came out frame for frame like the earlier takes; the cut and the end card use a random leaf and limb, so they are new views. `affbf91` (exact screen-direction mapping on by default) landed during the pass; climb and colony, the two shots that walk the ant by input, match their earlier takes.
+- **Music.** The game now plays one track per day. Each take would start its track anew, and the music would jump at every cut, so the takes are filmed with the music muted (`EXTRA="Leaf.Tune wind MusicVolume 0"`: the with-music wind levels, no pad), and day 1's track, `Art/Audio/music_a.wav`, runs as one piece under the whole film. Its level is measured, not chosen: a recording of the tree shot with the music on gives −15.1 dB on the file (`Tools/video_music_gain.py`, correlation 0.99), and the edit mixes it in before the loudness gain (`--music Art/Audio/music_a.wav --music-db -15.1`). The day-3 shots (spire, ant, end card) would play `music_c` in the game.
+- **Sound passes.** Three things went wrong and are fixed or noted:
+  - The Volume mixer routing of `UnrealEditor.exe` to the cable was gone (the game opened "Voicemeeter Input"); the owner set it again at 21:08.
+  - The fixed-rate sound pass held only about 43 frames per second in the first three passes (cause not found; later the same evening it held 60 again), so the marker clicks came out 0.45 to 0.6 s apart. The pass can now follow the real clock (`docs/tools.md`, the default), and the check compares the scripted steps' clock times with their game times. Drift of the takes in the film: at most 9 ms on the real clock, +17 ms for the wind take and +39 ms for the recap (both at the fixed rate).
+  - Another agent's game in the second lock slot shared the GPU during one spire pass (3 s lost); it was recorded again.
+  - The recap needs the fixed rate (`SOUND_CLOCK=fixed`): its start is set by the simulation, not by a scripted step, and on the real clock it came 0.33 s early against the picture (3.00 s after the skipped harvest, 3.33 s in the frame dump). At the fixed rate it is 0.11 s early.
+- **Readings** (earshot `measure`): −19.6 LUFS integrated, loudest three seconds −10.8 LUFS (the gust), true peak −1.3 dBTP, no clipped samples. The calm stretch (ant and climb, 4.8–13.8 s) reads −26.3 LUFS against −30.5 in draft 12: the music fills it, and the hiss bands (presence, air) are 9 dB lower against the rest. The purchase sound starts at 38.22 s; the purchase is on the picture at 38.23 s.
+- **File.** `Build/Video/leafline_megajam.mp4`: 46.23 s, 1920x1080, 60 fps, H.264 High, AAC 48 kHz stereo, 50 MB. Preview: `Saved/VideoCap/draft13_720p.mp4`.
+
 ## Shot setups
 
 Each run is one launch with its own save slot, `-LeafSlot=Video`, so your colony is never touched. The commands below are starting points. A trial run without frame dumping confirms the times first (see Capture). The tree is seed 517192 (it grows the old giant, seed 675856) unless noted. Each run starts with:

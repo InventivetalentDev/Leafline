@@ -8,7 +8,7 @@
 **Platform:** Windows
 **Theme colours (owner, 15 Nov, "Evening bark"):** BG `#16110D`, BG 2 `#211A14`, Text `#EFE6D2`, Link `#9BD36A`
 **Download:** `inventivetalent_Leafline.zip` (0.47 GB). Unzip it and run `Leafline/AntTreeGame.exe`.
-**Video:** [VIDEO URL]
+**Video:** https://www.youtube.com/watch?v=lo9zXlSoQFE
 **Source code:** [github.com/InventivetalentDev/Leafline](https://github.com/InventivetalentDev/Leafline)
 
 ---
