@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2026 inventivetalent
+Copyright (c) 2026 Haylee Schäfer
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -19,7 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-Third-party material keeps its own licence: the button prompt icons in
-Content/Leafline/UIRaw/Key_*.pngraw and Pad_*.pngraw are "Xelu's FREE Controller
-Prompts" by Nicolae (Xelu) Berbece, CC0 1.0 (see docs/sourced-assets.md).

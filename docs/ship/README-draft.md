@@ -79,4 +79,4 @@ Two helper scripts are older than the jam and contain no game content: `Scripts/
 
 ## Licence
 
-MIT (see `LICENSE`). The button prompt icons stay under their own CC0 licence.
+MIT, see [`LICENSE`](LICENSE). The button prompt icons are "Xelu's FREE Controller Prompts" by Nicolae (Xelu) Berbece, released under CC0 1.0.
