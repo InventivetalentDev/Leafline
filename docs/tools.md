@@ -230,3 +230,9 @@ More in `video_capture.sh` (14 Nov, late):
 - Shot `colony`: recruits coming down a trail with their pieces. It lays two lines with `Leaf.TestLines 2 0.6 climb`; the scout rides 3 s up one and stops. Vary it with `LINES`, `COLONY_AT`, `COLONY_AIM`, `COLONY_BOOM`, `COLONY_RIDE` and `COLONY_STRAFE` (steps the scout off the trail so the recruits are seen apart; the take in the cut used 0.5 with aim `up 20`).
 - Shot `recap2`: the recap earned from three real lines, then the nest and a Brood purchase from that haul. `RECAP_AT` is the recap's game time (10.5 s, from `--probe recap2`).
 - `Leaf.TestLines` lays only one line with `any` or `sheltered` on day 1's sparse low boughs (a single candidate leaf); `climb` picks the lowest leaves on different boughs.
+
+Sound, as it works since 15 Nov:
+- `bash Tools/video_capture.sh --sound <shot> <take>` adds sound to an existing take; `AUDIO=1` records it right after filming. Pass the same environment variables the take was filmed with (for example `WIND_AIM`, `COLONY_STRAFE`, `COLONY_AT`, and `DUMP_LEN_OVERRIDE` for a changed window length).
+- The sound run uses a fixed frame rate of 60 and puts its three marker clicks just after the window.
+- It prints the drift between game time and the clock. More than about 50 ms is flagged, and means the sounds may sit off the picture.
+- `video_edit.py` cross-fades the takes' sounds at the cuts, can lower the constant beds (wind, rustle, pad) by `--bed` dB (off by default: the expander made the pad cut in and out), puts the loudest three seconds at `--loud` (default −10 LUFS short-term) with one gain, and limits the peaks at `--peak` (default −1.5 dBFS). `vol=<dB>` on a clip changes that clip's level.

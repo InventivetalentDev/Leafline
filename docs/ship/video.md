@@ -37,7 +37,7 @@ Times are positions in the finished film. **HUD** says whether the shot needs th
 | 9 | 0:41–0:44 | **The bird** *(only if the bird ships tonight)*: it swoops past a laden ant on exposed bark. | Watch the sky. | off | script |
 | 10 | 0:44–0:49 | **The day's cut.** The recap counts up line by line, then the nest screen where an upgrade is bought. | none (the screen says it) | **on** | script |
 | 11 | 0:49–0:53 | **The move.** The card "The colony moves to a tall spire", then a crane up the spire into its crown. | Strip the low boughs. Climb higher. | on, then off | script |
-| 12 | 0:53–0:57 | **End card.** Evening on the spire, a slow orbit at half speed. The picture dims behind the text. | **LEAFLINE**<br>Direct the colony. Choose every cut.<br>inventivetalent | off | script + edit |
+| 12 | 0:53–0:57 | **End card.** Evening on the spire, a slow orbit at half speed. The picture dims behind the text. | **LEAFLINE**<br>Direct the colony. Choose every cut. | off | script + edit |
 
 Without the bird, shot 8 runs 3 s longer, to 0:44, and the total stays 57 s.
 
@@ -136,14 +136,89 @@ The cut list is `docs/ship/video_cut.txt`. It runs 48.6 s:
 | 0:27 | send home, the next worker (HUD) | Send it home. / Next worker. |
 | 0:30 | recruits coming down the trail with their pieces | Your colony follows your trail. |
 | 0:36 | the recap, then the nest, enlarged (HUD) | A day's haul. / Buy Brood: more recruits. |
-| 0:43 | evening limb, end card | LEAFLINE / Direct the colony. Choose every cut. / inventivetalent |
+| 0:43 | evening limb, end card | LEAFLINE / Direct the colony. Choose every cut. |
 
 Previews: `Saved/VideoCap/draft6_720p.mp4` and `draft6_1080p60.mp4` (1920x1080, 60 fps, 48.6 s, 50 MB; rendered in 44 s).
 
-Still to do:
-- **Sound.** The recording needs Windows to send `UnrealEditor.exe` to the VB-Audio cable (`docs/tools.md`). Codex's priorities: the cut's release at 0:18.7, the gust and grip at 0:20–0:27, the tally and the purchase at 0:38–0:40.5.
-- **The final pass.** Re-film the same shots from Sunday's final build, because the HUD and the look may still change.
-- A small cosmetic point: the nest caption's box covers the left end of the growth bar.
+## Draft 7: sound (15 Nov, morning)
+
+The owner routed `UnrealEditor.exe` to "CABLE In 16ch" in the Windows Volume mixer. The game's log confirms it ("Using Audio Hardware Device CABLE In 16ch"). `video_capture.sh --sound <shot> <take>` then recorded each of the eight takes in the cut. Three things had to change before it was right:
+
+- **Markers after the window.** The three clicks that line the recording up with the frames were lost when they came before the window: the game plays no sound in its first two seconds.
+- **A fixed frame rate of 60 for the sound run** (`bUseFixedFrameRate`, `FixedFrameRate=60` on the command line). Without it the slow first frame counted as several seconds: the early steps fired at once, and the sim ran seconds behind them. With it, the steps fire on the same frames as in the frame dump. A drift check on every run compares game time with the clock from the window to the markers: all eight takes are within 41 ms, most within a frame.
+- **The purchase sound.** `Leaf.Buy` is silent; the game plays `upgrade` only for a menu purchase. The `recap2` shot now plays `Leaf.Sound upgrade 0.75` (the menu's volume) with the purchase.
+
+`video_edit.py` now builds the sound itself:
+- each clip keeps its take's sound;
+- at each cut the two sounds cross-fade over 0.3 s (clips that follow one another in the same take are one stretch);
+- one gain brings the film to −16 LUFS and a limiter holds the peaks at −1.5 dBFS.
+
+So the quiet shots stay quiet and the gust stays the loudest moment.
+
+earshot on draft 7 (`timeline`, `measure`):
+- −16.9 LUFS integrated, true peak −1.2 dBTP, no clipped samples.
+- The loudest stretch is the gust, 0:22.5–0:25.5, at −9.4 LUFS short-term.
+- The cut's release lands at 0:18.72, the send-home sound at 0:26.90 (on its cut), and the purchase sound from 0:40.5.
+- The limiter takes up to about 5 dB off the gust's peaks.
+
+Not judged by ear yet (the owner's job):
+- whether the pad's jumps at the cuts are covered by the cross-fades;
+- two swells in the opening spire shot (0:00.6 and 0:01.8, about 20 dB over the bed);
+- one swell on the nest screen (0:42.0).
+
+The end card no longer carries the owner's name (owner, 15 Nov).
+
+Previews: `Saved/VideoCap/draft7_720p.mp4` and `draft7_1080p60.mp4`.
+
+## Draft 8 and the day-1 recruits (15 Nov, late morning)
+
+- **Opening.** The owner found the first two seconds odd: the crane's start on the ant, cut against the crown, read as a pan one way whipped round into a move the other way. Draft 8 opens directly on the spire's crown with the title (`spire-take2 7.6–12.4`), then the sunlit ant. It runs 47.3 s: `Saved/VideoCap/draft8_720p.mp4`.
+- **Draft 9** (owner, 15 Nov): the climb's caption is now "Climb anywhere."
+  - The fresh trail is a thin pale ribbon until a piece goes home along it, and no camera made it read. The trail idea is carried by the colony shot.
+  - The constant beds (wind, rustle, pad) were tiring in the film, where nobody sets the volume. `video_edit.py` now lowers them with a downward expander (`--bed`, default −9 dB) and sets the level from the loudest three seconds (`--loud`, default −10 LUFS).
+  - earshot on draft 9: the calm opening went from −22 to −29 LUFS, the gust stays at −10, −17.0 LUFS integrated, true peak −1.4 dBTP, no clipped samples.
+  - The owner's verdict on draft 9: the wind is still loud, and the expander makes the pad cut in and out. `--bed` is now off by default.
+  - The game sets the loop volumes in code (`WindSystem.cpp`) with no tuning value. The owner has asked the main session to turn the wind down in the game; the video's sound waits for that build and is then re-recorded.
+- **A new colony now has two recruits from day 1** (`6eec0b0`: Brood ladder 2/3/4/6/8/10/12, the bird from day 2). The takes in drafts 6 to 8 were filmed the evening before on a forced pool of six. For the final pass:
+  - `colony` and `recap2` no longer force a pool (`VIDEO_POOL=<n>` still can), so both show a real day 1.
+  - `recap2`, probed on the new build: 31.5 hauled from 8 pieces, one lost to the wind, 76 m of trail, the recap at 9.7 s. Brood (14) is still affordable.
+  - `colony`, in stills on the new build: the two recruits come down as a pair between 25 and 29.5 s. The shared trunk stretch of the trail changes from magenta to cyan at about 24.5 s (the brighter line's colour), so the window now starts at 24.8 s.
+  - `spire`, `ant` and `end` are on day 3, which is now a bird day; they switch the bird off (`Leaf.Bird 0`) so it cannot cross the frame.
+  - `cut`: after the send-home, the goal line at the nest now names the recruits. Day 1 has no bird, so no bird hint covers the HUD.
+
+## Draft 10: the final pass (15 Nov, 12:25–13:35)
+
+Every take in the cut was filmed again, with its sound, from the build of 15 Nov 12:00. That build has recruits from day 1, richer leaves higher up with new milestones, the seam-blended bark, and the quieter calm wind (`ef61b1b`: the calm bed about 4.5 dB down, gusts as loud as before). Last night's takes are in `Saved/VideoCap/shots_1114`.
+
+- **Takes used:** `spire-take1`, `ant-take3`, `climb-take1`, `cut-take2`, `wind-take1`, `colony-take1`, `recap2-take1`, `end-take1`. All sound runs were within 17 ms of drift.
+- **Ant.** Two random limbs were shaded. The shot now goes to limb 20 of the spire, which is sunlit in the evening (`ANT_LIMB`).
+- **Cut.** Four takes on random leaves; take 2 shows the ant clearly on its twig. Take 4 has no sound (one marker click was missed) and is unused.
+- **Colony and recap** use the game's own two recruits: the recap shows 37.2 hauled from 8 pieces, one lost to the wind, 76 m of trail.
+- **Sound, by earshot.**
+  - −18.9 LUFS integrated, true peak −1.3 dBTP, no clipped samples.
+  - The calm passages sit at −26 to −30 LUFS (−22 in draft 7) and the gust at −11, with no expander.
+  - The recording as a whole came out about 4 dB hotter than last night's (−26.2 against −30.4 LUFS), so the film needs 4 dB less gain; that also lowers the beds.
+- **Files.** Preview `Saved/VideoCap/draft10_720p.mp4`. The final render is `Build/Video/leafline_megajam.mp4`: 46.2 s, 1920x1080, 60 fps, H.264 High, AAC 48 kHz stereo, 51 MB.
+
+**earshot's judgement of the final sound** (15 Nov, afternoon; `ab`, `match`, `measure`, `critique`):
+- **Wind.** Against draft 7, the calm stretch (ant and climb) is 8.4 dB quieter (−30.5 against −22.1 LUFS). Within it, the noisy bands are about 3.3 dB lower against the pad's band (mid −15.9 against −12.6 dB, presence −11.7 against −8.4), and the harmonic ratio rose from 0.86 to 0.93. In a forced choice the stretch read as "white noise hiss" 58% in draft 7 and 21% now; it now reads mostly as leaves rustling and pad.
+- **Pad at the cuts.** The pad is a fixed set of notes (about 64, 96–100, 132, 164, 196, 292 Hz) whose balance drifts over its 48 s loop. Across most cuts the low band steps by 2 dB or less (3.8 dB from climb to cut), and the same notes are present on both sides.
+- **The one larger step** is the "Next worker" clip, 8 dB up in the low band. That is not the pad: a gust warning builds there (the HUD says "gust coming") and peaks 0.1 s before the cut to the colony shot. It works as a transition swell. `CALM=1` on the `cut` shot would remove it.
+- **Against launch films** (`critique`): the verdict is "needs work", mostly for reasons of style (no music-led track, synthesised sound, few accents on cuts). Two points are relevant here:
+  - the film is quiet overall (−18.9 LUFS; web films sit between −16 and −9);
+  - the gust stands 8 LU above the rest, whose quietest stretch is at −31 LUFS.
+- **Alternative mix.** `Saved/VideoCap/draft11_720p.mp4` (cut list `Saved/VideoCap/cut_draft11.txt`: `vol=-4` on the wind clips) lifts the quiet passages by 4 dB to about −27 LUFS and leaves the gust where it is. The owner compared the two and chose draft 10: draft 11 makes the wind louder again. The final file keeps draft 10's balance.
+
+**Draft 12 (15 Nov, 14:40): the nest hand-over.** The owner saw about four ants piled on each other in the "Next worker" clip.
+- Cause: the `cut` shot teleports the scout to its leaf, so the line it leaves is a four-point jump. The day's two recruits cannot follow it and stay in the nest entrance with the next worker. It comes from the staging; in play the route is walked.
+- Fix: the hand-over clip now comes from `cut-nest`, filmed with `CUT_POOL=0` (no recruits for that take). The cut and send-home clips still come from `cut-take2`.
+- Along the way: a rising gust masked the third marker click of a sound run twice, so the marker clicks are now played louder (volume 8).
+- The final file was rendered again with this clip. Its sound is unchanged by earshot `measure`: −18.9 LUFS integrated, true peak −1.3 dBTP, no clipped samples.
+
+Still to do (owner):
+- Listen to and approve the final file.
+- Upload it to YouTube as unlisted, check that it plays signed out, and put the link in the submission form and both itch pages.
+- Set `UnrealEditor.exe` back to the default output device in the Windows Volume mixer.
 
 ## Shot setups
 

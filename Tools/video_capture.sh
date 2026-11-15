@@ -23,11 +23,13 @@
 # the run and deleted. Save slot "Video"; the owner's Leafline.sav is checked unchanged. Runs go through the Unreal lock.
 #
 # Sound (AUDIO=1, off by default): after the frame dump, a second, real-time run of the same steps plays its sound while
-# ffmpeg records the VB-Audio cable; three marker clicks before the window line the recording up with the frames.
+# ffmpeg records the VB-Audio cable; three marker clicks just after the window line the recording up with the frames.
 # Unreal has no setting a -game run reads to pick its output device (the editor's own audio-device setting is not
 # loaded in -game), so Windows must send UnrealEditor.exe to the cable: Settings > System > Sound > Volume mixer >
 # UnrealEditor.exe > Output device "CABLE In 16ch (VB-Audio Virtual Cable)" (it is listed while an UnrealEditor.exe
 # runs). Without that the sound pass plays on the default device and finds no marker clicks in the recording.
+#
+# Day-3 shots (spire, ant, end) switch the bird off: since 15 Nov a new colony has recruits, so day 3 is a bird day.
 #
 # Environment: SEED (default 517192; spire, ant and end use SPIRE_SEED, default 15161), DUMP_AT / DUMP_LEN (override
 # the shot's window, seconds of game time), EXTRA (more console commands, comma separated, run at the start), AUDIO,
@@ -39,7 +41,7 @@ OUT=$ROOT/Saved/VideoCap/shots
 FRAMEDIR=$ROOT/Saved/Screenshots/WindowsEditor
 SAVE=$ROOT/Saved/SaveGames/Leafline.sav
 FONT="/mnt/c/Program Files/Epic Games/UE_5.8/Engine/Content/Slate/Fonts/Roboto-Medium.ttf"
-SHOTS="spire ant tree climb cut wind colony ride harvest recap recap2 bird move end"
+SHOTS="spire ant tree climb climb2 cut wind colony ride harvest recap recap2 bird move end"
 SHOTS_ALL=${SHOTS_ALL:-"spire ant tree climb cut wind recap end"}   # what `all` films (owner, 14 Nov: ride, harvest,
                                                                     # move and bird left out)
 
@@ -53,17 +55,25 @@ shot_def() {
 	local evening=("2|Leaf.Carry 0.5" "4.5|Leaf.Carry 0.5")   # two pieces delivered at the nest: shift 3, evening sun
 	case $1 in
 		spire) # opener: the tall spire in the evening, a slow crane from the ant up into the crown
-			DAY=3; SEED_USE=${SPIRE_SEED:-15161}; PRE="Leaf.Move,Leaf.Move"; CALM=1
+			DAY=3; SEED_USE=${SPIRE_SEED:-15161}; PRE="Leaf.Bird 0,Leaf.Move,Leaf.Move"; CALM=1
 			STEPS=("${evening[@]}" "6|Leaf.Teleport 0 0.15" "6.1|Leaf.Aim up 25" "7.5|Leaf.Shot crane 15"); DUMP_AT=8.5; DUMP_LEN=13 ;;
-		ant) # 1: orbit round the ant on a random limb of the spire in evening light (each run differs)
-			DAY=3; SEED_USE=${SPIRE_SEED:-15161}; PRE="Leaf.Move,Leaf.Move"; CALM=1
-			STEPS=("${evening[@]}" "6|Leaf.Teleport L1 0.5" "7|Leaf.Shot orbit 14"); DUMP_AT=8.5; DUMP_LEN=10 ;;
+		ant) # 1: orbit round the ant on limb 20 of the spire, which is sunlit in the evening (random limbs were mostly
+			# shaded; ANT_LIMB="L1 0.5" picks a random one)
+			DAY=3; SEED_USE=${SPIRE_SEED:-15161}; PRE="Leaf.Bird 0,Leaf.Move,Leaf.Move"; CALM=1
+			STEPS=("${evening[@]}" "6|Leaf.Teleport ${ANT_LIMB:-20 0.5}" "7|Leaf.Shot orbit 14"); DUMP_AT=8.5; DUMP_LEN=10 ;;
 		tree) # 2: up the trunk past the ant, then a slow crane into the crown
 			CALM=1; STEPS=("1.5|Leaf.Teleport 0 0.2" "1.6|Leaf.Aim up 25" "4|Leaf.Shot crane 13"); DUMP_AT=2.5; DUMP_LEN=13 ;;
 		climb) # 3: chase up the trunk with the trail behind
 			CALM=1; STEPS=("1.5|Leaf.Teleport 0 0.2" "2|Leaf.AutoMove 0.6" "2.2|Leaf.Shot follow 12"); DUMP_AT=3.7; DUMP_LEN=7 ;;
+		climb2) # 3, closer (owner, 15 Nov: the trail was all but invisible from the chase camera): the player's own
+			# camera close behind the ant (cinematic damping), the fresh pale trail in the foreground. CLIMB_BOOM /
+			# CLIMB_AIM vary it.
+			CALM=1; STEPS=("1.5|Leaf.Teleport 0 0.2" "1.6|Leaf.Tune cam BoomLength ${CLIMB_BOOM:-170}" "1.7|Leaf.Aim ${CLIMB_AIM:-up -25}"
+				"2|Leaf.AutoMove 0.6"); DUMP_AT=4; DUMP_LEN=7 ;;
 		cut) # 4 and 6, HUD: a random leaf (each run differs), hold to cut, send home, the hand-over at the nest
-			HUD=1; STEPS=("2|Leaf.GoLeaf" "4.5|Leaf.Hold cut 3" "9|Leaf.SendHome"); DUMP_AT=3; DUMP_LEN=11 ;;
+			# CUT_POOL=0 for the hand-over at the nest: the scout is teleported to its leaf, so its route home is one
+			# jump, and the day's recruits cannot follow it and pile up in the nest entrance (owner, 15 Nov).
+			HUD=1; POOL=${CUT_POOL-}; STEPS=("2|Leaf.GoLeaf" "4.5|Leaf.Hold cut 3" "9|Leaf.SendHome"); DUMP_AT=3; DUMP_LEN=11 ;;
 		wind) # 5: exposed side, a piece, a full gust (warning 3 s, rising 1.2 s), grip as it rises; camera from above
 			# (14 Nov: from -12 the piece filled the frame). WIND_AIM and WIND_PIECE vary it.
 			STEPS=("1.5|Leaf.FaceWind exposed" "1.6|Leaf.Carry ${WIND_PIECE:-0.7}" "2|Leaf.WindAim ${WIND_AIM:-90 -35}" "2.5|Leaf.Gust 1"
@@ -79,35 +89,40 @@ shot_def() {
 				"15|Leaf.Buy 4"); DUMP_AT=7; DUMP_LEN=11 ;;
 		colony) # delegation (Codex review of draft 2; owner: recruits walking back down with leaves): two lines to the
 			# lowest leaves on different boughs ("climb"; "any" and "sheltered" find a single leaf on day 1's sparse
-			# low boughs), six recruits; the third scout rides a few seconds up a line and stops beside it, the camera
-			# looks up the trunk and the recruits come down past it with their pieces. LINES is the Leaf.TestLines
-			# arguments; COLONY_AT / COLONY_AIM / COLONY_RIDE / COLONY_BOOM vary the view; COLONY_STRAFE (-1..1) steps the
-			# scout sideways off the trail for 0.6 s first, so the recruits pass beside it and not behind one another.
-			POOL=6; CALM=1
+			# low boughs) and the colony's own recruits (two on day 1 since 15 Nov; VIDEO_POOL=<n> forces a pool).
+			# The third scout rides a few seconds up a line, steps off it (COLONY_STRAFE, so the recruits are seen
+			# apart) and the camera looks up the trunk: the two recruits come down past it with their pieces between
+			# 25 and 29.5 s. Until about 24.5 s the shared trunk stretch is magenta, then cyan (the brighter line's
+			# colour), so the window starts after that. LINES is the Leaf.TestLines arguments; COLONY_AT / COLONY_AIM /
+			# COLONY_RIDE / COLONY_BOOM vary the view. (The take in draft 7 was filmed with VIDEO_POOL=6, COLONY_AT=23.)
+			POOL=${VIDEO_POOL-}; CALM=1
 			STEPS=("2|Leaf.TestLines ${LINES:-2 0.6 climb}"
-				"9|Leaf.Hold follow ${COLONY_RIDE:-3}" "12.3|Leaf.AutoStrafe ${COLONY_STRAFE:-0}" "12.9|Leaf.AutoStrafe 0"
+				"9|Leaf.Hold follow ${COLONY_RIDE:-3}" "12.3|Leaf.AutoStrafe ${COLONY_STRAFE:-0.5}" "12.9|Leaf.AutoStrafe 0"
 				"13|Leaf.Tune cam BoomLength ${COLONY_BOOM:-240}"
-				"13.1|Leaf.Tune cam DepthOfFieldFstop 0" "13.2|Leaf.Aim ${COLONY_AIM:-up 25}"); DUMP_AT=${COLONY_AT:-16}; DUMP_LEN=10 ;;
-		recap2) # the earned recap (Codex review of draft 2): three real lines, the harvest skipped, the recap with a
+				"13.1|Leaf.Tune cam DepthOfFieldFstop 0" "13.2|Leaf.Aim ${COLONY_AIM:-up 20}"); DUMP_AT=${COLONY_AT:-24.8}; DUMP_LEN=5 ;;
+		recap2) # the earned recap (Codex review of draft 2): three real lines, the day's own recruits (two on day 1
+			# since 15 Nov: 31.5 hauled from 8 pieces, one lost to the wind), the harvest skipped, the recap with a
 			# real trail length and haul, then the nest screen and Brood bought from that haul. RECAP_AT is the
 			# recap's game time (from --probe recap2: the "Recap, day 1" line).
-			HUD=1; POOL=6; CALM=1; local r=${RECAP_AT:-10.5}   # probe, 14 Nov: the recap starts at 10.52 s
+			HUD=1; POOL=${VIDEO_POOL-}; CALM=1; local r=${RECAP_AT:-9.7}   # probe, 15 Nov (two recruits from day 1): the recap starts at 9.73 s
 			STEPS=("2|Leaf.TestLines ${LINES:-3 0.7 climb}" "6|Leaf.Harvest" "6.5|Leaf.SkipHarvest"
-				"$(python3 -c "print($r+3.8)")|Leaf.Hold grip 0.2" "$(python3 -c "print($r+5.3)")|Leaf.Buy 4")
-			DUMP_AT=$(python3 -c "print($r+0.2)"); DUMP_LEN=8 ;;
+				"$(python3 -c "print($r+3.8)")|Leaf.Hold grip 0.2" "$(python3 -c "print($r+5.3)")|Leaf.Buy 4"
+				"$(python3 -c "print($r+5.3)")|Leaf.Sound upgrade 0.75")   # the console purchase is silent: the game's own
+			DUMP_AT=$(python3 -c "print($r+0.2)"); DUMP_LEN=8 ;;          # purchase sound at the menu's volume (DayDirector)
 		bird) # 9 (only if the bird ships): a laden ant on exposed bark, the bird sent at once, the camera toward it
 			POOL=2; STEPS=("1.5|Leaf.FaceWind exposed" "1.6|Leaf.Carry 0.8" "1.7|Leaf.Tune cam SurfaceFollow 0" "3|Leaf.BirdNow"
 				"3.3|Leaf.BirdInfo aim"); DUMP_AT=3; DUMP_LEN=8 ;;
 		move) # 11, HUD: two moves; the second card is the tall spire's
 			HUD=1; STEPS=("2|Leaf.Move" "7|Leaf.Move"); DUMP_AT=8; DUMP_LEN=5 ;;
 		end) # 12: evening on the spire, a random limb (each run differs), half speed, slow orbit
-			DAY=3; SEED_USE=${SPIRE_SEED:-15161}; PRE="Leaf.Move,Leaf.Move"; CALM=1
+			DAY=3; SEED_USE=${SPIRE_SEED:-15161}; PRE="Leaf.Bird 0,Leaf.Move,Leaf.Move"; CALM=1
 			STEPS=("${evening[@]}" "7.5|Leaf.Teleport L1 0.6" "8|Leaf.Slomo 0.5" "8.5|Leaf.Shot orbit 16"); DUMP_AT=10; DUMP_LEN=9 ;;
 		*) echo "unknown shot '$1' (shots: $SHOTS)" >&2; exit 2 ;;
 	esac
 	DUMP_AT=${DUMP_AT_OVERRIDE:-$DUMP_AT}; DUMP_LEN=${DUMP_LEN_OVERRIDE:-$DUMP_LEN}
-	# Sound-pass marker: three clicks 1.5 s before the window (the recap's at 0.8 s, clear of its deposit chimes).
-	if [[ "$1" == recap ]]; then MARK_AT=0.8; else MARK_AT=$(python3 -c "print(round(max(0.6,$DUMP_AT-1.5),3))"); fi
+	# Sound-pass marker: three clicks just after the window. (Before it they were lost: the game's first two seconds
+	# play no sound, and game time and the clock only run together once the startup hitches are over.)
+	MARK_AT=$(python3 -c "print(round($DUMP_AT+$DUMP_LEN+0.6,3))")
 	FRAMES=$(python3 -c "print(round($DUMP_LEN*60))")
 	local last=0 s t
 	for s in "${STEPS[@]}"; do t=${s%%|*}; last=$(python3 -c "print(max($last,$t))"); done
@@ -117,7 +132,7 @@ shot_def() {
 }
 
 # The ExecCmds string. $2: 1 = the frame-dump pass (adds the dump window), 0 = a probe, 2 = the real-time sound pass
-# (sound plays although the offscreen game has no focus, three marker clicks before the window, ~60 fps).
+# (sound plays although the offscreen game has no focus, three marker clicks after the window, ~60 fps).
 MARK_GAP=0.35
 build_cmds() {
 	local cmds="r.DumpingMovie 0,Leaf.ResetSave,Leaf.OneTree 1" s
@@ -136,9 +151,11 @@ build_cmds() {
 	fi
 	if [[ "$2" == 2 ]]; then
 		local k t
-		for k in 0 1 2; do t=$(python3 -c "print(round($MARK_AT+$k*$MARK_GAP,3))"); cmds+=",Leaf.Delay $t Leaf.Sound ui_confirm 1"; done
+		for k in 0 1 2; do t=$(python3 -c "print(round($MARK_AT+$k*$MARK_GAP,3))"); cmds+=",Leaf.Delay $t Leaf.Sound ui_confirm 8"; done   # loud: a rising gust masked the third click at volume 3
+		cmds+=",Leaf.QuitAfter $(python3 -c "print(round(max($END,$MARK_AT+2*$MARK_GAP+1.5),2))")"
+	else
+		cmds+=",Leaf.QuitAfter $END"
 	fi
-	cmds+=",Leaf.QuitAfter $END"
 	printf '%s' "$cmds"
 }
 
@@ -151,7 +168,11 @@ run_game() {
 	cmds=$(build_cmds "$shot" "$dump")
 	flags="-game -windowed -ResX=1920 -ResY=1080 -ForceRes -RenderOffscreen -nosplash -unattended -LeafSlot=Video -log=$log"
 	if (( dump == 2 )); then
-		true   # the game plays to the Windows default device; Windows routes UnrealEditor.exe to the cable (see the header)
+		# The game plays to the Windows default device; Windows routes UnrealEditor.exe to the cable (see the header).
+		# A fixed frame rate of 60: every frame is exactly 1/60 s of game time AND the engine waits for the clock, so
+		# game time runs with the recording and, as in the frame dump, the slow first frame counts as one frame.
+		# (Without it the first frame's seconds fired the early steps at once and left the sim behind them.)
+		flags+=" -ini:Engine:[/Script/Engine.Engine]:bUseFixedFrameRate=True -ini:Engine:[/Script/Engine.Engine]:FixedFrameRate=60"
 	else
 		flags+=" -UseFixedTimeStep -FPS=60"
 		(( dump == 1 )) && flags+=" -dumpmovie"
@@ -200,15 +221,16 @@ assert width == 2, 'expected 16-bit PCM'
 data = array.array('h', w.readframes(w.getnframes()))
 blk = int(sr * 0.002) * ch                      # 2 ms blocks, peak level per block
 env = [max(-min(data[i:i + blk]), max(data[i:i + blk])) for i in range(0, len(data) - blk, blk)]
+floor = max(200, max(env) // 12)                # an onset is at least a twelfth of the recording's peak
 onsets, last = [], -1.0
 for i in range(25, len(env)):
     before = max(env[i - 25:i - 2])             # the 46 ms before
-    if env[i] > 600 and env[i] > 2.5 * before + 150:
+    if env[i] > floor and env[i] > 2.0 * before + floor / 4:
         t = i * 0.002
         if t - last > 0.08: onsets.append(t)
         last = t
 tol = 0.02
-for t in onsets:
+for t in reversed(onsets):                      # the markers come last in the run
     if any(abs(u - t - gap) < tol for u in onsets) and any(abs(u - t - 2 * gap) < tol for u in onsets):
         print(f'{t:.4f}'); sys.exit(0)
 print('onsets: ' + ' '.join(f'{t:.3f}' for t in onsets[:40]), file=sys.stderr)
@@ -233,6 +255,29 @@ sound_pass() {
 	ffmpeg -hide_banner -loglevel error -y -i "$OUT/$name.mp4" -i "$adir/$name.wav" -map 0:v -map 1:a -c:v copy -c:a aac -b:a 256k \
 		-shortest -movflags +faststart "$OUT/$name.tmp.mp4" && mv "$OUT/$name.tmp.mp4" "$OUT/$name.mp4"
 	echo "  sound: markers at $t0 s in the recording; the clip's sound is also in Saved/VideoCap/audio/$name.wav"
+	# Did game time run with the clock through the window? Compare the log's clock with its frame numbers from the
+	# last line before the window to the first marker. More than a frame or two of drift moves sounds off the picture.
+	python3 - "$ROOT/Saved/Logs/VideoSound-$shot.log" "$DUMP_AT" "$MARK_AT" <<'PY'
+import re, sys
+from datetime import datetime
+path, t0, t1 = sys.argv[1], float(sys.argv[2]), float(sys.argv[3])
+rows, wraps, prev = [], 0, 0
+for line in open(path, encoding='utf-8', errors='replace'):
+    m = re.match(r'\[(\d{4}\.\d\d\.\d\d-\d\d\.\d\d\.\d\d:\d{3})\]\[\s*(\d+)\]', line)
+    if not m: continue
+    f = int(m.group(2))
+    if f < prev: wraps += 1000
+    prev = f
+    rows.append(((f + wraps) / 60, datetime.strptime(m.group(1), '%Y.%m.%d-%H.%M.%S:%f')))
+before = [r for r in rows if r[0] <= t0]
+after = [r for r in rows if r[0] >= t1 - 0.01]
+if before and after:
+    a, b = before[-1], after[0]
+    game, wall = b[0] - a[0], (b[1] - a[1]).total_seconds()
+    drift = (wall - game) * 1000
+    print(f"  sound: {game:.2f} s of game time took {wall:.2f} s ({drift:+.0f} ms drift from {a[0]:.1f} s to the markers)"
+          + ("  <- CHECK: sounds may sit off the picture" if abs(drift) > 50 else ""))
+PY
 }
 
 capture() {

@@ -15,8 +15,12 @@ the zoom steadily from `zoom` to that value over the clip (a push-in), `cx=0.5 c
 fractions of the frame (default the middle). Captions are drawn after the zoom, at their usual size. `box=1` puts a
 dark box behind the caption, for clips where it lies over HUD text.
 Lines starting with # are comments. Clips are joined with hard cuts; the film fades in from black and out to black.
-A take with sound (added by `video_capture.sh --sound`) keeps it; a silent take gets silence. The finished sound is
-normalised to -14 LUFS. Needs only ffmpeg and ffprobe (WSL's, with drawtext).
+`vol=-3` changes that clip's sound level in dB.
+A take with sound (added by `video_capture.sh --sound`) keeps it; a silent take gets silence. Sounds cross-fade over
+0.3 s around each cut. --bed <dB> can lower the constant beds (wind, rustle, pad) with a downward expander; it is off by
+default, because it made the pad cut in and out (owner, 15 Nov). One gain puts the loudest three seconds at --loud (default -10 LUFS short-term)
+and a limiter holds the peaks at --peak (default -1.5 dBFS).
+Needs only ffmpeg and ffprobe (WSL's, with drawtext).
 """
 import argparse
 import os
@@ -48,11 +52,11 @@ def parse(cut_path):
             continue
         head, _, text = line.partition('|')
         parts = head.split()
-        opts = {'zoom': 1.0, 'zoomto': None, 'cx': 0.5, 'cy': 0.5, 'box': 0.0}
+        opts = {'zoom': 1.0, 'zoomto': None, 'cx': 0.5, 'cy': 0.5, 'box': 0.0, 'vol': 0.0}
         while len(parts) > 3 and '=' in parts[-1]:
             k, v = parts.pop().split('=', 1)
             if k not in opts:
-                sys.exit(f'{cut_path}:{n}: unknown option {k} (zoom, zoomto, cx, cy, box)')
+                sys.exit(f'{cut_path}:{n}: unknown option {k} (zoom, zoomto, cx, cy, box, vol)')
             opts[k] = float(v)
         if len(parts) != 3:
             sys.exit(f'{cut_path}:{n}: expected "<take> <in> <out> [zoom=..] | caption", got: {line}')
@@ -111,6 +115,9 @@ def main():
     ap.add_argument('--out')
     ap.add_argument('--res', type=int, default=720, help='output height: 720 for drafts, 1080 for the final')
     ap.add_argument('--fps', type=int, default=30)
+    ap.add_argument('--loud', type=float, default=-10.0, help='loudness of the loudest three seconds (LUFS, short-term)')
+    ap.add_argument('--bed', type=float, default=0.0, help='dB taken off the quiet beds (wind, rustle, pad) by an expander; 0 = off (the default: it made the pad cut in and out)')
+    ap.add_argument('--peak', type=float, default=-1.5, help='limiter ceiling in dBFS')
     ap.add_argument('--final', action='store_true', help='1080p, 60 fps, into Build/Video/leafline_megajam.mp4')
     a = ap.parse_args()
     if a.final:
@@ -137,15 +144,10 @@ def main():
             else:
                 scale = [f'scale={w}:{h}:flags=lanczos', f'fps={a.fps}']
             vf = ','.join(scale + text_filters(c, w, h, tmp, i) + ['format=yuv420p'])
-            seg = f'{tmp}/seg{i:02d}.mp4'
-            args = ['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-ss', f'{c["in"]}', '-t', f'{d}', '-i', c['path']]
-            if not has_audio:
-                args += ['-f', 'lavfi', '-t', f'{d}', '-i', 'anullsrc=r=48000:cl=stereo']
-            args += ['-vf', vf, '-map', '0:v', '-map', '0:a' if has_audio else '1:a',
-                     '-af', 'aresample=48000,aformat=channel_layouts=stereo',
-                     '-c:v', 'libx264', '-preset', 'medium', '-crf', crf, '-c:a', 'pcm_s16le', '-t', f'{d}', seg.replace('.mp4', '.mov')]
-            run(args)
-            segs.append(seg.replace('.mp4', '.mov'))
+            seg = f'{tmp}/seg{i:02d}.mov'
+            run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-ss', f'{c["in"]}', '-t', f'{d}', '-i', c['path'],
+                 '-vf', vf, '-an', '-c:v', 'libx264', '-preset', 'medium', '-crf', crf, '-t', f'{d}', seg])
+            segs.append(seg)
             print(f'  {i + 1:2d}. {c["take"]:<16} {c["in"]:5.2f}-{c["out"]:5.2f}  ({d:4.2f} s)  {c["text"]}')
         lst = f'{tmp}/list.txt'
         with open(lst, 'w') as f:
@@ -154,11 +156,70 @@ def main():
         run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', lst, '-c', 'copy', joined])
         total = float(probe(joined, 'format=duration'))
         fade_out = max(0.0, total - 0.6)
-        run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-i', joined,
-             '-vf', f'fade=t=in:st=0:d=0.15,fade=t=out:st={fade_out:.3f}:d=0.6',
-             '-af', f'loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000,afade=t=in:st=0:d=0.15,afade=t=out:st={fade_out:.3f}:d=0.6',
+
+        # Sound. Each clip keeps its take's sound. Clips that follow one another in the same take are one stretch of
+        # sound; at every other cut the two sounds cross-fade over 2 x XF seconds around the cut (equal power), using
+        # the take's sound just outside the clip, so beds like the wind and the pad do not jump.
+        XF = 0.15
+        regions, pos = [], 0.0
+        for c in clips:
+            d = c['out'] - c['in']
+            if regions and regions[-1]['take'] == c['take'] and abs(regions[-1]['out'] - c['in']) < 1e-6:
+                regions[-1]['out'] = c['out']
+            else:
+                regions.append({'take': c['take'], 'path': c['path'], 'in': c['in'], 'out': c['out'], 'pos': pos, 'vol': c['vol']})
+            pos += d
+        inputs, chains, labels = [], [], []
+        for k, r in enumerate(regions):
+            if not probe(r['path'], 'stream=codec_type').count('audio'):
+                continue
+            length = float(probe(r['path'], 'format=duration'))
+            pre = min(XF, r['in']) if k > 0 else 0.0
+            post = min(XF, max(0.0, length - r['out'])) if k < len(regions) - 1 else 0.0
+            dur = r['out'] - r['in'] + pre + post
+            n = len(labels)
+            inputs += ['-ss', f'{r["in"] - pre:.4f}', '-t', f'{dur:.4f}', '-i', r['path']]
+            f = [f'[{n}:a]aresample=48000', 'aformat=channel_layouts=stereo', f'volume={r["vol"]}dB']
+            if k > 0:
+                f.append(f'afade=t=in:st=0:d={pre + XF:.3f}:curve=qsin')
+            if k < len(regions) - 1:
+                f.append(f'afade=t=out:st={dur - post - XF:.3f}:d={post + XF:.3f}:curve=qsin')
+            delay = max(0, round((r['pos'] - pre) * 1000))
+            f.append(f'adelay={delay}|{delay}')
+            chains.append(','.join(f) + f'[a{n}]')
+            labels.append(f'[a{n}]')
+        mixed = f'{tmp}/mixed.wav'
+        if labels:
+            graph = ';'.join(chains) + ';' + ''.join(labels) + f'amix=inputs={len(labels)}:normalize=0:duration=longest,apad=whole_dur={total:.3f},atrim=0:{total:.3f}[m]'
+            run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y'] + inputs + ['-filter_complex', graph, '-map', '[m]', '-c:a', 'pcm_s24le', mixed])
+            # The beds (wind, rustle, pad) are constant and tiring in a film, where nobody sets the volume (owner,
+            # 15 Nov): a downward expander lowers everything under BED_AT by up to --bed dB and leaves the events
+            # (cuts, gusts, chimes, steps) alone. Then one gain for the whole film, measured on the loudest three
+            # seconds so that the quieter beds do not push the rest up, then a limiter.
+            def loudness(path):
+                r = subprocess.run(['ffmpeg', '-hide_banner', '-nostats', '-i', path, '-af', 'ebur128=peak=true', '-f', 'null', '-'],
+                                   capture_output=True, text=True).stderr
+                short = max(float(x.split('S:')[1].split()[0]) for x in r.splitlines() if ' S:' in x and 'TARGET' in x)
+                tail = r[r.rfind('Summary:'):]
+                return float(tail.split('I:')[1].split('LUFS')[0]), float(tail.split('Peak:')[1].split('dBFS')[0]), short
+            lufs, peak, short = loudness(mixed)
+            pre = ''
+            if a.bed < 0:
+                BED_AT = 10 ** (-33 / 20)            # as recorded: the beds sit near -39 dBFS, events from about -30
+                pre = (f'agate=threshold={BED_AT:.4f}:ratio=2:range={10 ** (a.bed / 20):.4f}:attack=8:release=350:knee=6:detection=rms,')
+            gain = a.loud - short
+            af = (f'{pre}volume={gain:.2f}dB,alimiter=limit={10 ** (a.peak / 20):.4f}:level=false:attack=3:release=60,'
+                  f'afade=t=in:st=0:d=0.15,afade=t=out:st={fade_out:.3f}:d=0.6')
+            print(f'  sound as recorded: {lufs:.1f} LUFS, loudest 3 s {short:.1f} LUFS, peak {peak:.1f} dBFS; beds {a.bed:+.0f} dB; gain {gain:+.1f} dB '
+                  f'(loudest 3 s to {a.loud:.0f} LUFS); the limiter at {a.peak:.1f} dB takes up to {max(0.0, peak + gain - a.peak):.1f} dB off the peaks')
+        else:
+            run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-f', 'lavfi', '-t', f'{total:.3f}', '-i', 'anullsrc=r=48000:cl=stereo', mixed])
+            af = 'anull'
+            print('  sound: no take in the cut has sound; the film is silent')
+        run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-i', joined, '-i', mixed,
+             '-vf', f'fade=t=in:st=0:d=0.15,fade=t=out:st={fade_out:.3f}:d=0.6', '-af', af, '-map', '0:v', '-map', '1:a',
              '-c:v', 'libx264', '-preset', 'medium', '-crf', crf, '-pix_fmt', 'yuv420p', '-r', str(a.fps),
-             '-c:a', 'aac', '-b:a', '256k', '-movflags', '+faststart', a.out])
+             '-c:a', 'aac', '-b:a', '256k', '-ar', '48000', '-t', f'{total:.3f}', '-movflags', '+faststart', a.out])
     total = float(probe(a.out, 'format=duration'))
     size = probe(a.out, 'stream=width,height').splitlines()[0]
     verdict = 'OK' if 30 <= total <= 60 else 'OUTSIDE the jam\'s 30-60 s'
