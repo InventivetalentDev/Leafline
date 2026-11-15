@@ -117,6 +117,7 @@ The text version (`DrawDayInfo`, `Leaf.HudIcons 0`) and the icon version (`DrawW
 | "Gust! You are sheltered here" (also shown while the gust is still coming) | "Gust coming: you're sheltered here" before the gust, "Gust! You're sheltered here" during it | It said "Gust!" before the gust arrived (seen in the 720p shots). The contraction matches the wind panel. |
 | "Gust coming: hold {Grip} to grip, or get to the side away from the wind arrow" | "Gust coming: hold {Grip} to grip, or move to the sheltered side" | Shorter. Uses the wind panel's word instead of describing the arrow. |
 | "Gust! Hold {Grip} to grip" | keep | |
+| The four gust prompts above, shown to any ant in a gust | shown only while the controlled ant carries a piece or is cutting one | Playtest (15 Nov): "Gust popup comes even though I don't carry a leaf = no reason to grip". Without a piece the wind panel's warning stays; "Gripping. Release {Grip} when the gust passes" still shows if you grip anyway. |
 | "Heading home on the trail.   {Cycle}: switch ant" | keep | |
 | "Release to finish the cut" | keep | |
 | "{Send}: send home      {Drop}: drop your piece for the bird" | keep | |
@@ -125,7 +126,7 @@ The text version (`DrawDayInfo`, `Leaf.HudIcons 0`) and the icon version (`DrawW
 | "{Send}: end this worker's trip" | keep | |
 | "Riding the trail.   Move to step off" | keep | |
 | "Hold {Follow}: follow the trail" | "Hold {Follow}: ride the trail" | One verb: the goal text and the riding prompt say "ride". |
-| "Everyone is home" | keep | |
+| "Everyone is home" | keep when nobody was blown off that day; otherwise "The day is over. Everyone is home: 1 worker was blown off and walked back empty-handed" ("2 workers were blown off…") | Playtest (15 Nov): "One ant died but at the end it says all got home". Blown-off workers do walk home, but the plain line read as if nobody fell. The recap's "Workers blown off" row gives the same count. |
 
 ### Goals and hints, top centre
 
@@ -193,12 +194,13 @@ The text version (`DrawDayInfo`, `Leaf.HudIcons 0`) and the icon version (`DrawW
 
 | Old | New | Why |
 |---|---|---|
-| "The nest", "Leaf to spend: 40.0" | keep | |
+| "The nest", "Leaf to spend: 40.0" | "The nest", "Leaf to spend: 40" | Playtest (15 Nov): "7.6" beside whole-number costs read as decimal costs. Whole leaf, rounded down; the buy test (`ULeaflineGameInstance::GetSpendableLeaf`) uses the same number. |
 | Mandibles: "Cut faster." | "Cut faster (recruits too)." | It affects recruits too (design.md). |
 | Strength: "Reduce carry slowdown." | "Big pieces slow you down less." | Plain words instead of a stat name. |
 | Grip: "Withstand stronger gusts." | "Hold on in stronger gusts (recruits too)." | Plainer. Affects recruits too. |
 | Stamina: "Reduce sprint stamina drain." | "Sprint for longer." | |
 | Brood: "More recruits to work your lines." | "More recruits to fetch pieces along your trails." | No "lines". A new colony already has two recruits (they are first met on day 1's first trail, see the day-1 goal); this line says what more of them do. |
+| Brood row, beside the name: nothing | "2 -> 3 recruits" (the pool now and after buying; "12 recruits" once maxed) | Playtest (15 Nov): "The worker upgrade doesn't provide more workers?" Brood adds recruits, not workers; the count says so. |
 | upgrade names, "Cost 40", "Max", "Start day 4", "Start day 4 on a new tree" | keep | |
 | "{Choose}: choose      {Confirm}{orclick}: buy or start      {Back}: start the next day" | keep | |
 

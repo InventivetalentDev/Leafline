@@ -35,6 +35,8 @@ public:
 	/** Adds positive finite mass to both balance and lifetime haul. Call SaveNow at day end. */
 	bool AddHaul(float Mass);
 	float GetLeafMass() const;
+	/** Leaf the nest can spend: whole units, rounded down (what the nest shows and CanAfford tests). */
+	int32 GetSpendableLeaf() const;
 	float GetTotalHauled() const;
 	int32 GetDay() const;
 	void SetDay(int32 InDay);
