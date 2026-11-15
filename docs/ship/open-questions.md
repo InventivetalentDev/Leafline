@@ -19,7 +19,7 @@ The ship docs now describe the game as it ships from `main` on 15 Nov: recruits 
 
 ## Saturday feature gates — 14 Nov, newest first (all settled)
 
-All six gates are settled: every feature below ships, and no `[IF … SHIPS]` marker for them is left in the pages, the form or the README. The only conditional marker left is `[IF MUSIC SHIPS]` (item 10 below).
+All six gates are settled: every feature below ships, and no `[IF … SHIPS]` marker for them is left in the pages, the form or the README. No conditional markers are left: the music lines were filled in on 15 Nov (item 10 below).
 
 | Marker | Status on 15 Nov | Action left |
 |---|---|---|

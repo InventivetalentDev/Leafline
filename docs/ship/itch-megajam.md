@@ -54,7 +54,7 @@ The pause menu lists all controls and has options for sensitivity, volume and gr
 
 The tree, leaves, forest floor, sky, scent trails and wind are all generated with code and shaders: no textures, no hand-made tree models. Made with Unreal Engine 5.8 by one person directing AI agents (Claude and Codex), which wrote most of the code and made the key art.
 
-[IF MUSIC SHIPS: one line on the background music]
+The sounds and the three music tracks (one per day: warm pads, kalimba, a music box) are synthesised by Python scripts too.
 
 Button prompt icons: ["Xelu's FREE Controller Prompts"](https://thoseawesomeguys.com/prompts/) by Nicolae (Xelu) Berbece, updated by Paul Paun, CC0 1.0.
 

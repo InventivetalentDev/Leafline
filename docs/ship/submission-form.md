@@ -52,7 +52,7 @@
 
 > Unreal Engine 5.8 (5.8.4), with Epic's Model Context Protocol plugin and ProceduralMeshComponent. Claude Code (Anthropic Claude models) for planning and most of the programming, driving the Unreal editor through the Model Context Protocol plugin. Codex (OpenAI) for concept and key art, code reviews and some programming. Blender 5.1 with the blender-mcp add-on for the scripted meshes (ant, nest mound, bird). Python for asset scripts and sound synthesis, with earshot for checking the sounds. Visual Studio 2022 Build Tools. Sourced asset: Xelu's CC0 button prompt icons. No Hyper3D Rodin.
 >
-> [IF MUSIC SHIPS: one sentence on how the background music was made]
+> The background music is three loops synthesised by a Python script (no samples), one per day in turn.
 
 **Which OpenAI models or products did you use, and how?** (private, optional):
 

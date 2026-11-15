@@ -62,7 +62,7 @@ The pause menu lists all controls and has options for sensitivity, volume and gr
 
 The tree, bark, leaves, forest floor, sky, scent trails and wind are generated with code and shaders. The world has no textures and no hand-made tree models. The ant, the nest mound and the bird are meshes made by Blender Python scripts. The sounds are synthesised by scripts.
 
-[IF MUSIC SHIPS: one line on the background music]
+So is the music: three calm tracks, one per day in turn (warm pads, kalimba, a music box), each a seamless loop generated in Python and checked by ear with an AI listening tool.
 
 One person directed AI agents to make the game. Most of the code is written by AI, and the concept and key art are AI-generated.
 

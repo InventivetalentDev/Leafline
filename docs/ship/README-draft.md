@@ -47,7 +47,7 @@ A clean build on another machine hasn't been tested yet.
 
 The tree, bark, leaves, forest floor, sky, scent trails and wind are generated with C++ and shaders; the world has no textures and no hand-made tree models. The ant, the nest mound and the bird are meshes made by Blender Python scripts in `Tools/blender/`. The sounds are synthesised by `Tools/audio/make_audio.py`.
 
-[IF MUSIC SHIPS: one line on the background music and its script]
+The background music is three synthesised loops, one per day in turn (golden pads, kalimba drift, music-box arpeggio), rendered by `Tools/audio/make_music.py`.
 
 Sounds and HUD icons load at runtime from `Content/Leafline/AudioRaw/` and `Content/Leafline/UIRaw/`. Debug console commands start with `Leaf.`; [`docs/tech.md`](docs/tech.md) lists them and describes the architecture.
 
