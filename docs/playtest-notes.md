@@ -150,6 +150,8 @@ Their notes, triaged on ship day. Tonight = quick fixes for the submission build
 ## notes for v2
 - [ ] "drop your piece to distract the bird" can't happen in practice if you're always sending your ant to go back on its own; could force walking back to the main trunk before the auto option is available
 - [ ] could make the bird target yesterday's (or previous trips') branches as an incentive to climb higher up
+- [ ] vignette to warn about wind and bird
+- [ ] revisit original upgrade ideas (rocket launcher, etc.)
 
 ## To revisit: thin-branch controls (2026-11-12)
 
