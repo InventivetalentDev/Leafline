@@ -211,3 +211,20 @@ More in `video_capture.sh` (14 Nov, late):
 - Shot `colony`: recruits coming down a trail with their pieces. It lays two lines with `Leaf.TestLines 2 0.6 climb`; the scout rides 3 s up one and stops. Vary it with `LINES`, `COLONY_AT`, `COLONY_AIM`, `COLONY_BOOM`, `COLONY_RIDE` and `COLONY_STRAFE` (steps the scout off the trail so the recruits are seen apart; the take in the cut used 0.5 with aim `up 20`).
 - Shot `recap2`: the recap earned from three real lines, then the nest and a Brood purchase from that haul. `RECAP_AT` is the recap's game time (10.5 s, from `--probe recap2`).
 - `Leaf.TestLines` lays only one line with `any` or `sheltered` on day 1's sparse low boughs (a single candidate leaf); `climb` picks the lowest leaves on different boughs.
+
+## itch_shots.sh
+
+`Tools/itch_shots.sh [label]` takes the itch page screenshots from the packaged build (`Build/Windows` in the main checkout), so the page shows exactly what players download. One run of `Tools/itch_plans/main.txt` gives 20 shots in about 3.5 minutes (2 min 45 s of game run), at 1920x1080 with the HUD as players see it: cutting (2), carrying (2, plus one on a scent trail), the wind map (2), a gust (2), the recap, the nest with Brood bought, hero shots on the tall spire in evening light (4, an orbit round the ant on limb 26), up the spire from its roots, the floor and grove from 60 m up the old giant, and the line (3, recruits passing the scout).
+
+```
+Tools/itch_shots.sh rc1                 # -> Saved/ItchShots/rc1/<nn>-<name>.png and sheet.jpg
+BIRD=1 Tools/itch_shots.sh rc1          # also Tools/itch_plans/bird.txt (only if the bird ships)
+PLAN=Tools/itch_plans/other.txt Tools/itch_shots.sh x   # any plan in the same format
+```
+
+- Plans use the format of `Tools/floorfar_shots.sh`: `<seconds>|<console command>` or `<seconds>|SHOT <name>`, game seconds from launch, `0|` lines run in order at launch.
+- The game runs offscreen (`-RenderOffscreen`, never takes the focus) in the save slot `ItchShots`, through `Scripts/unreal-lock.sh`. It waits while any `AntTreeGame.exe` runs (the owner playing).
+- The packaged game's `Saved/SaveGames` and `Saved/Config` are backed up to `Build/itchshots-backup-*` first and restored after, also on failure. During the run its `GameUserSettings.ini` is set to 1920x1080 windowed: with the owner's 1280x720 windowed-fullscreen settings `-ResX/-ResY` lost and the shots came out 888x500.
+- Shots are stripped of metadata (`Tools/strip_image_metadata.py`); the contact sheet needs Pillow. A shot that is not 1920x1080 is reported.
+- Wind held calm (`Leaf.Tune wind CalmMin 400`, `CalmMax 400`, `StreakCount 0`) except the forced gust; `Leaf.BuildLine 0` hides the build line; `Leaf.PadIcons 0` shows keyboard prompts; `Leaf.Bird 0` in the line segment, where the forced recruit pool would bring the bird and its hint line.
+- Timing: every tree regrow (`Leaf.ResetSave`, `Leaf.Move`, `Leaf.StartDay`) stalls the game about 1.5 s and `Leaf.Delay`'s clock jumps over the stall, so steps right after a regrow chain fire together; the plan keeps several seconds of buffer after each chain. `Leaf.NewDay <seed>` and `Leaf.StartDay <day> <seed>` keep the current stage's tree with one tree per stage on; after `Leaf.ResetSave` the day is on stage 1's tree, the old giant (seed 675856).
