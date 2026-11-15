@@ -1,11 +1,12 @@
 # itch page text: Epic AI MegaJam (frozen at submission)
 
-<!-- Owner: fill the bracketed placeholders. Keep or delete the two bird lines after the 20:00 decision. -->
+<!-- Owner: fill the bracketed placeholders. -->
 
 **Title:** Leafline
 **Short description:** You're a leafcutter ant on a giant tree. Cut leaves, lay scent trails and send the colony after you.
 **Tags (suggested):** Singleplayer, 3D, Procedural Generation, Ants, Unreal Engine
 **Platform:** Windows
+**Theme colours (owner, 15 Nov, "Evening bark"):** BG `#16110D`, BG 2 `#211A14`, Text `#EFE6D2`, Link `#9BD36A`
 **Download:** `inventivetalent_Leafline.zip` (0.44 GB). Unzip it and run `Leafline/AntTreeGame.exe`.
 **Video:** [VIDEO URL]
 
