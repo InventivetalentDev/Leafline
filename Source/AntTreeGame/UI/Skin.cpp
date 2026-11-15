@@ -83,6 +83,8 @@ namespace LeafSkin
 		int32 Margins[NumKinds][4];
 		bool bMirror[NumKinds] = {};
 		float Outset[NumKinds][4] = {};
+		float Opacity[NumKinds];
+		for (float& O : Opacity) O = 1.f;
 		FString Reason[NumKinds];
 		for (int32 i = 0; i < NumKinds; ++i) Reason[i] = TEXT("no margins line in skin.txt");
 		TArray<FString> Lines;
@@ -104,6 +106,18 @@ namespace LeafSkin
 				for (int32 i = 0; i < NumKinds; ++i)
 				{
 					if (T.Num() == 2 && T[1].Equals(Names[i], ESearchCase::IgnoreCase)) bMirror[i] = true;
+				}
+				continue;
+			}
+			if (T[0].Equals(TEXT("opacity"), ESearchCase::IgnoreCase))
+			{
+				// "opacity <image name> <0..1>"
+				bool bDigit = false;
+				if (T.Num() == 3) for (const TCHAR C : T[2]) bDigit |= FChar::IsDigit(C);
+				if (bDigit && FCString::IsNumeric(*T[2]))
+				{
+					const float V = FMath::Clamp(FCString::Atof(*T[2]), 0.f, 1.f);
+					for (int32 i = 0; i < NumKinds; ++i) if (T[1].Equals(Names[i], ESearchCase::IgnoreCase)) Opacity[i] = V;
 				}
 				continue;
 			}
@@ -183,11 +197,13 @@ namespace LeafSkin
 			Img.OutsetT = Outset[i][1];
 			Img.OutsetR = Outset[i][2];
 			Img.OutsetB = Outset[i][3];
+			Img.Opacity = Opacity[i];
 			bValid[i] = true;
-			Parts.Add(FString::Printf(TEXT("%s %dx%d (%d %d %d %d)%s%s"), Names[i], Img.Size.X, Img.Size.Y, Img.Left, Img.Top, Img.Right, Img.Bottom,
+			Parts.Add(FString::Printf(TEXT("%s %dx%d (%d %d %d %d)%s%s%s"), Names[i], Img.Size.X, Img.Size.Y, Img.Left, Img.Top, Img.Right, Img.Bottom,
 				Img.bMirrorRight ? TEXT(", mirrored right of centre") : TEXT(""),
 				(Img.OutsetL != 0.f || Img.OutsetT != 0.f || Img.OutsetR != 0.f || Img.OutsetB != 0.f)
-					? *FString::Printf(TEXT(", outset %.0f %.0f %.0f %.0f"), Img.OutsetL, Img.OutsetT, Img.OutsetR, Img.OutsetB) : TEXT("")));
+					? *FString::Printf(TEXT(", outset %.0f %.0f %.0f %.0f"), Img.OutsetL, Img.OutsetT, Img.OutsetR, Img.OutsetB) : TEXT(""),
+				Img.Opacity < 1.f ? *FString::Printf(TEXT(", opacity %.2f"), Img.Opacity) : TEXT("")));
 		}
 		const FString Summary = FString::Printf(TEXT("Skin from %s, scale %.2f%s: %s"), *Dir, PixelsPerDesign, bEnabled ? TEXT("") : TEXT(" (off: Leaf.Skin 0)"),
 			*FString::Join(Parts, TEXT("; ")));

@@ -37,6 +37,9 @@ namespace LeafSkin
 		// many 1080p pixels further outside the panel (beyond the panel's padding), so a frame clears the text. Left and
 		// right swap with the image when it is mirrored.
 		float OutsetL = 0.f, OutsetT = 0.f, OutsetR = 0.f, OutsetB = 0.f;
+		// skin.txt "opacity <image name> <0..1>": the image is drawn that opaque (the flat panels were 0.72), so the world
+		// shows through; text on top is unaffected.
+		float Opacity = 1.f;
 	};
 
 	/** The image for a kind, or null for a flat panel (no image for it, it failed to load, or Leaf.Skin 0). */

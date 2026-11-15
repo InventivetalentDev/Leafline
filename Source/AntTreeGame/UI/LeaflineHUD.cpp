@@ -1,4 +1,5 @@
 #include "UI/LeaflineHUD.h"
+#include "AntTreeGame.h" // LogLeafline (a non-unity compile of this file needs it)
 #include "UI/PromptIcons.h"
 #include "UI/Credits.h"
 #include "Misc/App.h"
@@ -287,8 +288,9 @@ void ALeaflineHUD::DrawHUD()
 			DrawTextPanel(Bird->IsBaitOn()
 				? TEXT("A bird is out today. It swoops at ants carrying pieces on exposed bark: stay off the red, grip when it dives, or drop your piece in the open to draw it away.")
 				: TEXT("A bird is out today. It swoops at ants carrying pieces on exposed bark: stay off the red, or grip when it dives."),
-				// The box at 60% so the world shows through this large card (owner, 15 Nov); the text stays fully opaque.
-				Canvas->ClipX * 0.5f, 160.f * Scale, AccentColor, SecondaryText(Scale), Scale, 0.6f, 700.f);
+				// The box at 75% of the skin's opacity (0.8 x 0.75 = 60%) so the world shows through this large card (owner,
+				// 15 Nov); the text stays fully opaque.
+				Canvas->ClipX * 0.5f, 160.f * Scale, AccentColor, SecondaryText(Scale), Scale, 0.75f, 700.f);
 		}
 	}
 	if (Ant)
@@ -555,7 +557,7 @@ void ALeaflineHUD::DrawNineSlice(const LeafSkin::FImage& Image, float X, float Y
 	const float U1 = float(Image.Left) / Image.Size.X, U2 = 1.f - float(Image.Right) / Image.Size.X;
 	const float Us[4] = { bFlip ? 1.f : 0.f, bFlip ? U2 : U1, bFlip ? U1 : U2, bFlip ? 0.f : 1.f };
 	const float Vs[4] = { 0.f, float(Image.Top) / Image.Size.Y, 1.f - float(Image.Bottom) / Image.Size.Y, 1.f };
-	const FLinearColor Tint(1.f, 1.f, 1.f, Alpha);
+	const FLinearColor Tint(1.f, 1.f, 1.f, Alpha * Image.Opacity);
 	for (int32 j = 0; j < 3; ++j)
 	{
 		for (int32 i = 0; i < 3; ++i)

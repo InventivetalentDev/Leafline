@@ -72,6 +72,8 @@ Two optional lines change how an image is placed:
   screen centre are drawn flipped left to right, with the left and right margins swapped, so the nine slices still line
   up. Use it when one corner is different and should face outwards on both sides of the screen.
 - `outset <image> <px>` or `outset <image> <left> <top> <right> <bottom>`, for example `outset Panel_Group 6` or
+
+- `opacity <image name> <0..1>`: draws that image partly see-through (the flat panels were 0.72); the text on top stays opaque. The shipped skin uses 0.8 for every panel.
   `outset Panel_Card 20 16 18 44`: that image is drawn this many pixels further outside the panel (pixels on a 1080p
   screen, scaled like everything else; without it a frame sits 16 px outside the text). Use it when a frame's outline
   comes too close to the text. With `mirror_right` the left and right values swap with the image.
