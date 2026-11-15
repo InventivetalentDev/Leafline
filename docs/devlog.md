@@ -109,3 +109,24 @@ Leafline is made by one person directing AI agents. Claude (Anthropic) does plan
 - Branch collars (the owner's polish note): limbs, boughs and roots swell where they leave their parent, in the walking surface and the mesh alike. The bark pattern follows a radius without the flare and collars, so the trunk base shows long ridges instead of paving stones.
 - A faint line in the corner (the owner's idea) shows the build, the tree and a pasteable `Leaf.Goto` for the view on screen, so a screenshot is enough to reproduce a bug.
 
+## 2026-11-14 (Sat): the bird, the floor and a night run
+
+- Late Friday, look pass 2: the bark cutaway opens only when wood really hides the ant and keeps a faint dithered layer, the nest mound is generated in Blender with its own soil, the camera can look further up, and fillets smooth the joints where branches meet, in the walking surface and on the mesh. The ant's head got a neck.
+- The bird, the stretch goal from the first plan: a small bird circles on the wind and swoops at ants carrying pieces on exposed bark. It never touches them; the gust from its wings knocks them off, and gripping or shelter keeps them on. Dropping your piece in the open draws it away. Its mesh comes from a Blender script and its call and wing rush from the audio script. It stayed switchable for the owner's call.
+- Wind you can see: a wall of dust and pollen blows in a couple of seconds ahead of each gust, leaves and grass sway harder, and the ant's own spot shows how exposed it is.
+- The forest floor: grass from the clearing edge, leaf litter and twigs round the roots, and, seen from high on the tree, a leaf-flecked ground fading into haze. The ant got a copper and mahogany look.
+- Ants walk on the fillets again, after a fix for recruits that got stuck at junctions, and twigs have fillets too.
+- The interface: every line of text rewritten in plain words (`docs/ui-text.md`); icons for the wind, the bird, the load, the colony counter and the workers; a Controls page and a credits screen in the pause menu; and one colour per trail, fading with distance from your ant.
+- For the jam page: a camera kit for the video (scripted orbit, crane, dolly and reveal shots, slow motion), new key art from Codex, and both itch pages and the submission form rewritten for the current game.
+- The owner moved the feature freeze to Sunday. A night run added the veins and tone of its leaf to the carried piece, long bark ridges on the roots, an understory of smaller trees in front of the distant grove, rolling hills beyond the ants' reach, bark that blends across the fillet seams, and an option that makes higher leaves worth more (with `Leaf.Milestones` to try milestone sets for it). The last three stayed off for the owner's call. Codex reviewed the day's code that night and found nothing serious; fixes for four of its seven smaller findings were merged, and the other three are harmless or only on paths that are off by default (`docs/reviews/night-review-2026-11-14.md`).
+
+## 2026-11-15 (Sun): ship day
+
+- The owner's calls in the morning: a new colony has two recruits from day 1 (Brood is now 2 / 3 / 4 / 6 / 8 / 10 / 12), so the first trail already brings helpers out. The bird and its bait stay on, and the bird first comes on day 2, with one gentle swoop and a hint. The rolling hills and the seam-blended bark are on. Higher leaves are now clearly worth more, and the milestones went up to 25 / 190 / 335 to match.
+- A calmer wind: the constant bed is about 4.5 dB quieter, gusts are as loud as before, and the gust loop lost its whistle.
+- Background music, synthesised by script like every other sound: three loops (warm pads, a kalimba, a music box), one per day in turn, with a short fade when a day starts.
+- UI polish: the nest, the recap, the menus and the cards are sized to what they show, nest costs are coloured by what you can afford, and maxed upgrades turn gold. Codex reviewed the layout code.
+- Release tools: `Tools/release_build.sh` packages the submission build, zips it, measures frame rates and plays twenty unattended days from a fresh folder with spaces in its path; `Tools/itch_shots.sh` takes the itch screenshots from the packaged build, with JPEG copies under itch's size limit. The faint build line is off in the submission build.
+- The jam video was filmed in the game with scripted shots, its sound recorded in a second real-time run, and cut together by a script: 46 seconds.
+- A docs pass made the design, plan, technical notes and ship pages agree with what ships, and checked the console command list against the code.
+- The Linux environment (WSL) the agents run in ran out of memory twice: after a crash every agent session restarts at once, and an audio-analysis tool loading its models on top pushed it over. The memory cap was raised, and the scripts the agents rely on now live on the project drive, so a crash no longer wipes them.
