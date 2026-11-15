@@ -69,9 +69,10 @@ Two optional lines change how an image is placed:
 - `mirror_right <image>`, for example `mirror_right Panel_Group`: boxes of that kind whose centre lies right of the
   screen centre are drawn flipped left to right, with the left and right margins swapped, so the nine slices still line
   up. Use it when one corner is different and should face outwards on both sides of the screen.
-- `outset <image> <px>`, for example `outset Panel_Card 14`: that image is drawn this many pixels further outside the
-  panel on every side (pixels on a 1080p screen, scaled like everything else; today a frame sits 16 px outside the
-  text). Use it when a frame comes too close to the text.
+- `outset <image> <px>` or `outset <image> <left> <top> <right> <bottom>`, for example `outset Panel_Group 6` or
+  `outset Panel_Card 20 16 18 44`: that image is drawn this many pixels further outside the panel (pixels on a 1080p
+  screen, scaled like everything else; without it a frame sits 16 px outside the text). Use it when a frame's outline
+  comes too close to the text. With `mirror_right` the left and right values swap with the image.
 
 `Panel_GroupCenter` is used for HUD boxes whose centre lies within 15% of the screen width from the screen centre.
 Without these lines and without that image, everything is drawn as before.

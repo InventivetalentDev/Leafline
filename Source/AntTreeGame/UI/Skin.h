@@ -33,9 +33,10 @@ namespace LeafSkin
 		// skin.txt "mirror_right <image name>": panels of this kind centred right of the screen centre are drawn flipped
 		// left to right (a one-sided ornament then points the other way on that side).
 		bool bMirrorRight = false;
-		// skin.txt "outset <image name> <px>": the image is drawn that many 1080p pixels further outside the panel on every
-		// side (beyond the panel's padding), so a frame clears the text.
-		float Outset = 0.f;
+		// skin.txt "outset <image name> <px>" or "outset <image name> <left> <top> <right> <bottom>": the image is drawn that
+		// many 1080p pixels further outside the panel (beyond the panel's padding), so a frame clears the text. Left and
+		// right swap with the image when it is mirrored.
+		float OutsetL = 0.f, OutsetT = 0.f, OutsetR = 0.f, OutsetB = 0.f;
 	};
 
 	/** The image for a kind, or null for a flat panel (no image for it, it failed to load, or Leaf.Skin 0). */

@@ -508,16 +508,17 @@ void ALeaflineHUD::DrawPanel(float X, float Y, float W, float H, float Scale, fl
 void ALeaflineHUD::DrawNineSlice(const LeafSkin::FImage& Image, float X, float Y, float W, float H, float Scale, float Alpha)
 {
 	if (!Canvas || !Image.Texture || Image.Size.X <= 0 || Image.Size.Y <= 0) return;
-	// outset: the image reaches further outside the panel on every side (1080p pixels, scaled).
-	const float O = Image.Outset * Scale;
-	const float L = FMath::RoundToFloat(X - O), T = FMath::RoundToFloat(Y - O), R = FMath::RoundToFloat(X + W + O), B = FMath::RoundToFloat(Y + H + O);
+	// mirror_right: a panel centred right of the screen centre is drawn flipped left to right, its left and right margins
+	// (and outsets) swapped with the image, so the nine slices still line up.
+	const bool bFlip = Image.bMirrorRight && X + W * 0.5f > Canvas->ClipX * 0.5f;
+	// outset: the image reaches further outside the panel (1080p pixels, scaled).
+	const float OL = (bFlip ? Image.OutsetR : Image.OutsetL) * Scale, OR = (bFlip ? Image.OutsetL : Image.OutsetR) * Scale;
+	const float L = FMath::RoundToFloat(X - OL), T = FMath::RoundToFloat(Y - Image.OutsetT * Scale);
+	const float R = FMath::RoundToFloat(X + W + OR), B = FMath::RoundToFloat(Y + H + Image.OutsetB * Scale);
 	if (R - L < 1.f || B - T < 1.f) return;
 	// Corners keep their painted size (image pixels / pixels per 1080p pixel, times the screen scale), rounded to whole
 	// pixels; a panel smaller than its corners squeezes them to fit.
 	const float K = Scale / FMath::Max(Image.PixelsPerDesign, 0.01f);
-	// mirror_right: a panel centred right of the screen centre is drawn flipped left to right, its left and right margins
-	// swapped with the image, so the nine slices still line up.
-	const bool bFlip = Image.bMirrorRight && X + W * 0.5f > Canvas->ClipX * 0.5f;
 	const int32 ML = bFlip ? Image.Right : Image.Left, MR = bFlip ? Image.Left : Image.Right;
 	float CL = FMath::RoundToFloat(ML * K), CR = FMath::RoundToFloat(MR * K);
 	float CT = FMath::RoundToFloat(Image.Top * K), CB = FMath::RoundToFloat(Image.Bottom * K);
