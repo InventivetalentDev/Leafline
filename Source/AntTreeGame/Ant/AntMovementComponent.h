@@ -88,11 +88,12 @@ struct FAntMoveTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") float NewInputAngleDeg = 40.f;
 	/** Screen direction: how much "away from the camera" counts as up on screen, besides screen-up itself. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") float ScreenDepthWeight = 0.35f;
-	/** Screen direction, trial (off by default; owner decides, 15 Nov): W/A/S/D are the bark directions whose image on
+	/** Screen direction, exact (on by default since 15 Nov): W/A/S/D are the bark directions whose image on
 	 *  screen at the ant points exactly up/left/down/right (the perspective projection of the bark's tangent plane,
 	 *  inverted), instead of the branch-on-screen rule and the "away counts as up" weights. Where the bark is seen nearly
-	 *  edge-on the inverse is unstable, so it blends back to the old rule (see ExactMinFit). Leaf.Tune move bExactScreenDir True. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") bool bExactScreenDir = false;
+	 *  edge-on the inverse is unstable, so it blends back to the old rule (see ExactMinFit). On by default since the owner tried it
+	 *  (15 Nov); Leaf.Tune move bExactScreenDir False gives the old branch-on-screen rule. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") bool bExactScreenDir = true;
 	/** Exact screen direction: the sine of the angle between the exact W and D on the bark (1 = square; a rolled,
 	 *  grazing view folds D toward W): the old rule under ExactMinFit, the exact mapping over ExactFullFit, blended. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") float ExactMinFit = 0.5f;
