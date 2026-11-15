@@ -258,8 +258,80 @@ FVector UAntMovementComponent::ComputeWish(const FVector& N) const
 	return (Fwd * (MoveInput.Y * FwdGain) + Right * MoveInput.X).GetClampedToMaxSize(1.0);
 }
 
-void UAntMovementComponent::MakeScreenBasis(const FVector& N, const FVector& Axis, FVector& OutFwd, FVector& OutRight) const
+float UAntMovementComponent::MakeExactScreenBasis(const FVector& N, const FVector& Axis, FVector& OutFwd, FVector& OutRight) const
 {
+	OutFwd = OutRight = FVector::ZeroVector;
+	// Only on bark that faces the camera: seen through the cutaway from behind, "right on screen" is the opposite turn
+	// round the branch, and a fresh press there would reverse an orbit. The fit is already 0 at the silhouette, so the
+	// hand-over to the old rule is continuous.
+	if (FVector::DotProduct(N, bHasCamPos ? FVector(CamPos - Pos) : -CamForward) <= 0.0) return 0.f;
+	const FVector CamRightV = FVector::CrossProduct(CamUp, CamForward);
+	// Two unit tangent directions at the ant: along the branch (or screen-up on the bark) and across it.
+	FVector T1 = Axis.IsNearlyZero() ? FVector::ZeroVector : ProjectOnPlane(Axis, N);
+	if (T1.SizeSquared() < 0.04) T1 = ProjectOnPlane(CamUp, N);
+	if (T1.SizeSquared() < 0.04) T1 = ProjectOnPlane(CamRightV, N);
+	if (T1.SizeSquared() < 1e-6) return 0.f;
+	T1.Normalize();
+	const FVector T2 = FVector::CrossProduct(N, T1).GetSafeNormal();
+	// A direction's motion on screen at the ant (x right, y up), with perspective: the derivative of the projection,
+	// up to the common 1/depth factor. Without a camera position, orthographic.
+	double SX = 0.0, SY = 0.0;
+	if (bHasCamPos)
+	{
+		const FVector Rel = Pos - CamPos;
+		const double Z = FMath::Max(FVector::DotProduct(Rel, CamForward), 10.0);
+		SX = FVector::DotProduct(Rel, CamRightV) / Z;
+		SY = FVector::DotProduct(Rel, CamUp) / Z;
+	}
+	auto OnScreen = [&](const FVector& V)
+	{
+		const double VF = FVector::DotProduct(V, CamForward);
+		return FVector2D(FVector::DotProduct(V, CamRightV) - SX * VF, FVector::DotProduct(V, CamUp) - SY * VF);
+	};
+	// J = [img(T1) img(T2)]; the tangent direction c1 T1 + c2 T2 shows on screen as J c, so "up" is J^-1 (0, 1) and
+	// "right" J^-1 (1, 0): up = (-b T1 + a T2) / det, right = (d T1 - c T2) / det for J = [[a, b], [c, d]].
+	const FVector2D I1 = OnScreen(T1), I2 = OnScreen(T2);
+	const double A = I1.X, B = I2.X, C = I1.Y, D = I2.Y;
+	const double Det = A * D - B * C;
+	const double Longer = FMath::Max(I1.SizeSquared(), I2.SizeSquared());
+	if (Longer < 1e-8) return 0.f;
+	if (FMath::Abs(Det) / Longer < 0.005) return 0.f; // edge-on: no inverse
+	OutFwd = ((-B * T1 + A * T2) / Det).GetSafeNormal();
+	OutRight = ((D * T1 - C * T2) / Det).GetSafeNormal();
+	if (OutFwd.IsNearlyZero() || OutRight.IsNearlyZero()) return 0.f;
+	// The fit: the sine of the angle between W and D on the bark. Foreshortening alone keeps them square (a camera low
+	// over the bark still gets W = away, D = sideways); a rolled, grazing view folds D toward W (toward or away from the
+	// camera), and there the old rule takes over.
+	return (float)FMath::Abs(FVector::DotProduct(FVector::CrossProduct(OutFwd, OutRight), N));
+}
+
+void UAntMovementComponent::MakeScreenBasis(const FVector& N, const FVector& Axis, FVector& OutFwd, FVector& OutRight, int32 Mode) const
+{
+	if (Mode == 1 || (Mode < 0 && Tuning.bExactScreenDir))
+	{
+		// Exact mapping where the bark is seen well enough; back to the old rule where it is seen edge-on.
+		FVector EF, ER, LF, LR;
+		const float Fit = MakeExactScreenBasis(N, Axis, EF, ER);
+		const float W = Fit <= 0.f ? 0.f : FMath::SmoothStep(Tuning.ExactMinFit, FMath::Max(Tuning.ExactFullFit, Tuning.ExactMinFit + 0.001f), Fit);
+		if (W >= 1.f)
+		{
+			OutFwd = EF;
+			OutRight = ER;
+			return;
+		}
+		MakeScreenBasis(N, Axis, LF, LR, 0);
+		if (W <= 0.f)
+		{
+			OutFwd = LF;
+			OutRight = LR;
+			return;
+		}
+		OutFwd = FMath::Lerp(LF, EF, (double)W).GetSafeNormal();
+		OutRight = FMath::Lerp(LR, ER, (double)W).GetSafeNormal();
+		if (OutFwd.IsNearlyZero()) OutFwd = W >= 0.5f ? EF : LF;
+		if (OutRight.IsNearlyZero()) OutRight = W >= 0.5f ? ER : LR;
+		return;
+	}
 	const FVector CamRightV = FVector::CrossProduct(CamUp, CamForward);
 	const FVector AP = Axis.IsNearlyZero() ? FVector::ZeroVector : ProjectOnPlane(Axis, N);
 	if (AP.SizeSquared() > 0.04)
@@ -462,6 +534,7 @@ void UAntMovementComponent::UpdateInputViz(float Dt, const FVector& Axis, float 
 		if (BranchBlend >= 0.99f) { Rule = FString::Printf(TEXT("screen direction, branch: %s"), Snap); RuleColor = FColor::Orange; }
 		else if (BranchBlend > 0.01f) { Rule = FString::Printf(TEXT("screen direction, %d%% branch (%s)"), FMath::RoundToInt(BranchBlend * 100.f), Snap); RuleColor = FColor::Yellow; }
 		else { Rule = TEXT("screen direction, free"); }
+		if (Tuning.bExactScreenDir) Rule += TEXT(", exact (trial)");
 	}
 	else if (bWantsMove && !bWheel && ThinBlend > 0.01f) { Rule = TEXT("thin-branch rules (gentle stick)"); RuleColor = FColor::Magenta; }
 	else if (BranchBlend >= 0.99f) { Rule = TEXT("steering wheel"); RuleColor = FColor::Orange; }
@@ -525,6 +598,36 @@ void UAntMovementComponent::UpdateInputViz(float Dt, const FVector& Axis, float 
 	else
 	{
 		T.OffSince = -1.0;
+	}
+
+	// Leaf.ScreenDirLog: where W/A/S/D point on screen under both mappings (the raw held basis; the snap is off by default).
+	if (LeafDebug::ScreenDirLogs > 0 && bWalking && bScreen)
+	{
+		--LeafDebug::ScreenDirLogs;
+		auto Deg = [&](const FVector& Dir) -> double
+		{
+			const FVector2D S = ScreenDir(Dir);
+			if (S.IsNearlyZero()) return -1.0;
+			const double A = FMath::RadiansToDegrees(FMath::Atan2(-S.Y, S.X)); // screen y grows downward
+			return A < 0.0 ? A + 360.0 : A;
+		};
+		auto Err = [](double Got, double Want) { return Got < 0.0 ? -1.0 : FMath::Abs(FMath::Fmod(Got - Want + 540.0, 360.0) - 180.0); };
+		FString Parts;
+		for (int32 Mode = 0; Mode <= 1; ++Mode)
+		{
+			FVector F, R;
+			MakeScreenBasis(N, Axis, F, R, Mode);
+			const double W = Deg(F), A = Deg(-R), S = Deg(-F), Dd = Deg(R);
+			const double Worst = FMath::Max(FMath::Max(Err(W, 90.0), Err(A, 180.0)), FMath::Max(Err(S, 270.0), Err(Dd, 0.0)));
+			Parts += FString::Printf(TEXT("%s W %.0f A %.0f S %.0f D %.0f (worst %.0f off)%s"), Mode == 0 ? TEXT("current:") : TEXT("exact:"),
+				W, A, S, Dd, Worst, Mode == 0 ? TEXT("   ") : TEXT(""));
+		}
+		FVector EF, ER;
+		const float Fit = MakeExactScreenBasis(N, Axis, EF, ER);
+		const FVector Rel = (Pos - CamPos).GetSafeNormal();
+		UE_LOG(LogLeafline, Log, TEXT("Screen dirs: %s; fit %.2f, view %.0f deg to the bark, branch %d (level %d, r %.0f cm), axis on screen %.0f deg, switch %s"),
+			*Parts, Fit, FMath::RadiansToDegrees(FMath::Asin(FMath::Clamp(-FVector::DotProduct(Rel, N), -1.0, 1.0))), CurrentBranch, Level, RadiusHere,
+			Deg(Axis), Tuning.bExactScreenDir ? TEXT("on") : TEXT("off"));
 	}
 
 	LeafDebug::InputVizLines.Reset();
