@@ -4,13 +4,17 @@
 ; Panel_Group: her calmer in-game panel V5 (bite top left, pointy top-right corner), mirrored for boxes on the right half of
 ; the screen. Panel_GroupCenter: her calmer V4 (bite, no pointy corner), for the centred boxes (colony counter, banners).
 ; Both have their transparent edge cropped; the left margin keeps the bite in the corner.
+; Panel_Tag: her lighter-green V7 (bite, no pointy corner) for one-line hints and prompts, edge cropped and halved so its
+; frame and bite suit boxes about 50 px tall.
 scale 2
 Panel_Card 386 121 782 125
 Panel_Group 185 60 60 60
 Panel_GroupCenter 185 60 60 60
 mirror_right Panel_Group
+Panel_Tag 92 26 26 26
 
 ; outsets: the light-green outline stays clear of the text (checked at 720/1080/1440, keys and pad, 15 Nov)
 outset Panel_Card 20 16 18 44
 outset Panel_Group 6
 outset Panel_GroupCenter 4
+outset Panel_Tag 2
