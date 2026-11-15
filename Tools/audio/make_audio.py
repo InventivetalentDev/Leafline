@@ -91,6 +91,11 @@ def decor(x, r, width=0.35):
     return stereo_from(x + width * np.roll(x, d) * 0.0 + 0.0, x) if False else stereo_from(x, np.roll(x, d))
 
 # ---------- winds ----------
+GUST_HOWL = 0.6     # level of the gust's broad howl band (with the gust's swell envelope, up to 0.16)
+GUST_HOWL_BAND = (350, 1500)
+GUST_BODY = 2.0     # was 1.2 with the whistle; more body keeps the gust about as loud without it
+GUST_PEAK_DB = -2.5  # the gust loop's peak after normalising (was -3.5: the tonal whistle carried loudness)
+
 def wind_bed(sec, name, gust):
     r = rng_for(name); n = N(sec); chans = []
     for c in range(2):
@@ -103,21 +108,21 @@ def wind_bed(sec, name, gust):
             y *= 0.6 + 0.4 * slow(n, r, 0.12, 0, 1)
         else:
             rumble = band(base, 30, 220, 3) * 2.2
-            body = band(base, 180, 1800, 2) * 1.2
+            body = band(base, 180, 1800, 2) * GUST_BODY
             m = slow(n, r, 0.45, 0.35, 1.0) ** 1.3
-            # whistle: narrow resonance sweeping slowly (tone whose phase wraps cleanly)
-            fc = 900 + 700 * slow(n, r, 0.25, 0, 1)
-            ph = np.cumsum(TAU * fc / SR); ph -= np.linspace(0, ph[-1] - TAU * round(ph[-1] / TAU), n)
+            # Howl, no whistle (owner, 15 Nov: "a bit less whistly"): broad noise 350 Hz - 1.5 kHz swelling with the gust
+            # instead of the old sine sweeping 900-1600 Hz plus a 1-2.5 kHz band. The random draws keep their order (the
+            # unused sweep draw stays), so the rumble and body move exactly as before.
+            slow(n, r, 0.25, 0, 1)
             amp = slow(n, r, 0.5, 0, 1) ** 3 * 0.16
-            whist = np.sin(ph) * amp
-            whist += band(noise(n, r), 1000, 2500, 3) * 0.25 * amp
+            whist = band(noise(n, r), *GUST_HOWL_BAND, 2) * GUST_HOWL * amp
             y = (rumble + body * m) * (0.55 + 0.45 * slow(n, r, 0.2, 0, 1)) + whist
         chans.append(y)
     s = stereo_from(*chans)
     return s
 
 def wind_calm(): return norm(wind_bed(10, "calm", False), -9.0)
-def wind_gust(): return norm(wind_bed(10, "gust", True), -3.5)
+def wind_gust(): return norm(wind_bed(10, "gust", True), GUST_PEAK_DB)
 
 def smoothenv(n, r, cutoff, shape=1.0):
     """Rectified, low-passed noise envelope in [0,1] (circular)."""

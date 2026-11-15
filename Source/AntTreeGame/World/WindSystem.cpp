@@ -49,10 +49,13 @@ void AWindSystem::BeginPlay()
 		StreakMaterialInUse = MID;
 	}
 	// Ambience: the wind beds crossfade with strength; a soft pad sits under everything.
-	CalmLoop = LeafSound::Loop(this, TEXT("wind_calm_loop"), 0.3f);
+	CalmLoop = LeafSound::Loop(this, TEXT("wind_calm_loop"), Tuning.CalmVolume);
 	GustLoop = LeafSound::Loop(this, TEXT("wind_gust_loop"), 0.f);
-	RustleLoop = LeafSound::Loop(this, TEXT("leaves_rustle_loop"), 0.15f);
+	RustleLoop = LeafSound::Loop(this, TEXT("leaves_rustle_loop"), Tuning.RustleVolume);
 	PadLoop = LeafSound::Loop(this, TEXT("ambient_pad_loop"), 0.22f);
+	UE_LOG(LogLeafline, Log, TEXT("Wind ambience: calm %.2f -> %.2f, rustle %.2f -> %.2f, gust 0 -> %.2f, pad 0.22 (loops calm %d, gust %d, rustle %d, pad %d)"),
+		Tuning.CalmVolume, Tuning.CalmVolumeGust, Tuning.RustleVolume, Tuning.RustleVolumeGust, Tuning.GustVolume,
+		CalmLoop != nullptr, GustLoop != nullptr, RustleLoop != nullptr, PadLoop != nullptr);
 	// In-world cues (gust front, the ant's own air, grip dust): a separate actor so this one stays as it was.
 	FActorSpawnParameters CueParams;
 	CueParams.Owner = this;
@@ -115,9 +118,9 @@ void AWindSystem::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 	if (!bExternalClock) Advance(DeltaTime);
 
-	if (CalmLoop) CalmLoop->SetVolume(FMath::Lerp(0.32f, 0.12f, Strength));
-	if (GustLoop) GustLoop->SetVolume(0.9f * FMath::SmoothStep(0.25f, 1.f, Strength));
-	if (RustleLoop) RustleLoop->SetVolume(0.12f + 0.35f * Strength);
+	if (CalmLoop) CalmLoop->SetVolume(FMath::Lerp(Tuning.CalmVolume, Tuning.CalmVolumeGust, Strength));
+	if (GustLoop) GustLoop->SetVolume(Tuning.GustVolume * FMath::SmoothStep(0.25f, 1.f, Strength));
+	if (RustleLoop) RustleLoop->SetVolume(FMath::Lerp(Tuning.RustleVolume, Tuning.RustleVolumeGust, Strength));
 	if (WindCollection)
 	{
 		// M_Leaf's sway amplitude (the only reader of WindStrength). With the cues on, gusts sway the leaves harder.

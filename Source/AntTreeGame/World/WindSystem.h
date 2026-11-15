@@ -147,6 +147,16 @@ struct FWindTuning
 	 *  stays as it was), at most CueLeafMax (3: 60 cm, about 17 degrees at the tip; the stalk end stays put). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueLeafBoost = 1.5f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueLeafMax = 3.f;
+
+	// Ambience volumes (wind_calm_loop, leaves_rustle_loop, wind_gust_loop), from calm (strength 0) to a full gust (1).
+	// Owner, 15 Nov: the constant bed was annoying, so the calm values are about 4.5 dB under the old ones (calm 0.32,
+	// rustle 0.12, gust 0.9) and a full gust reaches the same level as before (more contrast, not a quieter gust; the
+	// gust loop lost its whistle and 0.7 dB of loudness with it, so GustVolume is a little higher).
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound") float CalmVolume = 0.19f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound") float CalmVolumeGust = 0.12f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound") float RustleVolume = 0.07f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound") float RustleVolumeGust = 0.47f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound") float GustVolume = 0.97f;
 	/** Gripping pose with the cues on: body height and width scale (claws dug in, legs splayed), and how hard the wind
 	 *  tugs the body downwind (times the wind the ant feels). Before: 0.78 and 1.14, no tug. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueGripSquash = 0.62f;
