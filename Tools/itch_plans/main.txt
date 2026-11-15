@@ -1,7 +1,7 @@
 # Itch page screenshots (Tools/itch_shots.sh), one packaged run, HUD on as players see it, wind held calm except for the
 # forced gust. Staging after Tools/video_capture.sh's shot_def; a few takes of most shots, the owner picks about five.
-# Leaf.Bird 0 for the whole run: with recruits from day 1 the bird hunts on day 1 and its hint line covers the top of
-# the frame; the bird shots are in bird.txt (BIRD=1).
+# Leaf.Bird 0 for the whole run: with recruits on the bird first comes on day 2 (this run also plays day 3), and its
+# hint line would cover the top of the frame; the bird shots are in bird.txt (BIRD=1).
 # Timing: every tree regrow (Leaf.ResetSave, Leaf.Move, Leaf.StartDay) stalls the game about 1.5 s and Leaf.Delay's game
 # clock jumps over the stall, so steps after a regrow chain keep a buffer of several seconds (else they fire together).
 0|Leaf.Bird 0
