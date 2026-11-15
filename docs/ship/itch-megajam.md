@@ -52,7 +52,7 @@ The pause menu lists all controls and has options for sensitivity, volume and gr
 
 ## How it's made
 
-The tree, leaves, forest floor, sky, scent trails and wind are all generated with code and shaders: no textures, no hand-made tree models. Made with Unreal Engine 5.8 by one person directing AI agents (Claude and Codex), which wrote most of the code and made the key art and two HUD icons. The UI panel art is hand-painted by Cookiehero.
+The tree, leaves, forest floor, sky, scent trails and wind are all generated with code and shaders: no textures, no hand-made tree models. Made with Unreal Engine 5.8 by one person directing AI agents (Claude and Codex), which wrote most of the code and made the key art and the HUD icons. The UI panel art is hand-painted by Cookiehero.
 
 The sounds and the three music tracks (one per day: warm pads, kalimba, a music box) are synthesised by Python scripts too.
 

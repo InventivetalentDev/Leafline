@@ -68,7 +68,7 @@ One person directed AI agents to make the game. Most of the code is written by A
 
 - Unreal Engine 5.8
 - Claude (Anthropic): planning and most of the programming, including driving the Unreal editor through Epic's Model Context Protocol plugin
-- Codex (OpenAI): concept and key art, the ant and leaf HUD icons, code reviews and some programming
+- Codex (OpenAI): concept and key art, the HUD icons, code reviews and some programming
 - Blender 5.1 and Python: the scripted meshes and the sound synthesis
 
 The full source code is on GitHub: [REPO URL].

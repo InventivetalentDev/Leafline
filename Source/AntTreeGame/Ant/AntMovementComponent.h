@@ -88,6 +88,15 @@ struct FAntMoveTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") float NewInputAngleDeg = 40.f;
 	/** Screen direction: how much "away from the camera" counts as up on screen, besides screen-up itself. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") float ScreenDepthWeight = 0.35f;
+	/** Screen direction, trial (off by default; owner decides, 15 Nov): W/A/S/D are the bark directions whose image on
+	 *  screen at the ant points exactly up/left/down/right (the perspective projection of the bark's tangent plane,
+	 *  inverted), instead of the branch-on-screen rule and the "away counts as up" weights. Where the bark is seen nearly
+	 *  edge-on the inverse is unstable, so it blends back to the old rule (see ExactMinFit). Leaf.Tune move bExactScreenDir True. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") bool bExactScreenDir = false;
+	/** Exact screen direction: the sine of the angle between the exact W and D on the bark (1 = square; a rolled,
+	 *  grazing view folds D toward W): the old rule under ExactMinFit, the exact mapping over ExactFullFit, blended. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") float ExactMinFit = 0.5f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") float ExactFullFit = 0.8f;
 	/** Screen direction: another of along / around must fit the held direction this much better (dot) before the snap changes. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Controls") float SnapStickiness = 0.15f;
 	/** The wheel applies fully on branches up to this radius and fades out by WheelFadeRadius (cm); thicker wood
@@ -213,8 +222,12 @@ private:
 	FVector ComputeWish(const FVector& N) const;
 	/** Screen-direction controls: take or keep the snapshot of the camera (the held basis) for this frame. */
 	void UpdateHeldInput(float Dt, const FVector& N, const FVector& Axis);
-	/** The surface directions that "up" and "right" on screen mean at a point with normal N, from the live camera. */
-	void MakeScreenBasis(const FVector& N, const FVector& Axis, FVector& OutFwd, FVector& OutRight) const;
+	/** The surface directions that "up" and "right" on screen mean at a point with normal N, from the live camera.
+	 *  Mode -1 follows bExactScreenDir; 0 forces the branch-on-screen rule, 1 the exact mapping (the log compares them). */
+	void MakeScreenBasis(const FVector& N, const FVector& Axis, FVector& OutFwd, FVector& OutRight, int32 Mode = -1) const;
+	/** Exact screen direction: fills the tangent directions whose screen image points up and right; returns the fit
+	 *  (see ExactMinFit), 0 when the bark is seen edge-on or there is no camera. */
+	float MakeExactScreenBasis(const FVector& N, const FVector& Axis, FVector& OutFwd, FVector& OutRight) const;
 	/** Along / around candidates on a branch for a direction, with the current snap kept unless another fits clearly better. */
 	int32 ChooseSnap(const FVector& Dir, const FVector& A, const FVector& Around, int32 Current) const;
 	/** What a pretend stick input would do here, without changing any state (the input view). */
