@@ -1,6 +1,6 @@
 # Leafline: game design
 
-Working title **Leafline**. Unreal project name stays `AntTreeGame`. Team name `inventivetalent` (solo).
+Title **Leafline** (final, owner 15 Nov). Unreal project name stays `AntTreeGame`. Team name `inventivetalent` (solo).
 
 This file records every design decision from the planning session on 2026-11-12. The original idea notes are in `concept-main.md` and are kept unchanged. How it is built is in `tech.md`; the order of work is in `plan.md`.
 

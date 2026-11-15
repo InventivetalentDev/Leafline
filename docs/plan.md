@@ -299,7 +299,7 @@ Agents in herdr tab `sat`; the main session merges, builds materials and imports
 - [ ] Codex produces the cover image and screenshots are captured for the itch pages. Key art banner with the title in both sizes (7374d38); screenshots from the packaged build with `Tools/itch_shots.sh` (JPEG copies for itch's 3 MB limit). Retake them from the final build.
 - [ ] Two itch pages: one for the MegaJam (frozen), one for Game Off. Drafts: `docs/ship/itch-megajam.md` and `docs/ship/itch-gameoff.md`, with `.html` copies to paste.
 - [ ] Submission form: full name and Epic account email, game name, video link, dev log link, tools used, sourced assets list, and the note about the earlier prototype (see `devlog.md`). Draft: `docs/ship/submission-form.md`.
-- [ ] Owner chooses a licence; add `LICENSE` and a `README.md` (draft: `docs/ship/README-draft.md`).
+- [x] Owner chooses a licence: MIT (15 Nov). `LICENSE` added; `README.md` copied from `docs/ship/README-draft.md` (its URL placeholders are filled once the pages exist).
 - [ ] Owner says yes, then make the GitHub repo public and add its link to the Game Off page. Do this **before** submitting, because the dev log link must open for the judges. If the repo stays private, post the dev log on the itch page instead.
 - [ ] No trademarks or logos anywhere except the Unreal Engine logo.
 - [ ] **The owner submits to both jams in person by 23:00 CET at the latest** (the MegaJam's own deadline is Mon 16 Nov 02:59). Agents must not submit (MegaJam rules §17).

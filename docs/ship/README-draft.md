@@ -1,6 +1,6 @@
 # Leafline
 
-<!-- Draft for the repository's README.md. Owner: fill the bracketed placeholders and choose the licence. -->
+<!-- Source of the repository's README.md (copied there on 15 Nov). Owner: fill the bracketed placeholders, then copy again. -->
 
 You're a leafcutter ant on an enormous tree. Climb, lay a scent trail and cut a piece from a leaf: a bigger piece is worth more, but it slows you down and catches the wind. Send your ant home, take over the next one, and let your recruits harvest along your trails.
 
@@ -79,4 +79,4 @@ Two helper scripts are older than the jam and contain no game content: `Scripts/
 
 ## Licence
 
-[LICENCE]. The button prompt icons stay under their own CC0 licence.
+MIT (see `LICENSE`). The button prompt icons stay under their own CC0 licence.

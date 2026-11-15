@@ -36,7 +36,7 @@ All six gates are settled: every feature below ships, and no `[IF … SHIPS]` ma
 
 Our submission deadline is Sun 15 Nov 23:00 CET at the latest (the MegaJam's own deadline is Mon 16 Nov 02:59; Game Off's is Tue 1 Dec 22:37). Agents prepare; the owner submits personally.
 
-1. **Final title.** Open: no doc records the owner's final decision. `Leafline` is in use everywhere: the key art banner, the video's title and end cards, the in-game title and credits, and both pages. `design.md` still calls it the working title. **Owner:** confirm the title; if renamed, update titles, archive/folder naming and links together. The Unreal project/executable remains `AntTreeGame`.
+1. **Final title.** **Settled 15 Nov:** Leafline, final (owner: "bit late for title changes, keeping it"). Licence: MIT (owner, 15 Nov), `LICENSE` added.
 2. **Licence.** Still open: there is no `LICENSE` file yet. **Owner:** choose the repository licence and have `LICENSE` added before publication; resolve the `[LICENCE]` placeholders in the README and the Game Off page. Xelu's CC0 icons keep their own licence.
 3. **Public repo.** Still open. The plan records `https://github.com/InventivetalentDev/Leafline` as private until owner approval. No visibility change was made here. **Owner:** explicitly authorise making it public, then check the source and dev log links while signed out before the Game Off submission. Keeping it private means the Game Off public-repo requirement is unmet; a dev log copied to itch can serve the MegaJam only.
 4. **Full name and Epic email.** **Settled:** filled in the form's private team-member field.

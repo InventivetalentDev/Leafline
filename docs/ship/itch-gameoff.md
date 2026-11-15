@@ -89,4 +89,4 @@ This game is also my entry for the Epic AI MegaJam, whose page stays as it was s
 - Playtesting and design feedback: [FRIEND A]
 - Dev log: [DEV LOG URL]
 - Epic AI MegaJam version: [MEGAJAM PAGE URL]
-- Licence: [LICENCE]
+- Licence: MIT (source code and game files; the button prompt icons are CC0)
