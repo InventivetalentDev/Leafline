@@ -7,7 +7,7 @@
 **Tags (suggested):** Singleplayer, 3D, Procedural Generation, Ants, Unreal Engine
 **Platform:** Windows
 **Theme colours (owner, 15 Nov, "Evening bark"):** BG `#16110D`, BG 2 `#211A14`, Text `#EFE6D2`, Link `#9BD36A`
-**Download:** `inventivetalent_Leafline.zip` (0.44 GB). Unzip it and run `Leafline/AntTreeGame.exe`.
+**Download:** `inventivetalent_Leafline.zip` (0.47 GB). Unzip it and run `Leafline/AntTreeGame.exe`.
 **Video:** [VIDEO URL]
 **Source code:** [github.com/InventivetalentDev/Leafline](https://github.com/InventivetalentDev/Leafline)
 
