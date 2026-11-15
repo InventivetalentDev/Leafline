@@ -3,6 +3,7 @@
 #
 #   Tools/release_build.sh                  # the real thing: refuses uncommitted changes and debug flags left on
 #   DEV=1 Tools/release_build.sh            # a trial run: allows uncommitted changes and the build line
+#   QUICK=1 Tools/release_build.sh          # build, package and zip only (no frame rates, no fresh-folder run): for a look in game
 #   Tools/release_build.sh --check [zip]    # only the fresh-folder test, on a zip (default Build/inventivetalent_Leafline.zip),
 #                                           #   e.g. the zip downloaded back from the itch page; prints its SHA-256
 #
@@ -202,6 +203,12 @@ rep "## Zip"
 rep ""
 rep "- \`Build/inventivetalent_Leafline.zip\`: $SIZE bytes ($(awk -v b="$SIZE" 'BEGIN { printf "%.2f", b / 1073741824 }') GiB), SHA-256 \`$(cat "$OUT/zip.sha256")\`"
 if [ "$ZRC" = 1 ] || [ "$SIZE" -ge 1073741824 ]; then rep "- **Over the 1 GB limit**"; echo; cat "$REPORT"; exit 3; fi
+
+if [ "${QUICK:-0}" = 1 ]; then
+	rep ""; rep "**QUICK=1: built, packaged and zipped only; no frame rates, no fresh-folder run.**"
+	unchanged || problem "the commit or the build files changed during the run (was $START_HEAD, now $(git rev-parse HEAD))"
+	echo; cat "$REPORT"; echo; echo "Report: $REPORT"; [ $FAIL = 0 ] || exit 4; exit 0
+fi
 
 # ---- frame rates ----
 say "frame rates (about 5 min)"
