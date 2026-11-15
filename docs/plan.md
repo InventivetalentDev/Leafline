@@ -108,9 +108,9 @@ Order by visible impact per hour:
 - [x] Final ant mesh with shader gait; carried fragment mesh (placeholder disc).
 - [x] Trail shader (soft-edged translucent cyan; no flow yet).
 - [x] Ground material. Distant trunks with leaf crowns (scenery only).
-- [x] Audio: runtime WAV loader (no import tool), all sounds hooked up. Mix not yet checked by ear.
+- [x] Audio: runtime WAV loader (no import tool), all sounds hooked up. Mix not yet checked by ear. (The owner set the wind mix on 15 Nov: the calm bed about 4.5 dB lower, the gust loop without its whistle.)
 - [x] Onboarding prompts for the first day; recap screen titled as the day's cut.
-- [ ] Screens moved to Slate if time allows.
+- [ ] Screens moved to Slate if time allows. Not done: the canvas screens ship (first item of the cut list below).
 - [x] Options in the pause menu (Thu evening): mouse sensitivity, invert look, volume, graphics quality (Low to Epic; Low turns Lumen off). Keys, pad and mouse; saved in GameUserSettings.ini.
 - [x] Wind readability, first pass: an arrow by the wind gauge shows which way it blows relative to the view, "Here: sheltered / partly exposed / exposed" under it, and the gust warning says to grip or get to the side away from the arrow (or that you are sheltered).
 - [x] Cut sequence, first pass: sawing, a tear line on the leaf, the piece swinging onto the back.
@@ -121,7 +121,7 @@ Order by visible impact per hour:
 
 **Done when:** a screenshot from play, set beside concept image 01, clearly shows the same game, and a new player reaches their first cut without being told the controls.
 
-**Feature freeze: Saturday 23:00.** After this, only fixes.
+**Feature freeze: Saturday 23:00** (moved to Sunday by the owner). After this, only fixes.
 
 ## M5b: The line (Thu night to Fri; owner's verdict Friday evening)
 
@@ -159,7 +159,7 @@ Spec: `docs/briefs/one-tree.md`; work split: `docs/briefs/one-tree-contract.md`.
 - [x] Yesterday's trails: faint, ridable, no recruits, gone after the second night and on a move.
 - [x] Wind: direction turns 70–290° a day; within a stage peak force ×(1 + 6 % per day on the tree), the stage's gust multiplier on a move.
 - [x] Codex review of the save and load paths and the day start: 6 findings (mid-day flag toggle, debug purchases saving mid-day haul, stale tree after switching off, reset then day end, recruits-off migration stage, debug move skipping a tree), then 3 more on the fixes (all debug paths); all fixed.
-- [x] Economy numbers from the measured trees (`Tools/econ_sim.py`, `docs/economy.md`): one-tree thresholds 25 / 155 / 270 with recruits, 5 / 60 / 95 by hand.
+- [x] Economy numbers from the measured trees (`Tools/econ_sim.py`, `docs/economy.md`): one-tree thresholds 25 / 155 / 270 with recruits, 5 / 60 / 95 by hand. Since 15 Nov the set with recruits is 25 / 190 / 335 (recruits from day 1 and the climb curve, `RichnessHeightScale` 40).
 - [x] `M_Leaf`: vertex R = 0 turns a leaf brown: `OneMinus_2` on `VertexColor_0.R` drives `LinearInterpolate_3` (base colour toward 0.20, 0.115, 0.04, `Constant3Vector_5`) and `LinearInterpolate_4` (backlight toward 0.30, 0.15, 0.035, `Constant3Vector_6`). R was unused before (G is colour variation, A richness). Wiring checked over MCP; no close-up screenshot of a brown leaf yet. Screenshots: `Saved/RefShots/tree-movecard.png` (the card over the new trunk), `tree-bare-low-bough.png` (a bare low bough on the first tree).
 - [x] Package and zip from 852145d (13 Nov 11:28, `Build/inventivetalent_Leafline.zip`, 463 MB); packaged smoke test in slot `PackSmoke`: two days on a kept tree, no fatal lines.
 - Acceptance tests (`Tools/tree_test.sh`, slot `TreeTest`; Fri morning):
@@ -189,7 +189,7 @@ From `docs/playtest-notes.md`; each feel change has an off switch for the owner'
 - [x] Smoke trails (`M_TrailSmoke`, `SmokeHeight` 6 cm, `Leaf.Smoke 0|1`). Stills only.
 - [x] One tree off still identical (seed 517192: 8140 leaves; 103900: 6731).
 - [x] Package and zip from f92ca3b (13 Nov 12:52, 463.5 MB); packaged smoke test in slot `PackSmoke`: two days with the fast-forward and the wind map, no fatal lines.
-- [ ] Owner's verdict on all of the above, the line and one tree.
+- [x] Owner's verdict on all of the above, the line and one tree: all kept. The line (recruits), one tree, the wind map, the walk-home fast-forward and the smoke trails ship on by default.
 - [x] Key and pad icons: Xelu's CC0 pack, light keys and Xbox-style buttons for every pad (owner's choice), drawn from tokens in HUD text for the device used last (`UI/PromptIcons.*`, `Leaf.PadIcons`).
 - [x] Package and zip from 6865416 (13 Nov 13:10, 463.6 MB, 48 files, no saves); packaged smoke test: two days, wind map, icons load from the pak, no fatal lines.
 - [x] Package and zip from f9d8b6d (13 Nov 13:33, 463.6 MB, no saves): the stronger smoke ribbon. Packaged smoke test: two days, wind map (one 3.5 ms tick logged), no fatal lines.
@@ -212,7 +212,7 @@ Tagged `pre-look` before it started. Commits start `Look:` (and `HUD:` for the H
 - [x] After set `look1` (both modes), pitch sweeps at the junction and on a 30 cm bough (no black area or inside view at any pitch), wind map and brown stalks readable (a single shot with rich, plain and brown leaves together still missing), `Leaf.MeshGap` worst 0.00 cm (no geometry moved), a pre-look save loads with its 12 bites, packaged smoke test with and without ray tracing (two days each, no fatal lines). Frame times (packaged, 1080p): Epic 4.0 to 4.3 ms GPU, Low 1.2 to 1.6 ms; nothing measurable from the new bark.
 - [x] Shadowed new bark read slate grey-green (its colour was too grey; the sky tint made no difference): ridges warmed to a red/blue ratio of about 2.2, a little less moss.
 - Still for the owner (from `docs/reviews/look-shots.md`): wood within half a metre of the camera blurs into streaks; fold-like light and dark triangles on bark at grazing angles; cutaway holes still visible at some pitches (soft now, never black); a cut-highlight outline that outlasts a faded leaf; looking up from the trunk shows less sky (19% of the upper frame against 49%) since the camera keeps 60 cm from thick wood.
-- [ ] Owner's verdict. Veto list and undo: bark `Leaf.Bark 0`; collars `Leaf.Collars 0`; camera `Leaf.Tune cam WoodClearance 12`, `BoomLength 220`, `DefaultPitch -20`, `ExposureBias -0.4`; sky `Leaf.Tune look SkyLightIntensity 1`, `SkyLightColor (R=1,G=1,B=1,A=1)`; HUD: revert its commit.
+- [x] Owner's verdict: kept, with later changes. The look-pass camera and sky ship (`BoomLength` 170, `DefaultPitch` -25, `ExposureBias` 0.2, `SkyLightIntensity` 3, `WoodClearance` 30 since look pass 2); the bark is `M_TreeBark3` (`Leaf.Bark 2`, default since 15 Nov); collars are off in favour of fillets. Veto list and undo as it was: bark `Leaf.Bark 0`; collars `Leaf.Collars 0`; camera `Leaf.Tune cam WoodClearance 12`, `BoomLength 220`, `DefaultPitch -20`, `ExposureBias -0.4`; sky `Leaf.Tune look SkyLightIntensity 1`, `SkyLightColor (R=1,G=1,B=1,A=1)`; HUD: revert its commit.
 - [x] Owner playtest of the 17:28 package: holes where roots and big limbs meet the trunk. Caused by the buried-bark mask (clamped distances across 300 cm trunk triangles; parents masked inside children whose open base ring pokes out). Fixed: unclamped distance in UV3.y, parents masked only inside sealed bases. A/B with `Leaf.Bark 0` on the owner's tree (the root at the nest) by a Claude agent.
 - [x] Faint bottom-left build and position line with a pasteable `Leaf.Goto` (owner's idea); `Tools/write_buildinfo.sh` before packaging.
 - [x] Branch collars (owner's polish note, smoother junctions): `bBranchCollars`, `Leaf.Collars 0|1`; no twig collars, leaf count unchanged. Bark ridges follow a bark radius without flare and collars, so the trunk flare no longer reads as paving stones.
@@ -272,29 +272,42 @@ Agents in herdr tab `sat`; the main session merges, builds materials and imports
 - [x] HUD icons (`Leaf.HudIcons`): wind, exposure, bird, carrying; the colony counter (hauled in all, bar to the next milestone) and the worker row.
 - [x] UI text pass (`docs/ui-text.md`): every player-facing line in plain words; the cut arc and the carry read-out show weight with the value multiplier beside it.
 - [x] Trails: one colour per line; fade with distance from your ant (`MPC_View` TrailFade*, checked in real runs 14 Nov 18:49).
-- [x] Forest floor: grass from the clearing edge (2,850 tufts, `M_Grass2` backlit, dark foot), litter (`M_Litter`), NaN-vertex fix; floor seen from the tree (brief `docs/briefs/floor-from-above.md`): haze from 15 m, `M_Ground2` far look (`Leaf.Ground`), relief beyond the ants' reach behind `Leaf.Relief` (off by default; not yet checked from 90 m up).
+- [x] Forest floor: grass from the clearing edge (2,850 tufts, `M_Grass2` backlit, dark foot), litter (`M_Litter`), NaN-vertex fix; floor seen from the tree (brief `docs/briefs/floor-from-above.md`): haze from 15 m, `M_Ground2` far look (`Leaf.Ground`), relief beyond the ants' reach behind `Leaf.Relief` (off at first; rolling hills from 90 m out, on by default since 15 Nov).
 - [x] 20:00 candidate (c5d301b, 18:25): auto20 0 rescues, 487.77 hauled, end card after 16 days (same as the three runs before); packaged smoke test with and without ray tracing and DX11 (average fps: trunk 115, canopy 95 with ray tracing); zip 0.44 GB.
+
+## M6b: Sunday 15 Nov (the owner's decisions before the release candidate)
+
+- [x] Recruits from day 1: Brood level 0 has two recruits, the ladder is 2 / 3 / 4 / 6 / 8 / 10 / 12; with recruits on the bird first comes on day 2, with one gentle swoop and the hint (brief `docs/briefs/recruits-day-1.md`, 6eec0b0).
+- [x] Bird and bait ship, on by default (9437179; the go above).
+- [x] Climbing pays: `RichnessHeightScale` 40 and one-tree milestones 25 / 190 / 335 with recruits (variant B of `docs/economy.md`, 5be2add).
+- [x] Relief (rolling hills on the far ground) and the seam-blended bark `M_TreeBark3` (`Leaf.Bark 2`) on by default (cd5b935).
+- [x] Wind mix: the calm bed about 4.5 dB lower, gusts as loud as before, the gust loop without its whistle (volumes in `FWindTuning`, ef61b1b).
+- [x] Background music switch (`FWindTuning::bMusic`, off by default) and `Tools/audio/make_music.py` with options A to C (1d8d468). The owner picks one; until then the game ships without music.
+- [x] UI polish: nest, recap, title, pause, options, move card and end card sized to their content; nest costs coloured by affordability, maxed in gold (5b47275).
+- [x] Build line off in the submission build; the F3 input view stays (9a0c609, 4331542).
+- [x] Credits: no UI art credit; Friend A commented out until their feedback comes in (4333c2d).
+- [x] Tools: `Tools/release_build.sh` (package and check the submission build, d1a1e40) and `Tools/itch_shots.sh` (itch screenshots from the packaged build, with JPEG copies, efe9783 and 05f0b71).
 
 ## M7: Ship (Sunday)
 
-- [ ] Set `bShowBuildLine=False` under `[/Script/AntTreeGame.LeaflineHUD]` in `Config/DefaultGame.ini` (the faint build and position line). `Tools/release_build.sh` refuses to package while it is on.
+- [x] Set `bShowBuildLine=False` under `[/Script/AntTreeGame.LeaflineHUD]` in `Config/DefaultGame.ini` (the faint build and position line). `Tools/release_build.sh` refuses to package while it is on. Done: off in the submission build; `Leaf.BuildLine 1` shows it while playing.
 - [ ] Bug fixing from Saturday's playtest.
 - [x] F3 input view: stays in the submission build (owner, 15 Nov: obscure enough that players won't stumble on it; useful for testing). `bInputVizKey=True`.
-- [ ] Final packaged Windows **development** build. Run it from a path with spaces and from a fresh folder.
-- [ ] Zip as `inventivetalent_Leafline.zip`; confirm it is under 1 GB.
-- [ ] Owner records a 30–60 s gameplay video at 1920x1080 or higher and uploads it.
-- [ ] Codex produces the cover image and screenshots are captured for the itch pages.
-- [ ] Two itch pages: one for the MegaJam (frozen), one for Game Off.
-- [ ] Submission form: full name and Epic account email, game name, video link, dev log link, tools used, sourced assets list, and the note about the earlier prototype (see `devlog.md`).
-- [ ] Owner chooses a licence; add `LICENSE` and a `README.md`.
+- [ ] Final packaged Windows **development** build. Run it from a path with spaces and from a fresh folder (`Tools/release_build.sh` does both).
+- [ ] Zip as `inventivetalent_Leafline.zip`; confirm it is under 1 GB (0.44 GB in every package of 15 Nov).
+- [ ] A 30–60 s gameplay video at 1920x1080 or higher, uploaded by the owner. Filmed and cut with `Tools/video_capture.sh` and `Tools/video_edit.py` (final cut list of 15 Nov, `docs/ship/video.md`); the upload is still to do.
+- [ ] Codex produces the cover image and screenshots are captured for the itch pages. Key art banner with the title in both sizes (7374d38); screenshots from the packaged build with `Tools/itch_shots.sh` (JPEG copies for itch's 3 MB limit). Retake them from the final build.
+- [ ] Two itch pages: one for the MegaJam (frozen), one for Game Off. Drafts: `docs/ship/itch-megajam.md` and `docs/ship/itch-gameoff.md`, with `.html` copies to paste.
+- [ ] Submission form: full name and Epic account email, game name, video link, dev log link, tools used, sourced assets list, and the note about the earlier prototype (see `devlog.md`). Draft: `docs/ship/submission-form.md`.
+- [ ] Owner chooses a licence; add `LICENSE` and a `README.md` (draft: `docs/ship/README-draft.md`).
 - [ ] Owner says yes, then make the GitHub repo public and add its link to the Game Off page. Do this **before** submitting, because the dev log link must open for the judges. If the repo stays private, post the dev log on the itch page instead.
 - [ ] No trademarks or logos anywhere except the Unreal Engine logo.
-- [ ] **The owner submits to both jams in person by 22:00 CET.** Agents must not submit (MegaJam rules §17).
+- [ ] **The owner submits to both jams in person by 23:00 CET at the latest** (the MegaJam's own deadline is Mon 16 Nov 02:59). Agents must not submit (MegaJam rules §17).
 - [ ] Tag the commit `megajam-submission`.
 
 ## After the MegaJam (to 1 Dec)
 
-Pick from `design.md`, "Out of the MegaJam build", after seeing what players say. Likely order: bird and food, taking over returning ants, the visible fungus garden and skill tree, several trees.
+Pick from `design.md`, "Out of the MegaJam build", after seeing what players say. Likely order: taking over returning ants, the visible fungus garden and skill tree, several trees. The bird already shipped in the MegaJam build.
 
 ## If time runs short
 

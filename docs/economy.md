@@ -8,6 +8,8 @@ python3 Tools/econ_sim.py --check-cpp
 
 It prints each day's wall-clock time, cumulative time, expected haul, lifetime haul, recruit pool, recruit trips, expected pieces lost, unreserved patch pieces left, harvest simulation seconds, and purchases. It then prints the one-tree campaigns, including tree/day, cut height, and remaining low-band supply. The optional `--check-cpp` reads `Upgrades.cpp` and `ColonyTypes.h` to check costs, all four milestone sets, effect ladders, stage defaults, and the within-tree gust rise. The script never starts Unreal or accesses a save.
 
+The default game is one tree per stage with recruits from day 1 and the climb curve: see [One tree per stage](#one-tree-per-stage) and [Recruits from day 1](#recruits-from-day-1-15-nov). The one-tree-off campaign results below were modelled on 14 Nov, when Brood level 0 had no recruits (which is why day one hauls the same with and without recruits). The Brood row of the effect table shows today's ladder.
+
 With one tree **off**, the unchanged recommendation meets the pacing and haul-growth targets in this model:
 
 | Mode | End-card day | Played time | Day-one haul | Final-day haul | Haul growth |
@@ -111,7 +113,7 @@ C++ compilation, actual save migration, state-machine termination, and runtime p
 
 ## One tree per stage
 
-With `FDayTuning::bOneTree` on, measured supply gives these thresholds. Costs, upgrade effects, and one-tree-off tuning stay unchanged.
+With `FDayTuning::bOneTree` on, measured supply gives these thresholds (14 Nov). Costs, upgrade effects, and one-tree-off tuning stay unchanged. The by-hand set still applies; the set with recruits is 25 / 190 / 335 since 15 Nov (variant B under [Recruits from day 1](#recruits-from-day-1-15-nov)).
 
 | Mode | Lifetime-haul thresholds | Days on tree 1 / tree 2 | End-card day | Watched harvest | Skipped harvest |
 |---|---|---|---:|---:|---:|
