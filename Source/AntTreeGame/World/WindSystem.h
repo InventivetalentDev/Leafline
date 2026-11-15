@@ -157,6 +157,23 @@ struct FWindTuning
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound") float RustleVolume = 0.07f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound") float RustleVolumeGust = 0.47f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound") float GustVolume = 0.97f;
+	/** The soft pad under everything (ambient_pad_loop); while the music plays the pad drops to PadVolumeWithMusic. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound") float PadVolume = 0.22f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound") float PadVolumeWithMusic = 0.f;
+	/** While the music plays, the calm wind and the rustle's baseline start from these instead of CalmVolume /
+	 *  RustleVolume (about 3.5 dB lower: the owner found the wind loud under the music, 15 Nov); gusts still swell to
+	 *  CalmVolumeGust / RustleVolumeGust / GustVolume as without music. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound") float CalmVolumeWithMusic = 0.125f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sound") float RustleVolumeWithMusic = 0.047f;
+	// Background music (owner, 15 Nov: options from Tools/audio/make_music.py). Off until the owner picks one; picking is
+	// copying that render to Content/Leafline/AudioRaw/<MusicSound>.wavraw and turning bMusic on. A loop like the wind
+	// beds, so it follows the master volume. Leaf.Tune wind bMusic True / MusicSound <file> switch it while playing.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Music") bool bMusic = false;
+	/** File name in Content/Leafline/AudioRaw without .wavraw. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Music") FName MusicSound = TEXT("music_loop");
+	/** The renders are normalised to -20 LUFS; at 0.25 (-12 dB) they play at about -32 LUFS, about 10 dB over the calm
+	 *  wind bed at the with-music volumes (calm wind + rustle -42.5 LUFS; -38.9 at the no-music volumes; earshot). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Music") float MusicVolume = 0.25f;
 	/** Gripping pose with the cues on: body height and width scale (claws dug in, legs splayed), and how hard the wind
 	 *  tugs the body downwind (times the wind the ant feels). Before: 0.78 and 1.14, no tug. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cues") float CueGripSquash = 0.62f;
@@ -252,6 +269,10 @@ private:
 	UPROPERTY(Transient) TObjectPtr<ULeaflineAudioLoop> GustLoop;
 	UPROPERTY(Transient) TObjectPtr<ULeaflineAudioLoop> RustleLoop;
 	UPROPERTY(Transient) TObjectPtr<ULeaflineAudioLoop> PadLoop;
+	UPROPERTY(Transient) TObjectPtr<ULeaflineAudioLoop> MusicLoop;
+	/** The music file last started (or tried: a missing file is tried once per name, not every frame). */
+	FName MusicLoopSound;
+	void UpdateMusic();
 
 	TWeakObjectPtr<ATreeActor> Tree;
 	FRandomStream Rand;

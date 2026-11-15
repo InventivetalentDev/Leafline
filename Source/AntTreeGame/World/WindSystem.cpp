@@ -52,10 +52,11 @@ void AWindSystem::BeginPlay()
 	CalmLoop = LeafSound::Loop(this, TEXT("wind_calm_loop"), Tuning.CalmVolume);
 	GustLoop = LeafSound::Loop(this, TEXT("wind_gust_loop"), 0.f);
 	RustleLoop = LeafSound::Loop(this, TEXT("leaves_rustle_loop"), Tuning.RustleVolume);
-	PadLoop = LeafSound::Loop(this, TEXT("ambient_pad_loop"), 0.22f);
-	UE_LOG(LogLeafline, Log, TEXT("Wind ambience: calm %.2f -> %.2f, rustle %.2f -> %.2f, gust 0 -> %.2f, pad 0.22 (loops calm %d, gust %d, rustle %d, pad %d)"),
-		Tuning.CalmVolume, Tuning.CalmVolumeGust, Tuning.RustleVolume, Tuning.RustleVolumeGust, Tuning.GustVolume,
+	PadLoop = LeafSound::Loop(this, TEXT("ambient_pad_loop"), Tuning.bMusic ? Tuning.PadVolumeWithMusic : Tuning.PadVolume);
+	UE_LOG(LogLeafline, Log, TEXT("Wind ambience: calm %.2f -> %.2f, rustle %.2f -> %.2f, gust 0 -> %.2f, pad %.2f (loops calm %d, gust %d, rustle %d, pad %d)"),
+		Tuning.CalmVolume, Tuning.CalmVolumeGust, Tuning.RustleVolume, Tuning.RustleVolumeGust, Tuning.GustVolume, Tuning.PadVolume,
 		CalmLoop != nullptr, GustLoop != nullptr, RustleLoop != nullptr, PadLoop != nullptr);
+	UpdateMusic();
 	// In-world cues (gust front, the ant's own air, grip dust): a separate actor so this one stays as it was.
 	FActorSpawnParameters CueParams;
 	CueParams.Owner = this;
@@ -113,14 +114,42 @@ void AWindSystem::TriggerGust(float Peak)
 	GustPeak = Keep;
 }
 
+void AWindSystem::UpdateMusic()
+{
+	const FName Want = Tuning.bMusic ? Tuning.MusicSound : NAME_None;
+	if (Want != MusicLoopSound)
+	{
+		if (MusicLoop) MusicLoop->Stop();
+		MusicLoop = nullptr;
+		MusicLoopSound = Want;
+		if (!Want.IsNone())
+		{
+			MusicLoop = LeafSound::Loop(this, *Want.ToString(), Tuning.MusicVolume);
+			UE_LOG(LogLeafline, Log, TEXT("Music: %s at %.2f, pad %.2f, calm %.3f, rustle %.3f (loaded %d)"), *Want.ToString(), Tuning.MusicVolume,
+				MusicLoop ? Tuning.PadVolumeWithMusic : Tuning.PadVolume, MusicLoop ? Tuning.CalmVolumeWithMusic : Tuning.CalmVolume,
+				MusicLoop ? Tuning.RustleVolumeWithMusic : Tuning.RustleVolume, MusicLoop != nullptr);
+		}
+		else
+		{
+			UE_LOG(LogLeafline, Log, TEXT("Music: off, pad %.2f"), Tuning.PadVolume);
+		}
+	}
+	if (MusicLoop) MusicLoop->SetVolume(Tuning.MusicVolume);
+	if (PadLoop) PadLoop->SetVolume(MusicLoop ? Tuning.PadVolumeWithMusic : Tuning.PadVolume);
+}
+
 void AWindSystem::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 	if (!bExternalClock) Advance(DeltaTime);
 
-	if (CalmLoop) CalmLoop->SetVolume(FMath::Lerp(Tuning.CalmVolume, Tuning.CalmVolumeGust, Strength));
+	UpdateMusic();
+	const bool bMusicPlaying = MusicLoop != nullptr;
+	const float CalmBase = bMusicPlaying ? Tuning.CalmVolumeWithMusic : Tuning.CalmVolume;
+	const float RustleBase = bMusicPlaying ? Tuning.RustleVolumeWithMusic : Tuning.RustleVolume;
+	if (CalmLoop) CalmLoop->SetVolume(FMath::Lerp(CalmBase, Tuning.CalmVolumeGust, Strength));
 	if (GustLoop) GustLoop->SetVolume(Tuning.GustVolume * FMath::SmoothStep(0.25f, 1.f, Strength));
-	if (RustleLoop) RustleLoop->SetVolume(FMath::Lerp(Tuning.RustleVolume, Tuning.RustleVolumeGust, Strength));
+	if (RustleLoop) RustleLoop->SetVolume(FMath::Lerp(RustleBase, Tuning.RustleVolumeGust, Strength));
 	if (WindCollection)
 	{
 		// M_Leaf's sway amplitude (the only reader of WindStrength). With the cues on, gusts sway the leaves harder.
