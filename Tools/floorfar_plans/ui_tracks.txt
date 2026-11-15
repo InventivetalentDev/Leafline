@@ -1,0 +1,25 @@
+# Meter tracks over the shipped skin (Content/Leafline/UIRaw): day panel carry bar, colony milestone bar, wind gauge,
+# icons and text HUD, 1080p and 720p. ROOT=<tree> Tools/floorfar_shots.sh <label> Tools/floorfar_plans/ui_tracks.txt "-ResX=1920 -ResY=1080"
+0|r.SetRes 1920x1080w
+0|Leaf.Bird 0
+0|Leaf.Tune wind CalmMin 400
+0|Leaf.Tune wind CalmMax 400
+0|Leaf.Tune wind StreakCount 0
+0|Leaf.BuildLine 0
+0|Leaf.PadIcons 0
+6|Leaf.ResetSave
+6.1|Leaf.OneTree 1
+7.5|Leaf.StartDay 1 517192
+16|Leaf.GoLeaf
+18|Leaf.Give 12
+19|Leaf.Carry 0.5
+21|SHOT tracks-1080
+21.3|Leaf.HudIcons 0
+22|SHOT tracks-text-1080
+22.2|Leaf.HudIcons 1
+22.4|r.SetRes 1280x720w
+24.4|SHOT tracks-720
+24.7|Leaf.HudIcons 0
+25.4|SHOT tracks-text-720
+25.6|Leaf.HudIcons 1
+26|Leaf.QuitAfter 1
