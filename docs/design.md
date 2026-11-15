@@ -134,7 +134,7 @@ A day should take 4–6 minutes: three trips of roughly 90 seconds.
 | Strength | Carry bigger fragments without slowing |
 | Grip | Withstand stronger gusts (scouts and recruits) |
 | Stamina | Sprint longer |
-| Brood | Recruit pool: 0 / 2 / 3 / 4 / 6 / 8 / 10 |
+| Brood | Recruit pool: 2 / 3 / 4 / 6 / 8 / 10 / 12 (a new colony has two recruits from day 1, so the first trail already brings them out; owner's decision, 15 Nov) |
 
 **The off switch.** One flag (`FDayTuning::bRecruits`, `Leaf.Recruits 0|1`) turns the line's automation off: no recruits, no harvest, no Brood row, and a smaller "by hand" milestone set. Richer leaves, the patch read-out, the longer ladders and the number-go-up interface stay either way.
 

@@ -36,8 +36,11 @@ struct FBirdTuning
 	/** Tier 2, dropped pieces as bait (Leaf.Bait). First to cut. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Switch") bool bBait = true;
 
-	/** With recruits off the bird first comes on this day (with recruits on: the first day the pool is above zero). */
+	/** With recruits off the bird first comes on this day. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Schedule") int32 FirstBirdDay = 3;
+	/** With recruits on (a new colony has two from day 1): the first day the bird can come, if the pool is above zero.
+	 *  Day 1 stays calm. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Schedule") int32 FirstBirdDayRecruits = 2;
 	/** 2, not the brief's starting 3: with 3 the end card came a day later in twenty AutoPlay days (hold240 holdgrip, 14 Nov). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Schedule") int32 MaxSwoopsPerDay = 2;
 	/** Swoops on the first bird day (of the session; nothing is saved). */
@@ -169,9 +172,13 @@ public:
 	bool IsDiving() const { return bActiveToday && State == EBirdState::Diving; }
 	bool IsDivingAt(const AAntPawn* Ant) const;
 	bool IsActiveToday() const { return bActiveToday; }
-	/** The first bird day (from the day and the pool: FirstBirdDay with recruits off, the first Brood level's pool with
-	 *  recruits on): FirstDaySwoops, and the hint. */
+	/** The first bird day (from the day and the pool: FirstBirdDay with recruits off; with recruits on, day
+	 *  FirstBirdDayRecruits, and any later day the pool is still the smallest on the Brood ladder): FirstDaySwoops, and the
+	 *  hint. */
 	bool IsFirstBirdDay() const { return bActiveToday && bFirstBirdDay; }
+	/** Today can have the bird at all: recruits on, the pool above zero and FirstBirdDayRecruits reached; recruits off,
+	 *  FirstBirdDay reached. */
+	bool IsEligibleDay() const;
 	/** The hint: on the first bird day, and also on the first bird day of this game session (display only: a save that is
 	 *  past its first bird day still sees the hint once; the swoop budget does not change). */
 	bool ShouldShowHint() const { return IsPresent() && (bFirstBirdDay || bHintDay); }

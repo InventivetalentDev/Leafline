@@ -165,12 +165,16 @@ void ABirdSystem::StartDay(int32 InDay, int32 InSeed, bool bInRecruitsOn, int32 
 	// Its own stream: the wind's gusts come out the same with the bird on and off.
 	Rand.Initialize((int32)(HashCombine(GetTypeHash(Seed), GetTypeHash(Day * 7919 + 4111)) & 0x7fffffff));
 
-	// The bird comes once the colony has recruits (with recruits off: from FirstBirdDay). The gentle first bird day follows
-	// from the day and the pool alone (nothing is saved, and no session history counts): with recruits off it is
-	// FirstBirdDay, with recruits on every day the pool is still the first Brood level's (or smaller, with Leaf.Pool).
-	const bool bEligible = bRecruitsOn ? Pool > 0 : Day >= Tuning.FirstBirdDay;
-	const int32 FirstPool = FMath::Max(FMath::RoundToInt(LeaflineUpgrades::GetEffect(static_cast<int32>(ELeaflineUpgrade::Brood), 1)), 1);
-	bFirstBirdDay = bEligible && (bRecruitsOn ? Pool <= FirstPool : Day == Tuning.FirstBirdDay);
+	// The bird comes from day 2 when the colony has recruits (a new colony has two from day 1, which stays calm), and with
+	// recruits off from FirstBirdDay. The gentle first bird day follows from the day and the pool alone (nothing is saved,
+	// and no session history counts): with recruits off it is FirstBirdDay; with recruits on it is FirstBirdDayRecruits
+	// (whatever Brood was bought after day 1), and every later day the pool is still the smallest on the Brood ladder
+	// (or smaller, with Leaf.Pool).
+	const bool bEligible = IsEligibleDay();
+	const int32 Brood = static_cast<int32>(ELeaflineUpgrade::Brood);
+	const float Level0 = LeaflineUpgrades::GetEffect(Brood, 0);
+	const int32 FirstPool = FMath::Max(FMath::RoundToInt(Level0 > 0.f ? Level0 : LeaflineUpgrades::GetEffect(Brood, 1)), 1);
+	bFirstBirdDay = bEligible && (bRecruitsOn ? (Day == Tuning.FirstBirdDayRecruits || Pool <= FirstPool) : Day == Tuning.FirstBirdDay);
 	SwoopsLeft = !bEligible ? 0 : bFirstBirdDay ? FMath::Max(Tuning.FirstDaySwoops, 0) : FMath::Max(Tuning.MaxSwoopsPerDay, 0);
 	bActiveToday = Tuning.bBird && bEligible && SwoopsLeft > 0;
 	if (bActiveToday && GHintSessionDay < 0) GHintSessionDay = Day;
@@ -186,8 +190,14 @@ void ABirdSystem::StartDay(int32 InDay, int32 InSeed, bool bInRecruitsOn, int32 
 	else
 	{
 		UE_LOG(LogLeafline, Log, TEXT("Bird: day %d, no bird (%s)"), Day, !Tuning.bBird ? TEXT("Leaf.Bird 0")
-			: !bEligible ? (bRecruitsOn ? TEXT("no recruits yet") : TEXT("recruits off, before FirstBirdDay")) : TEXT("no swoops today: MaxSwoopsPerDay or FirstDaySwoops is 0"));
+			: !bEligible ? (!bRecruitsOn ? TEXT("recruits off, before FirstBirdDay") : Pool <= 0 ? TEXT("no recruits") : TEXT("day 1 stays calm, before FirstBirdDayRecruits"))
+			: TEXT("no swoops today: MaxSwoopsPerDay or FirstDaySwoops is 0"));
 	}
+}
+
+bool ABirdSystem::IsEligibleDay() const
+{
+	return bRecruitsOn ? Pool > 0 && Day >= Tuning.FirstBirdDayRecruits : Day >= Tuning.FirstBirdDay;
 }
 
 void ABirdSystem::EnterCircling(bool bFromAway)
@@ -583,7 +593,7 @@ void ABirdSystem::SetBirdOn(bool bOn)
 		UE_LOG(LogLeafline, Log, TEXT("Leaf.Bird 0: no bird"));
 		return;
 	}
-	const bool bEligible = bRecruitsOn ? Pool > 0 : Day >= Tuning.FirstBirdDay;
+	const bool bEligible = IsEligibleDay();
 	const EDayPhase Ph = Director ? Director->GetPhase() : EDayPhase::Starting;
 	const bool bBeforeShiftEnd = Ph == EDayPhase::Shift || Ph == EDayPhase::Title || Ph == EDayPhase::Starting || Ph == EDayPhase::Move;
 	// The day's remaining swoops are kept across Leaf.Bird 0 and 1: a toggle never buys more.

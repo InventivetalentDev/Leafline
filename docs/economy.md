@@ -28,7 +28,7 @@ All five upgrades have six purchasable levels. Costs for levels 1–6 are **14 /
 | Strength, carry-penalty multiplier | 1 | 0.75 | 0.55 | 0.4 | 0.3 | 0.22 | 0.16 |
 | Grip, hold multiplier | 1 | 1.25 | 1.5 | 1.8 | 2.15 | 2.55 | 3 |
 | Stamina, sprint-drain multiplier | 1 | 0.8 | 0.65 | 0.5 | 0.4 | 0.32 | 0.25 |
-| Brood, shared recruit pool | 0 | 2 | 3 | 4 | 6 | 8 | 10 |
+| Brood, shared recruit pool | 2 | 3 | 4 | 6 | 8 | 10 | 12 |
 
 With one tree off, lifetime-haul milestones are **20 / 95 / 240** with recruits and **5 / 30 / 80** by hand. The separate one-tree sets are described below. Spending never reduces lifetime haul. Scouts remain three per day at every Brood level. High upgrade levels remain available after the end card; a fresh campaign does not need to max them.
 
@@ -119,6 +119,22 @@ With `FDayTuning::bOneTree` on, measured supply gives these thresholds. Costs, u
 | By hand | **5 / 60 / 95** | 4 / 1 | 5 | **18.57 min** | 18.57 min |
 
 Both modes move to tree 2 on day 5 and start tree 3 on day 6 when continuing after the end card. Only the second and third milestones trigger moves, at most one per dawn. Tuning targets day four for the second milestone and an end day nearest 17.5 minutes within 15–20 minutes, rounding lifetime-haul thresholds down to five.
+
+### Recruits from day 1 (15 Nov)
+
+The owner's decision (`docs/briefs/recruits-day-1.md`): Brood level 0 has a pool of two, the ladder is **2 / 3 / 4 / 6 / 8 / 10 / 12**. Every level adds recruits, and the model's greedy player buys Brood 1 after day 1 (the first purchase is worth its price). With recruits off nothing changes. The one-tree-off cost search of `Tools/econ_sim.py` finds no candidate with two recruits on day 1 and is skipped with a note; the default game is one tree.
+
+`python3 Tools/econ_sim.py --one-tree` runs the default game with today's costs; `--milestones a,b,c` evaluates a set; `--richness height` takes richness from the cut height like `FLeafSet::Build` (mean outward share), linear over the crown or, with `--height-scale m`, the climb option's `1 - exp(-dz / m)`. The default `--richness day` keeps the older per-day guess. Height richness runs about a day slower than the per-day guess, so compare variants within one mode.
+
+| Variant | Milestones (one tree, recruits) | Model: end day, days on tree 1 / 2, minutes | AutoPlay twenty days: milestone days, end card, haul |
+|---|---|---|---|
+| 14 Nov (no recruits until Brood 1) | 25 / 155 / 270 | day 5, 4 / 1, 17.13 min | 3 / 12 / 16, after day 16, 487.78 |
+| **A**: today's defaults, recruits from day 1 | **25 / 155 / 270** (unchanged) | per day: day 5, 3 / 2, 16.04 min; height (linear): day 6, 4 / 2, 19.71 min | 1 / 6 / 8, after day 8, 989.71 |
+| **B**: `RichnessHeightScale` 40, recruits from day 1 | **25 / 190 / 335** | height (40 m): day 6, 4 / 2, 19.38 min | 1 / 6 / 8, after day 8, 1497.22 |
+
+A stays in the 15–20 minute window, so its thresholds stay. For B, any second milestone from 150 to 190 and third from 255 to 335 gives the same model day; 190 / 335 is the top of that range, which in AutoPlay gives the same milestone days as A. The 14 Nov climb set (25 / 240 / 390) now ends on model day 7 at 22.7 min, outside the window. AutoPlay is a slow scripted player (one small line per scout): two recruits from day 1 double its twenty-day haul and halve its days to the end card, while the model's player ends on day 5 or 6 either way.
+
+Day 1's first patch: the lowest leaf is a one-leaf patch with two pieces left after the scout's cut (template 0.6), so the two recruits take both on their first trip ("patch 0 of 3 left (2 reserved)"); their second and third trips wait for the next trail.
 
 Retain the updated stage defaults. Configured leafy height is a generation parameter; actual first leaves appear higher.
 
