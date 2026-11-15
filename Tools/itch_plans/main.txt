@@ -64,6 +64,8 @@
 77|Leaf.Carry 0.5
 81|Leaf.Teleport 26 0.5
 82|Leaf.Shot orbit 14
+# The hero and scale shots go without the HUD (owner, 15 Nov): showhud toggles it; no Leaf command reloads the level.
+83.8|showhud
 84.5|SHOT hero-a
 87.5|SHOT hero-b
 90.5|SHOT hero-c
@@ -78,6 +80,7 @@
 101|Leaf.ResetSave
 109|Leaf.Goto 504 1008 5966 -37 -14
 114|SHOT scale-floor
+114.5|showhud
 # the line: six recruits on two lines; the third scout rides one a few seconds and stops beside it, the camera looks
 # up the trunk as the recruits come and go (last: it changes the camera tuning).
 115|Leaf.OneTree 1

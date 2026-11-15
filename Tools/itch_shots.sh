@@ -16,13 +16,13 @@
 # failure. The shots get their metadata stripped (Tools/strip_image_metadata.py) and a contact sheet sheet.jpg (Pillow).
 set -u
 ROOT=/mnt/d/UnrealProjects/AntTreeGame          # the packaged build and the lock live in the main checkout
-HERE=$(cd "$(dirname "$0")/.." && pwd)          # this tree: plans, tools and the output folder
+HERE=$(cd "$(dirname "$0")/.." && pwd)          # this tree: plans and tools
 EXE='D:\UnrealProjects\AntTreeGame\Build\Windows\AntTreeGame.exe'
 SAVED=$ROOT/Build/Windows/AntTreeGame/Saved
 SHOTDIR=$SAVED/Screenshots
 LOG=$SAVED/Logs/ItchShots.log
 LABEL=${1:-$(date +%Y%m%d-%H%M)}
-OUT=$HERE/Saved/ItchShots/$LABEL
+OUT=$ROOT/Saved/ItchShots/$LABEL                  # always the main checkout, whichever tree runs the script
 PLAN=${PLAN:-$HERE/Tools/itch_plans/main.txt}
 
 [ -e "$ROOT/Build/Windows/AntTreeGame.exe" ] || { echo "no packaged build in $ROOT/Build/Windows" >&2; exit 2; }
