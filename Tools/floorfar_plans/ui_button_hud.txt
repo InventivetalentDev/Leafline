@@ -1,0 +1,28 @@
+# The HUD with the shipped skin and icons: day, colony and wind panels, the bird line, a forced gust, the wind map,
+# 1080p and 720p. ROOT=<tree> Tools/floorfar_shots.sh <label> Tools/floorfar_plans/ui_button_hud.txt "-ResX=1920 -ResY=1080"
+0|r.SetRes 1920x1080w
+0|Leaf.Tune wind CalmMin 400
+0|Leaf.Tune wind CalmMax 400
+0|Leaf.Tune wind StreakCount 0
+0|Leaf.ResetSave
+0|Leaf.OneTree 1
+0|Leaf.Pool 2
+0|Leaf.StartDay 1 517192
+0|Leaf.BuildLine 0
+0|Leaf.PadIcons 0
+8|Leaf.FaceWind exposed
+8.1|Leaf.Carry 0.35
+9.5|SHOT hud-1080
+10|Leaf.BirdNow
+10.6|SHOT hud-bird-1080
+11|r.SetRes 1280x720w
+12.6|SHOT hud-bird-720
+13|Leaf.Gust
+14.5|SHOT hud-gust-720
+15|r.SetRes 1920x1080w
+16.5|SHOT hud-gust-1080
+17|Leaf.Hold cycle 2.5
+18.5|SHOT hud-map-1080
+19.5|r.SetRes 1280x720w
+21.5|SHOT hud-720
+22|Leaf.QuitAfter 1

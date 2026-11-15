@@ -1450,7 +1450,8 @@ void ALeaflineHUD::DrawNest(const ADayDirector* D, float Scale)
 		AddMenuHit(X, Y, RowW, BoxH, i);
 		const bool bSel = D->GetNestSelection() == i || IsHovered(i);
 		DrawButtonBack(X, Y, RowW, BoxH, Scale, bSel);
-		if (bSel) DrawRect(AccentColor, X, Y, Style.Stroke * Scale, BoxH);
+		// The accent stripe marks the selected row on the flat UI; a skin's button image marks it by itself.
+		if (bSel && !LeafSkin::Get(LeafSkin::EKind::ButtonSelected)) DrawRect(AccentColor, X, Y, Style.Stroke * Scale, BoxH);
 		if (i < LeaflineUpgrades::Count)
 		{
 			const FLeaflineUpgradeInfo* Info = LeaflineUpgrades::Get(i);
@@ -1549,7 +1550,7 @@ void ALeaflineHUD::DrawEndCard(const ADayDirector* D, float Scale)
 void ALeaflineHUD::DrawPause(float Scale)
 {
 	UFont* Font = GEngine->GetMediumFont();
-	const float CX = Canvas->ClipX * 0.5f, W = Style.CardWidth * Scale;
+	const float CX = Canvas->ClipX * 0.5f;
 	const ALeaflinePlayerController* PC = Cast<ALeaflinePlayerController>(GetOwningPlayerController());
 	const int32 Page = PC ? PC->GetPausePage() : 0;
 	const int32 Sel = PC ? PC->GetPauseRow() : 0;
@@ -1564,6 +1565,9 @@ void ALeaflineHUD::DrawPause(float Scale)
 		return;
 	}
 	float Y = (Page == 0 ? 170.f : 160.f) * Scale;
+	// The pause page is sized to its five short rows (owner and artist, 15 Nov); the options page keeps the full card for
+	// its labels and values.
+	const float W = (Page == 0 ? 680.f : Style.CardWidth) * Scale;
 	const float RowH = Style.MenuRow * Scale, Gap = Style.Gap * Scale;
 	// The two hint lines under the rows; the panel fits what is drawn (the same steps as below).
 	const FString Hint1 = Page == 0 ? TEXT("{Choose}: choose      {Confirm}{orclick}: select") : TEXT("{Choose}: choose      {Change}{orclick}: change");
@@ -1576,7 +1580,7 @@ void ALeaflineHUD::DrawPause(float Scale)
 	Y += 74.f * Scale;
 	if (Page == 0)
 	{
-		const float BW = 800.f * Scale;
+		const float BW = 560.f * Scale;
 		constexpr int32 N = ALeaflinePlayerController::NumPauseRows;
 		// In the order of ALeaflinePlayerController's PauseRow constants.
 		const TCHAR* Labels[N] = { TEXT("Resume"), TEXT("Controls"), TEXT("Options"), TEXT("Credits"), TEXT("Quit") };
@@ -1872,7 +1876,8 @@ void ALeaflineHUD::DrawWindIcons(const ADayDirector* D, const AWindSystem* Wind,
 		{
 			V.Normalize();
 			const FVector2D Side(-V.Y, V.X);
-			FVector2D Ctr(IconX, Top + 26.f * Scale);
+			// Centred on the status line ("calm", "GUST!") beside it, not between it and the gauge.
+			FVector2D Ctr(IconX, Top + 0.5f * LineH);
 			if (bGust) Ctr += FVector2D(FMath::Sin(Now * 53.f), FMath::Cos(Now * 41.f)) * (3.5f * Scale);
 			const float AR = 14.f * Scale * (bWarn ? 1.f + 0.3f * Pulse : 1.f);
 			FLinearColor AC = C;
