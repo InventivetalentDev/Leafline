@@ -11,7 +11,7 @@ namespace LeafSkin
 	namespace
 	{
 		constexpr int32 NumKinds = int32(EKind::Count);
-		const TCHAR* const Names[NumKinds] = { TEXT("Panel_Card"), TEXT("Panel_Group"), TEXT("Panel_Tag"), TEXT("Button_Selected"), TEXT("Button_Idle") };
+		const TCHAR* const Names[NumKinds] = { TEXT("Panel_Card"), TEXT("Panel_Group"), TEXT("Panel_Tag"), TEXT("Button_Selected"), TEXT("Button_Idle"), TEXT("Panel_GroupCenter") };
 		FImage Images[NumKinds];
 		bool bValid[NumKinds] = {};
 		bool bLoaded = false;
@@ -77,9 +77,12 @@ namespace LeafSkin
 			return;
 		}
 
-		// skin.txt: "scale <image pixels per 1080p pixel>" and "<image name> <left> <top> <right> <bottom>" (image pixels).
+		// skin.txt: "scale <image pixels per 1080p pixel>", "<image name> <left> <top> <right> <bottom>" (image pixels) and,
+		// optionally, "mirror_right <image name>" and "outset <image name> <1080p pixels>".
 		float PixelsPerDesign = 2.f;
 		int32 Margins[NumKinds][4];
+		bool bMirror[NumKinds] = {};
+		float Outset[NumKinds] = {};
 		FString Reason[NumKinds];
 		for (int32 i = 0; i < NumKinds; ++i) Reason[i] = TEXT("no margins line in skin.txt");
 		TArray<FString> Lines;
@@ -94,6 +97,23 @@ namespace LeafSkin
 			{
 				const float V = T.Num() == 2 && FCString::IsNumeric(*T[1]) ? FCString::Atof(*T[1]) : 0.f;
 				if (V >= 0.25f && V <= 8.f) PixelsPerDesign = V;
+				continue;
+			}
+			if (T[0].Equals(TEXT("mirror_right"), ESearchCase::IgnoreCase))
+			{
+				for (int32 i = 0; i < NumKinds; ++i)
+				{
+					if (T.Num() == 2 && T[1].Equals(Names[i], ESearchCase::IgnoreCase)) bMirror[i] = true;
+				}
+				continue;
+			}
+			if (T[0].Equals(TEXT("outset"), ESearchCase::IgnoreCase))
+			{
+				const float V = T.Num() == 3 && FCString::IsNumeric(*T[2]) ? FCString::Atof(*T[2]) : 0.f;
+				for (int32 i = 0; i < NumKinds; ++i)
+				{
+					if (T.Num() == 3 && T[1].Equals(Names[i], ESearchCase::IgnoreCase)) Outset[i] = FMath::Clamp(V, -16.f, 64.f);
+				}
 				continue;
 			}
 			for (int32 i = 0; i < NumKinds; ++i)
@@ -146,8 +166,12 @@ namespace LeafSkin
 			Img.Right = Margins[i][2];
 			Img.Bottom = Margins[i][3];
 			Img.PixelsPerDesign = PixelsPerDesign;
+			Img.bMirrorRight = bMirror[i];
+			Img.Outset = Outset[i];
 			bValid[i] = true;
-			Parts.Add(FString::Printf(TEXT("%s %dx%d (%d %d %d %d)"), Names[i], Img.Size.X, Img.Size.Y, Img.Left, Img.Top, Img.Right, Img.Bottom));
+			Parts.Add(FString::Printf(TEXT("%s %dx%d (%d %d %d %d)%s%s"), Names[i], Img.Size.X, Img.Size.Y, Img.Left, Img.Top, Img.Right, Img.Bottom,
+				Img.bMirrorRight ? TEXT(", mirrored right of centre") : TEXT(""),
+				Img.Outset != 0.f ? *FString::Printf(TEXT(", outset %.0f"), Img.Outset) : TEXT("")));
 		}
 		const FString Summary = FString::Printf(TEXT("Skin from %s, scale %.2f%s: %s"), *Dir, PixelsPerDesign, bEnabled ? TEXT("") : TEXT(" (off: Leaf.Skin 0)"),
 			*FString::Join(Parts, TEXT("; ")));

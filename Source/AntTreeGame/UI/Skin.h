@@ -19,6 +19,7 @@ namespace LeafSkin
 		Tag,            // one-line read-outs: prompts, hints, cut labels, the "+N" pops
 		ButtonSelected, // the selected or hovered menu row
 		ButtonIdle,     // the other menu rows (today they have no background)
+		GroupCenter,    // optional: Group panels centred near the screen centre (colony counter, banners); else Group
 		Count
 	};
 
@@ -29,6 +30,12 @@ namespace LeafSkin
 		// Slice margins in image pixels, and image pixels per 1080p screen pixel (2: painted at twice the 1080p size).
 		int32 Left = 0, Top = 0, Right = 0, Bottom = 0;
 		float PixelsPerDesign = 2.f;
+		// skin.txt "mirror_right <image name>": panels of this kind centred right of the screen centre are drawn flipped
+		// left to right (a one-sided ornament then points the other way on that side).
+		bool bMirrorRight = false;
+		// skin.txt "outset <image name> <px>": the image is drawn that many 1080p pixels further outside the panel on every
+		// side (beyond the panel's padding), so a frame clears the text.
+		float Outset = 0.f;
 	};
 
 	/** The image for a kind, or null for a flat panel (no image for it, it failed to load, or Leaf.Skin 0). */

@@ -1,0 +1,73 @@
+# The artist's skins (15 Nov evening): mirror_right Panel_Group, Panel_GroupCenter, outset Panel_Card. Copy the folders to
+# Saved/ first: SkinT2 (as sent), SkinT2m (+ mirror_right Panel_Group), SkinT3 (v2 sides, v3 centre, mirror), SkinT3o
+# (SkinT3 + outset Panel_Card 14), SkinT4 (v3 for every box). Title, the shift HUD per skin, recap, nest, pause, credits.
+# ROOT=<tree> Tools/floorfar_shots.sh <label> Tools/floorfar_plans/ui_skin2.txt "-ResX=1920 -ResY=1080"
+0|r.SetRes 1920x1080w
+0|Leaf.Bird 0
+0|Leaf.Tune wind CalmMin 400
+0|Leaf.Tune wind CalmMax 400
+0|Leaf.Tune wind StreakCount 0
+0|Leaf.BuildLine 0
+0|Leaf.PadIcons 0
+0|Leaf.ReloadSkin Saved/SkinT3o
+6|SHOT title-T3o-1080
+6.3|Leaf.ReloadSkin Saved/SkinT3
+7|SHOT title-T3-1080
+7.3|r.SetRes 1280x720w
+9.3|SHOT title-T3-720
+9.6|Leaf.ReloadSkin Saved/SkinT3o
+10.3|SHOT title-T3o-720
+10.6|r.SetRes 1920x1080w
+12.7|Leaf.ResetSave
+12.8|Leaf.OneTree 1
+14|Leaf.StartDay 1 517192
+23|Leaf.GoLeaf
+26|Leaf.ReloadSkin Saved/SkinT2
+26.8|SHOT hud-T2-1080
+27.2|Leaf.ReloadSkin Saved/SkinT2m
+28|SHOT hud-T2m-1080
+28.4|Leaf.ReloadSkin Saved/SkinT3
+29.2|SHOT hud-T3-1080
+29.6|Leaf.ReloadSkin Saved/SkinT4
+30.4|SHOT hud-T4-1080
+30.8|Leaf.Skin 0
+31.6|SHOT hud-flat-1080
+31.8|Leaf.Skin 1
+32|r.SetRes 1280x720w
+34|Leaf.ReloadSkin Saved/SkinT2
+34.8|SHOT hud-T2-720
+35.2|Leaf.ReloadSkin Saved/SkinT2m
+36|SHOT hud-T2m-720
+36.4|Leaf.ReloadSkin Saved/SkinT3
+37.2|SHOT hud-T3-720
+37.6|Leaf.ReloadSkin Saved/SkinT4
+38.4|SHOT hud-T4-720
+38.8|r.SetRes 1920x1080w
+40.5|Leaf.ReloadSkin Saved/SkinT3o
+41|Leaf.StartDay 1 517192
+46|Leaf.Carry 0.7
+48|Leaf.Carry 0.7
+50|Leaf.Carry 0.7
+54|SHOT recap-T3o-1080
+54.5|Leaf.Hold grip 0.2
+58|SHOT nest-T3o-1080
+58.3|Leaf.ReloadSkin Saved/SkinT3
+59|SHOT nest-T3-1080
+59.3|r.SetRes 1280x720w
+61.3|SHOT nest-T3-720
+61.6|Leaf.ReloadSkin Saved/SkinT3o
+62.3|SHOT nest-T3o-720
+62.6|r.SetRes 1920x1080w
+64|Leaf.PauseMenu 0
+65.5|SHOT pause-T3o-1080
+65.8|Leaf.ReloadSkin Saved/SkinT3
+66.5|SHOT pause-T3-1080
+66.8|r.SetRes 1280x720w
+68.8|SHOT pause-T3-720
+69.1|Leaf.ReloadSkin Saved/SkinT3o
+69.8|SHOT pause-T3o-720
+70|Leaf.PauseMenu 2 0
+71.5|SHOT credits-T3o-720
+71.8|r.SetRes 1920x1080w
+73.5|SHOT credits-T3o-1080
+74|Leaf.QuitAfter 1
