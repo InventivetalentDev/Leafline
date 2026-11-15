@@ -59,6 +59,25 @@ py Tools\zip_build.py                          # from Windows
 - Exit codes: 0 = OK, 1 = the zip is 1 GB or larger (over the MegaJam limit), 2 = no packaged build found.
 - The build has not been tested on another PC yet. Players may need the Visual C++ Redistributable 2015–2022 x64, and Windows SmartScreen may warn about the unsigned exe.
 
+## release_build.sh
+
+`Tools/release_build.sh` packages the submission build from the main checkout and checks it in one run of about an hour. Run it from WSL with the editor closed and nobody playing.
+
+```
+Tools/release_build.sh                  # the submission build
+DEV=1 Tools/release_build.sh            # a trial: allows uncommitted changes and the debug flags
+Tools/release_build.sh --check [zip]    # only the fresh-folder test, e.g. on the zip downloaded back from itch
+DAYS=2 Tools/release_build.sh --check   # a short trial of the fresh-folder test
+```
+
+1. **Preflight.** It refuses uncommitted changes (the build line would say `+dirty`), untracked files under `Source/`, `Config/`, `Content/` or `Plugins/`, `bShowBuildLine` or `bInputVizKey` not `False` in `Config/DefaultGame.ini`, an editor open on this project, and less than 8 GB free on D:. It waits while someone plays: a packaged or `-game` run without `-RenderOffscreen`.
+2. **Build.** It runs the editor build and `Scripts/package_win64.bat` through the Unreal lock, retrying while Live Coding or another run holds them. Before packaging it waits until no run is using `Build/Windows`.
+3. **Zip.** It moves the previous zip to `Build/archive/` and runs `Tools/zip_build.py`. It stops with exit code 3 at 1 GB or more and records the zip's SHA-256.
+4. **Frame rates.** It runs `Tools/perf_packaged.sh` and records the lock holders, because a concurrent run lowers the figures.
+5. **Fresh folder.** It unzips into `D:\UnrealProjects\Leafline release test` (a path with spaces) and plays twenty unattended days from no save with the shipped defaults (`Leaf.AutoPlay 20 3 skip buy reload report quit`). It counts crash lines, rescues, missing or fallback materials and "Failed to load" lines (profiler DLLs aside), and checks that the end card is reached.
+
+The report and the logs land in `Saved/Release/<commit>-<time>/` (`report.md`, `build.log`, `package.log`, `perf.log`, `fresh.log`). Exit codes: 0 = all checks passed, 1 = preflight refused, 2 = build or package failed, 3 = zip too big, 4 = a test found a problem.
+
 ## perf_packaged.sh and csv_fps.py
 
 `Tools/perf_packaged.sh` measures the packaged build at 1920x1080 in five runs:
