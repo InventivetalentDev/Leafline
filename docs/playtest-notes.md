@@ -122,6 +122,11 @@
   - Sent to the ui agent with the note above: an ant icon per worker showing its state (out, carrying home, home, ready, blown off), numbers kept.
   - Done: in the 18:25 candidate.
 
+
+## notes for v2
+- [ ] "drop your piece to distract the bird" can't happen in practice if you're always sending your ant to go back on its own; could force walking back to the main trunk before the auto option is available
+- [ ] could make the bird target yesterday's (or previous trips') branches as an incentive to climb higher up
+
 ## To revisit: thin-branch controls (2026-11-12)
 
 Superseded on 13 Nov by the screen-direction controls above (the steering wheel stays as `Leaf.Tune move ControlStyle 1`).
