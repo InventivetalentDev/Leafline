@@ -38,7 +38,7 @@
 > - Agent setup: Claude Code with my global instructions and a few general-purpose skills (writing style, planning interviews, a Codex hand-off workflow), the Codex CLI and its Claude Code plugin, herdr (a terminal multiplexer for running several agents), and the MCP servers blender-mcp (Blender add-on) and earshot (audio analysis). Epic's Model Context Protocol plugin ships with the engine. [OWNER: check this list against your setup; add or remove anything.]
 > - The level started as the engine's default template map, with the floor and props removed.
 
-**Dev log link (Glass Box modifier)** (private, optional): [DEV LOG URL] <!-- docs/devlog.md in the public repository, or a copy on itch. Owner: check every statement first; it is written in your voice. -->
+**Dev log link (Glass Box modifier)** (private, optional): https://github.com/InventivetalentDev/Leafline/blob/main/docs/devlog.md <!-- docs/devlog.md in the public repository, or a copy on itch. Owner: check every statement first; it is written in your voice. -->
 
 **Tell us about your take on the theme and how it influenced your game?** (private):
 

@@ -9,7 +9,7 @@
 **Theme colours (owner, 15 Nov, "Evening bark"):** BG `#16110D`, BG 2 `#211A14`, Text `#EFE6D2`, Link `#9BD36A`
 **Download:** `inventivetalent_Leafline.zip` (0.44 GB). Unzip it and run `Leafline/AntTreeGame.exe`.
 **Video:** [VIDEO URL]
-**Source code:** [REPO URL]
+**Source code:** [github.com/InventivetalentDev/Leafline](https://github.com/InventivetalentDev/Leafline)
 
 ---
 
@@ -71,7 +71,7 @@ One person directed AI agents to make the game. Most of the code is written by A
 - Codex (OpenAI): concept and key art, the HUD icons, code reviews and some programming
 - Blender 5.1 and Python: the scripted meshes and the sound synthesis
 
-The full source code is on GitHub: [REPO URL].
+The full source code is on GitHub: [github.com/InventivetalentDev/Leafline](https://github.com/InventivetalentDev/Leafline).
 
 ## Sourced assets
 
@@ -88,6 +88,6 @@ This game is also my entry for the Epic AI MegaJam, whose page stays as it was s
 - Made by inventivetalent
 - UI panel art, the frames and backgrounds of the menu screens and the HUD boxes: [Cookiehero](https://cookiehero.itch.io/). The rest of the interface (layout, text, icons, meters) was made with code and AI tools.
 - Playtesting and design feedback: [iCeeker](https://iceeker.itch.io/)
-- Dev log: [DEV LOG URL]
-- Epic AI MegaJam version: [MEGAJAM PAGE URL]
+- Dev log: [docs/devlog.md on GitHub](https://github.com/InventivetalentDev/Leafline/blob/main/docs/devlog.md)
+- Epic AI MegaJam version: [inventivetalent.itch.io/leafline-megajam](https://inventivetalent.itch.io/leafline-megajam)
 - Licence: MIT (source code and game files; the button prompt icons are CC0)
