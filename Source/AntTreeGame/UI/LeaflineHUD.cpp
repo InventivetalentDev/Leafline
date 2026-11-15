@@ -505,6 +505,21 @@ void ALeaflineHUD::DrawPanel(float X, float Y, float W, float H, float Scale, fl
 	DrawRect(C, X - P, Y - P, W + 2.f * P, H + 2.f * P);
 }
 
+void ALeaflineHUD::DrawTrackOutline(float X, float Y, float W, float H, float Scale, float Alpha)
+{
+	if (!LeafSkin::Get(LeafSkin::EKind::Group) && !LeafSkin::Get(LeafSkin::EKind::GroupCenter)) return;
+	// The skin's light green (her panel outline, about #A7B67F) at low alpha, one pixel up to 1440p, outside the track so
+	// it never covers the fill.
+	FLinearColor C = FLinearColor::FromSRGBColor(FColor(167, 182, 127));
+	C.A = 0.6f * Alpha;
+	const float T = FMath::Max(1.f, FMath::RoundToFloat(Scale * 0.75f));
+	const float L = FMath::RoundToFloat(X), Tp = FMath::RoundToFloat(Y), R = FMath::RoundToFloat(X + W), B = FMath::RoundToFloat(Y + H);
+	DrawRect(C, L - T, Tp - T, R - L + 2.f * T, T);
+	DrawRect(C, L - T, B, R - L + 2.f * T, T);
+	DrawRect(C, L - T, Tp, T, B - Tp);
+	DrawRect(C, R, Tp, T, B - Tp);
+}
+
 void ALeaflineHUD::DrawNineSlice(const LeafSkin::FImage& Image, float X, float Y, float W, float H, float Scale, float Alpha)
 {
 	if (!Canvas || !Image.Texture || Image.Size.X <= 0 || Image.Size.Y <= 0) return;
@@ -672,6 +687,7 @@ void ALeaflineHUD::DrawStamina(const AAntPawn* Ant, float Scale, float Dt)
 	Track.A *= StaminaAlpha;
 	DrawRect(Track, X, BarY, W, H);
 	DrawRect(Fill, X, BarY, W * FMath::Clamp(StaminaShown, 0.f, 1.f), H);
+	DrawTrackOutline(X, BarY, W, H, Scale, StaminaAlpha);
 }
 
 void ALeaflineHUD::DrawDayInfo(const ADayDirector* D, float Scale)
@@ -774,6 +790,7 @@ void ALeaflineHUD::DrawDayInfo(const ADayDirector* D, float Scale)
 		DrawTextAt(Label, GX, (Style.Edge + Style.Padding) * Scale, C, SecondaryText(Scale), Font);
 		DrawRect(Style.Track, GX, GY, GW, GH);
 		DrawRect(C, GX, GY, GW * FMath::Clamp(Wind->GetStrength(), 0.f, 1.f), GH);
+		DrawTrackOutline(GX, GY, GW, GH, Scale);
 
 		// Which way it blows, as seen from the camera: up on screen is away from you.
 		if (PC && PC->PlayerCameraManager)
@@ -860,6 +877,7 @@ void ALeaflineHUD::DrawCarry(const AAntPawn* Ant, float Scale)
 	const float W = 440.f * Scale, H = Style.Bar * Scale, BY = Y + Style.Row * Scale;
 	DrawRect(Style.Track, X, BY, W, H);
 	if (Ant->IsCarrying()) DrawRect(Style.Leaf, X, BY, W * FMath::Clamp(Ant->GetCarriedSize(), 0.f, 1.f), H);
+	DrawTrackOutline(X, BY, W, H, Scale);
 }
 
 void ALeaflineHUD::DrawCutArc(const AAntPawn* Ant, float Scale)
@@ -1094,6 +1112,7 @@ void ALeaflineHUD::DrawLineRows(const ADayDirector* D, const ALineSystem* Lines,
 		const float BY = Y + Style.Row * Scale, BW = 100.f * Scale, BH = Style.Bar * Scale;
 		DrawRect(Style.Track, X, BY + 5.f * Scale, BW, BH);
 		DrawRect(FLinearColor(Style.Leaf.R, Style.Leaf.G, Style.Leaf.B, Dim), X, BY + 5.f * Scale, BW * L.Fullness(), BH);
+		DrawTrackOutline(X, BY + 5.f * Scale, BW, BH, Scale, Dim);
 		DrawTextAt(PiecesLeftText(L.PatchRemaining + L.Reserved),
 			X + 115.f * Scale, BY, FLinearColor(Style.Rich.R, Style.Rich.G, Style.Rich.B, Dim), SecondaryText(Scale), Font);
 		Y += RowH;
@@ -1818,6 +1837,7 @@ void ALeaflineHUD::DrawWindIcons(const ADayDirector* D, const AWindSystem* Wind,
 	if (bWarn) BarC.A *= 0.35f + 0.65f * Pulse;
 	DrawRect(Style.Track, GX, GY, GW, GH);
 	DrawRect(BarC, GX, GY, GW * FMath::Clamp(Wind->GetStrength(), 0.f, 1.f), GH);
+	DrawTrackOutline(GX, GY, GW, GH, Scale);
 
 	// The wind arrow as seen from the camera (up on screen is away from you), with streaks flowing along it: slow when
 	// calm, faster and pulsing before a gust, fast and shaking in it.
@@ -1936,6 +1956,7 @@ void ALeaflineHUD::DrawCarryIcons(const AAntPawn* Ant, float Scale)
 	const float W = 440.f * Scale, H = Style.Bar * Scale, BY = Y + Style.Row * Scale;
 	DrawRect(Style.Track, X, BY, W, H);
 	if (bCarry) DrawRect(Style.Leaf, X, BY, W * Size01, H);
+	DrawTrackOutline(X, BY, W, H, Scale);
 }
 
 void ALeaflineHUD::DrawDayPanelIcons(const ADayDirector* D, float Scale)
@@ -2032,6 +2053,7 @@ void ALeaflineHUD::DrawColonyIcons(const ADayDirector* D, float Scale)
 		const float F = FMath::Clamp((ColonyShown - PrevAt) / (NextAt - PrevAt), 0.f, 1.f);
 		DrawRect(Style.Track, CX - 0.5f * W, BarY, W, BarH);
 		DrawRect(Style.Leaf, CX - 0.5f * W, BarY, W * F, BarH);
+		DrawTrackOutline(CX - 0.5f * W, BarY, W, BarH, Scale);
 	}
 	RX = CX - 0.5f * Row3W;
 	DrawTextAt(Today, RX, Row3Y, AccentColor, SecondaryText(Scale), Font);

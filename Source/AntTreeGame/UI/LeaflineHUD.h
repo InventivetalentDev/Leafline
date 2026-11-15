@@ -113,6 +113,8 @@ private:
 	 * when there is one (UI/Skin.h), otherwise flat in Style.Panel.
 	 */
 	void DrawPanel(float X, float Y, float W, float H, float Scale, float Alpha = 1.f, LeafSkin::EKind Kind = LeafSkin::EKind::Group);
+	/** A thin light-green outline just outside a meter track, only while a Group skin is active (flat UI unchanged). */
+	void DrawTrackOutline(float X, float Y, float W, float H, float Scale, float Alpha = 1.f);
 	/** A skin image stretched over a rectangle in nine slices; every slice edge on a whole pixel, so no seams. */
 	void DrawNineSlice(const LeafSkin::FImage& Image, float X, float Y, float W, float H, float Scale, float Alpha);
 	/** A menu row's background: the selected or idle button image, or flat (Style.Selection when selected, else nothing). */
