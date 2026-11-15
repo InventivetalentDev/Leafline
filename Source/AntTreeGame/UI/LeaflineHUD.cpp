@@ -1876,7 +1876,8 @@ void ALeaflineHUD::DrawWindIcons(const ADayDirector* D, const AWindSystem* Wind,
 		{
 			V.Normalize();
 			const FVector2D Side(-V.Y, V.X);
-			FVector2D Ctr(IconX, Top + 26.f * Scale);
+			// Centred on the status line ("calm", "GUST!") beside it, not between it and the gauge.
+			FVector2D Ctr(IconX, Top + 0.5f * LineH);
 			if (bGust) Ctr += FVector2D(FMath::Sin(Now * 53.f), FMath::Cos(Now * 41.f)) * (3.5f * Scale);
 			const float AR = 14.f * Scale * (bWarn ? 1.f + 0.3f * Pulse : 1.f);
 			FLinearColor AC = C;
