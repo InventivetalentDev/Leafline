@@ -1,7 +1,10 @@
 # Itch page screenshots (Tools/itch_shots.sh), one packaged run, HUD on as players see it, wind held calm except for the
 # forced gust. Staging after Tools/video_capture.sh's shot_def; a few takes of most shots, the owner picks about five.
+# Leaf.Bird 0 for the whole run: with recruits from day 1 the bird hunts on day 1 and its hint line covers the top of
+# the frame; the bird shots are in bird.txt (BIRD=1).
 # Timing: every tree regrow (Leaf.ResetSave, Leaf.Move, Leaf.StartDay) stalls the game about 1.5 s and Leaf.Delay's game
 # clock jumps over the stall, so steps after a regrow chain keep a buffer of several seconds (else they fire together).
+0|Leaf.Bird 0
 0|Leaf.Tune wind CalmMin 400
 0|Leaf.Tune wind CalmMax 400
 0|Leaf.Tune wind StreakCount 0
@@ -76,10 +79,8 @@
 109|Leaf.Goto 504 1008 5966 -37 -14
 114|SHOT scale-floor
 # the line: six recruits on two lines; the third scout rides one a few seconds and stops beside it, the camera looks
-# up the trunk as the recruits come and go (last: it changes the camera tuning). Leaf.Bird 0: the forced recruit pool
-# brings the bird on day 1, and its hint line covered the top of the frame (the bird has its own run, bird.txt).
+# up the trunk as the recruits come and go (last: it changes the camera tuning).
 115|Leaf.OneTree 1
-115.1|Leaf.Bird 0
 115.2|Leaf.Pool 6
 115.3|Leaf.StartDay 1 517192
 123|Leaf.TestLines 2 0.6 climb
