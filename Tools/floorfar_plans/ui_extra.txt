@@ -1,0 +1,24 @@
+# UI polish check, the wind panel's other variants: the bird line (diving, then with the wind map held) and the harvest.
+# ROOT=<tree> Tools/floorfar_shots.sh <label> Tools/floorfar_plans/ui_extra.txt "-ResX=1920 -ResY=1080"
+0|r.SetRes 1920x1080w
+0|Leaf.Tune wind CalmMin 400
+0|Leaf.Tune wind CalmMax 400
+0|Leaf.Tune wind StreakCount 0
+0|Leaf.ResetSave
+0|Leaf.OneTree 1
+0|Leaf.Pool 2
+0|Leaf.StartDay 1 517192
+0|Leaf.BuildLine 0
+0|Leaf.PadIcons 0
+8|Leaf.FaceWind exposed
+8.1|Leaf.Carry 0.35
+10|Leaf.BirdNow
+10.6|SHOT bird-1080
+11|Leaf.Hold cycle 3
+12|SHOT bird-map-1080
+13|SHOT bird-map-1080-b
+16|Leaf.Harvest
+19|SHOT harvest-1080
+19.5|r.SetRes 1280x720w
+21.5|SHOT harvest-720
+22|Leaf.QuitAfter 1
