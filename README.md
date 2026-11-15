@@ -63,7 +63,7 @@ One person directed AI agents to make the game. Most of the code is written by A
 
 - Made by inventivetalent
 - UI panel art, the frames and backgrounds of the menu screens and the HUD boxes: [Cookiehero](https://cookiehero.itch.io/). The rest of the interface (layout, text, icons, meters) was made with code and AI tools.
-- Playtesting and design feedback: [FRIEND A]
+- Playtesting and design feedback: [iCeeker](https://iceeker.itch.io/)
 - Claude (Anthropic): planning and most of the programming, including driving the Unreal editor through Epic's Model Context Protocol plugin
 - Codex (OpenAI): concept and key art, the ant and leaf HUD icons, code reviews and some programming
 - Unreal Engine 5.8, Blender 5.1, Python
