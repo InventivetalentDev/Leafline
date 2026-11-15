@@ -148,5 +148,25 @@
       "visual_validation": "Inspected master and final export: dominant sharp copper-rust hero, darker mahogany gaster, six legs, two elbowed antennae, upright leaf held at mandibles, softer small background workers/trail, no text/logo/trademark. Calm left-side title space retained."
     }
   ],
-  "validation": "All four final images visually inspected against A material and mesh references. Covers have approximately 46-53% ant-only frame height. Exact export dimensions, PNG integrity, full in-frame hero, prompt records, and SHA256 checked. Four unresized generation masters retained. All project writes confined to this folder; no commit."
+  "validation": "All four final images visually inspected against A material and mesh references. Covers have approximately 46-53% ant-only frame height. Exact export dimensions, PNG integrity, full in-frame hero, prompt records, and SHA256 checked. Four unresized generation masters retained. All project writes confined to this folder; no commit.",
+  "titled_variants": [
+    {
+      "file": "04-banner-copper-carrier-1920x620-title.png",
+      "source": "04-banner-copper-carrier-1920x620.png",
+      "width": 1920,
+      "height": 620,
+      "operation": "Title LEAFLINE added on 2026-11-15 by the main Claude session with ffmpeg drawtext: Roboto Bold (the engine's font, Apache 2.0), white, 132 px, top-left of the text at (168,176), with a blurred black shadow (55% opacity, sigma 9, offset 4,6). No other change to the picture.",
+      "source_sha256": "a89f52504a6892ddd033b643e52fc202e22e4cb1654bc66ed2e4ab0d041e9deb",
+      "export_sha256": "996590142f245e8b7018dbade87b7c99d52b1c528c48a3899035846e12a4ff61"
+    },
+    {
+      "file": "04-banner-copper-carrier-master-title.png",
+      "source": "04-banner-copper-carrier-master.png",
+      "width": 2206,
+      "height": 713,
+      "operation": "The same title, scaled by 1.149 for the master size.",
+      "source_sha256": "65b7df146c51c7d4cdbc553bca8692e95586188b7ac680edc03df6ce2936f375",
+      "export_sha256": "644ef52d9d19489f272d54dd7108074c4519e6c8278b8f687a21283c355e0304"
+    }
+  ]
 }
