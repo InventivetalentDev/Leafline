@@ -19,7 +19,7 @@ Python scripts: asset generation and audio synthesis, checked with earshot
 
 # Built with AI agents
 Claude (Anthropic): planning and most of the programming
-Codex (OpenAI): concept and key art, the ant and leaf HUD icons, code reviews and programming
+Codex (OpenAI): concept and key art, the HUD icons, code reviews and programming
 
 # Button prompts
 "Xelu's FREE Controller Prompts"

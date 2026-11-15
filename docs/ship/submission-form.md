@@ -56,7 +56,7 @@
 
 **Which OpenAI models or products did you use, and how?** (private, optional):
 
-> Codex (OpenAI) during development only, nothing at runtime. It made the concept art, the itch page key art and two HUD icons (the ant and the leaf), reviewed code (for example the bird's timing logic and a diagnosis of why ants got stuck at branch junctions), and wrote some features: the save game and upgrades, runtime audio, the HUD restyle and the video camera tools. Claude orchestrated it alongside Claude agents; Codex's quota and its separate perspective made it useful for reviews and self-contained jobs.
+> Codex (OpenAI) during development only, nothing at runtime. It made the concept art, the itch page key art and the nine HUD icons, reviewed code (for example the bird's timing logic and a diagnosis of why ants got stuck at branch junctions), and wrote some features: the save game and upgrades, runtime audio, the HUD restyle and the video camera tools. Claude orchestrated it alongside Claude agents; Codex's quota and its separate perspective made it useful for reviews and self-contained jobs.
 
 **Contact:** your call.
 

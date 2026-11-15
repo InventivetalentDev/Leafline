@@ -1877,12 +1877,18 @@ void ALeaflineHUD::DrawWindIcons(const ADayDirector* D, const AWindSystem* Wind,
 			const float AR = 14.f * Scale * (bWarn ? 1.f + 0.3f * Pulse : 1.f);
 			FLinearColor AC = C;
 			if (bWarn) AC.A *= 0.4f + 0.6f * Pulse;
-			const float T = (bGust ? 3.f : 2.f) * Scale;
-			const FVector2D Tip = Ctr + V * AR, Tail = Ctr - V * AR;
-			const FVector2D H1 = Tip - V * (AR * 0.6f) + Side * (AR * 0.45f), H2 = Tip - V * (AR * 0.6f) - Side * (AR * 0.45f);
-			DrawLine(Tail.X, Tail.Y, Tip.X, Tip.Y, AC, T);
-			DrawLine(Tip.X, Tip.Y, H1.X, H1.Y, AC, T);
-			DrawLine(Tip.X, Tip.Y, H2.X, H2.Y, AC, T);
+			// Codex's wind icon (15 Nov) points right; screen-space atan2 keeps the camera-relative direction. Without the
+			// file the drawn arrow as before.
+			const float AngleDeg = FMath::RadiansToDegrees(FMath::Atan2(V.Y, V.X));
+			if (!DrawIcon(TEXT("Icon_Wind"), Ctr.X, Ctr.Y, 2.f * AR, AC, AngleDeg))
+			{
+				const float T = (bGust ? 3.f : 2.f) * Scale;
+				const FVector2D Tip = Ctr + V * AR, Tail = Ctr - V * AR;
+				const FVector2D H1 = Tip - V * (AR * 0.6f) + Side * (AR * 0.45f), H2 = Tip - V * (AR * 0.6f) - Side * (AR * 0.45f);
+				DrawLine(Tail.X, Tail.Y, Tip.X, Tip.Y, AC, T);
+				DrawLine(Tip.X, Tip.Y, H1.X, H1.Y, AC, T);
+				DrawLine(Tip.X, Tip.Y, H2.X, H2.Y, AC, T);
+			}
 			const float Speed = bGust ? 2.6f : (bWarn ? 1.6f : (Ph == EWindPhase::Falling ? 0.9f : 0.45f));
 			for (int32 k = 0; k < 2; ++k)
 			{
