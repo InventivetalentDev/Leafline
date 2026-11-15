@@ -152,3 +152,62 @@ Writes `Content/Leafline/UIRaw/buildinfo.txt` (short commit, `+dirty` if tracked
 ## Floor shots (`Tools/floorfar_shots.sh`)
 
 `ROOT=<tree> Tools/floorfar_shots.sh <label> <plan> [extra game args]` runs one standalone game from that tree's editor binaries (slot `RefShot`, through the Unreal lock) and saves each `SHOT` of the plan as `Saved/RefShots/<label>-<name>.png`. A plan is a text file with one step per line, `<seconds>|<console command>` or `<seconds>|SHOT <name>`; several `0|` lines run in order before the first delay. Plans from the floor pass (`docs/briefs/floor-from-above.md`) are in `Tools/floorfar_plans/`: `final.txt` (the owner's pose, 22 and 120 m up, the nest, fog at five times the density), `accept.txt` (M_Ground2 against M_Ground), `perf.txt` (CSV frame-time captures; pass `-noraytracing` as the extra argument for the second set; summarise with `python3 Tools/csv_fps.py --skip 1`), `ring.txt` (the near-to-far blend straight down), `shafts.txt` (fog start regression on the light-shaft views). For look comparisons hold the wind calm first (`0|Leaf.Tune wind CalmMin 400`, `CalmMax 400`, `StreakCount 0`, `0|Leaf.Cues 0`): the gust's dust front otherwise drifts through every 15 s or so.
+
+## Video shots (`Tools/video_capture.sh`)
+
+`bash Tools/video_capture.sh <shot> [label]` films one shot of the MegaJam video (`docs/ship/video.md`). Each shot goes to its own clip, so takes can be judged one by one. Output goes to `Saved/VideoCap/shots/`:
+- `<shot>-take<N>.mp4`: 1920x1080, 60 fps, H.264, no sound;
+- a contact sheet (`.jpg`);
+- the game's events with their game time (`.log`).
+
+How it runs:
+- Through the Unreal lock (the editor must be closed).
+- From the editor binaries, offscreen. It never takes the screen.
+- In the save slot `Video`, and it checks that `Leafline.sav` is unchanged.
+
+The frame dump: Unreal's own (`-dumpmovie`, with a fixed 1/60 s step and `-ForceRes`). Every frame is exactly 1/60 s of game time however long it takes to render, so camera shots, `Leaf.Delay` and `Leaf.Slomo` keep their timing. It renders about 4.5 frames per real second, so an 8 s shot takes about 2 minutes plus startup. The PNGs, about 3 MB each, land in `Saved/Screenshots/WindowsEditor`; the engine ignores a configured folder. They are encoded and deleted straight after each run.
+
+Commands:
+- `bash Tools/video_capture.sh list` lists the shots: `ant tree climb cut wind ride harvest recap bird move spire end`.
+- `all` films every shot once; the bird only with `BIRD=1`.
+- `reel` joins every take into `Saved/VideoCap/reel.mp4`, each labelled with its name, for choosing.
+- `--probe <shot>` runs the steps without filming and prints the events with their game time, to place the window of a shot that waits on an event (the recap).
+- `--dry-run <shot>` prints the console commands.
+
+Environment:
+- `DUMP_AT` / `DUMP_LEN` override a shot's window (game seconds).
+- `SEED` and `SPIRE_SEED` choose the trees.
+- `EXTRA` adds console commands at the start.
+
+The shots are defined in `shot_def` at the top of the script.
+
+Later additions (14 Nov evening):
+- Calm shots set long calm spells (`Leaf.Tune wind CalmMin/CalmMax 90` before the day starts), so no gust streaks cross them.
+- Filming windows sit inside the camera moves, because the camera's return to the player's view at the end of a move jumps in a clip.
+- `all` films `SHOTS_ALL` (default: spire ant tree climb cut wind recap end).
+- **Sound (`AUDIO=1`, or `--sound <shot> <take>` for an existing take).** A second, real-time run plays the shot's sound while ffmpeg records the VB-Audio cable. Three `Leaf.Sound ui_confirm` clicks before the window line the recording up with the frames.
+  - A `-game` run cannot be told its output device: the editor's audio-device setting is not loaded in `-game`, and there is no console variable.
+  - So Windows must send `UnrealEditor.exe` to "CABLE In 16ch (VB-Audio Virtual Cable)": Settings > System > Sound > Volume mixer. That also silences PIE in the editor until it is reset there.
+  - Without that routing, the sound plays on the default device and no clicks are found.
+
+## Video edit (`Tools/video_edit.py`)
+
+`python3 Tools/video_edit.py` cuts the video together from the takes. It reads the cut list `docs/ship/video_cut.txt`, one line per clip: `<take> <in> <out> | <caption>`, or `@title TEXT`, or `@end A / B / C` in place of the caption.
+
+Output and speed:
+- By default it writes a 720p, 30 fps draft to `Saved/VideoCap/draft_720p.mp4`, in about 15 s.
+- `--final` writes 1920x1080 at 60 fps to `Build/Video/leafline_megajam.mp4`.
+
+What it does:
+- hard cuts, a fade from black at the start and to black at the end;
+- captions in Roboto Medium (the HUD's font), lower left;
+- the takes' own sound where present, silence otherwise, normalised to −14 LUFS;
+- prints the duration and whether it is inside the jam's 30–60 s.
+
+Cut-list options (14 Nov, late): after `<out>`, a clip may carry `zoom=1.45` (enlarge), `zoomto=1.6` (push in from `zoom` to that value over the clip), `cx=` / `cy=` (the zoom's centre as fractions of the frame) and `box=1` (a dark box behind the caption, for clips where it lies over HUD text).
+
+More in `video_capture.sh` (14 Nov, late):
+- `--stills <shot> "<t1 t2 ...>" [label]` takes one frame at each game time and tiles them into `Saved/VideoCap/stills/<shot>-<label>.jpg` with the events log beside it. It takes about a minute. Use it to find a shot's timing and framing before filming. `RUN_FOR=<seconds>` makes a probe or stills run last that long.
+- Shot `colony`: recruits coming down a trail with their pieces. It lays two lines with `Leaf.TestLines 2 0.6 climb`; the scout rides 3 s up one and stops. Vary it with `LINES`, `COLONY_AT`, `COLONY_AIM`, `COLONY_BOOM`, `COLONY_RIDE` and `COLONY_STRAFE` (steps the scout off the trail so the recruits are seen apart; the take in the cut used 0.5 with aim `up 20`).
+- Shot `recap2`: the recap earned from three real lines, then the nest and a Brood purchase from that haul. `RECAP_AT` is the recap's game time (10.5 s, from `--probe recap2`).
+- `Leaf.TestLines` lays only one line with `any` or `sheltered` on day 1's sparse low boughs (a single candidate leaf); `climb` picks the lowest leaves on different boughs.

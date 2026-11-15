@@ -1,0 +1,22 @@
+# The MegaJam video's cut list, read by Tools/video_edit.py (docs/ship/video.md).
+# <take> <in> <out> [zoom=.. zoomto=.. cx=.. cy=.. box=1] | <caption>
+#   takes are Saved/VideoCap/shots/<take>.mp4; in/out are seconds within the take.
+#   @title TEXT = large centred title; @end A / B / C = end card.
+# Draft 6 (14 Nov, 23:10), the picture-lock candidate: three review rounds with Codex
+# (docs/reviews/video-draft2-codex.md, video-draft4-codex.md, video-draft6-codex.md). Still silent: sound comes next.
+
+# Opening: the tall spire, evening (owner). The crane's passage through foliage (4.8-7.3 s) is skipped.
+spire-take2    0.2   2.0   |
+spire-take2    7.6  11.8   | @title LEAFLINE
+ant-take3      1.0   4.0   |
+climb-take3    0.5   6.5   | Lay a scent trail.
+cut-take4      0.8   5.7   | Choose your cut.
+wind-take3     1.8   5.0   | Bigger cuts catch the wind.
+wind-take3     5.0   8.8   | Grip through the gust.
+cut-take4      5.7   7.4   | Send it home.
+cut-take4      9.0  10.8   | Next worker.
+colony-take2   0.6   6.0   | Your colony follows your trail.
+# The recap and the nest screen, enlarged so the numbers read (owner).
+recap2-take1   0.3   3.55  zoom=1.45 cx=0.5 cy=0.25 box=1 | A day's haul.
+recap2-take1   3.62  7.6   zoom=1.45 cx=0.5 cy=0.25 box=1 | Buy Brood: more recruits.
+end-take2      0.5   6.0   | @end LEAFLINE / Direct the colony. Choose every cut. / inventivetalent
