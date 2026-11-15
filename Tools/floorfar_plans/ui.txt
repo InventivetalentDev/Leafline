@@ -1,0 +1,107 @@
+# UI polish check (branch uipolish, 15 Nov): every between-day and menu screen at 1920x1080, 1280x720 and 2560x1440,
+# keyboard prompts and (where widest) pad prompts. ROOT=<tree> Tools/floorfar_shots.sh <label> Tools/floorfar_plans/ui.txt "-ResX=1920 -ResY=1080"
+# Regrows (ResetSave, StartDay) stall the game ~1.5 s and Leaf.Delay jumps over it: steps after them keep a buffer.
+0|r.SetRes 1920x1080w
+0|Leaf.Bird 0
+0|Leaf.Tune wind CalmMin 400
+0|Leaf.Tune wind CalmMax 400
+0|Leaf.Tune wind StreakCount 0
+0|Leaf.BuildLine 0
+0|Leaf.PadIcons 0
+# the title screen
+6|SHOT title-1080
+6.5|Leaf.PadIcons 1
+7.5|SHOT title-1080-pad
+8|Leaf.PadIcons 0
+8.2|r.SetRes 1280x720w
+10|SHOT title-720
+10.5|Leaf.PadIcons 1
+11.5|SHOT title-720-pad
+12|Leaf.PadIcons 0
+12.2|r.SetRes 2560x1440w
+14|SHOT title-1440
+14.5|r.SetRes 1920x1080w
+# a shift: the wind panel (top right), plain and with the wind map held (a reset save at launch would skip the title)
+14.7|Leaf.ResetSave
+14.8|Leaf.OneTree 1
+16|Leaf.StartDay 1 517192
+25|Leaf.GoLeaf
+28|SHOT hud-1080
+28.5|Leaf.Hold cycle 2.5
+30|SHOT hud-map-1080
+31.5|r.SetRes 1280x720w
+33.5|SHOT hud-720
+34|r.SetRes 2560x1440w
+36|SHOT hud-1440
+36.5|r.SetRes 1920x1080w
+# the evening recap (as Tools/itch_plans/main.txt: a fresh day 1, three pieces)
+38|Leaf.StartDay 1 517192
+43|Leaf.Carry 0.7
+45|Leaf.Carry 0.7
+47|Leaf.Carry 0.7
+51|SHOT recap-1080
+51.5|r.SetRes 1280x720w
+53.5|SHOT recap-720
+53.7|Leaf.PadIcons 1
+54.7|SHOT recap-720-pad
+55|Leaf.PadIcons 0
+55.2|r.SetRes 2560x1440w
+57.2|SHOT recap-1440
+57.7|r.SetRes 1920x1080w
+# the nest: Mandibles maxed, Brood and Strength bought, so some costs are affordable and some are not (49.4 left in the 15 Nov runs)
+59|Leaf.Hold grip 0.2
+60|Leaf.Give 1300
+61|Leaf.Buy 0
+61.2|Leaf.Buy 0
+61.4|Leaf.Buy 0
+61.6|Leaf.Buy 0
+61.8|Leaf.Buy 0
+62|Leaf.Buy 0
+62.2|Leaf.Buy 4
+62.4|Leaf.Buy 1
+62.6|Leaf.Buy 1
+64|SHOT nest-1080
+64.5|Leaf.PadIcons 1
+65.5|SHOT nest-1080-pad
+65.7|Leaf.PadIcons 0
+65.9|r.SetRes 1280x720w
+67.9|SHOT nest-720
+68.1|Leaf.PadIcons 1
+69.1|SHOT nest-720-pad
+69.3|Leaf.PadIcons 0
+69.5|r.SetRes 2560x1440w
+71.5|SHOT nest-1440
+72|r.SetRes 1920x1080w
+# long numbers: tens of thousands of leaf (also passes the milestones: the move line)
+73|Leaf.Give 98000
+75|SHOT nest-big-1080
+# the pause menu, options, credits and controls (paused from the nest)
+76|Leaf.PauseMenu 0
+77.5|SHOT pause-1080
+77.7|r.SetRes 1280x720w
+79.7|SHOT pause-720
+79.9|Leaf.PadIcons 1
+80.9|SHOT pause-720-pad
+81.1|Leaf.PadIcons 0
+81.3|r.SetRes 2560x1440w
+83.3|SHOT pause-1440
+83.5|r.SetRes 1920x1080w
+85|Leaf.PauseMenu 1 0
+86.5|SHOT options-1080
+87|Leaf.PauseMenu 2 0
+88.5|SHOT credits-1080
+88.7|r.SetRes 1280x720w
+90.7|SHOT credits-720
+90.9|r.SetRes 2560x1440w
+92.9|SHOT credits-1440
+93.1|r.SetRes 1920x1080w
+94|Leaf.PauseMenu 3
+95.5|SHOT controls-1080
+95.7|r.SetRes 1280x720w
+97.7|SHOT controls-720
+97.9|Leaf.PadIcons 1
+98.9|SHOT controls-720-pad
+99.1|Leaf.PadIcons 0
+99.3|r.SetRes 2560x1440w
+101.3|SHOT controls-1440
+102|Leaf.QuitAfter 1

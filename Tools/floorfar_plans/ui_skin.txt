@@ -1,0 +1,66 @@
+# UI polish check with the placeholder skin (python3 Tools/ui_test_skin.py Saved/SkinTest first): title, wind panel,
+# recap (with the move line), end card, nest, move card, pause, options, credits, controls; end and move card also flat.
+# ROOT=<tree> Tools/floorfar_shots.sh <label> Tools/floorfar_plans/ui_skin.txt "-ResX=1920 -ResY=1080"
+0|r.SetRes 1920x1080w
+0|Leaf.Bird 0
+0|Leaf.Tune wind CalmMin 400
+0|Leaf.Tune wind CalmMax 400
+0|Leaf.Tune wind StreakCount 0
+0|Leaf.BuildLine 0
+0|Leaf.PadIcons 0
+0|Leaf.ReloadSkin Saved/SkinTest
+6|SHOT skin-title-1080
+6.5|r.SetRes 1280x720w
+8.5|SHOT skin-title-720
+9|r.SetRes 1920x1080w
+10.7|Leaf.ResetSave
+10.8|Leaf.OneTree 1
+12|Leaf.StartDay 1 517192
+21|Leaf.GoLeaf
+24|SHOT skin-hud-1080
+24.5|Leaf.Hold cycle 2.5
+26|SHOT skin-hud-map-1080
+# all milestones reached before the day ends: the recap shows the move line and the end card follows it
+28|Leaf.Give 400
+30|Leaf.StartDay 1 517192
+35|Leaf.Carry 0.7
+37|Leaf.Carry 0.7
+39|Leaf.Carry 0.7
+43|SHOT skin-recap-1080
+43.5|r.SetRes 1280x720w
+45.5|SHOT skin-recap-720
+46|r.SetRes 1920x1080w
+47|Leaf.Hold grip 0.2
+49|SHOT skin-endcard-1080
+49.2|Leaf.Skin 0
+50.2|SHOT endcard-1080-flat
+50.4|Leaf.Skin 1
+51|Leaf.Hold grip 0.2
+53|Leaf.Give 1300
+54|Leaf.Buy 0
+54.2|Leaf.Buy 0
+54.4|Leaf.Buy 0
+54.6|Leaf.Buy 0
+54.8|Leaf.Buy 0
+55|Leaf.Buy 0
+55.2|Leaf.Buy 4
+55.4|Leaf.Buy 1
+55.6|Leaf.Buy 1
+57|SHOT skin-nest-1080
+57.5|r.SetRes 1280x720w
+59.5|SHOT skin-nest-720
+60|r.SetRes 1920x1080w
+61|Leaf.Move
+67|SHOT skin-move-1080
+67.2|Leaf.Skin 0
+68.2|SHOT move-1080-flat
+68.4|Leaf.Skin 1
+69|Leaf.PauseMenu 0
+70.5|SHOT skin-pause-1080
+71|Leaf.PauseMenu 1 0
+72.5|SHOT skin-options-1080
+73|Leaf.PauseMenu 2 0
+74.5|SHOT skin-credits-1080
+75|Leaf.PauseMenu 3
+76.5|SHOT skin-controls-1080
+77|Leaf.QuitAfter 1

@@ -119,6 +119,8 @@ private:
 	void DrawButtonBack(float X, float Y, float W, float H, float Scale, bool bSelected);
 	TArray<FString> WrapText(const FString& Text, float Width, float TextScale) const;
 	float DrawWrappedText(const FString& Text, float CX, float Y, float Width, const FLinearColor& Color, float TextScale, float Scale);
+	/** The height DrawWrappedText would return, without drawing (panels sized to their content). */
+	float WrappedHeight(const FString& Text, float Width, float TextScale, float Scale) const;
 	void DrawTextPanel(const FString& Text, float CX, float Y, const FLinearColor& Color, float TextScale, float Scale,
 		float Alpha = 1.f, float MaxWidth = 900.f);
 	bool UsingPad() const;
