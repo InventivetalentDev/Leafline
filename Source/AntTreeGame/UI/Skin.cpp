@@ -115,7 +115,9 @@ namespace LeafSkin
 					for (int32 k = 0; k < 4; ++k)
 					{
 						const FString& S = T[FMath::Min(2 + k, T.Num() - 1)];
-						if (!FCString::IsNumeric(*S)) return false;
+						bool bDigit = false; // IsNumeric alone accepts ".", "+" and "-"
+						for (const TCHAR C : S) bDigit |= FChar::IsDigit(C);
+						if (!bDigit || !FCString::IsNumeric(*S)) return false;
 						V[k] = FMath::Clamp(FCString::Atof(*S), -16.f, 96.f);
 					}
 					return true;

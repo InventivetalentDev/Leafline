@@ -716,7 +716,7 @@ void ALeaflineHUD::DrawDayInfo(const ADayDirector* D, float Scale)
 		}
 		else
 		{
-			if (LeafSkin::Get(LeafSkin::EKind::Group))
+			if (LeafSkin::Get(LeafSkin::EKind::Group) || LeafSkin::Get(LeafSkin::EKind::GroupCenter))
 			{
 				// Over a skin image the hollow cannot be painted in the panel colour: the outline as four strokes.
 				const float PY0 = MidY - Pip * 0.5f;
